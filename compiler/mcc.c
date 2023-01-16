@@ -3,6 +3,7 @@
 #include <string.h>
 #include "atom.h"
 #include "defs.h"
+#include "token.h"
 #include "parser.h"
 
 // my working data
@@ -42,15 +43,15 @@ int read_file(char *file) {
 
 int parse_file_into_tokens() {
     char *p = wd.buffer;
-    token t;
+    token *token = NULL;
     int err;
     while (1) {
-        err = parse_token_at_pointer(&p, &t);
+        err = parse_token_at_pointer(&p, &token);
         if (err == ERROR)
             return ERROR;
         if (err == DONE)
             break;
-        print_token(&t);
+        add_token(token);
     }
     return SUCCESS;
 }
@@ -75,6 +76,7 @@ int main(int argc, char *argv[]) {
 
     memset(&wd, 0, sizeof(wd));
     init_atom();
+    init_tokens();
 
     err = read_file(argv[1]);
     if (err)
@@ -84,6 +86,8 @@ int main(int argc, char *argv[]) {
     if (err)
         return 1;
     
+    print_tokens();
+
     // err = parse_syntax_tree();
     // if (err)
     //     return 1;

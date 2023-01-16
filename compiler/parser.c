@@ -5,6 +5,7 @@
 #include "defs.h"
 #include "atom.h"
 #include "parser.h"
+#include "token.h"
 
 
 #define is_digit(c)         ((c) >= '0' && (c) <= '9')
@@ -12,7 +13,7 @@
 #define is_whitespace(c)    ((c) == ' ' || (c) == '\t' || (c) == '\r' || (c) == '\n')
 
 
-int parse_token_at_pointer(char **p, struct token *dest) {
+int parse_token_at_pointer(char **p, struct token **token) {
     char c, cnext;
     enum token_type type;
     clear_atom();
@@ -147,45 +148,7 @@ int parse_token_at_pointer(char **p, struct token *dest) {
         type = TOK_UNKNOWN;
     }
 
-    dest->type = type;
-    if (atom_len() == 0)
-        dest->value = NULL;
-    else {
-        dest->value = malloc(atom_len() + 1);
-        strcpy(dest->value, get_atom());
-    }
+    (*token) = create_token(type, get_atom());
     return SUCCESS;
 }
 
-void print_token(token *token) {
-    char *name;
-    switch (token->type) {
-        case TOK_COMMENT: name = "COMMENT"; break;
-        case TOK_IDENTIFIER: name = "IDENTIFIER"; break;
-        case TOK_NUMBER: name = "NUMBER"; break;
-        case TOK_COMMA: name = "COMMA"; break;
-        case TOK_STRING_LITERAL: name = "STRING_LITERAL"; break;
-        case TOK_CHAR_LITERAL: name = "CHAR_LITERAL"; break;
-        case TOK_OPEN_PARENTHESIS: name = "OPEN_PARENTHESIS"; break;
-        case TOK_CLOSE_PARENTHESIS: name = "CLOSE_PARENTHESIS"; break;
-        case TOK_OPEN_BRACKET: name = "OPEN_BRACKET"; break;
-        case TOK_CLOSE_BRACKET: name = "CLOSE_BRACKET"; break;
-        case TOK_OPEN_BLOCK: name = "OPEN_BLOCK"; break;
-        case TOK_CLOSE_BLOCK: name = "CLOSE_BLOCK"; break;
-        case TOK_END_OF_STATEMENT: name = "END_OF_STATEMENT"; break;
-        case TOK_ASSIGNMENT: name = "ASSIGNMENT"; break;
-        case TOK_EQUALITY_CHECK: name = "EQUALITY_CHECK"; break;
-        case TOK_PLUS_SIGN: name = "PLUS_SIGN"; break;
-        case TOK_MINUS_SIGN: name = "MINUS_SIGN"; break;
-        case TOK_INCREMENT: name = "INCREMENT"; break;
-        case TOK_DECREMENT: name = "DECREMENT"; break;
-        case TOK_UNKNOWN: name = "UNKNOWN"; break;
-        default: name = "???"; break;
-    }
-
-    if (token->value == NULL) {
-        printf("%s\n", name);
-    } else {
-        printf("%s \"%s\"\n", name, token->value);
-    }
-}

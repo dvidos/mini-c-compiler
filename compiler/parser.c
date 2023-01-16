@@ -10,20 +10,7 @@
 #define is_digit(c)         ((c) >= '0' && (c) <= '9')
 #define is_letter(c)        (((c) >= 'a' && (c) <= 'z') || ((c) >= 'A' && (c) <= 'Z'))
 #define is_whitespace(c)    ((c) == ' ' || (c) == '\t' || (c) == '\r' || (c) == '\n')
-#define next_char(char_pp)  (*((*char_pp) + 1))
 
-
-void set_token(struct token *dest, enum token_type type) {
-    dest->type = type;
-
-    char *atom = get_atom();
-    if (strlen(atom) == 0) {
-        dest->value = NULL;
-    } else {
-        dest->value = malloc(strlen(atom) + 1);
-        strcpy(dest->value, atom);
-    }
-}
 
 int parse_token_at_pointer(char **p, struct token *dest) {
     char c, cnext;
@@ -42,6 +29,8 @@ int parse_token_at_pointer(char **p, struct token *dest) {
         // parse comment till EOL
         (*p)++; // skip first slash
         (*p)++; // skip second slash
+        while (is_whitespace(**p))
+            (*p)++;
         c = **p;
         while (c != '\n') {
             extend_atom(c);
@@ -170,8 +159,33 @@ int parse_token_at_pointer(char **p, struct token *dest) {
 
 void print_token(token *token) {
     char *name;
-    printf("token_type %d, value \"%s\"\n", 
-        token->type,
-        token->value == NULL ? "(null)" : token->value
-    );
+    switch (token->type) {
+        case TOK_COMMENT: name = "COMMENT"; break;
+        case TOK_IDENTIFIER: name = "IDENTIFIER"; break;
+        case TOK_NUMBER: name = "NUMBER"; break;
+        case TOK_COMMA: name = "COMMA"; break;
+        case TOK_STRING_LITERAL: name = "STRING_LITERAL"; break;
+        case TOK_CHAR_LITERAL: name = "CHAR_LITERAL"; break;
+        case TOK_OPEN_PARENTHESIS: name = "OPEN_PARENTHESIS"; break;
+        case TOK_CLOSE_PARENTHESIS: name = "CLOSE_PARENTHESIS"; break;
+        case TOK_OPEN_BRACKET: name = "OPEN_BRACKET"; break;
+        case TOK_CLOSE_BRACKET: name = "CLOSE_BRACKET"; break;
+        case TOK_OPEN_BLOCK: name = "OPEN_BLOCK"; break;
+        case TOK_CLOSE_BLOCK: name = "CLOSE_BLOCK"; break;
+        case TOK_END_OF_STATEMENT: name = "END_OF_STATEMENT"; break;
+        case TOK_ASSIGNMENT: name = "ASSIGNMENT"; break;
+        case TOK_EQUALITY_CHECK: name = "EQUALITY_CHECK"; break;
+        case TOK_PLUS_SIGN: name = "PLUS_SIGN"; break;
+        case TOK_MINUS_SIGN: name = "MINUS_SIGN"; break;
+        case TOK_INCREMENT: name = "INCREMENT"; break;
+        case TOK_DECREMENT: name = "DECREMENT"; break;
+        case TOK_UNKNOWN: name = "UNKNOWN"; break;
+        default: name = "???"; break;
+    }
+
+    if (token->value == NULL) {
+        printf("%s\n", name);
+    } else {
+        printf("%s \"%s\"\n", name, token->value);
+    }
 }

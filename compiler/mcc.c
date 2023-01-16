@@ -36,7 +36,7 @@ int read_file(char *file) {
     }
 
     printf("Read %d bytes from file %s\n", bytes_read, file);
-    puts(wd.buffer);
+    // puts(wd.buffer);
     return SUCCESS;
 }
 
@@ -53,6 +53,16 @@ int parse_file_into_tokens() {
             break;
         add_token(token);
     }
+
+
+    if (unknown_tokens_exist()) {
+        printf("Unknown tokens detected, cannot continue...\n");
+        print_tokens();
+        return ERROR;
+    } else {
+        printf("Parsed %d tokens\n", count_tokens());
+    }
+
     return SUCCESS;
 }
 
@@ -86,8 +96,6 @@ int main(int argc, char *argv[]) {
     if (err)
         return 1;
     
-    print_tokens();
-
     // err = parse_syntax_tree();
     // if (err)
     //     return 1;

@@ -1,5 +1,7 @@
 #pragma once
 
+#include <stdbool.h>
+
 
 enum token_type {
     TOK_COMMENT,
@@ -21,11 +23,26 @@ enum token_type {
     TOK_MINUS_SIGN,
     TOK_INCREMENT,
     TOK_DECREMENT,
-    TOK_UNKNOWN,
+    TOK_LESS_EQUAL,
+    TOK_LESS_THAN,
+    TOK_LARGER_EQUAL,
+    TOK_LARGER_THAN,
+    TOK_NOT_EQUAL,
+    TOK_BOOLEAN_NOT,
+    TOK_LOGICAL_AND,
+    TOK_BITWISE_AND,
+    TOK_LOGICAL_OR,
+    TOK_BITWISE_OR,
+
 
     // keep this section synced with keywords
     TOK_KEYWORDS_START,
+    TOK_RETURN = TOK_KEYWORDS_START,
+    TOK_IF,
+    TOK_ELSE,
 
+    // unknown token, e.g. something we don't understand.
+    TOK_UNKNOWN,
 };
 
 typedef struct token token;
@@ -42,3 +59,5 @@ void init_tokens();
 void add_token(token *token);
 void print_token(token *token);
 void print_tokens();
+int count_tokens();
+bool unknown_tokens_exist();

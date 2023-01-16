@@ -1,18 +1,37 @@
 #include <stdlib.h>
+#include <string.h>
+#include <stdio.h>
+#include <stdbool.h>
 #include "token.h"
-
 
 token *tokens_head;
 token *tokens_tail;
 
-token *create_token(enum token_type type, char *value) {
-    token *t = malloc(sizeof(token));
+char *keywords[] = {
+    "return",
+    "if",
+    "else",
+};
 
+token *create_token(enum token_type type, char *value) {
+
+    // see if identifier is a reserved word
+    if (type == TOK_IDENTIFIER && value != NULL) {
+        for (int i = 0; i < sizeof(keywords) / sizeof(keywords[0]); i++) {
+            if (strcmp(value, keywords[i]) == 0) {
+                type = (enum token_type)(TOK_KEYWORDS_START + i),
+                value = NULL;
+                break;
+            }
+        }
+    }
+
+    token *t = malloc(sizeof(token));
     t->type = type;
-    if (atom_len() == 0)
+    if (value == NULL || strlen(value) == 0)
         t->value = NULL;
     else {
-        t->value = malloc(atom_len() + 1);
+        t->value = malloc(strlen(value) + 1);
         strcpy(t->value, value);
     }
 
@@ -57,8 +76,25 @@ void print_token(token *token) {
         case TOK_MINUS_SIGN: name = "MINUS_SIGN"; break;
         case TOK_INCREMENT: name = "INCREMENT"; break;
         case TOK_DECREMENT: name = "DECREMENT"; break;
-        case TOK_UNKNOWN: name = "UNKNOWN"; break;
-        default: name = "???"; break;
+        case TOK_LESS_EQUAL: name = "LESS_EQUAL"; break;
+        case TOK_LESS_THAN: name = "LESS_THAN"; break;
+        case TOK_LARGER_EQUAL: name = "LARGER_EQUAL"; break;
+        case TOK_LARGER_THAN: name = "LARGER_THAN"; break;
+        case TOK_NOT_EQUAL: name = "NOT_EQUAL"; break;
+        case TOK_BOOLEAN_NOT: name = "BOOLEAN_NOT"; break;
+        case TOK_LOGICAL_AND: name = "LOGICAL_AND"; break;
+        case TOK_BITWISE_AND: name = "BITWISE_AND"; break;
+        case TOK_LOGICAL_OR: name = "LOGICAL_OR"; break;
+        case TOK_BITWISE_OR: name = "BITWISE_OR"; break;
+
+        // keywods
+        case TOK_RETURN: name = "RETURN"; break;
+        case TOK_IF: name = "IF"; break;
+        case TOK_ELSE: name = "ELSE"; break;
+
+        // exceptions
+        case TOK_UNKNOWN: name = "** UNKNOWN **"; break;
+        default: name = "** NAME NOT GIVEN **"; break;
     }
 
     if (token->value == NULL) {
@@ -74,4 +110,24 @@ void print_tokens() {
         print_token(p);
         p = p->next;
     }
+}
+
+int count_tokens() {
+    int i = 0;
+    token *p = tokens_head;
+    while (p != NULL) {
+        i++;
+        p = p->next;
+    }
+    return i;
+}
+
+bool unknown_tokens_exist() {
+    token *p = tokens_head;
+    while (p != NULL) {
+        if (p->type == TOK_UNKNOWN)
+            return true;
+        p = p->next;
+    }
+    return false;
 }

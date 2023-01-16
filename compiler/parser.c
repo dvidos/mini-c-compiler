@@ -143,6 +143,51 @@ int parse_token_at_pointer(char **p, struct token **token) {
             type = TOK_MINUS_SIGN;
         }
 
+    } else if (c == '<') {
+        (*p)++; // skip this
+        if (**p == '=') {
+            type = TOK_LESS_EQUAL;
+            (*p)++;
+        } else {
+            type = TOK_LESS_THAN;
+        }
+
+    } else if (c == '>') {
+        (*p)++; // skip this
+        if (**p == '=') {
+            type = TOK_LARGER_EQUAL;
+            (*p)++;
+        } else {
+            type = TOK_LARGER_THAN;
+        }
+
+    } else if (c == '!') {
+        (*p)++; // skip this
+        if (**p == '=') {
+            type = TOK_NOT_EQUAL;
+            (*p)++;
+        } else {
+            type = TOK_BOOLEAN_NOT;
+        }
+
+    } else if (c == '&') {
+        (*p)++; // skip this
+        if (**p == '&') {
+            type = TOK_LOGICAL_AND;
+            (*p)++;
+        } else {
+            type = TOK_BITWISE_AND;
+        }
+
+    } else if (c == '|') {
+        (*p)++; // skip this
+        if (**p == '|') {
+            type = TOK_LOGICAL_OR;
+            (*p)++;
+        } else {
+            type = TOK_BITWISE_OR;
+        }
+
     } else {
         (*p)++; // skip it.
         type = TOK_UNKNOWN;

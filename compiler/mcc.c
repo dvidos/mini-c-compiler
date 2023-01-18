@@ -8,6 +8,11 @@
 #include "ast.h"
 #include "parser.h"
 
+bool verbose = false;
+char *filename = NULL;
+
+
+
 
 int read_file(char *file, char **buffer_pp) {
     FILE *f = fopen(file, "r");
@@ -29,7 +34,12 @@ int read_file(char *file, char **buffer_pp) {
     }
 
     printf("Read %d bytes from file %s\n", bytes_read, file);
-    // puts(*buffer_pp);
+    if (verbose) {
+        puts("---------------------");
+        puts(*buffer_pp);
+        puts("---------------------");
+    }
+
     return SUCCESS;
 }
 
@@ -53,23 +63,34 @@ int parse_file_into_lexer_tokens(char *file_buffer) {
         
         add_token(token);
     }
-
-    // add one final token, to allow us to always peek ahead
     
     if (unknown_tokens_exist()) {
         printf("Unknown tokens detected, cannot continue...\n");
         print_tokens();
         return ERROR;
-    } else {
-        printf("Parsed %d tokens\n", count_tokens());
+    }
+
+    printf("Parsed %d tokens\n", count_tokens());
+    if (verbose) {
+        print_tokens();
     }
 
     return SUCCESS;
 }
 
 int parse_abstract_syntax_tree(token *first) {
-    return ERROR;
-    parse_file(first);
+    init_ast();
+
+    int err = parse_file(first);
+    if (err) {
+        printf("Error parsing syntax\n");
+        return ERROR;
+    }
+
+    // should say "parsed x nodes in AST"
+    if (verbose) {
+        print_ast();
+    }
     return SUCCESS;
 }
 
@@ -83,15 +104,25 @@ int main(int argc, char *argv[]) {
     int err;
     printf("mits compiler, v0.01\n");
 
-    if (argc < 2) {
-        printf("No file name given");
+    for (int i = 1; i < argc; i++) {
+        if (argv[i][0] == '-') {
+            if (argv[i][1] == 'v')
+                verbose = true;
+        } else {
+            filename = argv[i];
+        }
+    }
+    
+    if (filename == NULL) {
+        printf("Syntax: mcc [-v] file.c\n");
+        printf("  -v: verbose\n");
         return 1;
     }
 
     init_atom();
     init_tokens();
 
-    err = read_file(argv[1], &file_buffer);
+    err = read_file(filename, &file_buffer);
     if (err)
         return 1;
     

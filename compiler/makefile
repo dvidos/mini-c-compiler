@@ -13,6 +13,9 @@ $(BINARY): $(SRC_FILES)
 test: $(BINARY) test.c
 	./$(BINARY) test.c
 
+vtest: $(BINARY) test.c
+	./$(BINARY) -v test.c
+
 clean:
 	rm -f mcc
 

@@ -112,9 +112,9 @@ char *token_type_name(enum token_type type) {
 void print_token(token *token) {
     char *name = token_type_name(token->type);
     if (token->value == NULL) {
-        printf("%s\n", name);
+        printf("  %s\n", name);
     } else {
-        printf("%s \"%s\"\n", name, token->value);
+        printf("  %s: \"%s\"\n", name, token->value);
     }
 }
 

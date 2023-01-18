@@ -31,5 +31,10 @@ or machine code for it
 
 We'll need some good data structures (dictionaries, list, trees) for this.
 
+## giants
 
+Of course I'm relying on giants here, I'm here to discover and learn.
+
+See https://compilers.iecc.com/crenshaw/tutorfinal.pdf
+and https://www3.nd.edu/~dthain/compilerbook/compilerbook.pdf
 

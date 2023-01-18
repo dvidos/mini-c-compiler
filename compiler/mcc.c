@@ -4,19 +4,12 @@
 #include "atom.h"
 #include "defs.h"
 #include "token.h"
+#include "lexer.h"
+#include "ast.h"
 #include "parser.h"
 
-// my working data
-struct {
-    char *filename;
-    char *buffer;
-    struct token_list *tokens;
-    struct abstract_syntax_tree *ast_root;
-} wd;
 
-
-
-int read_file(char *file) {
+int read_file(char *file, char **buffer_pp) {
     FILE *f = fopen(file, "r");
     if (f == NULL) {
         printf("error opening file \"%s\"\n", file);
@@ -26,8 +19,8 @@ int read_file(char *file) {
     int size = (int)ftell(f);
     fseek(f, 0, SEEK_SET);
 
-    wd.buffer = malloc(size);
-    int bytes_read = (int)fread(wd.buffer, 1, size, f);
+    *buffer_pp = malloc(size);
+    int bytes_read = (int)fread(*buffer_pp, 1, size, f);
     fclose(f);
 
     if (bytes_read < size) {
@@ -36,25 +29,33 @@ int read_file(char *file) {
     }
 
     printf("Read %d bytes from file %s\n", bytes_read, file);
-    // puts(wd.buffer);
+    // puts(*buffer_pp);
     return SUCCESS;
 }
 
 
-int parse_file_into_tokens() {
-    char *p = wd.buffer;
+int parse_file_into_lexer_tokens(char *file_buffer) {
+    char *p = file_buffer;
     token *token = NULL;
     int err;
+
     while (1) {
-        err = parse_token_at_pointer(&p, &token);
+        err = parse_lexer_token_at_pointer(&p, &token);
         if (err == ERROR)
-            return ERROR;
-        if (err == DONE)
+            return ERROR; 
+        if (err == DONE) {
+            // one final token, to allow us to always peek
+            add_token(create_token(TOK_EOF, NULL));
             break;
+        }
+        if (token->type == TOK_COMMENT)
+            continue;
+        
         add_token(token);
     }
 
-
+    // add one final token, to allow us to always peek ahead
+    
     if (unknown_tokens_exist()) {
         printf("Unknown tokens detected, cannot continue...\n");
         print_tokens();
@@ -66,7 +67,9 @@ int parse_file_into_tokens() {
     return SUCCESS;
 }
 
-int parse_syntax_tree() {
+int parse_abstract_syntax_tree(token *first) {
+    return ERROR;
+    parse_file(first);
     return SUCCESS;
 }
 
@@ -76,6 +79,7 @@ int generate_code() {
 }
 
 int main(int argc, char *argv[]) {
+    char *file_buffer = NULL;
     int err;
     printf("mits compiler, v0.01\n");
 
@@ -84,26 +88,25 @@ int main(int argc, char *argv[]) {
         return 1;
     }
 
-    memset(&wd, 0, sizeof(wd));
     init_atom();
     init_tokens();
 
-    err = read_file(argv[1]);
+    err = read_file(argv[1], &file_buffer);
     if (err)
         return 1;
     
-    err = parse_file_into_tokens();
+    err = parse_file_into_lexer_tokens(file_buffer);
     if (err)
         return 1;
     
-    // err = parse_syntax_tree();
-    // if (err)
-    //     return 1;
+    err = parse_abstract_syntax_tree(get_first_token());
+    if (err)
+        return 1;
 
     // err = generate_code();
     // if (err)
     //     return 1;
 
-    printf("success\n");
+    printf("Success!\n");
     return 0;
 }

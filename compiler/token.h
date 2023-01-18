@@ -3,24 +3,33 @@
 #include <stdbool.h>
 
 
-enum token_type {
+typedef enum token_type {
     TOK_COMMENT,
+    TOK_EOF,
     TOK_IDENTIFIER,
     TOK_NUMBER,
     TOK_COMMA,
     TOK_STRING_LITERAL,
     TOK_CHAR_LITERAL,
-    TOK_OPEN_PARENTHESIS,
-    TOK_CLOSE_PARENTHESIS,
+    TOK_LPAREN,
+    TOK_RPAREN,
     TOK_OPEN_BRACKET,
     TOK_CLOSE_BRACKET,
-    TOK_OPEN_BLOCK,
-    TOK_CLOSE_BLOCK,
+    TOK_BLOCK_START,
+    TOK_BLOCK_END,
     TOK_END_OF_STATEMENT,
     TOK_ASSIGNMENT,
     TOK_EQUALITY_CHECK,
     TOK_PLUS_SIGN,
     TOK_MINUS_SIGN,
+    TOK_STAR,
+    TOK_SLASH,
+    TOK_AMPBERSAND,
+    TOK_PERCENT,
+    TOK_CARET,
+    TOK_QUESTION_MARK,
+    TOK_COLON,
+    TOK_DOT,
     TOK_INCREMENT,
     TOK_DECREMENT,
     TOK_LESS_EQUAL,
@@ -40,24 +49,31 @@ enum token_type {
     TOK_RETURN = TOK_KEYWORDS_START,
     TOK_IF,
     TOK_ELSE,
+    TOK_WHILE,
+    TOK_CONTINUE,
+    TOK_BREAK,
+    TOK_INT,
+    TOK_CHAR,
 
     // unknown token, e.g. something we don't understand.
     TOK_UNKNOWN,
-};
+} token_type;
 
 typedef struct token token;
 struct token {
     struct token *next;
-    enum token_type type;
+    token_type type;
     char *value;
     int entry;  // if specific keyword or data type
 };
 
-token *create_token(enum token_type type, char *value);
+token *create_token(token_type type, char *value);
 
 void init_tokens();
 void add_token(token *token);
 void print_token(token *token);
+char *token_type_name(token_type type);
 void print_tokens();
 int count_tokens();
 bool unknown_tokens_exist();
+token *get_first_token();

@@ -1,199 +1,176 @@
-#include <stdio.h>
-#include <stdlib.h>
 #include <stddef.h>
-#include <string.h>
+#include <stdio.h>
 #include "defs.h"
-#include "atom.h"
-#include "parser.h"
 #include "token.h"
 
+/**
+ * How to parse an expression into a tree????
+ * Sounds like the shunting-yard algorithm is in order
+ * It uses a stack to push things in natural (source code) order, 
+ * but pop in RPN (reverse polish notation)
+ * Invented by Dijkstra of course!
+ * Oh... there's a lot to learn here, actally...
+ * Parsers, LL, LR, recursive, etc.
+ * I think I'll need a Recursive descent parser in general,
+ * but still want to get to the bottom of parsing an expression with precedence.
+ * It seems Recursive parser is ok for some levels of precedence, but,
+ * for many levels, coding becomes tedius, as the sequence of calling the functions
+ * is what determines precedence.
+ * For a true multi-precedence parser, I should look into 
+ * 
+ * See 
+ * - https://rosettacode.org/wiki/Parsing/Shunting-yard_algorithm
+ * - https://en.wikipedia.org/wiki/Recursive_descent_parser
+ * - https://www.lysator.liu.se/c/ANSI-C-grammar-y.html
+ */
 
-#define is_digit(c)         ((c) >= '0' && (c) <= '9')
-#define is_letter(c)        (((c) >= 'a' && (c) <= 'z') || ((c) >= 'A' && (c) <= 'Z'))
-#define is_whitespace(c)    ((c) == ' ' || (c) == '\t' || (c) == '\r' || (c) == '\n')
+// let's try a Recursive Descend Parser
+// if operator precedence is too high, we can switch to other parsers.
+// we need a ton of tests, to verify things!!!
 
 
-int parse_token_at_pointer(char **p, struct token **token) {
-    char c, cnext;
-    enum token_type type;
-    clear_atom();
+static token *iterator_ptr;
 
-    // skip whitespace, grab first character
-    while (is_whitespace(**p))
-        (*p)++;
-    if (**p == 0)
-        return DONE;
+// returns current token's type
+static token_type current() {
+    return iterator_ptr->type;
+}
+
+static void next_token() {
+    iterator_ptr = iterator_ptr->next;
+}
+
+// consumes token, only if matching. 
+static bool accept(token_type type) {
+    if (iterator_ptr->type != type)
+        return false;
     
-    c = **p;
-    cnext = *(*p + 1);
-    if (c == '/' && cnext == '/') {
-        // parse comment till EOL
-        (*p)++; // skip first slash
-        (*p)++; // skip second slash
-        while (is_whitespace(**p))
-            (*p)++;
-        c = **p;
-        while (c != '\n') {
-            extend_atom(c);
-            (*p)++;
-            c = **p;
-        }
-        type = TOK_COMMENT;
-        
-    } else if (is_letter(c) || c == '_') {
-        // parse keyword or identifier
-        while (is_letter(c) || is_digit(c) || c == '_') {
-            extend_atom(c);
-            (*p)++;
-            c = **p;
-        }
-        type = TOK_IDENTIFIER;
+    next_token();
+    return true;
+}
 
-    } else if (c >= '0' && c <= '9') {
-        // parse number
-        while (is_digit(c)) {
-            extend_atom(c);
-            (*p)++;
-            c = **p;
-        }
-        type = TOK_NUMBER;
-
-    } else if (c == ';') {
-        // comma
-        (*p)++;
-        type = TOK_END_OF_STATEMENT;
-
-    } else if (c == ',') {
-        // comma
-        (*p)++;
-        type = TOK_COMMA;
-
-    } else if (c == '"') {
-        // parse string
-        (*p)++; // skip starting quote
-        c = **p;
-        while (c != '"') {
-            extend_atom(c);
-            (*p)++;
-            c = **p;
-        }
-        (*p)++; // skip ending quote
-        type = TOK_STRING_LITERAL;
-        
-    } else if (c == '\'') {
-        // parse char
-        (*p)++; // skip starting quote
-        c = **p;
-        (*p)++; // skip character
-        (*p)++; // skip ending quote
-        type = TOK_CHAR_LITERAL;
-
-    } else if (c == '(') {
-        (*p)++; // skip one
-        type = TOK_OPEN_PARENTHESIS;
-
-    } else if (c == ')') {
-        (*p)++; // skip one
-        type = TOK_CLOSE_PARENTHESIS;
-
-    } else if (c == '[') {
-        (*p)++; // skip one
-        type = TOK_OPEN_BRACKET;
-
-    } else if (c == ']') {
-        (*p)++; // skip one
-        type = TOK_CLOSE_BRACKET;
-
-    } else if (c == '{') {
-        (*p)++; // skip one
-        type = TOK_OPEN_BLOCK;
-
-    } else if (c == '}') {
-        (*p)++; // skip one
-        type = TOK_CLOSE_BLOCK;
-
-    } else if (c == '}') {
-        (*p)++; // skip one
-        type = TOK_CLOSE_BLOCK;
-
-    } else if (c == '=') {
-        (*p)++; // skip this
-        if (**p == '=') {
-            type = TOK_EQUALITY_CHECK;
-            (*p)++;
-        } else {
-            type = TOK_ASSIGNMENT;
-        }
-
-    } else if (c == '+') {
-        (*p)++; // skip this
-        if (**p == '+') {
-            type = TOK_INCREMENT;
-            (*p)++;
-        } else {
-            type = TOK_PLUS_SIGN;
-        }
-
-    } else if (c == '-') {
-        (*p)++; // skip this
-        if (**p == '-') {
-            type = TOK_DECREMENT;
-            (*p)++;
-        } else {
-            type = TOK_MINUS_SIGN;
-        }
-
-    } else if (c == '<') {
-        (*p)++; // skip this
-        if (**p == '=') {
-            type = TOK_LESS_EQUAL;
-            (*p)++;
-        } else {
-            type = TOK_LESS_THAN;
-        }
-
-    } else if (c == '>') {
-        (*p)++; // skip this
-        if (**p == '=') {
-            type = TOK_LARGER_EQUAL;
-            (*p)++;
-        } else {
-            type = TOK_LARGER_THAN;
-        }
-
-    } else if (c == '!') {
-        (*p)++; // skip this
-        if (**p == '=') {
-            type = TOK_NOT_EQUAL;
-            (*p)++;
-        } else {
-            type = TOK_BOOLEAN_NOT;
-        }
-
-    } else if (c == '&') {
-        (*p)++; // skip this
-        if (**p == '&') {
-            type = TOK_LOGICAL_AND;
-            (*p)++;
-        } else {
-            type = TOK_BITWISE_AND;
-        }
-
-    } else if (c == '|') {
-        (*p)++; // skip this
-        if (**p == '|') {
-            type = TOK_LOGICAL_OR;
-            (*p)++;
-        } else {
-            type = TOK_BITWISE_OR;
-        }
-
-    } else {
-        (*p)++; // skip it.
-        type = TOK_UNKNOWN;
+// errors if token does not match
+static bool expect(token_type type) {
+    if (!accept(type)) {
+        printf("Was expecting %s token, but got %s instead", 
+            token_type_name(type),
+            token_type_name(iterator_ptr->type)
+        );
+        return false;
     }
 
-    (*token) = create_token(type, get_atom());
-    return SUCCESS;
+    return true;
+}
+
+// ------------------------------------
+
+// in general, parsers do not consume the closing token
+// but test against it to see if they finished.
+// so, expressions stop when they see a ")" and so do blocks for the "}"
+int parse_statement();
+int parse_block();
+int parse_expression();
+
+
+int parse_statement() {
+    if (accept(TOK_IF)) {
+        expect(TOK_LPAREN);
+        parse_expression();
+        expect(TOK_RPAREN);
+        if (accept(TOK_BLOCK_START)) {
+            parse_block();
+            expect(TOK_BLOCK_END);
+        } else {
+            parse_statement();
+            expect(TOK_END_OF_STATEMENT);
+        }
+        if (accept(TOK_ELSE)) {
+            if (accept(TOK_BLOCK_START)) {
+                parse_block();
+                expect(TOK_BLOCK_END);
+            } else {
+                parse_statement();
+                expect(TOK_END_OF_STATEMENT);
+            }
+        }
+    }
+    if (accept(TOK_WHILE)) {
+        expect(TOK_LPAREN);
+        parse_expression();
+        expect(TOK_RPAREN);
+        if (accept(TOK_BLOCK_START)) {
+            parse_block();
+            expect(TOK_BLOCK_END);
+        } else {
+            parse_statement();
+            expect(TOK_END_OF_STATEMENT);
+        }
+    }
+    if (accept(TOK_RETURN)) {
+        if (accept(TOK_END_OF_STATEMENT)) {
+            // return with no value
+        } else {
+            parse_expression();
+            expect(TOK_END_OF_STATEMENT);
+        }
+    }
+    if (accept(TOK_IDENTIFIER)) {
+        // can be declaration, function call or assignment
+        // etc.
+    }
+}
+
+int parse_block() {
+    do {
+        parse_statement();
+    } while (current() != TOK_BLOCK_END && current() != TOK_EOF);
+}
+
+int parse_expression() {
+    do {
+        if (accept(TOK_LPAREN)) {
+            // nested expression
+            parse_expression();
+            expect(TOK_RPAREN);
+        } else {
+            // maybe prefix operators, such as &, *, !, ~
+        }
+    } while (current() != TOK_END_OF_STATEMENT && current() != TOK_RPAREN);
+}
+
+int parse_function_arguments_list() {
+    while (current() != TOK_RPAREN) {
+        expect(TOK_IDENTIFIER); // type
+        expect(TOK_IDENTIFIER); // name
+        if (accept(TOK_COMMA))
+            continue;
+        else
+            break;
+    }
+}
+
+int parse_file(token *first_token) {
+    // table level indentifiers: static, typedef, <type>, extern, etc.
+    iterator_ptr = first_token;
+    
+    while (current() != TOK_EOF) {
+        expect(TOK_INT);
+        expect(TOK_IDENTIFIER);
+        if (accept(TOK_ASSIGNMENT)) {
+            // variable with initial value
+            parse_expression();
+            expect(TOK_END_OF_STATEMENT);
+        } else if (accept(TOK_LPAREN)) {
+            // function declaration or definition
+            parse_function_arguments_list();
+            expect(TOK_RPAREN);
+            if (accept(TOK_END_OF_STATEMENT)) {
+                // just declaration
+            } else if (accept(TOK_BLOCK_START)) {
+                parse_block();
+                expect(TOK_BLOCK_END);
+            }
+        }
+    }
 }
 

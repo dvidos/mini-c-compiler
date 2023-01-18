@@ -1,7 +1,9 @@
 
+int global = 3;
+
 // this is a comment
 int add_numbers(int a, int b) {
-    int c = a + b;
+    int c = a + 2 * b;
     if (c > 3) {
         return 1;
     } else {
@@ -13,4 +15,5 @@ int add_numbers(int a, int b) {
 void main() {
     func1(5);
 }
+
 

@@ -1,5 +1,11 @@
 BINARY = mcc
-SRC_FILES = mcc.c parser.c atom.c token.c
+SRC_FILES = \
+	mcc.c \
+	atom.c \
+	lexer.c \
+	token.c \
+	ast.c \
+	parser.c \
 
 $(BINARY): $(SRC_FILES)
 	gcc -o $@ -g $^

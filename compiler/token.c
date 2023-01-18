@@ -11,6 +11,11 @@ char *keywords[] = {
     "return",
     "if",
     "else",
+    "while",
+    "continue",
+    "break",
+    "int",
+    "char",
 };
 
 token *create_token(enum token_type type, char *value) {
@@ -54,49 +59,58 @@ void add_token(token *token) {
     token->next = NULL;
 }
 
-void print_token(token *token) {
-    char *name;
-    switch (token->type) {
-        case TOK_COMMENT: name = "COMMENT"; break;
-        case TOK_IDENTIFIER: name = "IDENTIFIER"; break;
-        case TOK_NUMBER: name = "NUMBER"; break;
-        case TOK_COMMA: name = "COMMA"; break;
-        case TOK_STRING_LITERAL: name = "STRING_LITERAL"; break;
-        case TOK_CHAR_LITERAL: name = "CHAR_LITERAL"; break;
-        case TOK_OPEN_PARENTHESIS: name = "OPEN_PARENTHESIS"; break;
-        case TOK_CLOSE_PARENTHESIS: name = "CLOSE_PARENTHESIS"; break;
-        case TOK_OPEN_BRACKET: name = "OPEN_BRACKET"; break;
-        case TOK_CLOSE_BRACKET: name = "CLOSE_BRACKET"; break;
-        case TOK_OPEN_BLOCK: name = "OPEN_BLOCK"; break;
-        case TOK_CLOSE_BLOCK: name = "CLOSE_BLOCK"; break;
-        case TOK_END_OF_STATEMENT: name = "END_OF_STATEMENT"; break;
-        case TOK_ASSIGNMENT: name = "ASSIGNMENT"; break;
-        case TOK_EQUALITY_CHECK: name = "EQUALITY_CHECK"; break;
-        case TOK_PLUS_SIGN: name = "PLUS_SIGN"; break;
-        case TOK_MINUS_SIGN: name = "MINUS_SIGN"; break;
-        case TOK_INCREMENT: name = "INCREMENT"; break;
-        case TOK_DECREMENT: name = "DECREMENT"; break;
-        case TOK_LESS_EQUAL: name = "LESS_EQUAL"; break;
-        case TOK_LESS_THAN: name = "LESS_THAN"; break;
-        case TOK_LARGER_EQUAL: name = "LARGER_EQUAL"; break;
-        case TOK_LARGER_THAN: name = "LARGER_THAN"; break;
-        case TOK_NOT_EQUAL: name = "NOT_EQUAL"; break;
-        case TOK_BOOLEAN_NOT: name = "BOOLEAN_NOT"; break;
-        case TOK_LOGICAL_AND: name = "LOGICAL_AND"; break;
-        case TOK_BITWISE_AND: name = "BITWISE_AND"; break;
-        case TOK_LOGICAL_OR: name = "LOGICAL_OR"; break;
-        case TOK_BITWISE_OR: name = "BITWISE_OR"; break;
-
-        // keywods
-        case TOK_RETURN: name = "RETURN"; break;
-        case TOK_IF: name = "IF"; break;
-        case TOK_ELSE: name = "ELSE"; break;
-
-        // exceptions
-        case TOK_UNKNOWN: name = "** UNKNOWN **"; break;
-        default: name = "** NAME NOT GIVEN **"; break;
+char *token_type_name(enum token_type type) {
+    switch (type) {
+        case TOK_COMMENT: return "comment";
+        case TOK_EOF: return "eof";
+        case TOK_IDENTIFIER: return "identifier";
+        case TOK_NUMBER: return "number";
+        case TOK_COMMA: return ",";
+        case TOK_STRING_LITERAL: return "string_literal";
+        case TOK_CHAR_LITERAL: return "char_literal";
+        case TOK_LPAREN: return "(";
+        case TOK_RPAREN: return ")";
+        case TOK_OPEN_BRACKET: return "[";
+        case TOK_CLOSE_BRACKET: return "]";
+        case TOK_BLOCK_START: return "{";
+        case TOK_BLOCK_END: return "}";
+        case TOK_END_OF_STATEMENT: return ";";
+        case TOK_ASSIGNMENT: return "=";
+        case TOK_EQUALITY_CHECK: return "==";
+        case TOK_PLUS_SIGN: return "+";
+        case TOK_MINUS_SIGN: return "-";
+        case TOK_STAR: return "*";
+        case TOK_SLASH: return "/";
+        case TOK_AMPBERSAND: return "&";
+        case TOK_PERCENT: return "%";
+        case TOK_CARET: return "^";
+        case TOK_QUESTION_MARK: return "?";
+        case TOK_COLON: return ":";
+        case TOK_DOT: return ".";
+        case TOK_INCREMENT: return "++";
+        case TOK_DECREMENT: return "--";
+        case TOK_LESS_EQUAL: return "<=";
+        case TOK_LESS_THAN: return "<";
+        case TOK_LARGER_EQUAL: return ">=";
+        case TOK_LARGER_THAN: return ">";
+        case TOK_NOT_EQUAL: return "!=";
+        case TOK_BOOLEAN_NOT: return "!";
+        case TOK_LOGICAL_AND: return "&&";
+        case TOK_BITWISE_AND: return "&";
+        case TOK_LOGICAL_OR: return "||";
+        case TOK_BITWISE_OR: return "|";
+        case TOK_RETURN: return "return";
+        case TOK_IF: return "if";
+        case TOK_ELSE: return "else";
+        case TOK_INT: return "int";
+        case TOK_CHAR: return "char";
+        case TOK_UNKNOWN: return "*** unknown ***";
+        default: return "*** UN-NAMED ***";
     }
+}
 
+void print_token(token *token) {
+    char *name = token_type_name(token->type);
     if (token->value == NULL) {
         printf("%s\n", name);
     } else {
@@ -131,3 +145,8 @@ bool unknown_tokens_exist() {
     }
     return false;
 }
+
+token *get_first_token() {
+    return tokens_head;
+}
+

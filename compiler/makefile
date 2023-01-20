@@ -4,17 +4,19 @@ SRC_FILES = \
 	atom.c \
 	lexer.c \
 	token.c \
-	ast.c \
-	parser.c \
+	ast_node.c \
+	parser/iterator.c \
+	parser/recursive_descend.c \
+	parser/shunting_yard.c
 
 $(BINARY): $(SRC_FILES)
 	gcc -o $@ -g $^
 
-test: $(BINARY) test.c
-	./$(BINARY) test.c
+test: $(BINARY) sample.c
+	./$(BINARY) sample.c
 
-vtest: $(BINARY) test.c
-	./$(BINARY) -v test.c
+vtest: $(BINARY) sample.c
+	./$(BINARY) -v sample.c
 
 clean:
 	rm -f mcc

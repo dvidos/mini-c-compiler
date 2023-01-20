@@ -18,7 +18,7 @@ char *keywords[] = {
     "char",
 };
 
-token *create_token(enum token_type type, char *value) {
+token *create_token(token_type type, char *value, char *filename, int line_no) {
 
     // see if identifier is a reserved word
     if (type == TOK_IDENTIFIER && value != NULL) {
@@ -39,7 +39,8 @@ token *create_token(enum token_type type, char *value) {
         t->value = malloc(strlen(value) + 1);
         strcpy(t->value, value);
     }
-
+    t->filename = filename;
+    t->line_no = line_no;
     return t;
 }
 

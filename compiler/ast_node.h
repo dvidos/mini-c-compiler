@@ -33,7 +33,9 @@ typedef enum statement_type {
     ST_ASSIGNMENT,
     ST_IF,
     ST_WHILE,
-    ST_RETURN
+    ST_CONTINUE,
+    ST_BREAK,
+    ST_RETURN,
 } statement_type;
 
 
@@ -42,7 +44,7 @@ struct type {
     type_family family; // int, char, etc
     int bits; // array-of or pointer-to? signed, unsigned, const etc
 
-9    struct type *next;
+    struct type *next;
 };
 
 // declaration of a variable or function
@@ -74,7 +76,4 @@ struct statement {
 
     struct statement *next;
 };
-
-
-
 

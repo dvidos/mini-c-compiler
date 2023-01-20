@@ -5,8 +5,10 @@
 #include "defs.h"
 #include "token.h"
 #include "lexer.h"
-#include "ast.h"
-#include "parser.h"
+#include "ast_node.h"
+#include "parser/iterator.h"
+#include "parser/recursive_descend.h"
+#include "parser/shunting_yard.h"
 
 bool verbose = false;
 char *filename = NULL;
@@ -44,18 +46,19 @@ int read_file(char *file, char **buffer_pp) {
 }
 
 
-int parse_file_into_lexer_tokens(char *file_buffer) {
+int parse_file_into_lexer_tokens(char *file_buffer, char *filename) {
     char *p = file_buffer;
     token *token = NULL;
     int err;
+    int line_no = 1;
 
     while (1) {
-        err = parse_lexer_token_at_pointer(&p, &token);
+        err = parse_lexer_token_at_pointer(&p, filename, &line_no, &token);
         if (err == ERROR)
             return ERROR; 
         if (err == DONE) {
             // one final token, to allow us to always peek
-            add_token(create_token(TOK_EOF, NULL));
+            add_token(create_token(TOK_EOF, NULL, filename, 999999));
             break;
         }
         if (token->type == TOK_COMMENT)
@@ -79,17 +82,16 @@ int parse_file_into_lexer_tokens(char *file_buffer) {
 }
 
 int parse_abstract_syntax_tree(token *first) {
-    init_ast();
+    init_token_iterator(first);
 
-    int err = parse_file(first);
+    int err = parse_file_using_recursive_descend(first);
     if (err) {
-        printf("Error parsing syntax\n");
         return ERROR;
     }
 
     // should say "parsed x nodes in AST"
     if (verbose) {
-        print_ast();
+        // print_ast();
     }
     return SUCCESS;
 }
@@ -126,7 +128,7 @@ int main(int argc, char *argv[]) {
     if (err)
         return 1;
     
-    err = parse_file_into_lexer_tokens(file_buffer);
+    err = parse_file_into_lexer_tokens(file_buffer, filename);
     if (err)
         return 1;
     

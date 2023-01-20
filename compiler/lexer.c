@@ -10,17 +10,20 @@
 
 #define is_digit(c)         ((c) >= '0' && (c) <= '9')
 #define is_letter(c)        (((c) >= 'a' && (c) <= 'z') || ((c) >= 'A' && (c) <= 'Z'))
-#define is_whitespace(c)    ((c) == ' ' || (c) == '\t' || (c) == '\r' || (c) == '\n')
+#define is_newline(c)       ((c) == '\n')
+#define is_whitespace(c)    ((c) == ' ' || (c) == '\t' || (c) == '\r' || is_newline(c))
 
 
-int parse_lexer_token_at_pointer(char **p, struct token **token) {
+int parse_lexer_token_at_pointer(char **p, char *filename, int *line_no, struct token **token) {
     char c, cnext;
     enum token_type type;
     clear_atom();
 
     // skip whitespace, grab first character
-    while (is_whitespace(**p))
+    while (is_whitespace(**p)) {
+        if (is_newline(**p)) (*line_no)++;
         (*p)++;
+    }
     if (**p == 0)
         return DONE;
     
@@ -214,7 +217,7 @@ int parse_lexer_token_at_pointer(char **p, struct token **token) {
         extend_atom(c);
     }
 
-    (*token) = create_token(type, get_atom());
+    (*token) = create_token(type, get_atom(), filename, *line_no);
     return SUCCESS;
 }
 

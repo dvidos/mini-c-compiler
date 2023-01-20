@@ -39,11 +39,25 @@ token *next() {
     return current_token;
 }
 
+token *lookahead(int times) {
+    token *ahead = current_token;
+    while (times-- > 0 && ahead != NULL && ahead->type != TOK_EOF)
+        ahead = ahead->next;
+    return ahead;
+}
+
 // returns the type of the next token, without advancing
 bool next_is(token_type type) {
     if (current_token == NULL)
         return type == TOK_EOF;
     return current_token->type == type;
+}
+
+bool lookahead_is(int times, token_type type) {
+    token *t = lookahead(times);
+    if (t == NULL)
+        return type == TOK_EOF;
+    return t->type == type;
 }
 
 // advances to the next token

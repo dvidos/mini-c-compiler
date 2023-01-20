@@ -3,24 +3,12 @@
 #include "ast_node.h"
 
 // the lists below at file level
-ast_var_decl_node *vars_list;
 ast_statement_node *statements_list;
 ast_func_decl_node *funcs_list;
 
 void init_ast() {
-    vars_list = NULL;
+    statements_list = NULL;
     funcs_list = NULL;
-}
-
-void ast_add_var(ast_var_decl_node *var) {
-    if (vars_list == NULL) {
-        vars_list = var;
-    } else {
-        ast_var_decl_node *p = vars_list;
-        while (p->next != NULL) p = p->next;
-        p->next = var;
-    }
-    var->next = NULL;
 }
 
 void ast_add_statement(ast_statement_node *stmt) {
@@ -34,7 +22,7 @@ void ast_add_statement(ast_statement_node *stmt) {
     stmt->next = NULL;
 }
 
-void ast_add_func(ast_func_decl_node *func) {
+void ast_add_function(ast_func_decl_node *func) {
     if (funcs_list == NULL) {
         funcs_list = func;
     } else {
@@ -46,55 +34,124 @@ void ast_add_func(ast_func_decl_node *func) {
 }
 
 
-static void print_ast_data_type(ast_data_type_node *n) {
+static void indent(int depth) {
+    while (depth--)
+        printf("    ");
+}
+
+static void print_data_type(ast_data_type_node *n) {
     printf("%s", data_type_family_name(n->family));
     if (n->nested != NULL) {
         printf("(");
-        print_ast_data_type(n->nested);
+        print_data_type(n->nested);
         printf(")");
     }
 }
 
-static void print_expression(ast_expression_node *expr, int depth) {
-
+static void print_expression(ast_expression_node *expr) {
+    printf("expression");
 }
 
-static void print_statement(ast_statement_node *statement, int depth) {
-    
+static void print_statement(ast_statement_node *st, int depth) {
+    switch (st->stmt_type) {
+        case ST_BLOCK:
+            indent(depth);
+            printf("{\n");
+            ast_statement_node *s = st->body;
+            while (s != NULL) {
+                print_statement(s, depth + 1);
+                s = s->next;
+            }
+            indent(depth);
+            printf("}\n");
+            break;
+
+        case ST_DECLARATION:
+            indent(depth);
+            print_data_type(st->decl->data_type);
+            printf(" %s\n", st->decl->var_name);
+            break;
+
+        case ST_IF:
+            indent(depth);
+            printf("if(");
+            print_expression(st->eval);
+            printf(")\n");
+            print_statement(st->body, depth+1);
+            if (st->else_body != NULL) {
+                indent(depth);
+                printf("else\n");
+                print_statement(st->else_body, depth+1);
+            }
+            break;
+
+        case ST_WHILE:
+            indent(depth);
+            printf("while(");
+            print_expression(st->eval);
+            printf(")\n");
+            print_statement(st->body, depth+1);
+            break;
+
+        case ST_BREAK:
+            indent(depth);
+            printf("break\n");
+            break;
+
+        case ST_CONTINUE:
+            indent(depth);
+            printf("continue\n");
+            break;
+            
+        case ST_RETURN:
+            indent(depth);
+            printf("return");
+            if (st->eval != NULL) {
+                printf(" (");
+                print_expression(st->eval);
+                printf(")");
+            }
+            printf("\n");
+            break;
+            
+        case ST_EXPRESSION:
+            indent(depth);
+            print_expression(st->eval);
+            break;
+
+        default:
+            indent(depth);
+            printf("???\n");
+    }
 }
 
 void print_ast() {
 
-    // print each var
-    // print each func
-    ast_var_decl_node *var = vars_list;
-    while (var != NULL) {
-        printf("  variable %s ", var->var_name);
-        print_ast_data_type(var->data_type);
-        printf("\n");
-        var = var->next;
+    ast_statement_node *stmt = statements_list;
+    while (stmt != NULL) {
+        print_statement(stmt, 0);
+        stmt = stmt->next;
     }
 
     ast_func_decl_node *func = funcs_list;
     while (func != NULL) {
-        printf("  function %s(), returns ", func->func_name);
-        print_ast_data_type(func->return_type);
-        printf("\n");
-        if (func->args_list != NULL) {
-            printf("    args list: ");
-            ast_var_decl_node *arg = func->args_list;
-            while (arg != NULL) {
-                printf("\"%s\"", arg->var_name);
-                printf(" ");
-                print_ast_data_type(arg->data_type);
-                if (arg->next != NULL)
-                    printf(", ");
-                arg = arg->next;
-            }
-            printf("\n");
+        printf("function: ");
+        print_data_type(func->return_type);
+        printf(" %s(", func->func_name);
+        ast_var_decl_node *arg = func->args_list;
+        while (arg != NULL) {
+            print_data_type(arg->data_type);
+            printf(" %s", arg->var_name);
+            if (arg->next != NULL)
+                printf(", ");
+            arg = arg->next;
         }
+        printf(")\n");
 
         // func body here...
+        if (func->body != NULL) {
+            print_statement(func->body, 0);
+        }
 
         func = func->next;
     }

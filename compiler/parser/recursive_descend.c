@@ -46,36 +46,50 @@
 // - statement (take action: loop, jump, return)
 // - expression (something to be evaluate and produce a value, includes function calls)
 
+static char *expect_identifier();
+static bool is_data_type_description();
+static bool is_variable_declaration();
+static bool is_function_declaration();
+
+static ast_data_type_node *accept_data_type_description();
+static ast_statement_node *accept_variable_declaration();
+static ast_func_decl_node *accept_function_declaration();
+
 static ast_statement_node *parse_statement();
 static ast_statement_node *parse_block(); // parses statements in a loop
+static ast_var_decl_node *parse_function_arguments_list();
 
-
-static bool is_type_declaration() {
+static bool is_data_type_description() {
     // storage_class_specifiers: typedef, extern, static, auto, register.
     // type_qualifiers: const, volatile.
     // type specifiers: void, char, short, int, long, float, double, 
     //                  signed, unsigned, <struct/union/enum>, <type-name>
+    // make sure to detect without consuming anything. 
+    // use lookahead() if neded.
+
     // keeping it simple for now
     return (next_is(TOK_INT)
          || next_is(TOK_CHAR)
          || next_is(TOK_VOID));
 }
 
-static ast_data_type_node *accept_type_declaration() {
-    if (!is_type_declaration())
-        return NULL;
+static bool is_variable_declaration() {
+    // we assume data definition takes only one token for now
+    if (!is_data_type_description())
+        return false;
 
-    consume();
-    ast_data_type_node *p = create_ast_data_type_node(accepted(), NULL);
-    return p;
+    // after that, we should expect an identifier, but NO parenthesis
+    return lookahead_is(1, TOK_IDENTIFIER) && !lookahead_is(2, TOK_LPAREN);
 }
 
-static ast_data_type_node *expect_type_declaration() {
-    if (!is_type_declaration()) {
-        parsing_error("was expecting type declaration, got \"%s\"", token_type_name(next()->type));
-        return NULL;
-    }
-    return accept_type_declaration();
+static bool is_function_declaration() {
+
+    // we assume data definition takes only one token for now
+    if (!is_data_type_description())
+        return false;
+
+    // after that, we should expect an identifier and a L parenthesis
+    return lookahead_is(1, TOK_IDENTIFIER) && lookahead_is(2, TOK_LPAREN);
 }
 
 static char *expect_identifier() {
@@ -83,6 +97,64 @@ static char *expect_identifier() {
         return NULL;
 
     return accepted()->value;
+}
+
+static ast_data_type_node *accept_data_type_description() {
+    // we assume data definition takes only one token, for now
+    if (!is_data_type_description())
+        return NULL;
+
+    // we assume data definition takes only one token, for now
+    consume();
+    return create_ast_data_type_node(accepted(), NULL);
+}
+
+static ast_statement_node *accept_variable_declaration() {
+    if (!is_variable_declaration())
+        return NULL;
+
+    ast_data_type_node *dt = accept_data_type_description();
+    if (dt == NULL) return NULL;
+
+    char *name = expect_identifier();
+    if (name == NULL) return NULL;
+
+    ast_var_decl_node *vd = create_ast_var_decl_node(dt, name);
+    ast_expression_node *initialization = NULL;
+    if (accept(TOK_ASSIGNMENT)) {
+        initialization = parse_expression_using_shunting_yard();
+    }
+
+    if (!expect(TOK_END_OF_STATEMENT))
+        return NULL;
+    return create_ast_decl_statement(vd, initialization);
+}
+
+static ast_func_decl_node *accept_function_declaration() {
+    if (!is_function_declaration())
+        return NULL;
+
+    ast_data_type_node *ret_type = accept_data_type_description();
+    if (ret_type == NULL) return NULL;
+
+    char *name = expect_identifier();
+    if (name == NULL) return NULL;
+
+    if (!expect(TOK_LPAREN)) return NULL;
+    ast_var_decl_node *args = NULL;
+    if (!accept(TOK_RPAREN)) {
+        args = parse_function_arguments_list();
+        if (!expect(TOK_RPAREN)) return NULL;
+    }
+
+    ast_statement_node *body = NULL;
+    if (!accept(TOK_END_OF_STATEMENT)) {
+        body = parse_statement();
+    }
+
+    // no ";" required after functions
+
+    return create_ast_func_decl_node(ret_type, name, args, body);
 }
 
 // cannot parse a function, but can parse a block and anything in it.
@@ -95,23 +167,8 @@ static ast_statement_node *parse_statement() {
         return bl;
     }
 
-    if (is_type_declaration()) {
-        // it's a declaration of a variable or function declaration or definition
-        ast_data_type_node *dt = accept_type_declaration();
-        if (dt == NULL) return NULL;
-
-        char *name = expect_identifier();
-        if (name == NULL) return NULL;
-
-        ast_var_decl_node *vd = create_ast_var_decl_node(dt, name);
-        ast_expression_node *init = NULL;
-
-        if (accept(TOK_ASSIGNMENT)) {
-            init = parse_expression_using_shunting_yard();
-        }
-
-        if (!expect(TOK_END_OF_STATEMENT)) return NULL;
-        return create_ast_decl_statement(vd, init);
+    if (is_variable_declaration()) {
+        return accept_variable_declaration();
     }
 
     if (accept(TOK_IF)) {
@@ -179,7 +236,7 @@ static ast_var_decl_node *parse_function_arguments_list() {
     declare_list(ast_var_decl_node);
 
     while (!next_is(TOK_RPAREN)) {
-        ast_data_type_node *dt = accept_type_declaration();
+        ast_data_type_node *dt = accept_data_type_description();
         char *name = expect_identifier();
         if (dt == NULL || name == NULL)
             return NULL;
@@ -193,45 +250,24 @@ static ast_var_decl_node *parse_function_arguments_list() {
     return list;
 }
 
-int parse_file_using_recursive_descend() {
-    while (!parsing_failed() && !next_is(TOK_EOF)) {
-        ast_data_type_node *dt = expect_type_declaration();
-        char *name = expect_identifier();
-        if (dt == NULL || name == NULL)
-            break;
 
-        if (accept(TOK_END_OF_STATEMENT)) {
-            // variable declaration without initial value
-            ast_var_decl_node *var = create_ast_var_decl_node(dt, name);
-            ast_add_var(var);
-
-        } else if (accept(TOK_ASSIGNMENT)) {
-            // variable with initial value
-            parse_expression_using_shunting_yard();
-            expect(TOK_END_OF_STATEMENT);
-
-        } else if (accept(TOK_LPAREN)) {
-            // function declaration or definition
-            ast_var_decl_node *args_list = parse_function_arguments_list();
-            expect(TOK_RPAREN);
-
-            if (accept(TOK_END_OF_STATEMENT)) {
-                // just declaration
-                ast_func_decl_node *func = create_ast_func_decl_node(dt, name, args_list, NULL);
-                ast_add_func(func);
-
-            } else if (accept(TOK_BLOCK_START)) {
-                parse_block();
-                expect(TOK_BLOCK_END);
-                ast_func_decl_node *func = create_ast_func_decl_node(dt, name, args_list, NULL);
-                ast_add_func(func);
-
-            }
-        } else {
-            parsing_error("unexpected token type \"%s\"\n", token_type_name((next())->type));
-        }
+static void parse_file_level_element() {
+    if (is_variable_declaration()) {
+        ast_statement_node *n = accept_variable_declaration();
+        ast_add_statement(n);
     }
-
-    return parsing_failed() ? ERROR : SUCCESS;
+    else if (is_function_declaration()) {
+        ast_func_decl_node *n = accept_function_declaration();
+        ast_add_function(n);
+    }
+    else {
+        parsing_error("expecting variable or function declaration");
+    }
 }
 
+int parse_file_using_recursive_descend() {
+    while (!parsing_failed() && !next_is(TOK_EOF))
+        parse_file_level_element();
+    
+    return parsing_failed() ? ERROR : SUCCESS;
+}

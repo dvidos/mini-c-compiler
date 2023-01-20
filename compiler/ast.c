@@ -55,6 +55,14 @@ static void print_ast_data_type(ast_data_type_node *n) {
     }
 }
 
+static void print_expression(ast_expression_node *expr, int depth) {
+
+}
+
+static void print_statement(ast_statement_node *statement, int depth) {
+    
+}
+
 void print_ast() {
 
     // print each var

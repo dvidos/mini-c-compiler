@@ -88,6 +88,13 @@ static char *expect_identifier() {
 // cannot parse a function, but can parse a block and anything in it.
 static ast_statement_node *parse_statement() {
 
+    if (accept(TOK_BLOCK_START)) {
+        // we need to parse the nested block
+        ast_statement_node *bl = parse_block();
+        if (!expect(TOK_BLOCK_END)) return NULL;
+        return bl;
+    }
+
     if (is_type_declaration()) {
         // it's a declaration of a variable or function declaration or definition
         ast_data_type_node *dt = accept_type_declaration();

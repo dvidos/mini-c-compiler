@@ -6,6 +6,7 @@
 #include "token.h"
 #include "lexer.h"
 #include "ast_node.h"
+#include "ast.h"
 #include "parser/iterator.h"
 #include "parser/recursive_descend.h"
 #include "parser/shunting_yard.h"
@@ -83,6 +84,7 @@ int parse_file_into_lexer_tokens(char *file_buffer, char *filename) {
 
 int parse_abstract_syntax_tree(token *first) {
     init_token_iterator(first);
+    init_ast();
 
     int err = parse_file_using_recursive_descend(first);
     if (err) {
@@ -91,7 +93,9 @@ int parse_abstract_syntax_tree(token *first) {
 
     // should say "parsed x nodes in AST"
     if (verbose) {
-        // print_ast();
+        printf("--- AST ----------------\n");
+        print_ast();
+        printf("------------------------\n");
     }
     return SUCCESS;
 }

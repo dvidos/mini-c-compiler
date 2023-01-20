@@ -1,3 +1,43 @@
+#include "stdlib.h"
+#include "ast_node.h"
+#include "token.h"
+
+struct ast_data_type_node *create_ast_data_type_node(token *token, ast_data_type_node *nested) {
+    enum type_family family;
+    switch (token->type) {
+        case TOK_INT: family = TF_INT; break;
+        case TOK_CHAR: family = TF_CHAR; break;
+        case TOK_VOID: family = TF_VOID; break;
+        default: family = TF_INT;
+    }
+    
+    ast_data_type_node *n = malloc(sizeof(ast_data_type_node));
+    n->node_type = ANT_DATA_TYPE;
+    n->family = family;
+    n->nested = nested;
+    return n;
+}
+
+ast_var_decl_node *create_ast_var_decl_node(ast_data_type_node *data_type, char* var_name) {
+    ast_var_decl_node *n = malloc(sizeof(ast_var_decl_node));
+    n->node_type = ANT_VAR_DECL;
+    n->data_type = data_type;
+    n->var_name = var_name;
+    n->next = NULL;
+    return n;
+}
+
+ast_func_decl_node *create_ast_func_decl_node(ast_data_type_node *return_type, char* func_name, ast_var_decl_node *args_list, void *body) {
+    ast_func_decl_node *n = malloc(sizeof(ast_func_decl_node));
+    n->node_type = ANT_FUNC_DECL;
+    n->func_name = func_name;
+    n->return_type = return_type;
+    n->args_list = args_list;
+    n->body = body;
+    n->next = NULL;
+    return n;
+}
+
 // #include <stddef.h>
 // #include <stdio.h>
 // #include "defs.h"

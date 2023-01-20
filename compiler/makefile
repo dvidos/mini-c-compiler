@@ -5,6 +5,7 @@ SRC_FILES = \
 	lexer.c \
 	token.c \
 	ast_node.c \
+	ast.c \
 	parser/iterator.c \
 	parser/recursive_descend.c \
 	parser/shunting_yard.c

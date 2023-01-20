@@ -29,5 +29,5 @@ bool accept(token_type type);
 token *accepted();
 
 // verifies next token is of specified type, otherwise fail
-void expect(token_type type);
+bool expect(token_type type);
 

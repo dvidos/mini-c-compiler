@@ -75,15 +75,16 @@ token *accepted() {
 }
 
 // verifies next token is of specified type, otherwise fail
-void expect(token_type type) {
+bool expect(token_type type) {
     if (!next_is(type)) {
         parsing_error("was expecting \"%s\", but got \"%s\"", 
             token_type_name(type), 
             token_type_name(current_token->type)
         );
-        return;
+        return false;
     }
     
     consume();
+    return true;
 }
 

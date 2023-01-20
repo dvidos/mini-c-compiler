@@ -4,6 +4,7 @@
 #include "../defs.h"
 #include "../token.h"
 #include "../ast_node.h"
+#include "../ast.h"
 #include "iterator.h"
 #include "shunting_yard.h"
 
@@ -53,31 +54,38 @@ static bool is_type_declaration() {
          || next_is(TOK_VOID));
 }
 
-static bool accept_type_declaration() {
+static ast_data_type_node *accept_type_declaration() {
     if (!is_type_declaration())
-        return false;
+        return NULL;
 
     consume();
-    return true;
+    ast_data_type_node *p = create_ast_data_type_node(accepted(), NULL);
+    return p;
 }
 
-static void expect_type_declaration() {
+static ast_data_type_node *expect_type_declaration() {
     if (!is_type_declaration()) {
         parsing_error("was expecting type declaration, got \"%s\"", token_type_name(next()->type));
-        return;
+        return NULL;
     }
-    accept_type_declaration();
+    return accept_type_declaration();
+}
+
+static char *expect_identifier() {
+    if (!expect(TOK_IDENTIFIER))
+        return NULL;
+
+    return accepted()->value;
 }
 
 void parse_statement() {
     if (is_type_declaration()) {
         // it's a declaration of a variable or function declaration or definition
-        accept_type_declaration();
-        expect(TOK_IDENTIFIER);
+        ast_data_type_node *dt = accept_type_declaration();
+        char *name = expect_identifier();
         if (accept(TOK_LPAREN)) {
             // function call or declaration
             // parse function args (expressions with commas)
-
             expect(TOK_RPAREN);
         }
         else if (accept(TOK_ASSIGNMENT)) {
@@ -151,38 +159,65 @@ void parse_block() {
     }
 }
 
-void parse_function_arguments_list() {
+ast_var_decl_node *parse_function_arguments_list() {
+    ast_var_decl_node *head = NULL, *tail = NULL;
+
     while (!next_is(TOK_RPAREN)) {
-        expect(TOK_INT); // type
-        expect(TOK_IDENTIFIER); // name
-        if (accept(TOK_COMMA))
-            continue;
-        else
+        ast_data_type_node *dt = accept_type_declaration();
+        char *name = expect_identifier();
+        if (dt == NULL || name == NULL)
+            return NULL;
+        ast_var_decl_node *n = create_ast_var_decl_node(dt, name);
+
+        // add it to the end of the list
+        if (head == NULL) {
+            head = n;
+            tail = n;
+        } else {
+            tail->next = n;
+            n->next = NULL;
+        }
+
+        if (!accept(TOK_COMMA))
             break;
     }
+
+    return head;
 }
 
-void parse_file_using_recursive_descend() {
-    // table level indentifiers: static, typedef, <type>, extern, etc.
-    
+int parse_file_using_recursive_descend() {
     while (!parsing_failed() && !next_is(TOK_EOF)) {
-        expect_type_declaration();
-        expect(TOK_IDENTIFIER);
+        ast_data_type_node *dt = expect_type_declaration();
+        char *name = expect_identifier();
+        if (dt == NULL || name == NULL)
+            break;
+
         if (accept(TOK_END_OF_STATEMENT)) {
             // variable declaration without initial value
+            ast_var_decl_node *var = create_ast_var_decl_node(dt, name);
+            ast_add_var(var);
+
         } else if (accept(TOK_ASSIGNMENT)) {
             // variable with initial value
             parse_expression_using_shunting_yard();
             expect(TOK_END_OF_STATEMENT);
+
         } else if (accept(TOK_LPAREN)) {
             // function declaration or definition
-            parse_function_arguments_list();
+            ast_var_decl_node *args_list = parse_function_arguments_list();
             expect(TOK_RPAREN);
+
             if (accept(TOK_END_OF_STATEMENT)) {
                 // just declaration
+                ast_func_decl_node *func = create_ast_func_decl_node(dt, name, args_list, NULL);
+                ast_add_func(func);
+
             } else if (accept(TOK_BLOCK_START)) {
                 parse_block();
                 expect(TOK_BLOCK_END);
+                ast_func_decl_node *func = create_ast_func_decl_node(dt, name, args_list, NULL);
+                ast_add_func(func);
+
             }
         } else {
             parsing_error("unexpected token type \"%s\"\n", token_type_name((next())->type));

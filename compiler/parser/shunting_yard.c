@@ -15,7 +15,6 @@
 
     we do this if we finished, or if the operator we are working with 
     has lower precedence by the operator at the top of the stack.
-    
 */
 
 // -----------------------------
@@ -207,3 +206,4 @@ void parse_expression_using_shunting_yard() {
     while (!next_is(TOK_END_OF_STATEMENT) && !next_is(TOK_RPAREN))
         consume();
 }
+

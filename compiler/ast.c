@@ -35,7 +35,7 @@ void ast_add_func(ast_func_decl_node *func) {
 
 
 static void print_ast_data_type(ast_data_type_node *n) {
-    printf(data_type_family_name(n->family));
+    printf("%s", data_type_family_name(n->family));
     if (n->nested != NULL) {
         printf("(");
         print_ast_data_type(n->nested);

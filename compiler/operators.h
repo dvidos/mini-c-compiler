@@ -51,4 +51,4 @@ typedef enum oper {
     OP_COMMA               // a, b, 
 } oper;
 
-int get_precedence(operator op);
+int get_precedence(oper op);

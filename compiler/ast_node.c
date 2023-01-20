@@ -1,4 +1,4 @@
-#include "stdlib.h"
+#include <stdlib.h>
 #include "ast_node.h"
 #include "token.h"
 
@@ -16,6 +16,16 @@ struct ast_data_type_node *create_ast_data_type_node(token *token, ast_data_type
     n->family = family;
     n->nested = nested;
     return n;
+}
+
+char *data_type_family_name(type_family t) {
+    switch (t) {
+        case TF_INT: return "int";
+        case TF_CHAR: return "char";
+        case TF_BOOL: return "bool";
+        case TF_VOID: return "void";
+        default: return "*** unnamed ***";
+    }
 }
 
 ast_var_decl_node *create_ast_var_decl_node(ast_data_type_node *data_type, char* var_name) {

@@ -104,6 +104,9 @@ char *token_type_name(enum token_type type) {
         case TOK_RETURN: return "return";
         case TOK_IF: return "if";
         case TOK_ELSE: return "else";
+        case TOK_WHILE: return "while";
+        case TOK_CONTINUE: return "continue";
+        case TOK_BREAK: return "break";
         case TOK_INT: return "int";
         case TOK_CHAR: return "char";
         case TOK_VOID: return "void";

@@ -10,6 +10,11 @@ int add_numbers(int a, int b) {
     } else {
         return c;
     }
+
+    int x = 3;
+    while (x > 0) {
+        // something
+    }
 }
 
 // this is another comment

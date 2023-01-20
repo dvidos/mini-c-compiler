@@ -30,6 +30,7 @@ typedef struct ast_data_type_node {
 } ast_data_type_node;
 
 ast_data_type_node *create_ast_data_type_node(token *token, ast_data_type_node *nested);
+char *data_type_family_name(type_family t);
 
 // ------------------------------------------------------------
 

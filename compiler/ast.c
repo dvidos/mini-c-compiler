@@ -4,6 +4,7 @@
 
 // the lists below at file level
 ast_var_decl_node *vars_list;
+ast_statement_node *statements_list;
 ast_func_decl_node *funcs_list;
 
 void init_ast() {
@@ -20,6 +21,17 @@ void ast_add_var(ast_var_decl_node *var) {
         p->next = var;
     }
     var->next = NULL;
+}
+
+void ast_add_statement(ast_statement_node *stmt) {
+    if (statements_list == NULL) {
+        statements_list = stmt;
+    } else {
+        ast_statement_node *p = statements_list;
+        while (p->next != NULL) p = p->next;
+        p->next = stmt;
+    }
+    stmt->next = NULL;
 }
 
 void ast_add_func(ast_func_decl_node *func) {

@@ -201,9 +201,11 @@
 
 // }
 
-void parse_expression_using_shunting_yard() {
+ast_expression_node *parse_expression_using_shunting_yard() {
     // skipping for now
     while (!next_is(TOK_END_OF_STATEMENT) && !next_is(TOK_RPAREN))
         consume();
+
+    return NULL;
 }
 

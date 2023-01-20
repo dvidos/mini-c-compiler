@@ -8,6 +8,13 @@
 #include "iterator.h"
 #include "shunting_yard.h"
 
+
+// light & simple list implementation for functions
+#define declare_list(type)   type *list = NULL, *list_tail = NULL
+#define list_append(var)     if (list_tail == NULL) { list = var; list_tail = var; } \
+                             else { list_tail->next = var; list_tail = var; }
+
+
 /**
  * How to parse an expression into a tree????
  * Sounds like the shunting-yard algorithm is in order
@@ -39,8 +46,8 @@
 // - statement (take action: loop, jump, return)
 // - expression (something to be evaluate and produce a value, includes function calls)
 
-void parse_statement();
-void parse_block(); // parses statements in a loop
+static ast_statement_node *parse_statement();
+static ast_statement_node *parse_block(); // parses statements in a loop
 
 
 static bool is_type_declaration() {
@@ -78,89 +85,91 @@ static char *expect_identifier() {
     return accepted()->value;
 }
 
-void parse_statement() {
+// cannot parse a function, but can parse a block and anything in it.
+static ast_statement_node *parse_statement() {
+
     if (is_type_declaration()) {
         // it's a declaration of a variable or function declaration or definition
         ast_data_type_node *dt = accept_type_declaration();
+        if (dt == NULL) return NULL;
+
         char *name = expect_identifier();
-        if (accept(TOK_LPAREN)) {
-            // function call or declaration
-            // parse function args (expressions with commas)
-            expect(TOK_RPAREN);
+        if (name == NULL) return NULL;
+
+        ast_var_decl_node *vd = create_ast_var_decl_node(dt, name);
+        ast_expression_node *init = NULL;
+
+        if (accept(TOK_ASSIGNMENT)) {
+            init = parse_expression_using_shunting_yard();
         }
-        else if (accept(TOK_ASSIGNMENT)) {
-            // a variable and a value
-            parse_expression_using_shunting_yard();
-            expect(TOK_END_OF_STATEMENT);
-        }
-        else if (accept(TOK_END_OF_STATEMENT)) {
-            // variable declaration without value
-        }
+
+        if (!expect(TOK_END_OF_STATEMENT)) return NULL;
+        return create_ast_decl_statement(vd, init);
     }
-    else if (accept(TOK_IF)) {
-        expect(TOK_LPAREN);
-        parse_expression_using_shunting_yard();
-        expect(TOK_RPAREN);
-        if (accept(TOK_BLOCK_START)) {
-            parse_block();
-            expect(TOK_BLOCK_END);
-        } else {
-            parse_statement();
-            expect(TOK_END_OF_STATEMENT);
-        }
+
+    if (accept(TOK_IF)) {
+        if (!expect(TOK_LPAREN)) return NULL;
+        ast_expression_node *cond = parse_expression_using_shunting_yard();
+        if (!expect(TOK_RPAREN)) return NULL;
+        ast_statement_node *if_body = parse_statement();
+        if (if_body == NULL) return NULL;
+        ast_statement_node *else_body = NULL;
         if (accept(TOK_ELSE)) {
-            if (accept(TOK_BLOCK_START)) {
-                parse_block();
-                expect(TOK_BLOCK_END);
-            } else {
-                parse_statement();
-                expect(TOK_END_OF_STATEMENT);
-            }
+            else_body = parse_statement();
+            if (else_body == NULL) return NULL;
         }
+        return create_ast_if_statement(cond, if_body, else_body);
     }
-    else if (accept(TOK_WHILE)) {
-        expect(TOK_LPAREN);
-        parse_expression_using_shunting_yard();
-        expect(TOK_RPAREN);
-        if (accept(TOK_BLOCK_START)) {
-            parse_block();
-            expect(TOK_BLOCK_END);
-        } else {
-            parse_statement();
-            expect(TOK_END_OF_STATEMENT);
+
+    if (accept(TOK_WHILE)) {
+        if (!expect(TOK_LPAREN)) return NULL;
+        ast_expression_node *cond = parse_expression_using_shunting_yard();
+        if (!expect(TOK_RPAREN)) return NULL;
+        ast_statement_node *body = parse_statement();
+        if (body == NULL) return NULL;
+        return create_ast_while_statement(cond, body);
+    }
+
+    if (accept(TOK_CONTINUE)) {
+        if (!expect(TOK_END_OF_STATEMENT)) return NULL;
+        return create_ast_continue_statement();
+    }
+
+    if (accept(TOK_BREAK)) {
+        if (!expect(TOK_END_OF_STATEMENT)) return NULL;
+        return create_ast_break_statement();
+    }
+
+    if (accept(TOK_RETURN)) {
+        ast_expression_node *value = NULL;
+        if (!accept(TOK_END_OF_STATEMENT)) {
+            value = parse_expression_using_shunting_yard();
+            if (!expect(TOK_END_OF_STATEMENT)) return NULL;
         }
+        return create_ast_return_statement(value);
     }
-    else if (accept(TOK_CONTINUE)) {
-        // a continue keyword
-    }
-    else if (accept(TOK_BREAK)) {
-        // a break keyword
-    }
-    else if (accept(TOK_RETURN)) {
-        if (accept(TOK_END_OF_STATEMENT)) {
-            // return with no value
-        } else {
-            parse_expression_using_shunting_yard();
-            expect(TOK_END_OF_STATEMENT);
-        }
-    }
-    // if (accept(TOK_IDENTIFIER)) {
-    //     // can be declaration, function call or assignment
-    //     // I think we should hand those to the expression parser?
-    // }
-    else {
-        parsing_error("unexpected token \"%s\"", token_type_name(next()->type));
-    }
+    
+    // what is left?
+    ast_expression_node *expr = parse_expression_using_shunting_yard();
+    if (!expect(TOK_END_OF_STATEMENT)) return NULL;
+    return create_ast_expr_statement(expr);
 }
 
-void parse_block() {
+static ast_statement_node *parse_block() {
+    declare_list(ast_statement_node);
+
     while (!parsing_failed() && !next_is(TOK_BLOCK_END) && !next_is(TOK_EOF)) {
-        parse_statement();
+        ast_statement_node *n = parse_statement();
+        if (n == NULL) // error?
+            return NULL;
+        list_append(n);
     }
+
+    return create_ast_block_node(list);
 }
 
-ast_var_decl_node *parse_function_arguments_list() {
-    ast_var_decl_node *head = NULL, *tail = NULL;
+static ast_var_decl_node *parse_function_arguments_list() {
+    declare_list(ast_var_decl_node);
 
     while (!next_is(TOK_RPAREN)) {
         ast_data_type_node *dt = accept_type_declaration();
@@ -168,21 +177,13 @@ ast_var_decl_node *parse_function_arguments_list() {
         if (dt == NULL || name == NULL)
             return NULL;
         ast_var_decl_node *n = create_ast_var_decl_node(dt, name);
-
-        // add it to the end of the list
-        if (head == NULL) {
-            head = n;
-            tail = n;
-        } else {
-            tail->next = n;
-            n->next = NULL;
-        }
+        list_append(n);
 
         if (!accept(TOK_COMMA))
             break;
     }
 
-    return head;
+    return list;
 }
 
 int parse_file_using_recursive_descend() {

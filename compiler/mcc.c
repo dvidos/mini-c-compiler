@@ -11,7 +11,6 @@
 #include "parser/shunting_yard.h"
 
 bool verbose = false;
-char *filename = NULL;
 
 
 
@@ -28,6 +27,7 @@ int read_file(char *file, char **buffer_pp) {
 
     *buffer_pp = malloc(size);
     int bytes_read = (int)fread(*buffer_pp, 1, size, f);
+    (*buffer_pp)[bytes_read] = '\0';
     fclose(f);
 
     if (bytes_read < size) {
@@ -69,13 +69,13 @@ int parse_file_into_lexer_tokens(char *file_buffer, char *filename) {
     
     if (unknown_tokens_exist()) {
         printf("Unknown tokens detected, cannot continue...\n");
-        print_tokens();
+        print_tokens("  ");
         return ERROR;
     }
 
     printf("Parsed %d tokens\n", count_tokens());
     if (verbose) {
-        print_tokens();
+        print_tokens("  ");
     }
 
     return SUCCESS;
@@ -103,6 +103,7 @@ int generate_code() {
 
 int main(int argc, char *argv[]) {
     char *file_buffer = NULL;
+    char *filename = NULL;
     int err;
     printf("mits compiler, v0.01\n");
 

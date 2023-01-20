@@ -16,6 +16,7 @@ char *keywords[] = {
     "break",
     "int",
     "char",
+    "void"
 };
 
 token *create_token(token_type type, char *value, char *filename, int line_no) {
@@ -105,24 +106,25 @@ char *token_type_name(enum token_type type) {
         case TOK_ELSE: return "else";
         case TOK_INT: return "int";
         case TOK_CHAR: return "char";
+        case TOK_VOID: return "void";
         case TOK_UNKNOWN: return "*** unknown ***";
         default: return "*** UN-NAMED ***";
     }
 }
 
-void print_token(token *token) {
+void print_token(token *token, char *prefix) {
     char *name = token_type_name(token->type);
     if (token->value == NULL) {
-        printf("  %s\n", name);
+        printf("%s%s\n", prefix, name);
     } else {
-        printf("  %s: \"%s\"\n", name, token->value);
+        printf("%s%s \"%s\"\n", prefix, name, token->value);
     }
 }
 
-void print_tokens() {
+void print_tokens(char *prefix) {
     token *p = tokens_head;
     while (p != NULL) {
-        print_token(p);
+        print_token(p, prefix);
         p = p->next;
     }
 }

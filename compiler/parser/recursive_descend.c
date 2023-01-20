@@ -38,8 +38,8 @@
 // - statement (take action: loop, jump, return)
 // - expression (something to be evaluate and produce a value, includes function calls)
 
-int parse_statement();
-int parse_block(); // parses statements in a loop
+void parse_statement();
+void parse_block(); // parses statements in a loop
 
 
 static bool is_type_declaration() {
@@ -49,7 +49,8 @@ static bool is_type_declaration() {
     //                  signed, unsigned, <struct/union/enum>, <type-name>
     // keeping it simple for now
     return (next_is(TOK_INT)
-         || next_is(TOK_CHAR));
+         || next_is(TOK_CHAR)
+         || next_is(TOK_VOID));
 }
 
 static bool accept_type_declaration() {
@@ -60,7 +61,15 @@ static bool accept_type_declaration() {
     return true;
 }
 
-int parse_statement() {
+static void expect_type_declaration() {
+    if (!is_type_declaration()) {
+        parsing_error("was expecting type declaration, got \"%s\"", token_type_name(next()->type));
+        return;
+    }
+    accept_type_declaration();
+}
+
+void parse_statement() {
     if (is_type_declaration()) {
         // it's a declaration of a variable or function declaration or definition
         accept_type_declaration();
@@ -71,13 +80,16 @@ int parse_statement() {
 
             expect(TOK_RPAREN);
         }
-        if (accept(TOK_ASSIGNMENT)) {
+        else if (accept(TOK_ASSIGNMENT)) {
             // a variable and a value
             parse_expression_using_shunting_yard();
             expect(TOK_END_OF_STATEMENT);
         }
+        else if (accept(TOK_END_OF_STATEMENT)) {
+            // variable declaration without value
+        }
     }
-    if (accept(TOK_IF)) {
+    else if (accept(TOK_IF)) {
         expect(TOK_LPAREN);
         parse_expression_using_shunting_yard();
         expect(TOK_RPAREN);
@@ -98,7 +110,7 @@ int parse_statement() {
             }
         }
     }
-    if (accept(TOK_WHILE)) {
+    else if (accept(TOK_WHILE)) {
         expect(TOK_LPAREN);
         parse_expression_using_shunting_yard();
         expect(TOK_RPAREN);
@@ -110,7 +122,13 @@ int parse_statement() {
             expect(TOK_END_OF_STATEMENT);
         }
     }
-    if (accept(TOK_RETURN)) {
+    else if (accept(TOK_CONTINUE)) {
+        // a continue keyword
+    }
+    else if (accept(TOK_BREAK)) {
+        // a break keyword
+    }
+    else if (accept(TOK_RETURN)) {
         if (accept(TOK_END_OF_STATEMENT)) {
             // return with no value
         } else {
@@ -118,25 +136,22 @@ int parse_statement() {
             expect(TOK_END_OF_STATEMENT);
         }
     }
-    if (accept(TOK_IDENTIFIER)) {
-        // can be declaration, function call or assignment
-        // etc.
-    }
-    if (accept(TOK_CONTINUE)) {
-        // a continue keyword
-    }
-    if (accept(TOK_BREAK)) {
-        // a break keyword
+    // if (accept(TOK_IDENTIFIER)) {
+    //     // can be declaration, function call or assignment
+    //     // I think we should hand those to the expression parser?
+    // }
+    else {
+        parsing_error("unexpected token \"%s\"", token_type_name(next()->type));
     }
 }
 
-int parse_block() {
+void parse_block() {
     while (!parsing_failed() && !next_is(TOK_BLOCK_END) && !next_is(TOK_EOF)) {
         parse_statement();
     }
 }
 
-int parse_function_arguments_list() {
+void parse_function_arguments_list() {
     while (!next_is(TOK_RPAREN)) {
         expect(TOK_INT); // type
         expect(TOK_IDENTIFIER); // name
@@ -147,13 +162,15 @@ int parse_function_arguments_list() {
     }
 }
 
-int parse_file_using_recursive_descend() {
+void parse_file_using_recursive_descend() {
     // table level indentifiers: static, typedef, <type>, extern, etc.
     
     while (!parsing_failed() && !next_is(TOK_EOF)) {
-        expect(TOK_INT);
+        expect_type_declaration();
         expect(TOK_IDENTIFIER);
-        if (accept(TOK_ASSIGNMENT)) {
+        if (accept(TOK_END_OF_STATEMENT)) {
+            // variable declaration without initial value
+        } else if (accept(TOK_ASSIGNMENT)) {
             // variable with initial value
             parse_expression_using_shunting_yard();
             expect(TOK_END_OF_STATEMENT);
@@ -167,6 +184,8 @@ int parse_file_using_recursive_descend() {
                 parse_block();
                 expect(TOK_BLOCK_END);
             }
+        } else {
+            parsing_error("unexpected token type \"%s\"\n", token_type_name((next())->type));
         }
     }
 

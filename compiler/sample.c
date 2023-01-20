@@ -1,5 +1,6 @@
 
-int global = 3;
+int simple_var;
+int var_with_value;
 
 // this is a comment
 int add_numbers(int a, int b) {
@@ -13,7 +14,6 @@ int add_numbers(int a, int b) {
 
 // this is another comment
 void main() {
-    func1(5);
+    // func1(5);
 }
-
 

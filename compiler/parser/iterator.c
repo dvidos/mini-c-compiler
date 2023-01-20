@@ -1,6 +1,7 @@
 #include "stddef.h"
 #include "stdio.h"
 #include "stdarg.h"
+#include "../defs.h"
 #include "../token.h"
 
 // iteration for our parser
@@ -14,10 +15,14 @@ static token *accepted_token;
 static bool error_occured = false;
 
 void parsing_error(char *msg, ...) {
+
+    printf("%s:%d: parsing error: ", current_token->filename, current_token->line_no);
     va_list args;
     va_start(args, msg);
     vprintf(msg, args);
     va_end(args);
+    printf("\n");
+
     error_occured = true;
 }
 
@@ -30,6 +35,10 @@ void init_token_iterator(token *first_token) {
     error_occured = false;
 }
 
+token *next() {
+    return current_token;
+}
+
 // returns the type of the next token, without advancing
 bool next_is(token_type type) {
     if (current_token == NULL)
@@ -40,6 +49,12 @@ bool next_is(token_type type) {
 // advances to the next token
 void consume() {
     if (current_token != NULL && current_token->type != TOK_EOF) {
+        if (verbose) {
+            if (current_token->value == NULL)
+                printf("- consuming %s\n", token_type_name(current_token->type));
+            else 
+                printf("- consuming %s (%s)\n", token_type_name(current_token->type), current_token->value);
+        }
         accepted_token = current_token;
         current_token = current_token->next;
     }
@@ -62,12 +77,13 @@ token *accepted() {
 // verifies next token is of specified type, otherwise fail
 void expect(token_type type) {
     if (!next_is(type)) {
-        parsing_error("%s:%d: parsing error: was expecting \"%s\", but got \"%s\"\n", 
-            current_token->filename,
-            current_token->line_no,
+        parsing_error("was expecting \"%s\", but got \"%s\"", 
             token_type_name(type), 
             token_type_name(current_token->type)
         );
+        return;
     }
+    
+    consume();
 }
 

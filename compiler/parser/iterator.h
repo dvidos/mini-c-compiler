@@ -7,6 +7,9 @@
 
 void init_token_iterator(token *first_token);
 
+// returns the next (aka current) token, as opposed to accepted()
+token *next();
+
 // checks the type of the next token, without advancing
 bool next_is(token_type type);
 

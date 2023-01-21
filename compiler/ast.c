@@ -49,7 +49,25 @@ static void print_data_type(ast_data_type_node *n) {
 }
 
 static void print_expression(ast_expression_node *expr) {
-    printf("expression");
+    if (expr == NULL) {
+        printf("NULL");
+    } else if (expr->op == OP_SYMBOL_NAME) {
+        printf("%s", expr->value.str);
+    } else if (expr->op == OP_STR_LITERAL) {
+        printf("\"%s\"", expr->value.str);
+    } else if (expr->op == OP_NUM_LITERAL) {
+        printf("%ld", expr->value.num);
+    } else if (expr->op == OP_CHR_LITERAL) {
+        printf("'%c'", expr->value.chr);
+    } else {
+        printf("%s(", oper_debug_name(expr->op));
+        print_expression(expr->arg1);
+        if (!is_unary_operator(expr->op)) {
+            printf(",");
+            print_expression(expr->arg2);
+        }
+        printf(")");
+    }
 }
 
 static void print_statement(ast_statement_node *st, int depth) {
@@ -69,7 +87,12 @@ static void print_statement(ast_statement_node *st, int depth) {
         case ST_DECLARATION:
             indent(depth);
             print_data_type(st->decl->data_type);
-            printf(" %s\n", st->decl->var_name);
+            printf(" %s", st->decl->var_name);
+            if (st->eval != NULL) {
+                printf("=");
+                print_expression(st->eval);
+            }
+            printf("\n");
             break;
 
         case ST_IF:

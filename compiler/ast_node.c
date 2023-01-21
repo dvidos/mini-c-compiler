@@ -1,12 +1,15 @@
 #include <stdlib.h>
 #include "ast_node.h"
 #include "token.h"
+#include "operators.h"
+
+// ------------------------------------------------------------------------------
 
 struct ast_data_type_node *create_ast_data_type_node(token *token, ast_data_type_node *nested) {
     enum type_family family;
     switch (token->type) {
-        case TOK_INT: family = TF_INT; break;
-        case TOK_CHAR: family = TF_CHAR; break;
+        case TOK_INT_KEYWORD: family = TF_INT; break;
+        case TOK_CHAR_KEYWORD: family = TF_CHAR; break;
         case TOK_VOID: family = TF_VOID; break;
         default: family = TF_INT;
     }
@@ -28,6 +31,8 @@ char *data_type_family_name(type_family t) {
     }
 }
 
+// ------------------------------------------------------------------------------
+
 ast_var_decl_node *create_ast_var_decl_node(ast_data_type_node *data_type, char* var_name) {
     ast_var_decl_node *n = malloc(sizeof(ast_var_decl_node));
     n->node_type = ANT_VAR_DECL;
@@ -37,7 +42,9 @@ ast_var_decl_node *create_ast_var_decl_node(ast_data_type_node *data_type, char*
     return n;
 }
 
-ast_func_decl_node *create_ast_func_decl_node(ast_data_type_node *return_type, char* func_name, ast_var_decl_node *args_list, void *body) {
+// ------------------------------------------------------------------------------
+
+ast_func_decl_node *create_ast_func_decl_node(ast_data_type_node *return_type, char* func_name, ast_var_decl_node *args_list, ast_statement_node *body) {
     ast_func_decl_node *n = malloc(sizeof(ast_func_decl_node));
     n->node_type = ANT_FUNC_DECL;
     n->func_name = func_name;
@@ -47,6 +54,8 @@ ast_func_decl_node *create_ast_func_decl_node(ast_data_type_node *return_type, c
     n->next = NULL;
     return n;
 }
+
+// ------------------------------------------------------------------------------
 
 static ast_statement_node *_create_ast_statement_node(statement_type stmt_type, 
         ast_var_decl_node *decl, ast_expression_node *eval, 
@@ -100,5 +109,37 @@ char *statement_type_name(statement_type type) {
         case ST_EXPRESSION: return "expression";
         default: return "*** unnamed ***";
     }
+}
+
+// ------------------------------------------------------------------------------
+
+ast_expression_node *create_ast_expression(oper op, ast_expression_node *arg1, ast_expression_node *arg2) {
+    ast_expression_node *n = malloc(sizeof(ast_expression_node));
+    n->node_type = ANT_EXPRESSION;
+    n->op = op;
+    n->arg1 = arg1;
+    n->arg2 = arg2;
+    return n;
+}
+
+ast_expression_node *create_ast_expr_name(char *name) {
+    ast_expression_node *n = create_ast_expression(OP_SYMBOL_NAME, NULL, NULL);
+    n->value.str = name;
+    return n;
+}
+ast_expression_node *create_ast_expr_string_literal(char *str) {
+    ast_expression_node *n = create_ast_expression(OP_STR_LITERAL, NULL, NULL);
+    n->value.str = str;
+    return n;
+}
+ast_expression_node *create_ast_expr_numeric_literal(long num) {
+    ast_expression_node *n = create_ast_expression(OP_NUM_LITERAL, NULL, NULL);
+    n->value.num = num;
+    return n;
+}
+ast_expression_node *create_ast_expr_char_literal(char chr) {
+    ast_expression_node *n = create_ast_expression(OP_CHR_LITERAL, NULL, NULL);
+    n->value.chr = chr;
+    return n;
 }
 

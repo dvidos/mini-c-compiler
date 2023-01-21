@@ -68,8 +68,8 @@ static bool is_data_type_description() {
     // use lookahead() if neded.
 
     // keeping it simple for now
-    return (next_is(TOK_INT)
-         || next_is(TOK_CHAR)
+    return (next_is(TOK_INT_KEYWORD)
+         || next_is(TOK_CHAR_KEYWORD)
          || next_is(TOK_VOID));
 }
 

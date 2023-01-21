@@ -66,7 +66,7 @@ char *token_type_name(enum token_type type) {
         case TOK_COMMENT: return "comment";
         case TOK_EOF: return "eof";
         case TOK_IDENTIFIER: return "identifier";
-        case TOK_NUMBER: return "number";
+        case TOK_NUMERIC_LITERAL: return "numeric_literal";
         case TOK_COMMA: return ",";
         case TOK_STRING_LITERAL: return "string_literal";
         case TOK_CHAR_LITERAL: return "char_literal";
@@ -83,7 +83,7 @@ char *token_type_name(enum token_type type) {
         case TOK_MINUS_SIGN: return "-";
         case TOK_STAR: return "*";
         case TOK_SLASH: return "/";
-        case TOK_AMPBERSAND: return "&";
+        case TOK_AMPERSAND: return "&";
         case TOK_PERCENT: return "%";
         case TOK_CARET: return "^";
         case TOK_QUESTION_MARK: return "?";
@@ -96,7 +96,7 @@ char *token_type_name(enum token_type type) {
         case TOK_LARGER_EQUAL: return ">=";
         case TOK_LARGER_THAN: return ">";
         case TOK_NOT_EQUAL: return "!=";
-        case TOK_BOOLEAN_NOT: return "!";
+        case TOK_LOGICAL_NOT: return "!";
         case TOK_LOGICAL_AND: return "&&";
         case TOK_BITWISE_AND: return "&";
         case TOK_LOGICAL_OR: return "||";
@@ -107,8 +107,8 @@ char *token_type_name(enum token_type type) {
         case TOK_WHILE: return "while";
         case TOK_CONTINUE: return "continue";
         case TOK_BREAK: return "break";
-        case TOK_INT: return "int";
-        case TOK_CHAR: return "char";
+        case TOK_INT_KEYWORD: return "int";
+        case TOK_CHAR_KEYWORD: return "char";
         case TOK_VOID: return "void";
         case TOK_UNKNOWN: return "*** unknown ***";
         default: return "*** UN-NAMED ***";

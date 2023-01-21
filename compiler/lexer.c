@@ -59,7 +59,7 @@ int parse_lexer_token_at_pointer(char **p, char *filename, int *line_no, struct 
             (*p)++;
             c = **p;
         }
-        type = TOK_NUMBER;
+        type = TOK_NUMERIC_LITERAL;
 
     } else if (c == ';') {
         // comma
@@ -87,6 +87,7 @@ int parse_lexer_token_at_pointer(char **p, char *filename, int *line_no, struct 
         // parse char
         (*p)++; // skip starting quote
         c = **p;
+        extend_atom(c);
         (*p)++; // skip character
         (*p)++; // skip ending quote
         type = TOK_CHAR_LITERAL;
@@ -170,7 +171,7 @@ int parse_lexer_token_at_pointer(char **p, char *filename, int *line_no, struct 
             type = TOK_NOT_EQUAL;
             (*p)++;
         } else {
-            type = TOK_BOOLEAN_NOT;
+            type = TOK_LOGICAL_NOT;
         }
 
     } else if (c == '&') {
@@ -209,7 +210,11 @@ int parse_lexer_token_at_pointer(char **p, char *filename, int *line_no, struct 
 
     } else if (c == '&') {
         (*p)++;
-        type = TOK_AMPBERSAND;
+        type = TOK_AMPERSAND;
+
+    } else if (c == '~') {
+        (*p)++;
+        type = TOK_TILDE;
 
     } else {
         (*p)++; // skip it.

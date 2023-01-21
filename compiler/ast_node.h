@@ -1,5 +1,6 @@
 #pragma once
 #include "token.h"
+#include "operators.h"
 
 // ------------------------------------------------------------------
 
@@ -16,8 +17,8 @@ typedef enum ast_node_type {
     ANT_DATA_TYPE,
     ANT_VAR_DECL,
     ANT_FUNC_DECL,
-    ANT_BLOCK,
     ANT_STATEMENT,
+    ANT_EXPRESSION,
 } ast_node_type;
 
 typedef struct ast_node {
@@ -66,12 +67,12 @@ typedef struct ast_func_decl_node {
     char *func_name;
     ast_data_type_node *return_type;
     ast_var_decl_node *args_list;
-    void *body;
+    ast_statement_node *body;
 
     struct ast_func_decl_node *next; // for function lists
 } ast_func_decl_node;
 
-ast_func_decl_node *create_ast_func_decl_node(ast_data_type_node *return_type, char *func_name, ast_var_decl_node *args_list, void *body);
+ast_func_decl_node *create_ast_func_decl_node(ast_data_type_node *return_type, char *func_name, ast_var_decl_node *args_list, ast_statement_node *body);
 
 // ------------------------------------------------------------
 
@@ -116,7 +117,26 @@ char *statement_type_name(statement_type type);
 
 // -------------------------------------------------------------
 
-typedef struct ast_expression_node ast_expression_node;
+typedef struct ast_expression_node {
+    ast_node_type node_type; // to allow everything to be cast to ast_node
+
+    oper op;
+    ast_expression_node *arg1;
+    ast_expression_node *arg2; // used as "next" for chains of func arguments
+
+    union {
+        char *str; // var name, func name, or string literal.
+        long num;
+        char chr;
+    } value;
+
+} ast_expression_node;
+
+ast_expression_node *create_ast_expression(oper op, ast_expression_node *arg1, ast_expression_node *arg2);
+ast_expression_node *create_ast_expr_name(char *name);
+ast_expression_node *create_ast_expr_string_literal(char *str);
+ast_expression_node *create_ast_expr_numeric_literal(long num);
+ast_expression_node *create_ast_expr_char_literal(char chr);
 
 // -------------------------------------------------------------
 

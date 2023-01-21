@@ -64,10 +64,10 @@ bool lookahead_is(int times, token_type type) {
 void consume() {
     if (current_token != NULL && current_token->type != TOK_EOF) {
         if (verbose) {
-            if (current_token->value == NULL)
-                printf("- consuming %s\n", token_type_name(current_token->type));
-            else 
-                printf("- consuming %s (%s)\n", token_type_name(current_token->type), current_token->value);
+            // if (current_token->value == NULL)
+            //     printf(" %s", token_type_name(current_token->type));
+            // else 
+            //     printf(" %s (%s)", token_type_name(current_token->type), current_token->value);
         }
         accepted_token = current_token;
         current_token = current_token->next;

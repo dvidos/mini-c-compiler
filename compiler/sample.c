@@ -34,6 +34,6 @@ int add_numbers(int a, int b) {
 
 // this is another comment
 void main() {
-    // func1(5);
+    // add_numbers(5, 2);
 }
 

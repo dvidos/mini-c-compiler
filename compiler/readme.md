@@ -1,4 +1,4 @@
-# simple lang
+# Writing a compiler
 
 Let's say we want to write a single language. What shall it support?
 
@@ -21,7 +21,7 @@ and assignments for fetching, doing math and storing?
 How can we avoid the imperative language, but go to 
 declarative mathematical language?
 
-## phases
+## Phases
 
 1. parser. read the file(s) and parse all the items
 2. ast. by going over the tokens, you build the abstract syntax tree, 
@@ -31,7 +31,7 @@ or machine code for it
 
 We'll need some good data structures (dictionaries, list, trees) for this.
 
-## giants
+## Giants
 
 Of course I'm relying on giants here, I'm here to discover and learn.
 

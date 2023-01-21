@@ -1,7 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "atom.h"
 #include "defs.h"
 #include "token.h"
 #include "lexer.h"
@@ -126,7 +125,7 @@ int main(int argc, char *argv[]) {
         return 1;
     }
 
-    init_atom();
+    init_lexer();
     init_tokens();
 
     err = read_file(filename, &file_buffer);

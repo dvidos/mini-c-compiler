@@ -98,6 +98,7 @@ oper to_unary_operator(token_type type) {
         case TOK_AMPERSAND: return OP_ADDRESS_OF;
         case TOK_TILDE: return OP_BINARY_NOT;
         case TOK_MINUS_SIGN: return OP_NEGATIVE_NUM;
+        case TOK_PLUS_SIGN: return OP_POSITIVE_NUM;
     }
     return OP_UNKNOWN;
 }

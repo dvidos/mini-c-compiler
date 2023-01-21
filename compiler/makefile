@@ -1,7 +1,6 @@
 BINARY = mcc
 SRC_FILES = \
 	mcc.c \
-	atom.c \
 	lexer.c \
 	token.c \
 	ast_node.c \

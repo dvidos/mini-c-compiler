@@ -43,6 +43,16 @@ typedef enum token_type {
     TOK_BITWISE_AND,
     TOK_LOGICAL_OR,
     TOK_BITWISE_OR,
+    TOK_ADD_ASSIGN,
+    TOK_SUB_ASSIGN,
+    TOK_MUL_ASSIGN,
+    TOK_DIV_ASSIGN,
+    TOK_MOD_ASSIGN,
+    TOK_RSH_ASSIGN,
+    TOK_LSH_ASSIGN,
+    TOK_AND_ASSIGN,
+    TOK_OR_ASSIGN,
+    TOK_XOR_ASSIGN,
 
 
     // keep this section synced with keywords

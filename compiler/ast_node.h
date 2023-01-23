@@ -1,5 +1,5 @@
 #pragma once
-#include "token.h"
+#include "lexer/token.h"
 #include "operators.h"
 
 // ------------------------------------------------------------------
@@ -135,7 +135,7 @@ typedef struct ast_expression_node {
 ast_expression_node *create_ast_expression(oper op, ast_expression_node *arg1, ast_expression_node *arg2);
 ast_expression_node *create_ast_expr_name(char *name);
 ast_expression_node *create_ast_expr_string_literal(char *str);
-ast_expression_node *create_ast_expr_numeric_literal(long num);
+ast_expression_node *create_ast_expr_numeric_literal(char *number);
 ast_expression_node *create_ast_expr_char_literal(char chr);
 
 // -------------------------------------------------------------

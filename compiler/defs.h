@@ -5,5 +5,4 @@
 #define SUCCESS  0
 #define ERROR   -1
 
-
 extern bool verbose;

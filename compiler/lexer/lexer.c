@@ -2,12 +2,13 @@
 #include <stdlib.h>
 #include <stddef.h>
 #include <string.h>
-#include "defs.h"
+#include "../defs.h"
 #include "lexer.h"
 #include "token.h"
 
 
 #define is_digit(c)               ((c) >= '0' && (c) <= '9')
+#define is_hex_digit_or_sign(c)   (((c) >= 'a' && (c) <= 'f') || ((c) >= 'A' && (c) <= 'F') || (c) == 'x' || (c) == 'X')
 #define is_letter(c)              (((c) >= 'a' && (c) <= 'z') || ((c) >= 'A' && (c) <= 'Z'))
 #define is_underscore(c)          ((c) == '_')
 #define is_newline(c)             ((c) == '\n')
@@ -103,7 +104,7 @@ static int parse_string(char **p) {
 
 static int parse_number(char **p) {
     char c = **p;
-    while (is_digit(c)) {
+    while (is_digit(c) || is_hex_digit_or_sign(c)) {
         collect(c);
         (*p)++;
         c = **p;
@@ -189,8 +190,10 @@ int parse_lexer_token_at_pointer(char **p, char *filename, int *line_no, struct 
     check1('~', TOK_TILDE)
 
     check2('-', '>', TOK_ARROW)
+    check2('<', '<', TOK_LSHIFT)
+    check2('>', '>', TOK_RSHIFT)
 
-    check1_ext('=', '=', TOK_ASSIGNMENT, TOK_EQUALITY_CHECK)
+    check1_ext('=', '=', TOK_ASSIGNMENT, TOK_EQUAL_SIGN)
     check1_ext('!', '=', TOK_LOGICAL_NOT, TOK_NOT_EQUAL)
     check1_ext('<', '=', TOK_LESS_THAN, TOK_LESS_EQUAL)
     check1_ext('>', '=', TOK_LARGER_THAN, TOK_LARGER_EQUAL)

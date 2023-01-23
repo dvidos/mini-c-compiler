@@ -2,7 +2,7 @@
 #include <stdio.h>
 #include <stdarg.h>
 #include "../defs.h"
-#include "../token.h"
+#include "../lexer/token.h"
 #include "../ast_node.h"
 #include "../ast.h"
 #include "iterator.h"

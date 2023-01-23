@@ -2,7 +2,7 @@
 #include "stdio.h"
 #include "stdarg.h"
 #include "../defs.h"
-#include "../token.h"
+#include "../lexer/token.h"
 
 // iteration for our parser
 // to be used from both parsers:
@@ -65,9 +65,9 @@ void consume() {
     if (current_token != NULL && current_token->type != TOK_EOF) {
         if (verbose) {
             if (current_token->value == NULL)
-                printf("consumed  %s\n", token_type_name(current_token->type));
+                printf("at line %d, consumed %s\n", current_token->line_no, token_type_name(current_token->type));
             else 
-                printf("consumed %s (%s)\n", token_type_name(current_token->type), current_token->value);
+                printf("at line %d, consumed %s: %s\n", current_token->line_no, token_type_name(current_token->type), current_token->value);
         }
         accepted_token = current_token;
         current_token = current_token->next;

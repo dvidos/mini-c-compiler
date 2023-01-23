@@ -78,7 +78,7 @@ char *token_type_name(enum token_type type) {
         case TOK_BLOCK_END: return "}";
         case TOK_END_OF_STATEMENT: return ";";
         case TOK_ASSIGNMENT: return "=";
-        case TOK_EQUALITY_CHECK: return "==";
+        case TOK_EQUAL_SIGN: return "==";
         case TOK_PLUS_SIGN: return "+";
         case TOK_MINUS_SIGN: return "-";
         case TOK_STAR: return "*";
@@ -110,6 +110,8 @@ char *token_type_name(enum token_type type) {
         case TOK_INT_KEYWORD: return "int";
         case TOK_CHAR_KEYWORD: return "char";
         case TOK_VOID: return "void";
+        case TOK_RSHIFT: return ">>";
+        case TOK_LSHIFT: return "<<";
         case TOK_UNKNOWN: return "*** unknown ***";
         default: return "*** UN-NAMED ***";
     }

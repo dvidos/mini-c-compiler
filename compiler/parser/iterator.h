@@ -3,7 +3,7 @@
 #include "stddef.h"
 #include "stdio.h"
 #include "stdarg.h"
-#include "../token.h"
+#include "../lexer/token.h"
 
 void init_token_iterator(token *first_token);
 

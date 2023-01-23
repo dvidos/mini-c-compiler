@@ -2,8 +2,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include "defs.h"
-#include "token.h"
-#include "lexer.h"
+#include "lexer/token.h"
+#include "lexer/lexer.h"
 #include "ast_node.h"
 #include "ast.h"
 #include "parser/iterator.h"
@@ -135,6 +135,9 @@ int main(int argc, char *argv[]) {
     err = parse_file_into_lexer_tokens(file_buffer, filename);
     if (err)
         return 1;
+
+    // we no longer need this
+    free(file_buffer);
     
     err = parse_abstract_syntax_tree(get_first_token());
     if (err)

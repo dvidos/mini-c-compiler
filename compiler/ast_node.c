@@ -1,6 +1,6 @@
 #include <stdlib.h>
 #include "ast_node.h"
-#include "token.h"
+#include "lexer/token.h"
 #include "operators.h"
 
 // ------------------------------------------------------------------------------
@@ -132,9 +132,19 @@ ast_expression_node *create_ast_expr_string_literal(char *str) {
     n->value.str = str;
     return n;
 }
-ast_expression_node *create_ast_expr_numeric_literal(long num) {
+ast_expression_node *create_ast_expr_numeric_literal(char *number) {
     ast_expression_node *n = create_ast_expression(OP_NUM_LITERAL, NULL, NULL);
-    n->value.num = num;
+    int base = 10;
+    if (number[0] == '0' && number[1] != '\0') {
+        if ((number[1] == 'x' || number[1] == 'X') && number[2] != '\0') {
+            base = 16;
+            number += 2;
+        } else {
+            base = 8;
+            number += 1;
+        }
+    }
+    n->value.num = strtol(number, NULL, base);
     return n;
 }
 ast_expression_node *create_ast_expr_char_literal(char chr) {

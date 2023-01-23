@@ -1,6 +1,6 @@
 #include <stddef.h>
 #include <stdlib.h>
-#include "../token.h"
+#include "../lexer/token.h"
 #include "../operators.h"
 #include "../ast_node.h"
 #include "iterator.h"
@@ -73,7 +73,7 @@ ast_expression_node *accept_terminal() {
     {
         case TOK_IDENTIFIER:      return create_ast_expr_name(t->value);
         case TOK_STRING_LITERAL:  return create_ast_expr_string_literal(t->value);
-        case TOK_NUMERIC_LITERAL: return create_ast_expr_numeric_literal(atol(t->value));
+        case TOK_NUMERIC_LITERAL: return create_ast_expr_numeric_literal(t->value);
         case TOK_CHAR_LITERAL:    return create_ast_expr_char_literal(t->value[0]);
     }
     return NULL;
@@ -144,17 +144,19 @@ static void parse_operand() {
         oper op = accept_postfix_operator();
         push_operator_with_priority(op);
 
-        // pushing a sentinel forces the subexpression to be parsed
-        // without interfering with the current contents of the stacks
-        push_operator(OP_SENTINEL);
-        parse_complex_expression();
-        pop_operator(); // pop sentinel
+        // post-increment is not binary, it does not expect another operand
+        if (!is_unary_operator(op)) {
+            // pushing a sentinel forces the subexpression to be parsed
+            // without interfering with the current contents of the stacks
+            push_operator(OP_SENTINEL);
+            parse_complex_expression();
+            pop_operator(); // pop sentinel
 
-        if (op == OP_FUNC_CALL)
-            expect(TOK_RPAREN);
-        else if (op == OP_ARRAY_SUBSCRIPT)
-            expect(TOK_CLOSE_BRACKET);
-        
+            if (op == OP_FUNC_CALL)
+                expect(TOK_RPAREN);
+            else if (op == OP_ARRAY_SUBSCRIPT)
+                expect(TOK_CLOSE_BRACKET);
+        }
     }
 }
 

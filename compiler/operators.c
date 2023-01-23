@@ -1,5 +1,5 @@
 #include "operators.h"
-#include "token.h"
+#include "lexer/token.h"
 
 
 // see https://en.cppreference.com/w/c/language/operator_precedence
@@ -41,7 +41,7 @@ struct operator_info operators_info[] = {
     { OP_ADD,               26, false, false, "ADD" },     // a + b
     { OP_SUB,               26, false, false, "SUB" },     // a - b
     { OP_LSHIFT,            25, false, false, "LSH" },     // a << b
-    { OP_RSHIFT,            25, false, false, "RLS" },     // a >> b
+    { OP_RSHIFT,            25, false, false, "RSH" },     // a >> b
     { OP_LT,                24, false, false, "LT" },      // a < b
     { OP_LE,                24, false, false, "LE" },      // a <= b
     { OP_GT,                24, false, false, "GT" },      // a > b
@@ -54,7 +54,7 @@ struct operator_info operators_info[] = {
     { OP_LOGICAL_AND,       19, false, false, "AND" },     // a && b
     { OP_LOGICAL_OR,        18, false, false, "OR" },      // a || b
     { OP_CONDITIONAL,       17, false, false, "IIF" },     // a ? b : c
-    { OP_ASSIGNMENT,        16, false, false, "ASNN" },    // a = b
+    { OP_ASSIGNMENT,        16, false, false, "ASSIGN" },  // a = b
     { OP_ADD_ASSIGN,        16, false, false, "ADD_ASN" }, // a += b
     { OP_SUB_ASSIGN,        16, false, false, "SUB_ASN" }, // a -= b
     { OP_MUL_ASSIGN,        16, false, false, "MUL_ASN" }, // a *= b
@@ -110,6 +110,8 @@ oper to_unary_operator(token_type type) {
         case TOK_TILDE:       return OP_BINARY_NOT;
         case TOK_MINUS_SIGN:  return OP_NEGATIVE_NUM;
         case TOK_PLUS_SIGN:   return OP_POSITIVE_NUM;
+        case TOK_INCREMENT:   return OP_PRE_INC;
+        case TOK_DECREMENT:   return OP_PRE_DEC;
     }
     return OP_UNKNOWN;
 }
@@ -136,6 +138,9 @@ oper to_binary_operator(token_type type) {
         case TOK_LOGICAL_OR:   return OP_LOGICAL_OR;
         case TOK_LOGICAL_AND:  return OP_LOGICAL_AND;
         case TOK_LOGICAL_NOT:  return OP_LOGICAL_NOT;
+        case TOK_EQUAL_SIGN:   return OP_EQ;
+        case TOK_LSHIFT:       return OP_LSHIFT;
+        case TOK_RSHIFT:       return OP_RSHIFT;
     }
     return OP_UNKNOWN;
 }

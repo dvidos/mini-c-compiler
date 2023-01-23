@@ -1,8 +1,8 @@
 BINARY = mcc
 SRC_FILES = \
 	mcc.c \
-	lexer.c \
-	token.c \
+	lexer/token.c \
+	lexer/lexer.c \
 	ast_node.c \
 	ast.c \
 	operators.c \

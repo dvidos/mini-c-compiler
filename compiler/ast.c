@@ -36,7 +36,7 @@ void ast_add_function(ast_func_decl_node *func) {
 
 static void indent(int depth) {
     while (depth--)
-        printf("    ");
+        printf(".  ");
 }
 
 static void print_data_type(ast_data_type_node *n) {
@@ -71,8 +71,7 @@ static void print_expression_using_func_format(ast_expression_node *expr) {
 }
 
 static void print_expression_using_tree_format(ast_expression_node *expr, int depth) {
-    for (int i = 0; i < depth; i++)
-        printf(".   ");
+    indent(depth);
     
     if (expr == NULL) {
         printf("NULL\n");
@@ -96,14 +95,14 @@ static void print_expression_using_tree_format(ast_expression_node *expr, int de
 static void print_statement(ast_statement_node *st, int depth) {
     switch (st->stmt_type) {
         case ST_BLOCK:
-            indent(depth);
+            indent(depth - 1);
             printf("{\n");
             ast_statement_node *s = st->body;
             while (s != NULL) {
-                print_statement(s, depth + 1);
+                print_statement(s, depth);
                 s = s->next;
             }
-            indent(depth);
+            indent(depth - 1);
             printf("}\n");
             break;
 
@@ -113,7 +112,7 @@ static void print_statement(ast_statement_node *st, int depth) {
             printf(" %s", st->decl->var_name);
             if (st->eval != NULL) {
                 printf("=");
-                print_expression_using_tree_format(st->eval, depth);
+                print_expression_using_func_format(st->eval);
             }
             printf("\n");
             break;
@@ -161,8 +160,8 @@ static void print_statement(ast_statement_node *st, int depth) {
             break;
             
         case ST_EXPRESSION:
-            indent(depth);
             print_expression_using_tree_format(st->eval, depth);
+            // indent(depth);
             // print_expression_using_func_format(st->eval);
             break;
 
@@ -197,7 +196,7 @@ void print_ast() {
 
         // func body here...
         if (func->body != NULL) {
-            print_statement(func->body, 0);
+            print_statement(func->body, 1);
         }
 
         func = func->next;

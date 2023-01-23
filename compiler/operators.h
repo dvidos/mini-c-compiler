@@ -1,5 +1,5 @@
 #pragma once
-#include "token.h"
+#include "lexer/token.h"
 
 typedef enum oper {
     OP_UNKNOWN,       // to signify an unknown operator, when the token does not work

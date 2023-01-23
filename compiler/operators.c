@@ -19,7 +19,7 @@ struct operator_info operators_info[] = {
     // enum oper          prio  unary  postfix   mnemonic
     { OP_UNKNOWN,            0, false, false, "UNKNOWN" },  // to signify an unknown operator, when the token does not work
 
-    { OP_FUNC_CALL,         29, true,  true, "CALL" },     // a()
+    { OP_FUNC_CALL,         29, false,  true, "CALL" },     // a()
     { OP_ARRAY_SUBSCRIPT,   29, false, true, "ELEM" },    // a[b]
     { OP_STRUCT_MEMBER_PTR, 29, false, true, "SPTR" },    // a->b
     { OP_STRUCT_MEMBER_REF, 29, false, true, "SMBM" },    // a.b
@@ -133,6 +133,9 @@ oper to_binary_operator(token_type type) {
         case TOK_ASSIGNMENT:   return OP_ASSIGNMENT;
         case TOK_LPAREN:       return OP_FUNC_CALL;
         case TOK_OPEN_BRACKET: return OP_ARRAY_SUBSCRIPT;
+        case TOK_LOGICAL_OR:   return OP_LOGICAL_OR;
+        case TOK_LOGICAL_AND:  return OP_LOGICAL_AND;
+        case TOK_LOGICAL_NOT:  return OP_LOGICAL_NOT;
     }
     return OP_UNKNOWN;
 }

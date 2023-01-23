@@ -140,17 +140,22 @@ static void parse_operand() {
         parsing_error("expected '(', unary operator, or terminal token");
     }
 
-    // // is this good?
-    // while (next_is_postfix_operator()) {
-    //     oper op = accept_postfix_operator();
-    //     push_operator_with_priority(op);
-    //     parse_complex_expression();
+    while (next_is_postfix_operator()) {
+        oper op = accept_postfix_operator();
+        push_operator_with_priority(op);
 
-    //     if (op == OP_FUNC_CALL)
-    //         expect(TOK_RPAREN);
-    //     else if (op == OP_ARRAY_SUBSCRIPT)
-    //         expect(TOK_CLOSE_BRACKET);
-    // }
+        // pushing a sentinel forces the subexpression to be parsed
+        // without interfering with the current contents of the stacks
+        push_operator(OP_SENTINEL);
+        parse_complex_expression();
+        pop_operator(); // pop sentinel
+
+        if (op == OP_FUNC_CALL)
+            expect(TOK_RPAREN);
+        else if (op == OP_ARRAY_SUBSCRIPT)
+            expect(TOK_CLOSE_BRACKET);
+        
+    }
 }
 
 static void push_operator_with_priority(oper op) {

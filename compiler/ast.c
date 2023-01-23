@@ -48,7 +48,7 @@ static void print_data_type(ast_data_type_node *n) {
     }
 }
 
-static void print_expression(ast_expression_node *expr) {
+static void print_expression_using_func_format(ast_expression_node *expr) {
     if (expr == NULL) {
         printf("NULL");
     } else if (expr->op == OP_SYMBOL_NAME) {
@@ -61,12 +61,35 @@ static void print_expression(ast_expression_node *expr) {
         printf("'%c'", expr->value.chr);
     } else {
         printf("%s(", oper_debug_name(expr->op));
-        print_expression(expr->arg1);
+        print_expression_using_func_format(expr->arg1);
         if (!is_unary_operator(expr->op)) {
             printf(",");
-            print_expression(expr->arg2);
+            print_expression_using_func_format(expr->arg2);
         }
         printf(")");
+    }
+}
+
+static void print_expression_using_tree_format(ast_expression_node *expr, int depth) {
+    for (int i = 0; i < depth; i++)
+        printf(".   ");
+    
+    if (expr == NULL) {
+        printf("NULL\n");
+    } else if (expr->op == OP_SYMBOL_NAME) {
+        printf("%s\n", expr->value.str);
+    } else if (expr->op == OP_STR_LITERAL) {
+        printf("\"%s\"\n", expr->value.str);
+    } else if (expr->op == OP_NUM_LITERAL) {
+        printf("%ld\n", expr->value.num);
+    } else if (expr->op == OP_CHR_LITERAL) {
+        printf("'%c'\n", expr->value.chr);
+    } else {
+        printf("%s()\n", oper_debug_name(expr->op));
+        print_expression_using_tree_format(expr->arg1, depth + 1);
+        if (!is_unary_operator(expr->op)) {
+            print_expression_using_tree_format(expr->arg2, depth + 1);
+        }
     }
 }
 
@@ -90,7 +113,7 @@ static void print_statement(ast_statement_node *st, int depth) {
             printf(" %s", st->decl->var_name);
             if (st->eval != NULL) {
                 printf("=");
-                print_expression(st->eval);
+                print_expression_using_tree_format(st->eval, depth);
             }
             printf("\n");
             break;
@@ -98,7 +121,7 @@ static void print_statement(ast_statement_node *st, int depth) {
         case ST_IF:
             indent(depth);
             printf("if(");
-            print_expression(st->eval);
+            print_expression_using_func_format(st->eval);
             printf(")\n");
             print_statement(st->body, depth+1);
             if (st->else_body != NULL) {
@@ -111,7 +134,7 @@ static void print_statement(ast_statement_node *st, int depth) {
         case ST_WHILE:
             indent(depth);
             printf("while(");
-            print_expression(st->eval);
+            print_expression_using_func_format(st->eval);
             printf(")\n");
             print_statement(st->body, depth+1);
             break;
@@ -131,7 +154,7 @@ static void print_statement(ast_statement_node *st, int depth) {
             printf("return");
             if (st->eval != NULL) {
                 printf(" (");
-                print_expression(st->eval);
+                print_expression_using_func_format(st->eval);
                 printf(")");
             }
             printf("\n");
@@ -139,13 +162,13 @@ static void print_statement(ast_statement_node *st, int depth) {
             
         case ST_EXPRESSION:
             indent(depth);
-            print_expression(st->eval);
-            printf("\n");
+            print_expression_using_tree_format(st->eval, depth);
+            // print_expression_using_func_format(st->eval);
             break;
 
         default:
             indent(depth);
-            printf("???\n");
+            printf("??? (unknown statement type)\n");
     }
 }
 

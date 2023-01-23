@@ -115,7 +115,8 @@ static ast_statement_node *accept_variable_declaration() {
 
     ast_data_type_node *dt = accept_data_type_description();
     if (dt == NULL) return NULL;
-
+... start parsing expression from here, to allow for costructs such as:
+... int a = 1, b = 2, c = a + b;
     char *name = expect_identifier();
     if (name == NULL) return NULL;
 

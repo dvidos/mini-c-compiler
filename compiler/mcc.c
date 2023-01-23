@@ -25,7 +25,7 @@ int read_file(char *file, char **buffer_pp) {
     int size = (int)ftell(f);
     fseek(f, 0, SEEK_SET);
 
-    *buffer_pp = malloc(size);
+    *buffer_pp = malloc(size + 1);
     int bytes_read = (int)fread(*buffer_pp, 1, size, f);
     (*buffer_pp)[bytes_read] = '\0';
     fclose(f);

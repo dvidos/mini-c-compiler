@@ -58,7 +58,6 @@ static int parse_block_comment(char **p, int *line_no) {
     (*p) += 2; // skip the "/*" opening part
     char c = **p;
     char c2 = *((*p) + 1);
-    skip_whitespace(p, line_no);
     while (!(c == '*' && c2 == '/')) {
         if (is_newline(c))
             (*line_no) += 1;
@@ -132,6 +131,12 @@ static int parse_char(char **p) {
         else                { type = base_type; (*p) += 1; }   \
     }
 
+#define check2(char1, char2, target_type)   \
+    else if (c == char1 && c2 == char2) {   \
+        type = target_type;                    \
+        (*p) += 2;                          \
+    }
+
 int parse_lexer_token_at_pointer(char **p, char *filename, int *line_no, struct token **token) {
 
     (*token) = NULL;
@@ -176,6 +181,14 @@ int parse_lexer_token_at_pointer(char **p, char *filename, int *line_no, struct 
     check1(']', TOK_CLOSE_BRACKET)
     check1('{', TOK_BLOCK_START)
     check1('}', TOK_BLOCK_END)
+    check1('.', TOK_DOT)
+    check1('*', TOK_STAR)
+    check1('/', TOK_SLASH)
+    check1('^', TOK_CARET)
+    check1('%', TOK_PERCENT)
+    check1('~', TOK_TILDE)
+
+    check2('-', '>', TOK_ARROW)
 
     check1_ext('=', '=', TOK_ASSIGNMENT, TOK_EQUALITY_CHECK)
     check1_ext('!', '=', TOK_LOGICAL_NOT, TOK_NOT_EQUAL)
@@ -185,12 +198,6 @@ int parse_lexer_token_at_pointer(char **p, char *filename, int *line_no, struct 
     check1_ext('-', '-', TOK_MINUS_SIGN, TOK_DECREMENT)
     check1_ext('|', '|', TOK_BITWISE_OR, TOK_LOGICAL_OR)
     check1_ext('&', '&', TOK_BITWISE_AND, TOK_LOGICAL_AND)
-
-    check1('*', TOK_STAR)
-    check1('/', TOK_SLASH)
-    check1('^', TOK_CARET)
-    check1('%', TOK_PERCENT)
-    check1('~', TOK_TILDE)
 
     else {
         collect(c);

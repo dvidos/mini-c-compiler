@@ -33,6 +33,19 @@ oper accept_unary_operator() {
     return to_unary_operator(t->type);
 }
 
+bool next_is_postfix_operator() {
+    token_type tt = next() == NULL ? TOK_EOF : next()->type;
+    return to_postfix_operator(tt) != OP_UNKNOWN;
+}
+
+oper accept_postfix_operator() {
+    if (!next_is_postfix_operator())
+        return OP_UNKNOWN;
+    token *t = next();
+    consume();
+    return to_postfix_operator(t->type);
+}
+
 bool next_is_binary_operator() {
     token_type tt = next() == NULL ? TOK_EOF : next()->type;
     return to_binary_operator(tt) != OP_UNKNOWN;
@@ -74,13 +87,13 @@ ast_expression_node *accept_terminal() {
 
 oper operators_stack[MAX_STACK_SIZE];
 int operators_stack_len = 0;
-static inline void push_operator(oper op) { operators_stack[operators_stack_len++] = op; }
+static inline void push_operator(oper op) { operators_stack[operators_stack_len++] = op; if (operators_stack_len >= MAX_STACK_SIZE) parsing_error("op stack overflow"); }
 static inline oper pop_operator() { return operators_stack[--operators_stack_len]; }
 static inline oper peek_operator() { return operators_stack[operators_stack_len - 1]; }
 
 ast_expression_node *operands_stack[MAX_STACK_SIZE];
 int operands_stack_len = 0;
-static inline void push_operand(ast_expression_node *n) { operands_stack[operands_stack_len++] = n; }
+static inline void push_operand(ast_expression_node *n) { operands_stack[operands_stack_len++] = n; if (operands_stack_len >= MAX_STACK_SIZE) parsing_error("expr stack overflow"); }
 static inline ast_expression_node *pop_operand() { return operands_stack[--operands_stack_len]; }
 static inline ast_expression_node *peek_operand() { return operands_stack[operands_stack_len - 1]; }
 
@@ -126,6 +139,18 @@ static void parse_operand() {
     } else {
         parsing_error("expected '(', unary operator, or terminal token");
     }
+
+    // // is this good?
+    // while (next_is_postfix_operator()) {
+    //     oper op = accept_postfix_operator();
+    //     push_operator_with_priority(op);
+    //     parse_complex_expression();
+
+    //     if (op == OP_FUNC_CALL)
+    //         expect(TOK_RPAREN);
+    //     else if (op == OP_ARRAY_SUBSCRIPT)
+    //         expect(TOK_CLOSE_BRACKET);
+    // }
 }
 
 static void push_operator_with_priority(oper op) {

@@ -11,20 +11,20 @@ struct operator_info {
     oper op;
     int precedence;
     bool unary;
-    bool left_associative;
+    bool postfix;
     char *mnemonic;
 };
 
 struct operator_info operators_info[] = {
-    // enum oper          prio  unary   left   mnemonic
+    // enum oper          prio  unary  postfix   mnemonic
     { OP_UNKNOWN,            0, false, false, "UNKNOWN" },  // to signify an unknown operator, when the token does not work
 
-    { OP_FUNC_CALL,         29, true,  false, "CALL" },     // a()
-    { OP_ARRAY_SUBSCRIPT,   29, false, false, "ELEM" },    // a[b]
-    { OP_STRUCT_MEMBER_PTR, 29, false, false, "SPTR" },    // a->b
-    { OP_STRUCT_MEMBER_REF, 29, false, false, "SMBM" },    // a.b
-    { OP_POST_INC,          29, true,  false, "POSTINC" }, // a++
-    { OP_POST_DEC,          29, true,  false, "POSTDEC" }, // a--
+    { OP_FUNC_CALL,         29, true,  true, "CALL" },     // a()
+    { OP_ARRAY_SUBSCRIPT,   29, false, true, "ELEM" },    // a[b]
+    { OP_STRUCT_MEMBER_PTR, 29, false, true, "SPTR" },    // a->b
+    { OP_STRUCT_MEMBER_REF, 29, false, true, "SMBM" },    // a.b
+    { OP_POST_INC,          29, true,  true, "POSTINC" }, // a++
+    { OP_POST_DEC,          29, true,  true, "POSTDEC" }, // a--
     { OP_POSITIVE_NUM,      28, true,  false, "NEG" },     // +123
     { OP_NEGATIVE_NUM,      28, true,  false, "POS" },     // -123
     { OP_LOGICAL_NOT,       28, true,  false, "NOT" },     // !a
@@ -129,6 +129,23 @@ oper to_binary_operator(token_type type) {
         case TOK_LESS_EQUAL:   return OP_LE;
         case TOK_LARGER_THAN:  return OP_GT;
         case TOK_LARGER_EQUAL: return OP_GE;
+        case TOK_COMMA:        return OP_COMMA;
+        case TOK_ASSIGNMENT:   return OP_ASSIGNMENT;
+        case TOK_LPAREN:       return OP_FUNC_CALL;
+        case TOK_OPEN_BRACKET: return OP_ARRAY_SUBSCRIPT;
+    }
+    return OP_UNKNOWN;
+}
+
+// convert a token to a unary operator, if applicable
+oper to_postfix_operator(token_type type) {
+    switch (type) {
+        case TOK_LPAREN:       return OP_FUNC_CALL;
+        case TOK_OPEN_BRACKET: return OP_ARRAY_SUBSCRIPT;
+        case TOK_ARROW:        return OP_STRUCT_MEMBER_PTR;
+        case TOK_DOT:          return OP_STRUCT_MEMBER_REF;
+        case TOK_INCREMENT:    return OP_POST_INC;
+        case TOK_DECREMENT:    return OP_POST_DEC;
     }
     return OP_UNKNOWN;
 }

@@ -140,6 +140,7 @@ static void print_statement(ast_statement_node *st, int depth) {
         case ST_EXPRESSION:
             indent(depth);
             print_expression(st->eval);
+            printf("\n");
             break;
 
         default:

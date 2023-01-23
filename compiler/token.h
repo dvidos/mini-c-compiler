@@ -31,6 +31,7 @@ typedef enum token_type {
     TOK_QUESTION_MARK,
     TOK_COLON,
     TOK_DOT,
+    TOK_ARROW,
     TOK_INCREMENT,
     TOK_DECREMENT,
     TOK_LESS_EQUAL,

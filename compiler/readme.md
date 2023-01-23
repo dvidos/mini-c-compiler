@@ -260,3 +260,29 @@ function: void main()
 {
 }
 ```
+
+## What did I learn?
+
+That compilers are indeed interesting beasts!
+
+The first phase is loading and parsing the file. We get rid of newlines,
+empty space (where it can be ignored, as opposed say to Python), etc.
+We end up with a stream of tokens, e.g. symbols, names, numbers etc.
+
+The second phase is to parse these tokens into an AST, or *Abstract Syntax Tree*.
+That means that the logic of the code is represented as data. 
+
+For example, an `if` statement is represented as a node with three children,
+one for the condition expression, one for the body if the condition evaluates
+as true, and a final one for the body if the condition evaluates as false.
+The expression can be a simple or nested expression to great depths,
+while the bodies are sequences of statements, exactly like the `if` we are looking at.
+
+The main parser I used for parsing the tokens is a *Recursive Descending parser*, 
+which identifies parts of the program and calls the appropriate piece of code
+to consume the tokens and generate the AST nodes. For expressions, since precedence
+comes into play (e.g. multiplications must be done before additions, even if they 
+appear to the right of the additions), I used a *Shunting Yard* algorithm, which 
+uses stacks to make the highest priority operations pop last.
+
+

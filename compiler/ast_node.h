@@ -95,5 +95,4 @@ ast_statement_node *create_ast_return_statement(expr_node *return_value);
 ast_statement_node *create_ast_expr_statement(expr_node *expression);
 char *statement_type_name(statement_type type);
 
-// -------------------------------------------------------------
 

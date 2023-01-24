@@ -23,21 +23,6 @@
 //     int k = "asdf";
 //     int k = '4';
 
-//     if (c > 3) {
-//         return 1;
-//     } else {
-//         return c;
-//     }
-
-//     int x = 3;
-//     while (x > 0) {
-//         // something
-//         if (x > 10)
-//             continue;
-//         if (x < 3)
-//             break;
-//     }
-// }
 
 int flow_demonstration(int a) {
 
@@ -74,10 +59,29 @@ int precedence_demonstration() {
     int k = a || b && c;
 }
 
+int fibonacci(int num) {
+    if (num <= 2)
+        return num;
+    return fibonacci(num - 1) + fibonacci(num - 2);
+}
+
+int factorial(int num) { 
+    if (num <= 1)
+        return 1;
+    
+    return num * factorial(num - 1);
+}
+
+
 // this is another comment
 void main() {
     int a = 1 ^ 2 * 3 + 4 > 5 & 7 / 8 || odd && even;
     a = add_numbers(5, 2, a, b);
     int response = flow_demonstration(5);
+
+    int num = 0;
+    while (num++ <= 10) {
+        fibonacci(num);
+    }
 }
 

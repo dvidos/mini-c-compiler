@@ -6,6 +6,7 @@
 #include "lexer/lexer.h"
 #include "ast_node.h"
 #include "ast.h"
+#include "operators.h"
 #include "parser/iterator.h"
 #include "parser/recursive_descend.h"
 #include "parser/shunting_yard.h"
@@ -125,6 +126,7 @@ int main(int argc, char *argv[]) {
         return 1;
     }
 
+    init_operators();
     init_lexer();
     init_tokens();
 

@@ -15,7 +15,7 @@ struct operator_info {
     char *mnemonic;
 };
 
-struct operator_info operators_info[] = {
+struct operator_info operators_info_list[] = {
     // enum oper          prio  unary  postfix   mnemonic
     { OP_UNKNOWN,            0, false, false, "UNKNOWN" },  // to signify an unknown operator, when the token does not work
 
@@ -76,29 +76,26 @@ struct operator_info operators_info[] = {
     { OP_SENTINEL,          0, false, false, "SNTL" }, // for the shunting yard algorithm, this has the lowest priority of all
 };
 
+struct operator_info *operators_info_by_op[sizeof(operators_info_list) / sizeof(operators_info_list[0])];
+
+// make operators a O(1) lookup, by using the enum value as an index.
+void init_operators() {
+    for (int i = 0; i < sizeof(operators_info_list) / sizeof(operators_info_list[0]); i++) {
+        oper op = operators_info_list[i].op;
+        operators_info_by_op[(int)op] = &operators_info_list[i];
+    }
+}
 
 int oper_precedence(oper op) {
-    for (int i = 0; i < sizeof(operators_info) / sizeof(operators_info[0]); i++) {
-        if (operators_info[i].op == op)
-            return operators_info[i].precedence;
-    }
-    return 0;
+    return operators_info_by_op[(int)op]->precedence;
 }
 
 char *oper_debug_name(oper op) {
-    for (int i = 0; i < sizeof(operators_info) / sizeof(operators_info[0]); i++) {
-        if (operators_info[i].op == op)
-            return operators_info[i].mnemonic;
-    }
-    return "???";
+    return operators_info_by_op[(int)op]->mnemonic;
 }
 
 bool is_unary_operator(oper op) {
-    for (int i = 0; i < sizeof(operators_info) / sizeof(operators_info[0]); i++) {
-        if (operators_info[i].op == op)
-            return operators_info[i].unary;
-    }
-    return false;
+    return operators_info_by_op[(int)op]->unary;
 }
 
 // convert a token to a unary operator, if applicable

@@ -39,7 +39,7 @@ static void indent(int depth) {
         printf(".  ");
 }
 
-static void print_data_type(ast_data_type_node *n) {
+static void print_data_type(data_type *n) {
     printf("%s", data_type_family_name(n->family));
     if (n->nested != NULL) {
         printf("(");
@@ -48,7 +48,7 @@ static void print_data_type(ast_data_type_node *n) {
     }
 }
 
-static void print_expression_using_func_format(ast_expression_node *expr) {
+static void print_expression_using_func_format(expr_node *expr) {
     if (expr == NULL) {
         printf("NULL");
     } else if (expr->op == OP_SYMBOL_NAME) {
@@ -70,7 +70,7 @@ static void print_expression_using_func_format(ast_expression_node *expr) {
     }
 }
 
-static void print_expression_using_tree_format(ast_expression_node *expr, int depth) {
+static void print_expression_using_tree_format(expr_node *expr, int depth) {
     indent(depth);
     
     if (expr == NULL) {

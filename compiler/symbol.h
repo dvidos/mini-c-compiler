@@ -19,14 +19,14 @@ typedef struct symbol {
     symbol_type symbol_type;
 
     char *name;
-    ast_data_type_node *data_type;
+    data_type *data_type;
     symbol_scope scope; // it really should be a list per scope
 
     struct symbol *next;
 } symbol;
 
 void init_symbols();
-symbol *create_symbol(char *name, ast_data_type_node *data_type);
+symbol *create_symbol(char *name, data_type *data_type);
 void add_symbol(symbol *s);
 symbol *lookup_symbol(char *name);
 

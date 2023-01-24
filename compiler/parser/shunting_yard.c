@@ -3,6 +3,7 @@
 #include "../lexer/token.h"
 #include "../operators.h"
 #include "../ast_node.h"
+#include "../expression.h"
 #include "iterator.h"
 
 /*
@@ -64,7 +65,7 @@ bool next_is_terminal() {
     return tt == TOK_STRING_LITERAL || tt == TOK_NUMERIC_LITERAL || tt == TOK_CHAR_LITERAL || tt == TOK_IDENTIFIER;
 }
 
-ast_expression_node *accept_terminal() {
+expr_node *accept_terminal() {
     if (!next_is_terminal())
         return NULL;
     token *t = next();
@@ -91,11 +92,11 @@ static inline void push_operator(oper op) { operators_stack[operators_stack_len+
 static inline oper pop_operator() { return operators_stack[--operators_stack_len]; }
 static inline oper peek_operator() { return operators_stack[operators_stack_len - 1]; }
 
-ast_expression_node *operands_stack[MAX_STACK_SIZE];
+expr_node *operands_stack[MAX_STACK_SIZE];
 int operands_stack_len = 0;
-static inline void push_operand(ast_expression_node *n) { operands_stack[operands_stack_len++] = n; if (operands_stack_len >= MAX_STACK_SIZE) parsing_error("expr stack overflow"); }
-static inline ast_expression_node *pop_operand() { return operands_stack[--operands_stack_len]; }
-static inline ast_expression_node *peek_operand() { return operands_stack[operands_stack_len - 1]; }
+static inline void push_operand(expr_node *n) { operands_stack[operands_stack_len++] = n; if (operands_stack_len >= MAX_STACK_SIZE) parsing_error("expr stack overflow"); }
+static inline expr_node *pop_operand() { return operands_stack[--operands_stack_len]; }
+static inline expr_node *peek_operand() { return operands_stack[operands_stack_len - 1]; }
 
 // -------------------------------------------------------------------
 
@@ -181,8 +182,8 @@ static void pop_operator_into_expression()
 {
     oper op = pop_operator();
     bool is_unary = is_unary_operator(op);
-    ast_expression_node *op1, *op2;
-    ast_expression_node *expr;
+    expr_node *op1, *op2;
+    expr_node *expr;
 
     if (is_unary) { 
         op1 = pop_operand();
@@ -198,7 +199,7 @@ static void pop_operator_into_expression()
 
 // -------------------------------------------------------------------
 
-ast_expression_node *parse_expression_using_shunting_yard() {
+expr_node *parse_expression_using_shunting_yard() {
 
     // reset stacks, push SENTINEL to serve as lowest priority indicator
     operators_stack_len = 0;

@@ -51,7 +51,7 @@ static bool is_data_type_description();
 static bool is_variable_declaration();
 static bool is_function_declaration();
 
-static ast_data_type_node *accept_data_type_description();
+static data_type *accept_data_type_description();
 static ast_statement_node *accept_variable_declaration();
 static ast_func_decl_node *accept_function_declaration();
 
@@ -99,7 +99,7 @@ static char *expect_identifier() {
     return accepted()->value;
 }
 
-static ast_data_type_node *accept_data_type_description() {
+static data_type *accept_data_type_description() {
     // we assume data definition takes only one token, for now
     if (!is_data_type_description())
         return NULL;
@@ -113,15 +113,13 @@ static ast_statement_node *accept_variable_declaration() {
     if (!is_variable_declaration())
         return NULL;
 
-    ast_data_type_node *dt = accept_data_type_description();
+    data_type *dt = accept_data_type_description();
     if (dt == NULL) return NULL;
-... start parsing expression from here, to allow for costructs such as:
-... int a = 1, b = 2, c = a + b;
     char *name = expect_identifier();
     if (name == NULL) return NULL;
 
     ast_var_decl_node *vd = create_ast_var_decl_node(dt, name);
-    ast_expression_node *initialization = NULL;
+    expr_node *initialization = NULL;
     if (accept(TOK_ASSIGNMENT)) {
         initialization = parse_expression_using_shunting_yard();
     }
@@ -135,7 +133,7 @@ static ast_func_decl_node *accept_function_declaration() {
     if (!is_function_declaration())
         return NULL;
 
-    ast_data_type_node *ret_type = accept_data_type_description();
+    data_type *ret_type = accept_data_type_description();
     if (ret_type == NULL) return NULL;
 
     char *name = expect_identifier();
@@ -174,7 +172,7 @@ static ast_statement_node *parse_statement() {
 
     if (accept(TOK_IF)) {
         if (!expect(TOK_LPAREN)) return NULL;
-        ast_expression_node *cond = parse_expression_using_shunting_yard();
+        expr_node *cond = parse_expression_using_shunting_yard();
         if (!expect(TOK_RPAREN)) return NULL;
         ast_statement_node *if_body = parse_statement();
         if (if_body == NULL) return NULL;
@@ -188,7 +186,7 @@ static ast_statement_node *parse_statement() {
 
     if (accept(TOK_WHILE)) {
         if (!expect(TOK_LPAREN)) return NULL;
-        ast_expression_node *cond = parse_expression_using_shunting_yard();
+        expr_node *cond = parse_expression_using_shunting_yard();
         if (!expect(TOK_RPAREN)) return NULL;
         ast_statement_node *body = parse_statement();
         if (body == NULL) return NULL;
@@ -206,7 +204,7 @@ static ast_statement_node *parse_statement() {
     }
 
     if (accept(TOK_RETURN)) {
-        ast_expression_node *value = NULL;
+        expr_node *value = NULL;
         if (!accept(TOK_END_OF_STATEMENT)) {
             value = parse_expression_using_shunting_yard();
             if (!expect(TOK_END_OF_STATEMENT)) return NULL;
@@ -215,7 +213,7 @@ static ast_statement_node *parse_statement() {
     }
     
     // what is left?
-    ast_expression_node *expr = parse_expression_using_shunting_yard();
+    expr_node *expr = parse_expression_using_shunting_yard();
     if (!expect(TOK_END_OF_STATEMENT)) return NULL;
     return create_ast_expr_statement(expr);
 }
@@ -237,7 +235,7 @@ static ast_var_decl_node *parse_function_arguments_list() {
     declare_list(ast_var_decl_node);
 
     while (!next_is(TOK_RPAREN)) {
-        ast_data_type_node *dt = accept_data_type_description();
+        data_type *dt = accept_data_type_description();
         char *name = expect_identifier();
         if (dt == NULL || name == NULL)
             return NULL;

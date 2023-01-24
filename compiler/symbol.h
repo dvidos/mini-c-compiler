@@ -2,12 +2,6 @@
 #include "ast_node.h"
 
 
-typedef enum symbol_type {
-    ST_FUNC,
-    ST_VAR,
-
-} symbol_type;
-
 typedef enum synbol_scope {
     SS_GLOBAL,
     SS_FILE,
@@ -15,20 +9,25 @@ typedef enum synbol_scope {
     SS_LOCAL
 } symbol_scope;
 
-typedef struct symbol {
-    symbol_type symbol_type;
+// where the symbol is defined
+typedef enum symbol_definition {
+    SD_FILE,
+    SD_BLOCK,
+    SD_FUNC_ARGUMENT
+} symbol_definition;
 
+typedef struct symbol {
     char *name;
     data_type *data_type;
-    symbol_scope scope; // it really should be a list per scope
+    symbol_definition definition; // where it was defined
+    int arg_no; // zero based argument count
 
     struct symbol *next;
 } symbol;
 
-void init_symbols();
-symbol *create_symbol(char *name, data_type *data_type);
-void add_symbol(symbol *s);
-symbol *lookup_symbol(char *name);
+symbol *create_symbol(char *name, data_type *data_type, symbol_definition definition);
+symbol *create_func_arg_symbol(char *name, data_type *data_type, int arg_no);
+
 
 
 

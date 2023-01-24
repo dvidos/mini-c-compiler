@@ -119,7 +119,7 @@ static void print_statement(ast_statement_node *st, int depth) {
 
         case ST_IF:
             indent(depth);
-            printf("if(");
+            printf("if (");
             print_expression_using_func_format(st->eval);
             printf(")\n");
             print_statement(st->body, depth+1);
@@ -132,7 +132,7 @@ static void print_statement(ast_statement_node *st, int depth) {
 
         case ST_WHILE:
             indent(depth);
-            printf("while(");
+            printf("while (");
             print_expression_using_func_format(st->eval);
             printf(")\n");
             print_statement(st->body, depth+1);
@@ -152,17 +152,17 @@ static void print_statement(ast_statement_node *st, int depth) {
             indent(depth);
             printf("return");
             if (st->eval != NULL) {
-                printf(" (");
+                printf(" ");
                 print_expression_using_func_format(st->eval);
-                printf(")");
             }
             printf("\n");
             break;
             
         case ST_EXPRESSION:
-            print_expression_using_tree_format(st->eval, depth);
-            // indent(depth);
-            // print_expression_using_func_format(st->eval);
+            //print_expression_using_tree_format(st->eval, depth);
+            indent(depth);
+            print_expression_using_func_format(st->eval);
+            printf("\n");
             break;
 
         default:

@@ -101,7 +101,7 @@ int parse_abstract_syntax_tree(token *first) {
 }
 
 int generate_code() {
-    // for now a.elf or something
+    // for now a.elf or something simple
     return ERROR;
 }
 

@@ -12,6 +12,13 @@ SRC_FILES = \
 	parser/recursive_descend.c \
 	parser/shunting_yard.c
 
+.PHONY: tests
+
+all: tests
+
+tests: $(BINARY) tests/parsing_test.c
+	./$(BINARY) tests/parsing_test.c
+
 $(BINARY): $(SRC_FILES)
 	gcc -o $@ -g $^
 

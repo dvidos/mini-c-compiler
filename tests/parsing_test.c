@@ -14,7 +14,8 @@ char c;
 bool d;
 void e; // semantically wrong, but syntactically parseable
 
-// char *a;      // pointers
+char *pa;     // pointer
+char **ppa;   // pointer to pointer
 // char a[10];   // arrays
 // char *a[10];  // arrays of pointers
 

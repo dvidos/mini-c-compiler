@@ -60,6 +60,7 @@ typedef enum oper {
     OP_STR_LITERAL,   // carries a string value
     OP_NUM_LITERAL,   // carries a numeric value
     OP_CHR_LITERAL,   // carries a char value
+    OP_BOOL_LITERAL,  // carries a boolean value
 } oper;
 
 

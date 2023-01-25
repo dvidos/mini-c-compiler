@@ -59,7 +59,7 @@ static ast_statement_node *parse_statement();
 static ast_statement_node *parse_block(); // parses statements in a loop
 static ast_var_decl_node *parse_function_arguments_list();
 
-static bool is_data_type_description() {
+static bool is_data_type_description(int *num_tokens) {
     // storage_class_specifiers: typedef, extern, static, auto, register.
     // type_qualifiers: const, volatile.
     // type specifiers: void, char, short, int, long, float, double, 
@@ -67,31 +67,50 @@ static bool is_data_type_description() {
     // make sure to detect without consuming anything. 
     // use lookahead() if neded.
 
-    // keeping it simple for now
-    return (next_is(TOK_INT_KEYWORD)
+    int count = 0;
+
+    if (!(next_is(TOK_INT_KEYWORD)
          || next_is(TOK_FLOAT)
          || next_is(TOK_CHAR_KEYWORD)
          || next_is(TOK_BOOL)
-         || next_is(TOK_VOID));
+         || next_is(TOK_VOID))) {
+        return false;
+    }
+    count++;
+
+    // possible pointer
+    if (lookahead_is(count, TOK_STAR))
+        count++;
+    
+    // possible pointer-to-pointer
+    if (lookahead_is(count, TOK_STAR))
+        count++;
+
+    *num_tokens = count;
+    return true;
 }
 
 static bool is_variable_declaration() {
     // we assume data definition takes only one token for now
-    if (!is_data_type_description())
+    int tokens = 0;
+    if (!is_data_type_description(&tokens))
         return false;
 
     // after that, we should expect an identifier, but NO parenthesis
-    return lookahead_is(1, TOK_IDENTIFIER) && !lookahead_is(2, TOK_LPAREN);
+    return lookahead_is(tokens + 0, TOK_IDENTIFIER)
+        && !lookahead_is(tokens + 1, TOK_LPAREN);
 }
 
 static bool is_function_declaration() {
 
     // we assume data definition takes only one token for now
-    if (!is_data_type_description())
+    int tokens = 0;
+    if (!is_data_type_description(&tokens))
         return false;
 
     // after that, we should expect an identifier and a L parenthesis
-    return lookahead_is(1, TOK_IDENTIFIER) && lookahead_is(2, TOK_LPAREN);
+    return lookahead_is(tokens + 0, TOK_IDENTIFIER) 
+        && lookahead_is(tokens + 1, TOK_LPAREN);
 }
 
 static char *expect_identifier() {
@@ -103,12 +122,24 @@ static char *expect_identifier() {
 
 static data_type *accept_data_type_description() {
     // we assume data definition takes only one token, for now
-    if (!is_data_type_description())
+    int tokens;
+    if (!is_data_type_description(&tokens))
         return NULL;
 
-    // we assume data definition takes only one token, for now
-    consume();
-    return create_ast_data_type_node(accepted(), NULL);
+    consume(); // a keyword such as "int" or "char"
+    data_type *t = create_ast_data_type_node(accepted(), NULL);
+
+    if (accept(TOK_STAR)) {
+        // we are a pointer, nest the data type
+        t = create_ast_data_type_node(accepted(), t);
+    }
+
+    if (accept(TOK_STAR)) {
+        // we are a pointer to pointer, nest the data type too
+        t = create_ast_data_type_node(accepted(), t);
+    }
+
+    return t;
 }
 
 static ast_statement_node *accept_variable_declaration() {

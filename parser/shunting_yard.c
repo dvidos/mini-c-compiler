@@ -81,6 +81,8 @@ expr_node *accept_terminal() {
         case TOK_STRING_LITERAL:  return create_ast_expr_string_literal(t->value);
         case TOK_NUMERIC_LITERAL: return create_ast_expr_numeric_literal(t->value);
         case TOK_CHAR_LITERAL:    return create_ast_expr_char_literal(t->value[0]);
+        case TOK_TRUE:            return create_ast_expr_bool_literal(true);
+        case TOK_FALSE:           return create_ast_expr_bool_literal(false);
     }
     return NULL;
 }

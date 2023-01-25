@@ -12,6 +12,7 @@ typedef struct expr_node {
         char *str; // var name, func name, or string literal.
         long num;
         char chr;
+        bool bln;
     } value;
 
 } expr_node;
@@ -22,4 +23,4 @@ expr_node *create_ast_expr_name(char *name);
 expr_node *create_ast_expr_string_literal(char *str);
 expr_node *create_ast_expr_numeric_literal(char *number);
 expr_node *create_ast_expr_char_literal(char chr);
-
+expr_node *create_ast_expr_bool_literal(bool value);

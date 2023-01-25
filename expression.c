@@ -42,3 +42,9 @@ expr_node *create_ast_expr_char_literal(char chr) {
     return n;
 }
 
+expr_node *create_ast_expr_bool_literal(bool value) {
+    expr_node *n = create_ast_expression(OP_BOOL_LITERAL, NULL, NULL);
+    n->value.bln = value;
+    return n;
+}
+

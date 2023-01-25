@@ -25,8 +25,8 @@ struct operator_info operators_info_list[] = {
     { OP_STRUCT_MEMBER_REF, 29, false, true, "SMBM" },    // a.b
     { OP_POST_INC,          29, true,  true, "POSTINC" }, // a++
     { OP_POST_DEC,          29, true,  true, "POSTDEC" }, // a--
-    { OP_POSITIVE_NUM,      28, true,  false, "NEG" },     // +123
-    { OP_NEGATIVE_NUM,      28, true,  false, "POS" },     // -123
+    { OP_POSITIVE_NUM,      28, true,  false, "POS" },     // +123
+    { OP_NEGATIVE_NUM,      28, true,  false, "NEG" },     // -123
     { OP_LOGICAL_NOT,       28, true,  false, "NOT" },     // !a
     { OP_BINARY_NOT,        28, true,  false, "BIN_NOT" }, // ~a
     { OP_PRE_INC,           28, true,  false, "PREINC" },  // ++a
@@ -71,6 +71,8 @@ struct operator_info operators_info_list[] = {
     { OP_STR_LITERAL,       1, false, false, "STR" }, // carries a string value
     { OP_NUM_LITERAL,       1, false, false, "NUM" }, // carries a numeric value
     { OP_CHR_LITERAL,       1, false, false, "CHR" }, // carries a char value
+    { OP_BOOL_LITERAL,      1, false, false, "BOOL" }, // carries a boolean value
+
 
     
     { OP_SENTINEL,          0, false, false, "SNTL" }, // for the shunting yard algorithm, this has the lowest priority of all

@@ -10,6 +10,8 @@ typedef enum type_family {
     TF_CHAR,
     TF_BOOL,
     TF_VOID,
+    TF_POINTER,
+    TF_ARRAY,
 } type_family;
 
 // type of a variable or symbol

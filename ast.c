@@ -66,6 +66,8 @@ static void print_expression_using_func_format(expr_node *expr) {
         printf("%ld", expr->value.num);
     } else if (expr->op == OP_CHR_LITERAL) {
         printf("'%c'", expr->value.chr);
+    } else if (expr->op == OP_BOOL_LITERAL) {
+        printf("%s", expr->value.bln ? "true" : "false");
     } else {
         printf("%s(", oper_debug_name(expr->op));
         print_expression_using_func_format(expr->arg1);
@@ -90,6 +92,8 @@ static void print_expression_using_tree_format(expr_node *expr, int depth) {
         printf("%ld\n", expr->value.num);
     } else if (expr->op == OP_CHR_LITERAL) {
         printf("'%c'\n", expr->value.chr);
+    } else if (expr->op == OP_BOOL_LITERAL) {
+        printf("%s", expr->value.bln ? "true" : "false");
     } else {
         printf("%s()\n", oper_debug_name(expr->op));
         print_expression_using_tree_format(expr->arg1, depth + 1);

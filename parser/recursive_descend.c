@@ -127,16 +127,16 @@ static data_type *accept_data_type_description() {
         return NULL;
 
     consume(); // a keyword such as "int" or "char"
-    data_type *t = create_ast_data_type_node(accepted(), NULL);
+    data_type *t = create_data_type(accepted()->type, NULL);
 
     if (accept(TOK_STAR)) {
         // we are a pointer, nest the data type
-        t = create_ast_data_type_node(accepted(), t);
+        t = create_data_type(TOK_STAR, t);
     }
 
     if (accept(TOK_STAR)) {
         // we are a pointer to pointer, nest the data type too
-        t = create_ast_data_type_node(accepted(), t);
+        t = create_data_type(TOK_STAR, t);
     }
 
     return t;
@@ -150,6 +150,22 @@ static ast_statement_node *accept_variable_declaration() {
     if (dt == NULL) return NULL;
     char *name = expect_identifier();
     if (name == NULL) return NULL;
+
+    // it's an array
+    if (accept(TOK_OPEN_BRACKET)) {
+        dt = create_data_type(TOK_OPEN_BRACKET, dt);
+        if (!expect(TOK_NUMERIC_LITERAL)) return NULL;
+        dt->array_size = strtol(accepted()->value, NULL, 10);
+        if (!expect(TOK_CLOSE_BRACKET)) return NULL;
+    }
+
+    // maybe a two-dimensions array?
+    if (accept(TOK_OPEN_BRACKET)) {
+        dt = create_data_type(TOK_OPEN_BRACKET, dt);
+        if (!expect(TOK_NUMERIC_LITERAL)) return NULL;
+        dt->array_size = strtol(accepted()->value, NULL, 10);
+        if (!expect(TOK_CLOSE_BRACKET)) return NULL;
+    }
 
     ast_var_decl_node *vd = create_ast_var_decl_node(dt, name);
     expr_node *initialization = NULL;

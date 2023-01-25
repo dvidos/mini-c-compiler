@@ -2,17 +2,17 @@
 #include "data_type.h"
 
 
-struct data_type *create_ast_data_type_node(token *token, data_type *nested) {
+struct data_type *create_data_type(token_type type, data_type *nested) {
     enum type_family family;
-    switch (token->type) {
-        case TOK_INT_KEYWORD: family = TF_INT; break;
-        case TOK_FLOAT: family = TF_FLOAT; break;
+    switch (type) {
+        case TOK_INT_KEYWORD:  family = TF_INT; break;
+        case TOK_FLOAT:        family = TF_FLOAT; break;
         case TOK_CHAR_KEYWORD: family = TF_CHAR; break;
-        case TOK_BOOL: family = TF_BOOL; break;
-        case TOK_VOID: family = TF_VOID; break;
-        case TOK_STAR: family = TF_POINTER; break;
+        case TOK_BOOL:         family = TF_BOOL; break;
+        case TOK_VOID:         family = TF_VOID; break;
+        case TOK_STAR:         family = TF_POINTER; break;
         case TOK_OPEN_BRACKET: family = TF_ARRAY; break;
-        default: family = TF_INT;
+        default:               family = TF_INT;
     }
     
     data_type *n = malloc(sizeof(data_type));

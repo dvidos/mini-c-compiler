@@ -14,10 +14,14 @@ char c;
 bool d;
 void e; // semantically wrong, but syntactically parseable
 
-char *pa;     // pointer
-char **ppa;   // pointer to pointer
-// char a[10];   // arrays
-// char *a[10];  // arrays of pointers
+char *pa;             // pointer
+char **ppa;           // pointer to pointer
+char ar[10];          // array
+char ar2[10][20];     // 2-dimensional array
+char *arp[10];        // array of pointers
+char *ar2p[10][20];   // 2-dimensional array of pointers
+char **arpp[10];      // array of pointers to pointers
+char **ar2pp[10][20]; // 2-dimensional array of pointers to pointers
 
 // simple values with initializer expression
 int a = 1;

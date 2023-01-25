@@ -48,6 +48,8 @@ static void indent(int depth) {
 
 static void print_data_type(data_type *n) {
     printf("%s", data_type_family_name(n->family));
+    if (n->family == TF_ARRAY)
+        printf(":%d", n->array_size);
     if (n->nested != NULL) {
         printf("(");
         print_data_type(n->nested);

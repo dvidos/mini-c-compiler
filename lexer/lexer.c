@@ -198,11 +198,11 @@ int parse_lexer_token_at_pointer(char **p, char *filename, int *line_no, struct 
         type = TOK_CHAR_LITERAL;
     }
     check1(',', TOK_COMMA)
-    check1(';', TOK_END_OF_STATEMENT)
+    check1(';', TOK_SEMICOLON)
     check1('(', TOK_LPAREN)
     check1(')', TOK_RPAREN)
-    check1('[', TOK_OPEN_BRACKET)
-    check1(']', TOK_CLOSE_BRACKET)
+    check1('[', TOK_LBRACKET)
+    check1(']', TOK_RBRACKET)
     check1('{', TOK_BLOCK_START)
     check1('}', TOK_BLOCK_END)
     check1('.', TOK_DOT)
@@ -213,17 +213,17 @@ int parse_lexer_token_at_pointer(char **p, char *filename, int *line_no, struct 
     check1('~', TOK_TILDE)
 
     check2('-', '>', TOK_ARROW)
-    check2('<', '<', TOK_LSHIFT)
-    check2('>', '>', TOK_RSHIFT)
+    check2('<', '<', TOK_DBL_LESS_THAN)
+    check2('>', '>', TOK_DBL_GRATER_THAN)
 
-    check1_ext('=', '=', TOK_ASSIGNMENT, TOK_EQUAL_SIGN)
-    check1_ext('!', '=', TOK_LOGICAL_NOT, TOK_NOT_EQUAL)
+    check1_ext('=', '=', TOK_EQUAL_SIGN, TOK_DBL_EQUAL_SIGN)
+    check1_ext('!', '=', TOK_EXCLAMANTION, TOK_EXCLAM_EQUAL)
     check1_ext('<', '=', TOK_LESS_THAN, TOK_LESS_EQUAL)
     check1_ext('>', '=', TOK_LARGER_THAN, TOK_LARGER_EQUAL)
-    check1_ext('+', '+', TOK_PLUS_SIGN, TOK_INCREMENT)
-    check1_ext('-', '-', TOK_MINUS_SIGN, TOK_DECREMENT)
-    check1_ext('|', '|', TOK_BITWISE_OR, TOK_LOGICAL_OR)
-    check1_ext('&', '&', TOK_BITWISE_AND, TOK_LOGICAL_AND)
+    check1_ext('+', '+', TOK_PLUS_SIGN, TOK_DBL_PLUS)
+    check1_ext('-', '-', TOK_MINUS_SIGN, TOK_DBL_MINUS)
+    check1_ext('|', '|', TOK_PIPE, TOK_DBL_PIPE)
+    check1_ext('&', '&', TOK_AMPERSAND, TOK_DBL_AMPERSAND)
 
     else {
         collect(c);

@@ -163,7 +163,7 @@ static void parse_operand() {
             if (op == OP_FUNC_CALL)
                 expect(TOK_RPAREN);
             else if (op == OP_ARRAY_SUBSCRIPT)
-                expect(TOK_CLOSE_BRACKET);
+                expect(TOK_RBRACKET);
         }
     }
 }

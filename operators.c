@@ -19,12 +19,12 @@ struct operator_info operators_info_list[] = {
     // enum oper          prio  unary  postfix   mnemonic
     { OP_UNKNOWN,            0, false, false, "UNKNOWN" },  // to signify an unknown operator, when the token does not work
 
-    { OP_FUNC_CALL,         29, false,  true, "CALL" },     // a()
-    { OP_ARRAY_SUBSCRIPT,   29, false, true, "ELEM" },    // a[b]
-    { OP_STRUCT_MEMBER_PTR, 29, false, true, "SPTR" },    // a->b
-    { OP_STRUCT_MEMBER_REF, 29, false, true, "SMBM" },    // a.b
-    { OP_POST_INC,          29, true,  true, "POSTINC" }, // a++
-    { OP_POST_DEC,          29, true,  true, "POSTDEC" }, // a--
+    { OP_FUNC_CALL,         29, false, true, "CALL" },     // a()
+    { OP_ARRAY_SUBSCRIPT,   29, false, true, "ELEM" },     // a[b]
+    { OP_STRUCT_MEMBER_PTR, 29, false, true, "SPTR" },     // a->b
+    { OP_STRUCT_MEMBER_REF, 29, false, true, "SMBM" },     // a.b
+    { OP_POST_INC,          29, true,  true, "POSTINC" },  // a++
+    { OP_POST_DEC,          29, true,  true, "POSTDEC" },  // a--
     { OP_POSITIVE_NUM,      28, true,  false, "POS" },     // +123
     { OP_NEGATIVE_NUM,      28, true,  false, "NEG" },     // -123
     { OP_LOGICAL_NOT,       28, true,  false, "NOT" },     // !a
@@ -103,14 +103,14 @@ bool is_unary_operator(oper op) {
 // convert a token to a unary operator, if applicable
 oper to_unary_operator(token_type type) {
     switch (type) {
-        case TOK_LOGICAL_NOT: return OP_LOGICAL_NOT;
+        case TOK_EXCLAMANTION: return OP_LOGICAL_NOT;
         case TOK_STAR:        return OP_POINTED_VALUE;
         case TOK_AMPERSAND:   return OP_ADDRESS_OF;
         case TOK_TILDE:       return OP_BINARY_NOT;
         case TOK_MINUS_SIGN:  return OP_NEGATIVE_NUM;
         case TOK_PLUS_SIGN:   return OP_POSITIVE_NUM;
-        case TOK_INCREMENT:   return OP_PRE_INC;
-        case TOK_DECREMENT:   return OP_PRE_DEC;
+        case TOK_DBL_PLUS:   return OP_PRE_INC;
+        case TOK_DBL_MINUS:   return OP_PRE_DEC;
     }
     return OP_UNKNOWN;
 }
@@ -123,23 +123,23 @@ oper to_binary_operator(token_type type) {
         case TOK_STAR:         return OP_MUL;
         case TOK_SLASH:        return OP_DIV;
         case TOK_PERCENT:      return OP_MOD;
-        case TOK_BITWISE_AND:  return OP_BITWISE_AND;
-        case TOK_BITWISE_OR:   return OP_BITWISE_OR;
+        case TOK_AMPERSAND:    return OP_BITWISE_AND;
+        case TOK_PIPE:         return OP_BITWISE_OR;
         case TOK_CARET:        return OP_BITWISE_XOR;
         case TOK_LESS_THAN:    return OP_LT;
         case TOK_LESS_EQUAL:   return OP_LE;
         case TOK_LARGER_THAN:  return OP_GT;
         case TOK_LARGER_EQUAL: return OP_GE;
         case TOK_COMMA:        return OP_COMMA;
-        case TOK_ASSIGNMENT:   return OP_ASSIGNMENT;
+        case TOK_EQUAL_SIGN:   return OP_ASSIGNMENT;
         case TOK_LPAREN:       return OP_FUNC_CALL;
-        case TOK_OPEN_BRACKET: return OP_ARRAY_SUBSCRIPT;
-        case TOK_LOGICAL_OR:   return OP_LOGICAL_OR;
-        case TOK_LOGICAL_AND:  return OP_LOGICAL_AND;
-        case TOK_LOGICAL_NOT:  return OP_LOGICAL_NOT;
-        case TOK_EQUAL_SIGN:   return OP_EQ;
-        case TOK_LSHIFT:       return OP_LSHIFT;
-        case TOK_RSHIFT:       return OP_RSHIFT;
+        case TOK_LBRACKET: return OP_ARRAY_SUBSCRIPT;
+        case TOK_DBL_PIPE:   return OP_LOGICAL_OR;
+        case TOK_DBL_AMPERSAND:  return OP_LOGICAL_AND;
+        case TOK_EXCLAMANTION:  return OP_LOGICAL_NOT;
+        case TOK_DBL_EQUAL_SIGN:   return OP_EQ;
+        case TOK_DBL_LESS_THAN:       return OP_LSHIFT;
+        case TOK_DBL_GRATER_THAN:       return OP_RSHIFT;
     }
     return OP_UNKNOWN;
 }
@@ -148,11 +148,11 @@ oper to_binary_operator(token_type type) {
 oper to_postfix_operator(token_type type) {
     switch (type) {
         case TOK_LPAREN:       return OP_FUNC_CALL;
-        case TOK_OPEN_BRACKET: return OP_ARRAY_SUBSCRIPT;
+        case TOK_LBRACKET: return OP_ARRAY_SUBSCRIPT;
         case TOK_ARROW:        return OP_STRUCT_MEMBER_PTR;
         case TOK_DOT:          return OP_STRUCT_MEMBER_REF;
-        case TOK_INCREMENT:    return OP_POST_INC;
-        case TOK_DECREMENT:    return OP_POST_DEC;
+        case TOK_DBL_PLUS:    return OP_POST_INC;
+        case TOK_DBL_MINUS:    return OP_POST_DEC;
     }
     return OP_UNKNOWN;
 }

@@ -1,5 +1,7 @@
-int a[10];
-int a[10][2];
-char *a[10];
-char **a[10];
-char **a[10][20];
+void func() {
+    p = &a;
+    *p = 123;
+
+    while (i++ < 10)
+        a[i] = b[i + 1];
+}

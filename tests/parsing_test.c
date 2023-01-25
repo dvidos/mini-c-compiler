@@ -123,7 +123,7 @@ void expressions_demonstration() {
     int d = 3 >> 4 + 1;
     int e = d < 1 << 5;
     int f = e == d < 1;
-    int g = 0x1F & a == b; // == is higher
+    int g = 0x1F & a == b;
     int h = 1 ^ 2 & 3;
     int i = 1 | 2 ^ 3;
     int j = a && b | 0xFF;
@@ -131,18 +131,18 @@ void expressions_demonstration() {
 }
 
 void pointers_and_arrays_demonstration() {
-    // char a;
-    // char *p;
+    char a;
+    char *p;
 
-    // a = 'a';
-    // p = &a;
-    // *p = 'b';
+    a = 'a';
+    p = &a;
+    *p = 'b';
 
-    // char a[10];
-    // char b[10];
+    char a[10];
+    char b[10];
 
-    // int i = 0;
-    // while (i++ < 10)
-    //     a[i] = b[i + 1];
+    int i = 0;
+    while (i++ < 10)
+        a[i] = b[i + 1];
 }
 

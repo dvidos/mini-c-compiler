@@ -1,6 +1,7 @@
 #include <stddef.h>
 #include <stdio.h>
 #include <stdarg.h>
+#include <stdlib.h>
 #include "../defs.h"
 #include "../lexer/token.h"
 #include "../ast_node.h"
@@ -152,28 +153,28 @@ static ast_statement_node *accept_variable_declaration() {
     if (name == NULL) return NULL;
 
     // it's an array
-    if (accept(TOK_OPEN_BRACKET)) {
-        dt = create_data_type(TOK_OPEN_BRACKET, dt);
+    if (accept(TOK_LBRACKET)) {
+        dt = create_data_type(TOK_LBRACKET, dt);
         if (!expect(TOK_NUMERIC_LITERAL)) return NULL;
         dt->array_size = strtol(accepted()->value, NULL, 10);
-        if (!expect(TOK_CLOSE_BRACKET)) return NULL;
+        if (!expect(TOK_RBRACKET)) return NULL;
     }
 
     // maybe a two-dimensions array?
-    if (accept(TOK_OPEN_BRACKET)) {
-        dt = create_data_type(TOK_OPEN_BRACKET, dt);
+    if (accept(TOK_LBRACKET)) {
+        dt = create_data_type(TOK_LBRACKET, dt);
         if (!expect(TOK_NUMERIC_LITERAL)) return NULL;
         dt->array_size = strtol(accepted()->value, NULL, 10);
-        if (!expect(TOK_CLOSE_BRACKET)) return NULL;
+        if (!expect(TOK_RBRACKET)) return NULL;
     }
 
     ast_var_decl_node *vd = create_ast_var_decl_node(dt, name);
     expr_node *initialization = NULL;
-    if (accept(TOK_ASSIGNMENT)) {
+    if (accept(TOK_EQUAL_SIGN)) {
         initialization = parse_expression_using_shunting_yard();
     }
 
-    if (!expect(TOK_END_OF_STATEMENT))
+    if (!expect(TOK_SEMICOLON))
         return NULL;
     return create_ast_decl_statement(vd, initialization);
 }
@@ -196,7 +197,7 @@ static ast_func_decl_node *accept_function_declaration() {
     }
 
     ast_statement_node *body = NULL;
-    if (!accept(TOK_END_OF_STATEMENT)) {
+    if (!accept(TOK_SEMICOLON)) {
         body = parse_statement();
     }
 
@@ -243,27 +244,27 @@ static ast_statement_node *parse_statement() {
     }
 
     if (accept(TOK_CONTINUE)) {
-        if (!expect(TOK_END_OF_STATEMENT)) return NULL;
+        if (!expect(TOK_SEMICOLON)) return NULL;
         return create_ast_continue_statement();
     }
 
     if (accept(TOK_BREAK)) {
-        if (!expect(TOK_END_OF_STATEMENT)) return NULL;
+        if (!expect(TOK_SEMICOLON)) return NULL;
         return create_ast_break_statement();
     }
 
     if (accept(TOK_RETURN)) {
         expr_node *value = NULL;
-        if (!accept(TOK_END_OF_STATEMENT)) {
+        if (!accept(TOK_SEMICOLON)) {
             value = parse_expression_using_shunting_yard();
-            if (!expect(TOK_END_OF_STATEMENT)) return NULL;
+            if (!expect(TOK_SEMICOLON)) return NULL;
         }
         return create_ast_return_statement(value);
     }
     
     // what is left?
     expr_node *expr = parse_expression_using_shunting_yard();
-    if (!expect(TOK_END_OF_STATEMENT)) return NULL;
+    if (!expect(TOK_SEMICOLON)) return NULL;
     return create_ast_expr_statement(expr);
 }
 

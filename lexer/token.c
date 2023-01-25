@@ -29,7 +29,7 @@ token *create_token(token_type type, char *value, char *filename, int line_no) {
     if (type == TOK_IDENTIFIER && value != NULL) {
         for (int i = 0; i < sizeof(keywords) / sizeof(keywords[0]); i++) {
             if (strcmp(value, keywords[i]) == 0) {
-                type = (enum token_type)(TOK_KEYWORDS_START + i),
+                type = (enum token_type)(TOK___KEYWORDS_START___ + i),
                 value = NULL;
                 break;
             }
@@ -76,13 +76,13 @@ char *token_type_name(enum token_type type) {
         case TOK_CHAR_LITERAL: return "char_literal";
         case TOK_LPAREN: return "(";
         case TOK_RPAREN: return ")";
-        case TOK_OPEN_BRACKET: return "[";
-        case TOK_CLOSE_BRACKET: return "]";
+        case TOK_LBRACKET: return "[";
+        case TOK_RBRACKET: return "]";
         case TOK_BLOCK_START: return "{";
         case TOK_BLOCK_END: return "}";
-        case TOK_END_OF_STATEMENT: return ";";
-        case TOK_ASSIGNMENT: return "=";
-        case TOK_EQUAL_SIGN: return "==";
+        case TOK_SEMICOLON: return ";";
+        case TOK_EQUAL_SIGN: return "=";
+        case TOK_DBL_EQUAL_SIGN: return "==";
         case TOK_PLUS_SIGN: return "+";
         case TOK_MINUS_SIGN: return "-";
         case TOK_STAR: return "*";
@@ -93,18 +93,18 @@ char *token_type_name(enum token_type type) {
         case TOK_QUESTION_MARK: return "?";
         case TOK_COLON: return ":";
         case TOK_DOT: return ".";
-        case TOK_INCREMENT: return "++";
-        case TOK_DECREMENT: return "--";
+        case TOK_DBL_PLUS: return "++";
+        case TOK_DBL_MINUS: return "--";
         case TOK_LESS_EQUAL: return "<=";
         case TOK_LESS_THAN: return "<";
         case TOK_LARGER_EQUAL: return ">=";
         case TOK_LARGER_THAN: return ">";
-        case TOK_NOT_EQUAL: return "!=";
-        case TOK_LOGICAL_NOT: return "!";
-        case TOK_LOGICAL_AND: return "&&";
-        case TOK_BITWISE_AND: return "&";
-        case TOK_LOGICAL_OR: return "||";
-        case TOK_BITWISE_OR: return "|";
+        case TOK_EXCLAM_EQUAL: return "!=";
+        case TOK_EXCLAMANTION: return "!";
+        case TOK_DBL_AMPERSAND: return "&&";
+        case TOK_DBL_PIPE: return "||";
+        case TOK_PIPE: return "|";
+
         case TOK_RETURN: return "return";
         case TOK_IF: return "if";
         case TOK_ELSE: return "else";
@@ -118,8 +118,8 @@ char *token_type_name(enum token_type type) {
         case TOK_VOID: return "void";
         case TOK_TRUE: return "true";
         case TOK_FALSE: return "false";
-        case TOK_RSHIFT: return ">>";
-        case TOK_LSHIFT: return "<<";
+        case TOK_DBL_GRATER_THAN: return ">>";
+        case TOK_DBL_LESS_THAN: return "<<";
         case TOK_UNKNOWN: return "*** unknown ***";
         default: return "*** UN-NAMED ***";
     }

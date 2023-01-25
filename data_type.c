@@ -11,7 +11,7 @@ struct data_type *create_data_type(token_type type, data_type *nested) {
         case TOK_BOOL:         family = TF_BOOL; break;
         case TOK_VOID:         family = TF_VOID; break;
         case TOK_STAR:         family = TF_POINTER; break;
-        case TOK_OPEN_BRACKET: family = TF_ARRAY; break;
+        case TOK_LBRACKET: family = TF_ARRAY; break;
         default:               family = TF_INT;
     }
     

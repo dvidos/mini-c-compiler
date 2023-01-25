@@ -1,4 +1,16 @@
-# Writing a compiler
+# mini-c-compiler
+
+This project is a learning journey, 
+to see what it takes to write a compiler,
+to learn how they work, and to try my hand at 
+creating machine code.
+
+As a side effect, if this will be successful,
+I am hoping it will be able to run on my other project, 
+[handcrafted-os](https://github.com/dvidos/handcrafted-os).
+
+
+## Writing a compiler
 
 Let's say we want to write a single language. What shall it support?
 
@@ -20,6 +32,12 @@ and assignments for fetching, doing math and storing?
 
 How can we avoid the imperative language, but go to 
 declarative mathematical language?
+
+Fun fact: I ended up implementing something C-like,
+at least as a starting point, just to get something out
+that works. Then I might add things to it 
+(e.g. like the parallel routines in Go language)
+
 
 ## Phases
 

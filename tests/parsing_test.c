@@ -33,10 +33,16 @@ int d = 0x1234; // decimal is 4660
 int e = 0X5678; // decimal is 22136
 
 // strings parsing 
-// char *a = "abcd";
-// char *b = "";
-// char *c = "\"she said\", he said";
-// char *d = "\t <-- tab, and then a new line --> \n";
+char *a = "abcd";
+char *b = "";
+char *c = "\"she said\", he said";
+char *d = "\t <-- tab, and then a new line --> \n";
+
+// // characters
+char a = 'a';
+char b = '\n';
+char c = '\'';
+char d = '\0';
 
 
 void return_demonstration() {

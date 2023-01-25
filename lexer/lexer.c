@@ -35,6 +35,7 @@ void init_lexer() {
 
 static void clear_collection() {
     collector_len = 0;
+    collector_buffer[collector_len] = '\0';
 }
 
 static void collect(char c) {
@@ -82,6 +83,7 @@ static int parse_line_comment(char **p) {
 }
 
 static int parse_identifier(char **p) {
+    clear_collection();
     char c = **p;
     while (is_letter(c) || is_digit(c) || is_underscore(c)) {
         collect(c);
@@ -90,19 +92,37 @@ static int parse_identifier(char **p) {
     }
 }
 
+static char backslash_escaped_char(char c) {
+    switch (c) {
+        case '\\': return '\\';
+        case '\'': return '\'';
+        case '"': return '"';
+        case 'r': return '\r';
+        case 'n': return '\n';
+        case 't': return '\t';
+        case '0': return '\0';
+    }
+    return c;
+}
+
 static int parse_string(char **p) {
+    clear_collection();
     (*p)++; // skip starting quote
     char c = **p;
     while (!is_string_quote(c)) {
+        if (c == '\\') {
+            (*p)++;
+            c = backslash_escaped_char(**p);
+        }
         collect(c);
         (*p)++;
         c = **p;
-        // need to parse escaped sequences (\", \n, \a, etc)
     }
     (*p)++; // skip ending quote
 }
 
 static int parse_number(char **p) {
+    clear_collection();
     char c = **p;
     while (is_digit(c) || is_hex_digit_or_sign(c)) {
         collect(c);
@@ -112,13 +132,17 @@ static int parse_number(char **p) {
 }
 
 static int parse_char(char **p) {
+    clear_collection();
     (*p)++; // skip starting quote
-    // should handle the '\'' case
-    collect(**p);
+    char c = **p;
+    if (c == '\\') {
+        (*p)++;
+        c = backslash_escaped_char(**p);
+    }
+    collect(c);
     (*p)++; // skip character
     (*p)++; // skip ending quote
 }
-
 
 #define check1(base_char, base_type)   \
     else if (c == base_char) {         \
@@ -148,7 +172,6 @@ int parse_lexer_token_at_pointer(char **p, char *filename, int *line_no, struct 
     char c = **p;
     char c2 = *(*p + 1);
     enum token_type type;
-    clear_collection();
 
     if (is_block_comment(c, c2)) {
         parse_block_comment(p, line_no);
@@ -208,10 +231,15 @@ int parse_lexer_token_at_pointer(char **p, char *filename, int *line_no, struct 
         (*p)++;
     }
     
-    (*token) = create_token(
-        type, 
-        (collector_len == 0 ? NULL : strdup(collector_buffer)),
-        filename, *line_no);
+    char *value = NULL;
+    if (type == TOK_STRING_LITERAL
+        || type == TOK_CHAR_LITERAL
+        || type == TOK_NUMERIC_LITERAL
+        || type == TOK_IDENTIFIER
+        || type == TOK_UNKNOWN) {
+        value = strdup(collector_buffer); // can be a string of zero length
+    }
+    (*token) = create_token(type, value, filename, *line_no);
     return SUCCESS;
 }
 

@@ -1,1 +1,1 @@
-bool x = true;
+int a[10];

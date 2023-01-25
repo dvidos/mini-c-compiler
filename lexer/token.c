@@ -38,7 +38,7 @@ token *create_token(token_type type, char *value, char *filename, int line_no) {
 
     token *t = malloc(sizeof(token));
     t->type = type;
-    if (value == NULL || strlen(value) == 0)
+    if (value == NULL)
         t->value = NULL;
     else {
         t->value = malloc(strlen(value) + 1);

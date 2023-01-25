@@ -6,27 +6,12 @@
 
 // ------------------------------------------------------------------
 
-typedef struct ast_node            ast_node;            // uniform impersonator
 typedef struct ast_module_node     ast_module_node;     // source-file level
 typedef struct ast_func_decl_node  ast_func_decl_node;  // function declaration or definition
 typedef struct ast_var_decl_node   ast_var_decl_node;   // type + variable name
 typedef struct ast_statement_node  ast_statement_node;  // what can be found in a block
 
 // ------------------------------------------------------------------
-
-typedef enum ast_node_type {
-    ANT_DATA_TYPE,
-    ANT_VAR_DECL,
-    ANT_FUNC_DECL,
-    ANT_STATEMENT,
-    ANT_EXPRESSION,
-} ast_node_type;
-
-typedef struct ast_node {
-    ast_node_type node_type; // all node types should have this first member
-} ast_node;
-
-// ------------------------------------------------------------
 
 typedef struct ast_module_node {
 
@@ -41,8 +26,6 @@ typedef struct ast_module_node {
 // ------------------------------------------------------------
 
 typedef struct ast_var_decl_node {
-    ast_node_type node_type; // to allow everything to be cast to ast_node
-
     data_type *data_type;
     char *var_name;
 
@@ -54,8 +37,6 @@ ast_var_decl_node *create_ast_var_decl_node(data_type *data_type, char* var_name
 // ------------------------------------------------------------
 
 typedef struct ast_func_decl_node {
-    ast_node_type node_type; // to allow everything to be cast to ast_node
-
     char *func_name;
     data_type *return_type;
     ast_var_decl_node *args_list;
@@ -86,8 +67,6 @@ typedef enum statement_type {
 } statement_type;
 
 typedef struct ast_statement_node {
-    ast_node_type node_type; // to allow everything to be cast to ast_node
-
     statement_type stmt_type;
     ast_var_decl_node *decl;  // for var declarations, inside functions or blocks
     expr_node *eval; // initial value for declarations, condition for "if" and "while", value for "return"

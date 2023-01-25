@@ -67,8 +67,12 @@ typedef enum token_type {
     TOK_CONTINUE,
     TOK_BREAK,
     TOK_INT_KEYWORD,
+    TOK_FLOAT,
     TOK_CHAR_KEYWORD,
     TOK_VOID,
+    TOK_BOOL,
+    TOK_TRUE,
+    TOK_FALSE,
 
     // unknown token, e.g. something we don't understand.
     TOK_UNKNOWN,
@@ -90,9 +94,9 @@ token *create_token(token_type type, char *value, char *filename, int line_no);
 
 void init_tokens();
 void add_token(token *token);
-void print_token(token *token, char *prefix);
+void print_token(token *token, char *prefix, bool unknown_only);
 char *token_type_name(token_type type);
-void print_tokens(char *prefix);
+void print_tokens(char *prefix, bool unknown_only);
 int count_tokens();
 bool unknown_tokens_exist();
 token *get_first_token();

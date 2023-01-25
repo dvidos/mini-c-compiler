@@ -62,7 +62,12 @@ oper accept_binary_operator() {
 
 bool next_is_terminal() {
     token_type tt = next() == NULL ? TOK_EOF : next()->type;
-    return tt == TOK_STRING_LITERAL || tt == TOK_NUMERIC_LITERAL || tt == TOK_CHAR_LITERAL || tt == TOK_IDENTIFIER;
+    return tt == TOK_STRING_LITERAL
+        || tt == TOK_NUMERIC_LITERAL 
+        || tt == TOK_CHAR_LITERAL 
+        || tt == TOK_TRUE
+        || tt == TOK_FALSE
+        || tt == TOK_IDENTIFIER;
 }
 
 expr_node *accept_terminal() {

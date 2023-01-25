@@ -70,13 +70,13 @@ int parse_file_into_lexer_tokens(char *file_buffer, char *filename) {
     
     if (unknown_tokens_exist()) {
         printf("Unknown tokens detected, cannot continue...\n");
-        print_tokens("  ");
+        print_tokens("  ", true);
         return ERROR;
     }
 
-    printf("Parsed %d tokens\n", count_tokens());
+    printf("Broke file contents into %d tokens\n", count_tokens());
     if (verbose) {
-        print_tokens("  ");
+        print_tokens("  ", false);
     }
 
     return SUCCESS;
@@ -92,11 +92,23 @@ int parse_abstract_syntax_tree(token *first) {
     }
 
     // should say "parsed x nodes in AST"
+    int functions;
+    int statements;
+    int expressions;
+    ast_count_nodes(&functions, &statements, &expressions);
+    printf("Parsed tokens into %d functions, %d statements, %d expression nodes\n",
+        functions, statements, expressions);
+
     if (verbose) {
-        printf("--- AST ----------------\n");
         print_ast();
-        printf("------------------------\n");
     }
+    return SUCCESS;
+}
+
+int perform_semantic_analysis() {
+    ast_module_node *ast_root = get_ast_root_node();
+    
+    // perform type 
     return SUCCESS;
 }
 
@@ -109,7 +121,7 @@ int main(int argc, char *argv[]) {
     char *file_buffer = NULL;
     char *filename = NULL;
     int err;
-    printf("mits compiler, v0.01\n");
+    printf("mits mini-c-compiler, v0.01\n");
 
     for (int i = 1; i < argc; i++) {
         if (argv[i][0] == '-') {
@@ -145,6 +157,10 @@ int main(int argc, char *argv[]) {
     if (err)
         return 1;
 
+    err = perform_semantic_analysis();
+    if (err)
+        return 1;
+    
     // err = generate_code();
     // if (err)
     //     return 1;

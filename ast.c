@@ -2,20 +2,27 @@
 #include <stdio.h>
 #include "ast_node.h"
 
+// currently we do not have a "tree" in the correct sense of the word.
+// if we wanted to do so, we need to make function declarations part of a statement.
+
 // the lists below at file level
-ast_statement_node *statements_list;
-ast_func_decl_node *funcs_list;
+static ast_module_node ast_root;
+
 
 void init_ast() {
-    statements_list = NULL;
-    funcs_list = NULL;
+    ast_root.statements_list = NULL;
+    ast_root.funcs_list = NULL;
+}
+
+ast_module_node *get_ast_root_node() {
+    return &ast_root;
 }
 
 void ast_add_statement(ast_statement_node *stmt) {
-    if (statements_list == NULL) {
-        statements_list = stmt;
+    if (ast_root.statements_list == NULL) {
+        ast_root.statements_list = stmt;
     } else {
-        ast_statement_node *p = statements_list;
+        ast_statement_node *p = ast_root.statements_list;
         while (p->next != NULL) p = p->next;
         p->next = stmt;
     }
@@ -23,10 +30,10 @@ void ast_add_statement(ast_statement_node *stmt) {
 }
 
 void ast_add_function(ast_func_decl_node *func) {
-    if (funcs_list == NULL) {
-        funcs_list = func;
+    if (ast_root.funcs_list == NULL) {
+        ast_root.funcs_list = func;
     } else {
-        ast_func_decl_node *p = funcs_list;
+        ast_func_decl_node *p = ast_root.funcs_list;
         while (p->next != NULL) p = p->next;
         p->next = func;
     }
@@ -106,7 +113,7 @@ static void print_statement(ast_statement_node *st, int depth) {
             printf("}\n");
             break;
 
-        case ST_DECLARATION:
+        case ST_VAR_DECL:
             indent(depth);
             print_data_type(st->decl->data_type);
             printf(" %s", st->decl->var_name);
@@ -173,13 +180,13 @@ static void print_statement(ast_statement_node *st, int depth) {
 
 void print_ast() {
 
-    ast_statement_node *stmt = statements_list;
+    ast_statement_node *stmt = ast_root.statements_list;
     while (stmt != NULL) {
         print_statement(stmt, 0);
         stmt = stmt->next;
     }
 
-    ast_func_decl_node *func = funcs_list;
+    ast_func_decl_node *func = ast_root.funcs_list;
     while (func != NULL) {
         printf("function: ");
         print_data_type(func->return_type);
@@ -199,6 +206,57 @@ void print_ast() {
             print_statement(func->body, 1);
         }
 
+        func = func->next;
+    }
+}
+
+
+static void ast_count_expression_nodes(expr_node *expr, int *expressions) {
+    if (expr == NULL)
+        return;
+    (*expressions)++;
+    ast_count_expression_nodes(expr->arg1, expressions);
+    ast_count_expression_nodes(expr->arg2, expressions);
+}
+
+
+static void ast_count_statement_nodes(ast_statement_node *stmt, int *statements, int *expressions) {
+    if (stmt == NULL)
+        return;
+    (*statements)++;
+
+    if (stmt->decl != NULL)
+        (*statements)++;
+
+    ast_count_expression_nodes(stmt->eval, expressions);
+
+    ast_statement_node *s = stmt->body;
+    while (s != NULL) {
+        ast_count_statement_nodes(s, statements, expressions);
+        s = s->next;
+    }
+    s = stmt->else_body;
+    while (s != NULL) {
+        ast_count_statement_nodes(s, statements, expressions);
+        s = s->next;
+    }
+}
+
+void ast_count_nodes(int *functions, int *statements, int *expressions) {
+    (*functions) = 0;
+    (*statements) = 0;
+    (*expressions) = 0;
+
+    ast_statement_node *stmt = ast_root.statements_list;
+    while (stmt != NULL) {
+        (*statements)++;
+        stmt = stmt->next;
+    }
+
+    ast_func_decl_node *func = ast_root.funcs_list;
+    while (func != NULL) {
+        (*functions)++;
+        ast_count_statement_nodes(func->body, statements, expressions);
         func = func->next;
     }
 }

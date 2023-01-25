@@ -6,7 +6,9 @@ struct data_type *create_ast_data_type_node(token *token, data_type *nested) {
     enum type_family family;
     switch (token->type) {
         case TOK_INT_KEYWORD: family = TF_INT; break;
+        case TOK_FLOAT: family = TF_FLOAT; break;
         case TOK_CHAR_KEYWORD: family = TF_CHAR; break;
+        case TOK_BOOL: family = TF_BOOL; break;
         case TOK_VOID: family = TF_VOID; break;
         default: family = TF_INT;
     }

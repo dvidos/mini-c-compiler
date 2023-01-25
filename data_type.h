@@ -6,6 +6,7 @@ typedef struct data_type data_type;  // possibly nested data types
 
 typedef enum type_family {
     TF_INT,
+    TF_FLOAT,
     TF_CHAR,
     TF_BOOL,
     TF_VOID,

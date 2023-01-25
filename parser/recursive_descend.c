@@ -69,7 +69,9 @@ static bool is_data_type_description() {
 
     // keeping it simple for now
     return (next_is(TOK_INT_KEYWORD)
+         || next_is(TOK_FLOAT)
          || next_is(TOK_CHAR_KEYWORD)
+         || next_is(TOK_BOOL)
          || next_is(TOK_VOID));
 }
 

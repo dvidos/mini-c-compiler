@@ -15,8 +15,12 @@ char *keywords[] = {
     "continue",
     "break",
     "int",
+    "float",
     "char",
-    "void"
+    "void",
+    "bool",
+    "true",
+    "false"
 };
 
 token *create_token(token_type type, char *value, char *filename, int line_no) {
@@ -108,8 +112,12 @@ char *token_type_name(enum token_type type) {
         case TOK_CONTINUE: return "continue";
         case TOK_BREAK: return "break";
         case TOK_INT_KEYWORD: return "int";
+        case TOK_FLOAT: return "float";
         case TOK_CHAR_KEYWORD: return "char";
+        case TOK_BOOL: return "bool";
         case TOK_VOID: return "void";
+        case TOK_TRUE: return "true";
+        case TOK_FALSE: return "false";
         case TOK_RSHIFT: return ">>";
         case TOK_LSHIFT: return "<<";
         case TOK_UNKNOWN: return "*** unknown ***";
@@ -117,19 +125,25 @@ char *token_type_name(enum token_type type) {
     }
 }
 
-void print_token(token *token, char *prefix) {
+void print_token(token *token, char *prefix, bool unknown_only) {
     char *name = token_type_name(token->type);
+
+    if (unknown_only) {
+      if ((strcmp(name, "*** unknown ***") != 0))
+        return;
+    } 
+    
     if (token->value == NULL) {
-        printf("%s%s\n", prefix, name);
+        printf("%sline %d: %s\n", prefix, token->line_no, name);
     } else {
-        printf("%s%s \"%s\"\n", prefix, name, token->value);
+        printf("%sline %d: %s \"%s\"\n", prefix, token->line_no, name, token->value);
     }
 }
 
-void print_tokens(char *prefix) {
+void print_tokens(char *prefix, bool unknown_only) {
     token *p = tokens_head;
     while (p != NULL) {
-        print_token(p, prefix);
+        print_token(p, prefix, unknown_only);
         p = p->next;
     }
 }

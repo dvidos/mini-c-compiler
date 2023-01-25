@@ -48,7 +48,7 @@ ast_statement_node *create_ast_block_node(ast_statement_node *stmts_list) {
     return _create_ast_statement_node(ST_BLOCK, NULL, NULL, stmts_list, NULL);
 }
 ast_statement_node *create_ast_decl_statement(ast_var_decl_node *decl, expr_node *init) {
-    return _create_ast_statement_node(ST_DECLARATION, decl, init, NULL, NULL);
+    return _create_ast_statement_node(ST_VAR_DECL, decl, init, NULL, NULL);
 }
 ast_statement_node *create_ast_if_statement(expr_node *condition, ast_statement_node *if_body, ast_statement_node *else_body) {
     return _create_ast_statement_node(ST_IF, NULL, condition, if_body, else_body);
@@ -72,7 +72,7 @@ ast_statement_node *create_ast_expr_statement(expr_node *expression) {
 char *statement_type_name(statement_type type) {
     switch (type) {
         case ST_BLOCK: return "block";
-        case ST_DECLARATION: return "declaration";
+        case ST_VAR_DECL: return "declaration";
         case ST_IF: return "if";
         case ST_WHILE: return "while";
         case ST_CONTINUE: return "continue";

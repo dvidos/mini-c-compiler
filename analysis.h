@@ -2,5 +2,4 @@
 #include "ast_node.h"
 
 
-void perform_statement_analysis(ast_statement_node *n);
-void perform_function_analysis(ast_func_decl_node *n);
+int perform_module_analysis(ast_module_node *ast_root);

@@ -109,22 +109,7 @@ int parse_abstract_syntax_tree(token *first) {
 }
 
 int perform_semantic_analysis() {
-    ast_module_node *ast_root = get_ast_root_node();
-    scope_entered();
-
-    ast_statement_node *s = ast_root->statements_list;
-    while (s != NULL) {
-        perform_statement_analysis(s);
-        s = s->next;
-    }
-    ast_func_decl_node *f = ast_root->funcs_list;
-    while (f != NULL) {
-        perform_function_analysis(f);
-        f = f->next;
-    }
-
-    scope_exited();
-    return SUCCESS;
+    return perform_module_analysis(get_ast_root_node());
 }
 
 int generate_code() {

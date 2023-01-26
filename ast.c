@@ -121,11 +121,12 @@ static void print_statement(ast_statement_node *st, int depth) {
 
         case ST_VAR_DECL:
             indent(depth);
+            printf("decl %s ", st->decl->var_name);
             print_data_type(st->decl->data_type);
-            printf(" %s", st->decl->var_name);
             if (st->eval != NULL) {
-                printf("=");
+                printf(" (= ");
                 print_expression_using_func_format(st->eval);
+                printf(")");
             }
             printf("\n");
             break;

@@ -1,25 +1,44 @@
 #include <stdio.h>
+#include <stdarg.h>
+#include "defs.h"
 #include "analysis.h"
 #include "ast_node.h"
 #include "scope.h"
 #include "symbol.h"
 
+static bool analysis_issues_found = false;
+
+static void analysis_error(char *file, int line, char *msg, ...) {
+
+    printf("%s:%d: error: ", file, line);
+    va_list args;
+    va_start(args, msg);
+    vprintf(msg, args);
+    va_end(args);
+    printf("\n");
+
+    analysis_issues_found = true;
+}
+
+
 static void perform_declaration_analysis(ast_var_decl_node *decl, int arg_no) {
 
     if (scope_symbol_declared_at_curr_level(decl->var_name)) {
-        printf("%s:%d: symbol \"%s\" already defined in this scope\n", 
+        analysis_error(
             decl->token->filename,
             decl->token->line_no,
-            decl->var_name);
+            "symbol \"%s\" already defined in this scope",
+            decl->var_name
+        );
         return;
-    } else {
-        symbol *sym;
-        if (arg_no >= 0)
-            sym = create_func_arg_symbol(decl->var_name, decl->data_type, arg_no, decl->token->filename, decl->token->line_no);
-        else
-            sym = create_symbol(decl->var_name, decl->data_type, SYM_VAR, decl->token->filename, decl->token->line_no);
-        scope_declare_symbol(sym);
     }
+
+    symbol *sym;
+    if (arg_no >= 0)
+        sym = create_func_arg_symbol(decl->var_name, decl->data_type, arg_no, decl->token->filename, decl->token->line_no);
+    else
+        sym = create_symbol(decl->var_name, decl->data_type, SYM_VAR, decl->token->filename, decl->token->line_no);
+    scope_declare_symbol(sym);
 }
 
 static void perform_expression_analysis(expr_node *expr) {
@@ -31,25 +50,31 @@ static void perform_expression_analysis(expr_node *expr) {
     perform_expression_analysis(expr->arg1);
     perform_expression_analysis(expr->arg2);
 
-    // now we are talking..
     // see if identifiers are declared
     // see if the data types match what the operator expects or provides
     if (expr->op == OP_SYMBOL_NAME) {
         symbol *s = scope_lookup(expr->value.str);
         if (s == NULL) {
-            printf("%s:%d: symbol \"%s\" not found\n", 
+            analysis_error(
                 expr->token->filename,
                 expr->token->line_no,
+                "symbol \"%s\" not declared",
                 expr->value.str
             );
         }
     }
-
-    switch (expr->op) {
-        case OP_SYMBOL_NAME:
-            // see if symbol is defined.
-
-    }
+    
+    /*  some ideas to explore
+        - expression to be assigned must have the same type as the target lvalue
+        - arguments passed in functions must match the argument's type
+        - return value should match the return type of the function
+        - all binary operators must have the same type left and right
+        - (in)equality operators can not be applied to arrays, void.
+        - (in)equality operators always return boolean
+        - comparison > >= < <= operators can be applied to ints and return bool
+          (could / should we apply to char? float? pointers?)
+        - arithmetic operators + - * / etc apply to int/float and return int/float
+    */
 }
 
 void perform_statement_analysis(ast_statement_node *stmt) {
@@ -113,7 +138,27 @@ void perform_function_analysis(ast_func_decl_node *func) {
         arg = arg->next;
         arg_no++;
     }
+
     perform_statement_analysis(func->body);
 
     scope_exited();
+}
+
+int perform_module_analysis(ast_module_node *ast_root) {
+    analysis_issues_found = false;
+    scope_entered();
+
+    ast_statement_node *s = ast_root->statements_list;
+    while (s != NULL) {
+        perform_statement_analysis(s);
+        s = s->next;
+    }
+    ast_func_decl_node *f = ast_root->funcs_list;
+    while (f != NULL) {
+        perform_function_analysis(f);
+        f = f->next;
+    }
+
+    scope_exited();
+    return analysis_issues_found ? ERROR : SUCCESS;
 }

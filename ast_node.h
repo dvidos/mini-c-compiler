@@ -70,7 +70,7 @@ typedef struct ast_statement_node {
     statement_type stmt_type;
     ast_var_decl_node *decl;  // for var declarations, inside functions or blocks
     expr_node *eval; // initial value for declarations, condition for "if" and "while", value for "return"
-    ast_statement_node *body; // for blocks, if's and while's
+    ast_statement_node *body; // statements or blocks for if's and while's, a list of statements for blocks
     ast_statement_node *else_body;  // for "else" only
 
     struct ast_statement_node *next; // for a list of statements in a block

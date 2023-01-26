@@ -7,7 +7,6 @@
 
 ast_var_decl_node *create_ast_var_decl_node(data_type *data_type, char* var_name) {
     ast_var_decl_node *n = malloc(sizeof(ast_var_decl_node));
-    n->node_type = ANT_VAR_DECL;
     n->data_type = data_type;
     n->var_name = var_name;
     n->next = NULL;
@@ -18,7 +17,6 @@ ast_var_decl_node *create_ast_var_decl_node(data_type *data_type, char* var_name
 
 ast_func_decl_node *create_ast_func_decl_node(data_type *return_type, char* func_name, ast_var_decl_node *args_list, ast_statement_node *body) {
     ast_func_decl_node *n = malloc(sizeof(ast_func_decl_node));
-    n->node_type = ANT_FUNC_DECL;
     n->func_name = func_name;
     n->return_type = return_type;
     n->args_list = args_list;
@@ -34,7 +32,6 @@ static ast_statement_node *_create_ast_statement_node(statement_type stmt_type,
         ast_statement_node *body, ast_statement_node *else_body
 ) {
     ast_statement_node *n = malloc(sizeof(ast_statement_node));
-    n->node_type = ANT_STATEMENT;
     n->stmt_type = stmt_type;
     n->decl = decl;
     n->eval = eval;

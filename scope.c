@@ -1,5 +1,7 @@
+#include <stdio.h>
 #include <stdlib.h>
 #include <stddef.h>
+#include <string.h>
 #include "scope.h"
 
 // a stack of scopes, the outermost pushed first
@@ -9,6 +11,8 @@ scope *scopes_stack_top = NULL;
 // creates a new scope on the stack
 void scope_entered() {
     scope *s = malloc(sizeof(scope));
+    s->symbols_list_head = NULL;
+    s->symbols_list_tail = NULL;
     
     // add it to stack
     s->higher = scopes_stack_top;
@@ -47,7 +51,7 @@ symbol *scope_lookup(char *symbol_name) {
 }
 
 // see if symbol already declared
-bool scope_declared_at_curr_level(char *symbol_name) {
+bool scope_symbol_declared_at_curr_level(char *symbol_name) {
     if (scopes_stack_top == NULL)
         return false;
 

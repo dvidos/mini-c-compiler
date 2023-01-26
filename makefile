@@ -10,7 +10,10 @@ SRC_FILES = \
 	operators.c \
 	parser/iterator.c \
 	parser/recursive_descend.c \
-	parser/shunting_yard.c
+	parser/shunting_yard.c \
+	symbol.c \
+	scope.c \
+	analysis.c
 
 .PHONY: tests
 

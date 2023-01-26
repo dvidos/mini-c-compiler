@@ -7,14 +7,17 @@
 static void perform_declaration_analysis(ast_var_decl_node *decl, int arg_no) {
 
     if (scope_symbol_declared_at_curr_level(decl->var_name)) {
-        printf("Symbol \"%s\" already defined in this scope\n", decl->var_name);
+        printf("%s:%d: symbol \"%s\" already defined in this scope\n", 
+            decl->token->filename,
+            decl->token->line_no,
+            decl->var_name);
         return;
     } else {
         symbol *sym;
         if (arg_no >= 0)
-            sym = create_func_arg_symbol(decl->var_name, decl->data_type, arg_no);
+            sym = create_func_arg_symbol(decl->var_name, decl->data_type, arg_no, decl->token->filename, decl->token->line_no);
         else
-            sym = create_symbol(decl->var_name, decl->data_type, SYM_VAR);
+            sym = create_symbol(decl->var_name, decl->data_type, SYM_VAR, decl->token->filename, decl->token->line_no);
         scope_declare_symbol(sym);
     }
 }
@@ -31,6 +34,22 @@ static void perform_expression_analysis(expr_node *expr) {
     // now we are talking..
     // see if identifiers are declared
     // see if the data types match what the operator expects or provides
+    if (expr->op == OP_SYMBOL_NAME) {
+        symbol *s = scope_lookup(expr->value.str);
+        if (s == NULL) {
+            printf("%s:%d: symbol \"%s\" not found\n", 
+                expr->token->filename,
+                expr->token->line_no,
+                expr->value.str
+            );
+        }
+    }
+
+    switch (expr->op) {
+        case OP_SYMBOL_NAME:
+            // see if symbol is defined.
+
+    }
 }
 
 void perform_statement_analysis(ast_statement_node *stmt) {
@@ -78,9 +97,12 @@ void perform_function_analysis(ast_func_decl_node *func) {
     scope_entered();
 
     if (scope_symbol_declared_at_curr_level(func->func_name)) {
-        printf("Function \"%s\" already defined in current scope\n", func->func_name);
+        printf("%s:%d: function \"%s\" already defined in current scope\n", 
+            func->token->filename,
+            func->token->line_no,
+            func->func_name);
     } else {
-        symbol *sym = create_symbol(func->func_name, func->return_type, SYM_FUNC);
+        symbol *sym = create_symbol(func->func_name, func->return_type, SYM_FUNC, func->token->filename, func->token->line_no);
         scope_declare_symbol(sym);
     }
 

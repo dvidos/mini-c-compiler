@@ -77,12 +77,12 @@ expr_node *accept_terminal() {
     consume();
     switch (t->type)
     {
-        case TOK_IDENTIFIER:      return create_ast_expr_name(t->value);
-        case TOK_STRING_LITERAL:  return create_ast_expr_string_literal(t->value);
-        case TOK_NUMERIC_LITERAL: return create_ast_expr_numeric_literal(t->value);
-        case TOK_CHAR_LITERAL:    return create_ast_expr_char_literal(t->value[0]);
-        case TOK_TRUE:            return create_ast_expr_bool_literal(true);
-        case TOK_FALSE:           return create_ast_expr_bool_literal(false);
+        case TOK_IDENTIFIER:      return create_ast_expr_name(t->value, t);
+        case TOK_STRING_LITERAL:  return create_ast_expr_string_literal(t->value, t);
+        case TOK_NUMERIC_LITERAL: return create_ast_expr_numeric_literal(t->value, t);
+        case TOK_CHAR_LITERAL:    return create_ast_expr_char_literal(t->value[0], t);
+        case TOK_TRUE:            return create_ast_expr_bool_literal(true, t);
+        case TOK_FALSE:           return create_ast_expr_bool_literal(false, t);
     }
     return NULL;
 }
@@ -194,11 +194,12 @@ static void pop_operator_into_expression()
 
     if (is_unary) { 
         op1 = pop_operand();
-        expr = create_ast_expression(op, op1, NULL);
+        expr = create_ast_expression(op, op1, NULL, op1->token);
     } else { 
         op1 = pop_operand();
         op2 = pop_operand();
-        expr = create_ast_expression(op, op2, op1); // note 2, then 1
+        // note op2, then op1, to make them appear in "correct" order as a result
+        expr = create_ast_expression(op, op2, op1, op1->token); 
     }
 
     push_operand(expr);

@@ -150,25 +150,26 @@ static ast_statement_node *accept_variable_declaration() {
     data_type *dt = accept_data_type_description();
     if (dt == NULL) return NULL;
     char *name = expect_identifier();
+    token *identifier_token = accepted();
     if (name == NULL) return NULL;
 
-    // it's an array
     if (accept(TOK_LBRACKET)) {
+        // it's an array
         dt = create_data_type(TOK_LBRACKET, dt);
         if (!expect(TOK_NUMERIC_LITERAL)) return NULL;
         dt->array_size = strtol(accepted()->value, NULL, 10);
         if (!expect(TOK_RBRACKET)) return NULL;
+
+        if (accept(TOK_LBRACKET)) {
+            // it's a two-dimensions array
+            dt = create_data_type(TOK_LBRACKET, dt);
+            if (!expect(TOK_NUMERIC_LITERAL)) return NULL;
+            dt->array_size = strtol(accepted()->value, NULL, 10);
+            if (!expect(TOK_RBRACKET)) return NULL;
+        }
     }
 
-    // maybe a two-dimensions array?
-    if (accept(TOK_LBRACKET)) {
-        dt = create_data_type(TOK_LBRACKET, dt);
-        if (!expect(TOK_NUMERIC_LITERAL)) return NULL;
-        dt->array_size = strtol(accepted()->value, NULL, 10);
-        if (!expect(TOK_RBRACKET)) return NULL;
-    }
-
-    ast_var_decl_node *vd = create_ast_var_decl_node(dt, name);
+    ast_var_decl_node *vd = create_ast_var_decl_node(dt, name, identifier_token);
     expr_node *initialization = NULL;
     if (accept(TOK_EQUAL_SIGN)) {
         initialization = parse_expression_using_shunting_yard();
@@ -188,6 +189,7 @@ static ast_func_decl_node *accept_function_declaration() {
 
     char *name = expect_identifier();
     if (name == NULL) return NULL;
+    token *identifier_token = accepted();
 
     if (!expect(TOK_LPAREN)) return NULL;
     ast_var_decl_node *args = NULL;
@@ -203,7 +205,7 @@ static ast_func_decl_node *accept_function_declaration() {
 
     // no ";" required after functions
 
-    return create_ast_func_decl_node(ret_type, name, args, body);
+    return create_ast_func_decl_node(ret_type, name, args, body, identifier_token);
 }
 
 // cannot parse a function, but can parse a block and anything in it.
@@ -286,10 +288,28 @@ static ast_var_decl_node *parse_function_arguments_list() {
 
     while (!next_is(TOK_RPAREN)) {
         data_type *dt = accept_data_type_description();
+        if (dt == NULL) return NULL;
         char *name = expect_identifier();
-        if (dt == NULL || name == NULL)
-            return NULL;
-        ast_var_decl_node *n = create_ast_var_decl_node(dt, name);
+        if (name == NULL) return NULL;
+        token *identifier_token = accepted();
+
+        // it's an array
+        if (accept(TOK_LBRACKET)) {
+            dt = create_data_type(TOK_LBRACKET, dt);
+            if (!expect(TOK_NUMERIC_LITERAL)) return NULL;
+            dt->array_size = strtol(accepted()->value, NULL, 10);
+            if (!expect(TOK_RBRACKET)) return NULL;
+
+            if (accept(TOK_LBRACKET)) {
+                // it's a two-dimensions array
+                dt = create_data_type(TOK_LBRACKET, dt);
+                if (!expect(TOK_NUMERIC_LITERAL)) return NULL;
+                dt->array_size = strtol(accepted()->value, NULL, 10);
+                if (!expect(TOK_RBRACKET)) return NULL;
+            }
+        }
+
+        ast_var_decl_node *n = create_ast_var_decl_node(dt, name, identifier_token);
         list_append(n);
 
         if (!accept(TOK_COMMA))

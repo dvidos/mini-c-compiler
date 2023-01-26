@@ -60,7 +60,7 @@ static int parse_block_comment(char **p, int *line_no) {
     (*p) += 2; // skip the "/*" opening part
     char c = **p;
     char c2 = *((*p) + 1);
-    while (!(c == '*' && c2 == '/')) {
+    while (!(c == '*' && c2 == '/') && c != '\0') {
         if (is_newline(c))
             (*line_no) += 1;
         

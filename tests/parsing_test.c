@@ -24,29 +24,29 @@
 // char **ar2pp[10][20]; // 2-dimensional array of pointers to pointers
 
 // // simple values with initializer expression
-// int a = 1;
-// float b = 1;
-// char c = 'c';
-// bool d = true;
+// int   val_a = 1;
+// float val_b = 1;
+// char  val_c = 'c';
+// bool  val_d = true;
 
 // // numbers parsing
-// int a = 123;
-// int b = -123;   
-// int c = 0777;   // decimal is 0x1FF or 511
-// int d = 0x1234; // decimal is 4660
-// int e = 0X5678; // decimal is 22136
+// int num_a = 123;
+// int num_b = -123;   
+// int num_c = 0777;   // decimal is 0x1FF or 511
+// int num_d = 0x1234; // decimal is 4660
+// int num_e = 0X5678; // decimal is 22136
 
 // // strings parsing 
-// char *a = "abcd";
-// char *b = "";
-// char *c = "\"she said\", he said";
-// char *d = "\t <-- tab, and then a new line --> \n";
+// char *str_a = "abcd";
+// char *str_b = "";
+// char *str_c = "\"she said\", he said";
+// char *str_d = "\t <-- tab, and then a new line --> \n";
 
 // // // characters
-// char a = 'a';
-// char b = '\n';
-// char c = '\'';
-// char d = '\0';
+// char chr_a = 'a';
+// char chr_b = '\n';
+// char chr_c = '\'';
+// char chr_d = '\0';
 
 
 // void return_demonstration() {
@@ -138,11 +138,11 @@
 //     p = &a;
 //     *p = 'b';
 
-//     char a[10];
-//     char b[10];
+//     char arr_a[10];
+//     char arr_b[10];
 
 //     int i = 0;
 //     while (i++ < 10)
-//         a[i] = b[i + 1];
+//         arr_a[i] = arr_b[i + 1];
 // }
 

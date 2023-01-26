@@ -29,10 +29,11 @@ typedef struct ast_var_decl_node {
     data_type *data_type;
     char *var_name;
 
+    token *token;
     struct ast_var_decl_node *next; // for function arguments lists
 } ast_var_decl_node;
 
-ast_var_decl_node *create_ast_var_decl_node(data_type *data_type, char* var_name);
+ast_var_decl_node *create_ast_var_decl_node(data_type *data_type, char* var_name, token *token);
 
 // ------------------------------------------------------------
 
@@ -42,10 +43,11 @@ typedef struct ast_func_decl_node {
     ast_var_decl_node *args_list;
     ast_statement_node *body;
 
+    token *token;
     struct ast_func_decl_node *next; // for function lists
 } ast_func_decl_node;
 
-ast_func_decl_node *create_ast_func_decl_node(data_type *return_type, char *func_name, ast_var_decl_node *args_list, ast_statement_node *body);
+ast_func_decl_node *create_ast_func_decl_node(data_type *return_type, char *func_name, ast_var_decl_node *args_list, ast_statement_node *body, token *token);
 
 // ------------------------------------------------------------
 

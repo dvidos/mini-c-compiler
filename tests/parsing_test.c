@@ -50,14 +50,15 @@ char chr_d = '\0';
 
 
 void return_demonstration() {
-    // simple return
-    return;
+    return; // simple return
+}
 
-    // return with value
-    return 1;
+int return_demonstration() {
+    return 1; // return with value
+}
 
-    // return with expression
-    return a > 0;
+bool return_demonstration() {
+    return a > 0; // return with expression
 }
 
 void ifs_demonstration() {

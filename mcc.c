@@ -154,6 +154,7 @@ int main(int argc, char *argv[]) {
     // if (err)
     //     return 1;
 
+    // "Wrote x.obj with 1234 bytes"
     printf("Success!\n");
     return 0;
 }

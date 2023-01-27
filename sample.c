@@ -8,3 +8,6 @@ void func1() {
     
     f = c > a * b + g;
 }
+void func1() {
+    // going again.
+}

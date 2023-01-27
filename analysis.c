@@ -90,7 +90,7 @@ static void perform_expression_analysis(expr_node *expr) {
 }
 
 
-static void perform_statement_analysis(ast_statement_node *stmt, data_type *returned_type) {
+static void perform_statement_analysis(ast_statement_node *stmt, ast_func_decl_node *curr_function) {
     if (stmt == NULL)
         return;
 
@@ -98,24 +98,24 @@ static void perform_statement_analysis(ast_statement_node *stmt, data_type *retu
         scope_entered();
         ast_statement_node *s = stmt->body;
         while (s != NULL) {
-            perform_statement_analysis(s, returned_type);
+            perform_statement_analysis(s, curr_function);
             s = s->next;
         }
         scope_exited();
 
     } else if (stmt->stmt_type == ST_IF) {
         perform_expression_analysis(stmt->eval);
-        perform_statement_analysis(stmt->body, returned_type);
-        perform_statement_analysis(stmt->else_body, returned_type);
+        perform_statement_analysis(stmt->body, curr_function);
+        perform_statement_analysis(stmt->else_body, curr_function);
 
     } else if (stmt->stmt_type == ST_WHILE) {
         perform_expression_analysis(stmt->eval);
-        perform_statement_analysis(stmt->body, returned_type);
+        perform_statement_analysis(stmt->body, curr_function);
 
     } else if (stmt->stmt_type == ST_RETURN) {
         // possible return value expression
         perform_expression_analysis(stmt->eval);
-        verify_expression_type(stmt->eval, returned_type);
+        verify_expression_type(stmt->eval, curr_function->return_type);
 
     } else if (stmt->stmt_type == ST_VAR_DECL) {
         // possible initialization expression
@@ -133,10 +133,10 @@ static void perform_statement_analysis(ast_statement_node *stmt, data_type *retu
 }
 
 static void perform_function_analysis(ast_func_decl_node *func) {
-    scope_entered();
 
+    // functions are declared at their parent scope
     if (scope_symbol_declared_at_curr_level(func->func_name)) {
-        printf("%s:%d: function \"%s\" already defined in current scope\n", 
+        error("function \"%s\" already defined\n", 
             func->token->filename,
             func->token->line_no,
             func->func_name);
@@ -144,6 +144,8 @@ static void perform_function_analysis(ast_func_decl_node *func) {
         symbol *sym = create_symbol(func->func_name, func->return_type, SYM_FUNC, func->token->filename, func->token->line_no);
         scope_declare_symbol(sym);
     }
+
+    scope_entered();
 
     ast_var_decl_node *arg = func->args_list;
     int arg_no = 0;
@@ -153,12 +155,16 @@ static void perform_function_analysis(ast_func_decl_node *func) {
         arg_no++;
     }
 
-    perform_statement_analysis(func->body, func->return_type);
+    perform_statement_analysis(func->body, func);
 
     scope_exited();
 }
 
 void perform_module_analysis(ast_module_node *ast_root) {
+
+    // maybe first a full cycle to calculate all expr return types
+    // then verify them against expectations
+
     scope_entered();
 
     ast_statement_node *s = ast_root->statements_list;

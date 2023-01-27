@@ -16,12 +16,11 @@ SRC_FILES = \
 	scope.c \
 	analysis.c
 
-.PHONY: tests
+target: tested
 
-all: tests
 
-tests: $(BINARY) tests/parsing_test.c
-	./$(BINARY) tests/parsing_test.c
+tested: $(BINARY) run-tests.sh
+	./run-tests.sh
 
 $(BINARY): $(SRC_FILES)
 	gcc -o $@ -g $^

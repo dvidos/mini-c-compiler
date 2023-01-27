@@ -2,7 +2,7 @@
 #include <stdio.h>
 #include <stdarg.h>
 #include <stdlib.h>
-#include "../defs.h"
+#include "../error.h"
 #include "../lexer/token.h"
 #include "../ast_node.h"
 #include "../ast.h"
@@ -128,16 +128,17 @@ static data_type *accept_data_type_description() {
         return NULL;
 
     consume(); // a keyword such as "int" or "char"
-    data_type *t = create_data_type(accepted()->type, NULL);
+    type_family family = data_type_family_for_token(accepted()->type);
+    data_type *t = create_data_type(family, NULL);
 
     if (accept(TOK_STAR)) {
         // we are a pointer, nest the data type
-        t = create_data_type(TOK_STAR, t);
+        t = create_data_type(TF_POINTER, t);
     }
 
     if (accept(TOK_STAR)) {
         // we are a pointer to pointer, nest the data type too
-        t = create_data_type(TOK_STAR, t);
+        t = create_data_type(TF_POINTER, t);
     }
 
     return t;
@@ -155,14 +156,14 @@ static ast_statement_node *accept_variable_declaration() {
 
     if (accept(TOK_LBRACKET)) {
         // it's an array
-        dt = create_data_type(TOK_LBRACKET, dt);
+        dt = create_data_type(TF_ARRAY, dt);
         if (!expect(TOK_NUMERIC_LITERAL)) return NULL;
         dt->array_size = strtol(accepted()->value, NULL, 10);
         if (!expect(TOK_RBRACKET)) return NULL;
 
         if (accept(TOK_LBRACKET)) {
             // it's a two-dimensions array
-            dt = create_data_type(TOK_LBRACKET, dt);
+            dt = create_data_type(TF_ARRAY, dt);
             if (!expect(TOK_NUMERIC_LITERAL)) return NULL;
             dt->array_size = strtol(accepted()->value, NULL, 10);
             if (!expect(TOK_RBRACKET)) return NULL;
@@ -273,7 +274,7 @@ static ast_statement_node *parse_statement() {
 static ast_statement_node *parse_block() {
     declare_list(ast_statement_node);
 
-    while (!parsing_failed() && !next_is(TOK_BLOCK_END) && !next_is(TOK_EOF)) {
+    while (!next_is(TOK_BLOCK_END) && !next_is(TOK_EOF) && errors_count == 0) {
         ast_statement_node *n = parse_statement();
         if (n == NULL) // error?
             return NULL;
@@ -295,14 +296,14 @@ static ast_var_decl_node *parse_function_arguments_list() {
 
         // it's an array
         if (accept(TOK_LBRACKET)) {
-            dt = create_data_type(TOK_LBRACKET, dt);
+            dt = create_data_type(TF_ARRAY, dt);
             if (!expect(TOK_NUMERIC_LITERAL)) return NULL;
             dt->array_size = strtol(accepted()->value, NULL, 10);
             if (!expect(TOK_RBRACKET)) return NULL;
 
             if (accept(TOK_LBRACKET)) {
                 // it's a two-dimensions array
-                dt = create_data_type(TOK_LBRACKET, dt);
+                dt = create_data_type(TF_ARRAY, dt);
                 if (!expect(TOK_NUMERIC_LITERAL)) return NULL;
                 dt->array_size = strtol(accepted()->value, NULL, 10);
                 if (!expect(TOK_RBRACKET)) return NULL;
@@ -330,13 +331,17 @@ static void parse_file_level_element() {
         ast_add_function(n);
     }
     else {
-        parsing_error("expecting variable or function declaration");
+        error(
+            next()->filename,
+            next()->line_no,
+            "expecting variable or function declaration"
+        );
     }
 }
 
-int parse_file_using_recursive_descend() {
-    while (!parsing_failed() && !next_is(TOK_EOF))
+void parse_file_using_recursive_descend() {
+
+    // parsing cannot continue if errors are discovered
+    while (!next_is(TOK_EOF) && errors_count == 0)
         parse_file_level_element();
-    
-    return parsing_failed() ? ERROR : SUCCESS;
 }

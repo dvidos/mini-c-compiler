@@ -1,5 +1,6 @@
 #pragma once
 #include "operators.h"
+#include "data_type.h"
 #include "lexer/token.h"
 
 typedef struct expr_node expr_node; // parsed expression for evaluation
@@ -26,3 +27,5 @@ expr_node *create_ast_expr_string_literal(char *str, token *token);
 expr_node *create_ast_expr_numeric_literal(char *number, token *token);
 expr_node *create_ast_expr_char_literal(char chr, token *token);
 expr_node *create_ast_expr_bool_literal(bool value, token *token);
+
+data_type *get_expression_result_type(expr_node *expr);

@@ -1,5 +1,6 @@
 #include <stddef.h>
 #include <stdlib.h>
+#include "../error.h"
 #include "../lexer/token.h"
 #include "../operators.h"
 #include "../ast_node.h"
@@ -95,13 +96,13 @@ expr_node *accept_terminal() {
 
 oper operators_stack[MAX_STACK_SIZE];
 int operators_stack_len = 0;
-static inline void push_operator(oper op) { operators_stack[operators_stack_len++] = op; if (operators_stack_len >= MAX_STACK_SIZE) parsing_error("op stack overflow"); }
+static inline void push_operator(oper op) { operators_stack[operators_stack_len++] = op; if (operators_stack_len >= MAX_STACK_SIZE) error(NULL, 0, "op stack overflow"); }
 static inline oper pop_operator() { return operators_stack[--operators_stack_len]; }
 static inline oper peek_operator() { return operators_stack[operators_stack_len - 1]; }
 
 expr_node *operands_stack[MAX_STACK_SIZE];
 int operands_stack_len = 0;
-static inline void push_operand(expr_node *n) { operands_stack[operands_stack_len++] = n; if (operands_stack_len >= MAX_STACK_SIZE) parsing_error("expr stack overflow"); }
+static inline void push_operand(expr_node *n) { operands_stack[operands_stack_len++] = n; if (operands_stack_len >= MAX_STACK_SIZE) error(NULL, 0, "expr stack overflow"); }
 static inline expr_node *pop_operand() { return operands_stack[--operands_stack_len]; }
 static inline expr_node *peek_operand() { return operands_stack[operands_stack_len - 1]; }
 
@@ -145,7 +146,7 @@ static void parse_operand() {
         parse_operand();
 
     } else {
-        parsing_error("expected '(', unary operator, or terminal token");
+        error(next()->filename, next()->line_no, "expected '(', unary operator, or terminal token");
     }
 
     while (next_is_postfix_operator()) {

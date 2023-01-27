@@ -1,30 +1,16 @@
 #include <stdio.h>
 #include <stdarg.h>
-#include "defs.h"
+#include "error.h"
 #include "analysis.h"
 #include "ast_node.h"
 #include "scope.h"
 #include "symbol.h"
 
-static bool analysis_issues_found = false;
-
-static void analysis_error(char *file, int line, char *msg, ...) {
-
-    printf("%s:%d: error: ", file, line);
-    va_list args;
-    va_start(args, msg);
-    vprintf(msg, args);
-    va_end(args);
-    printf("\n");
-
-    analysis_issues_found = true;
-}
-
 
 static void perform_declaration_analysis(ast_var_decl_node *decl, int arg_no) {
 
     if (scope_symbol_declared_at_curr_level(decl->var_name)) {
-        analysis_error(
+        error(
             decl->token->filename,
             decl->token->line_no,
             "symbol \"%s\" already defined in this scope",
@@ -41,6 +27,30 @@ static void perform_declaration_analysis(ast_var_decl_node *decl, int arg_no) {
     scope_declare_symbol(sym);
 }
 
+static void verify_expression_type(expr_node *expr, data_type *needed_type) {
+    if (expr == NULL || needed_type == NULL)
+        return;
+    
+    data_type *expr_returned_type = get_expression_result_type(expr);
+    if (expr_returned_type == NULL) {
+        error(
+            expr->token->filename, 
+            expr->token->line_no,
+            "expression did not return a valid return type"
+        );
+    }
+
+    if (!data_types_equal(expr_returned_type, needed_type)) {
+        error(
+            expr->token->filename, 
+            expr->token->line_no,
+            "expression returns a %s, but a type of %d is required",
+            data_type_family_name(expr_returned_type->family),
+            data_type_family_name(needed_type->family)
+        );
+    }
+}
+
 static void perform_expression_analysis(expr_node *expr) {
     if (expr == NULL)
         return;
@@ -55,15 +65,17 @@ static void perform_expression_analysis(expr_node *expr) {
     if (expr->op == OP_SYMBOL_NAME) {
         symbol *s = scope_lookup(expr->value.str);
         if (s == NULL) {
-            analysis_error(
+            error(
                 expr->token->filename,
                 expr->token->line_no,
                 "symbol \"%s\" not declared",
                 expr->value.str
             );
         }
+    } else if (expr->op == OP_FUNC_CALL) {
+        // should validate the type of each argument passed
     }
-    
+
     /*  some ideas to explore
         - expression to be assigned must have the same type as the target lvalue
         - arguments passed in functions must match the argument's type
@@ -77,7 +89,8 @@ static void perform_expression_analysis(expr_node *expr) {
     */
 }
 
-void perform_statement_analysis(ast_statement_node *stmt) {
+
+static void perform_statement_analysis(ast_statement_node *stmt, data_type *returned_type) {
     if (stmt == NULL)
         return;
 
@@ -85,23 +98,24 @@ void perform_statement_analysis(ast_statement_node *stmt) {
         scope_entered();
         ast_statement_node *s = stmt->body;
         while (s != NULL) {
-            perform_statement_analysis(s);
+            perform_statement_analysis(s, returned_type);
             s = s->next;
         }
         scope_exited();
 
     } else if (stmt->stmt_type == ST_IF) {
         perform_expression_analysis(stmt->eval);
-        perform_statement_analysis(stmt->body);
-        perform_statement_analysis(stmt->else_body);
+        perform_statement_analysis(stmt->body, returned_type);
+        perform_statement_analysis(stmt->else_body, returned_type);
 
     } else if (stmt->stmt_type == ST_WHILE) {
         perform_expression_analysis(stmt->eval);
-        perform_statement_analysis(stmt->body);
+        perform_statement_analysis(stmt->body, returned_type);
 
     } else if (stmt->stmt_type == ST_RETURN) {
         // possible return value expression
         perform_expression_analysis(stmt->eval);
+        verify_expression_type(stmt->eval, returned_type);
 
     } else if (stmt->stmt_type == ST_VAR_DECL) {
         // possible initialization expression
@@ -118,7 +132,7 @@ void perform_statement_analysis(ast_statement_node *stmt) {
     }
 }
 
-void perform_function_analysis(ast_func_decl_node *func) {
+static void perform_function_analysis(ast_func_decl_node *func) {
     scope_entered();
 
     if (scope_symbol_declared_at_curr_level(func->func_name)) {
@@ -139,18 +153,17 @@ void perform_function_analysis(ast_func_decl_node *func) {
         arg_no++;
     }
 
-    perform_statement_analysis(func->body);
+    perform_statement_analysis(func->body, func->return_type);
 
     scope_exited();
 }
 
-int perform_module_analysis(ast_module_node *ast_root) {
-    analysis_issues_found = false;
+void perform_module_analysis(ast_module_node *ast_root) {
     scope_entered();
 
     ast_statement_node *s = ast_root->statements_list;
     while (s != NULL) {
-        perform_statement_analysis(s);
+        perform_statement_analysis(s, NULL);
         s = s->next;
     }
     ast_func_decl_node *f = ast_root->funcs_list;
@@ -160,5 +173,4 @@ int perform_module_analysis(ast_module_node *ast_root) {
     }
 
     scope_exited();
-    return analysis_issues_found ? ERROR : SUCCESS;
 }

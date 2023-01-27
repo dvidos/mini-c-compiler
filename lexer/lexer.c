@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include <stddef.h>
 #include <string.h>
-#include "../defs.h"
+#include "../error.h"
 #include "lexer.h"
 #include "token.h"
 
@@ -162,12 +162,12 @@ static int parse_char(char **p) {
         (*p) += 2;                          \
     }
 
-int parse_lexer_token_at_pointer(char **p, char *filename, int *line_no, struct token **token) {
+void parse_lexer_token_at_pointer(char **p, char *filename, int *line_no, struct token **token) {
 
     (*token) = NULL;
     skip_whitespace(p, line_no);
     if (**p == '\0')
-        return DONE;
+        return;
     
     char c = **p;
     char c2 = *(*p + 1);
@@ -240,6 +240,7 @@ int parse_lexer_token_at_pointer(char **p, char *filename, int *line_no, struct 
         value = strdup(collector_buffer); // can be a string of zero length
     }
     (*token) = create_token(type, value, filename, *line_no);
-    return SUCCESS;
+
+    skip_whitespace(p, line_no);
 }
 

@@ -1,7 +1,7 @@
 #include "stddef.h"
 #include "stdio.h"
 #include "stdarg.h"
-#include "../defs.h"
+#include "../error.h"
 #include "../lexer/token.h"
 
 // iteration for our parser
@@ -12,27 +12,10 @@
 
 static token *current_token;
 static token *accepted_token;
-static bool error_occured = false;
 
-void parsing_error(char *msg, ...) {
-
-    printf("%s:%d: parsing error: ", current_token->filename, current_token->line_no);
-    va_list args;
-    va_start(args, msg);
-    vprintf(msg, args);
-    va_end(args);
-    printf("\n");
-
-    error_occured = true;
-}
-
-bool parsing_failed() {
-    return error_occured;
-}
 void init_token_iterator(token *first_token) {
     current_token = first_token;
     accepted_token = NULL;
-    error_occured = false;
 }
 
 token *next() {
@@ -62,7 +45,9 @@ bool lookahead_is(int times, token_type type) {
 
 // advances to the next token
 void consume() {
+
     if (current_token != NULL && current_token->type != TOK_EOF) {
+        extern bool verbose;
         if (verbose) {
             if (current_token->value == NULL)
                 printf("at line %d, consumed %s\n", current_token->line_no, token_type_name(current_token->type));
@@ -91,7 +76,10 @@ token *accepted() {
 // verifies next token is of specified type, otherwise fail
 bool expect(token_type type) {
     if (!next_is(type)) {
-        parsing_error("was expecting \"%s\", but got \"%s\"", 
+        error(
+            current_token->filename,
+            current_token->line_no,
+            "was expecting \"%s\", but got \"%s\"", 
             token_type_name(type), 
             token_type_name(current_token->type)
         );

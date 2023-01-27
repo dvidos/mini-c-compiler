@@ -22,12 +22,6 @@ bool lookahead_is(int times, token_type type);
 // advances to the next token
 void consume();
 
-// show a message and flag parsing failure
-void parsing_error(char *msg, ...);
-
-// if an error occured during parsing
-bool parsing_failed();
-
 // see if next token is type and accept (consume) if so.
 bool accept(token_type type);
 

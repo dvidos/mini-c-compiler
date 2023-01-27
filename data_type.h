@@ -2,8 +2,6 @@
 #include "lexer/token.h"
 
 
-typedef struct data_type data_type;  // possibly nested data types
-
 typedef enum type_family {
     TF_INT,
     TF_FLOAT,
@@ -21,6 +19,12 @@ typedef struct data_type {
     int array_size; // only for arrays
 } data_type;
 
-data_type *create_data_type(token_type type, data_type *nested);
+
+type_family data_type_family_for_token(token_type type);
 char *data_type_family_name(type_family t);
+data_type *create_data_type(type_family family, data_type *nested);
+data_type *clone_data_type(data_type *type);
+void free_data_type(data_type *type);
+bool data_types_equal(data_type *a, data_type *b);
+
 

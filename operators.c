@@ -28,7 +28,7 @@ struct operator_info operators_info_list[] = {
     { OP_POSITIVE_NUM,      28, true,  false, "POS" },     // +123
     { OP_NEGATIVE_NUM,      28, true,  false, "NEG" },     // -123
     { OP_LOGICAL_NOT,       28, true,  false, "NOT" },     // !a
-    { OP_BINARY_NOT,        28, true,  false, "BIN_NOT" }, // ~a
+    { OP_BITWISE_NOT,       28, true,  false, "BIN_NOT" }, // ~a
     { OP_PRE_INC,           28, true,  false, "PREINC" },  // ++a
     { OP_PRE_DEC,           28, true,  false, "PREDEC" },  // --a
     { OP_TYPE_CAST,         28, false, false, "CAST" },    // (a)b
@@ -104,13 +104,13 @@ bool is_unary_operator(oper op) {
 oper to_unary_operator(token_type type) {
     switch (type) {
         case TOK_EXCLAMANTION: return OP_LOGICAL_NOT;
-        case TOK_STAR:        return OP_POINTED_VALUE;
-        case TOK_AMPERSAND:   return OP_ADDRESS_OF;
-        case TOK_TILDE:       return OP_BINARY_NOT;
-        case TOK_MINUS_SIGN:  return OP_NEGATIVE_NUM;
-        case TOK_PLUS_SIGN:   return OP_POSITIVE_NUM;
-        case TOK_DBL_PLUS:   return OP_PRE_INC;
-        case TOK_DBL_MINUS:   return OP_PRE_DEC;
+        case TOK_STAR:         return OP_POINTED_VALUE;
+        case TOK_AMPERSAND:    return OP_ADDRESS_OF;
+        case TOK_TILDE:        return OP_BITWISE_NOT;
+        case TOK_MINUS_SIGN:   return OP_NEGATIVE_NUM;
+        case TOK_PLUS_SIGN:    return OP_POSITIVE_NUM;
+        case TOK_DBL_PLUS:     return OP_PRE_INC;
+        case TOK_DBL_MINUS:    return OP_PRE_DEC;
     }
     return OP_UNKNOWN;
 }

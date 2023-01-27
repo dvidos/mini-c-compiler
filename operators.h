@@ -13,7 +13,7 @@ typedef enum oper {
     OP_POSITIVE_NUM,       // +123
     OP_NEGATIVE_NUM,       // -123
     OP_LOGICAL_NOT,        // !a
-    OP_BINARY_NOT,         // ~a
+    OP_BITWISE_NOT,        // ~a
     OP_PRE_INC,            // ++a
     OP_PRE_DEC,            // --a
     OP_TYPE_CAST,          // (b)a

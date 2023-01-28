@@ -58,7 +58,7 @@ static statement *accept_variable_declaration();
 static func_declaration *accept_function_declaration();
 
 static statement *parse_statement();
-static statement *parse_block(token *opening_token); // parses statements in a loop
+static statement *parse_statements_list_in_block();
 static var_declaration *parse_function_arguments_list();
 
 static bool is_data_type_description(int *num_tokens) {
@@ -201,10 +201,16 @@ static func_declaration *accept_function_declaration() {
     }
 
     statement *body = NULL;
-    if (!accept(TOK_SEMICOLON)) {
-        body = parse_statement();
+    // we either have a semicolon (declaration) or an opening brace (definition)
+    if (accept(TOK_SEMICOLON)) {
+        body = NULL;
+    } else if (accept(TOK_BLOCK_START)) {
+        body = parse_statements_list_in_block();
+        expect(TOK_BLOCK_END);
+    } else {
+        error(next()->filename, next()->line_no,
+            "expecting either ';' or '{' for function %s", name);
     }
-    // no ";" required after functions
 
     return create_func_declaration(ret_type, name, args, body, identifier_token);
 }
@@ -214,8 +220,10 @@ static statement *parse_statement() {
     token *start_token;
 
     if (accept(TOK_BLOCK_START)) {
-        // we need to parse the nested block
-        statement *bl = parse_block(accepted());
+        // we need to parse the nested block, blocks have their own scope
+        token *opening_token = accepted();
+        statement *stmt_list = parse_statements_list_in_block();
+        statement *bl = create_statements_block(stmt_list, opening_token);
         if (!expect(TOK_BLOCK_END)) return NULL;
         return bl;
     }
@@ -278,7 +286,7 @@ static statement *parse_statement() {
     return create_expr_statement(expr, start_token);
 }
 
-static statement *parse_block(token *opening_token) {
+static statement *parse_statements_list_in_block() {
     declare_list(statement);
 
     while (!next_is(TOK_BLOCK_END) && !next_is(TOK_EOF) && errors_count == 0) {
@@ -288,7 +296,7 @@ static statement *parse_block(token *opening_token) {
         list_append(n);
     }
 
-    return create_statements_block(list, opening_token);
+    return list;
 }
 
 static var_declaration *parse_function_arguments_list() {

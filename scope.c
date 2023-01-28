@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <stddef.h>
 #include <string.h>
+#include "options.h"
 #include "scope.h"
 #include "symbol.h"
 #include "ast_node.h"
@@ -31,20 +32,9 @@ void scope_exited() {
     scope *top = scopes_stack_top;
     scopes_stack_top = top->higher;
 
-    if (top->symbols_list_head != NULL) {
-        if (top->scoped_func != NULL) {
-            printf("Symbols list of function %s()\n", top->scoped_func->func_name);
-        } else if (top->higher == NULL) {
-            printf("Symbols list of file scope\n");
-        } else {
-            printf("Symbols list for block\n");
-        }
-        symbol *sym = top->symbols_list_head;
-        while (sym != NULL) {
-            printf("- %-4s %-10s %s\n", symbol_type_name(sym->sym_type), data_type_to_string(sym->data_type), sym->name);
-            sym = sym->next;
-        }
-    }
+    if (options.verbose)
+        print_symbol_table(top);
+
     // maybe we should also free all symbols???
     free(top);
 }
@@ -106,5 +96,23 @@ void scope_declare_symbol(symbol *symbol) {
         scopes_stack_top->symbols_list_tail = symbol;
     }
     symbol->next = NULL;
+}
+
+void print_symbol_table(scope *s) {
+    if (s->symbols_list_head == NULL)
+        return; // no symbols defined
+
+    if (s->scoped_func != NULL)
+        printf("Symbol table for function %s()\n", s->scoped_func->func_name);
+    else if (s->higher == NULL)
+        printf("Symbol table for file scope\n");
+    else
+        printf("Symbol table for block\n");
+
+    symbol *sym = s->symbols_list_head;
+    while (sym != NULL) {
+        printf("- %-4s   %-5s %s\n", symbol_type_name(sym->sym_type), data_type_to_string(sym->data_type), sym->name);
+        sym = sym->next;
+    }
 }
 

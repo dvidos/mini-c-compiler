@@ -18,12 +18,14 @@ int factorial(int n) {
 }
 
 void math_demo() {
-    int i = 0; 
+    int i;
+
+    i = 0; 
     while (i++ < 10) {
         printf("fibonacci of %d is %d\n", i, fibonacci(i));
     }
 
-    int i = 0; 
+    i = 0; 
     while (i++ < 10) {
         printf("factorial of %d is %d\n", i, factorial(i));
     }

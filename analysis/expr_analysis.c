@@ -8,6 +8,11 @@
 #include "analysis.h"
 
 
+static void perform_function_call_analysis(expression *call_expr) {
+    // validate number and type of arguments passed
+    // there may be commas or NULL for no args at all
+}
+
 void perform_expression_analysis(expression *expr) {
     if (expr == NULL)
         return;
@@ -30,8 +35,7 @@ void perform_expression_analysis(expression *expr) {
             );
         }
     } else if (expr->op == OP_FUNC_CALL) {
-        // should validate the type of each argument passed
-        expr_get_result_type(expr);
+        perform_function_call_analysis(expr);
     }
 
     /*  some ideas to explore

@@ -19,4 +19,4 @@ func_declaration *get_function_in_scope(); // get whose function's scope we are 
 bool scope_symbol_declared_at_curr_level(char *symbol_name);
 void scope_declare_symbol(symbol *symbol);
 
-
+void print_symbol_table(scope *s);

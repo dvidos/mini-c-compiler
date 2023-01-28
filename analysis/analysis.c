@@ -52,7 +52,12 @@ void perform_function_analysis(func_declaration *func) {
         arg_no++;
     }
 
-    perform_statement_analysis(func->body);
+    // functions have a list of statements as their body.
+    statement *stmt = func->body;
+    while (stmt != NULL) {
+        perform_statement_analysis(stmt);
+        stmt = stmt->next;
+    }
 
     scope_exited(); // exiting function
 }

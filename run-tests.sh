@@ -11,12 +11,15 @@ MAGENTA='\e[1;35m'
 CYAN='\e[1;36m'
 END='\e[0m'
 
+tests_count=0
+
 for file in tests/passing/*; do
     ./mcc $file
     if [ $? -ne 0 ]; then
         echo "$file: ${RED}Compilation failed, success was expected${END}"
         return 1
     fi
+    tests_count=$((tests_count + 1))
 done
 
 for file in tests/failing/*; do
@@ -25,6 +28,7 @@ for file in tests/failing/*; do
         echo "$file: ${RED}expected failure, but compilation succeeded${END}"
         return 1
     fi
+    tests_count=$((tests_count + 1))
 done
 
-echo "${GREEN}All tests passed!${END}"
+echo "${GREEN}All $tests_count tests passed!${END}"

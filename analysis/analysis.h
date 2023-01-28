@@ -11,7 +11,10 @@ void perform_function_analysis(func_declaration *func);
 
 // expr_analysis.c
 void perform_expression_analysis(expression *expr);
-void verify_expression_type(expression *expr, data_type *needed_type);
+void verify_expression_result_type(expression *expr, data_type *needed_type);
+void verify_expr_result_integer(expression *expr);
+void verify_expr_result_boolean(expression *expr);
+void verify_expr_same_data_types(expression *expr1, expression *expr2, token *token);
 
 // stmt_analysis.c
 void perform_statement_analysis(statement *stmt);

@@ -7,6 +7,13 @@
 #include "../symbol.h"
 #include "analysis.h"
 
+/*
+    analysis has the following components:
+    - symbol declaration check (not declared, already declared)
+    - symbol resolution (ensure declared)
+    - data type check (e.g. expressions assigned to vars, used in "if"s, or return value types)
+*/
+
 
 void perform_declaration_analysis(var_declaration *decl, int arg_no) {
 

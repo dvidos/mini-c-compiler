@@ -31,5 +31,5 @@ expression *create_number_literal_expr(char *number, token *token);
 expression *create_char_literal_expr(char chr, token *token);
 expression *create_bool_literal_expr(bool value, token *token);
 
-data_type *expr_get_result_type(expression *expr);
+data_type *get_expr_result_type(expression *expr);
 

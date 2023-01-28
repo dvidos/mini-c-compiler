@@ -54,7 +54,7 @@ expression *create_bool_literal_expr(bool value, token *token) {
     return n;
 }
 
-data_type *expr_get_result_type(expression *expr) {
+data_type *get_expr_result_type(expression *expr) {
     if (expr == NULL)
         return NULL;
 
@@ -106,7 +106,7 @@ data_type *expr_get_result_type(expression *expr) {
         return expr->result_type;
     
     // now we need to consult our arguments types.
-    data_type *arg1_type = expr_get_result_type(expr->arg1);
+    data_type *arg1_type = get_expr_result_type(expr->arg1);
     if (op == OP_POINTED_VALUE) {
         // return the nested type of arg1 type, i.e. *(of a char*) is a char
         if (arg1_type == NULL || arg1_type->nested == NULL) {

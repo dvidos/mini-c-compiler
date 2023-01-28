@@ -144,7 +144,7 @@ oper to_binary_operator(token_type type) {
     return OP_UNKNOWN;
 }
 
-// convert a token to a unary operator, if applicable
+// convert a token to a postfix operator, if applicable
 oper to_postfix_operator(token_type type) {
     switch (type) {
         case TOK_LPAREN:       return OP_FUNC_CALL;

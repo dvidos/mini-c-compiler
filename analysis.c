@@ -28,25 +28,18 @@ static void perform_declaration_analysis(ast_var_decl_node *decl, int arg_no) {
 }
 
 static void verify_expression_type(expr_node *expr, data_type *needed_type) {
-    if (expr == NULL || needed_type == NULL)
+    if (expr->result_type == NULL) {
+        error(expr->token->filename, expr->token->line_no, "expression returned type could not be calculated");
         return;
-    
-    data_type *expr_returned_type = get_expression_result_type(expr);
-    if (expr_returned_type == NULL) {
-        error(
-            expr->token->filename, 
-            expr->token->line_no,
-            "expression did not return a valid return type"
-        );
     }
 
-    if (!data_types_equal(expr_returned_type, needed_type)) {
+    if (!data_types_equal(expr->result_type, needed_type)) {
         error(
             expr->token->filename, 
             expr->token->line_no,
-            "expression returns a %s, but a type of %d is required",
-            data_type_family_name(expr_returned_type->family),
-            data_type_family_name(needed_type->family)
+            "expression returns a '%s', but a type of '%s' is required",
+            data_type_to_string(expr->result_type),
+            data_type_to_string(needed_type)
         );
     }
 }
@@ -74,8 +67,9 @@ static void perform_expression_analysis(expr_node *expr) {
         }
     } else if (expr->op == OP_FUNC_CALL) {
         // should validate the type of each argument passed
+    } else {
+        expr_get_result_type(expr);
     }
-
     /*  some ideas to explore
         - expression to be assigned must have the same type as the target lvalue
         - arguments passed in functions must match the argument's type
@@ -90,32 +84,43 @@ static void perform_expression_analysis(expr_node *expr) {
 }
 
 
-static void perform_statement_analysis(ast_statement_node *stmt, ast_func_decl_node *curr_function) {
+static void perform_statement_analysis(ast_statement_node *stmt) {
     if (stmt == NULL)
         return;
 
     if (stmt->stmt_type == ST_BLOCK) {
-        scope_entered();
+        scope_entered(NULL);
         ast_statement_node *s = stmt->body;
         while (s != NULL) {
-            perform_statement_analysis(s, curr_function);
+            perform_statement_analysis(s);
             s = s->next;
         }
         scope_exited();
 
     } else if (stmt->stmt_type == ST_IF) {
         perform_expression_analysis(stmt->eval);
-        perform_statement_analysis(stmt->body, curr_function);
-        perform_statement_analysis(stmt->else_body, curr_function);
+        perform_statement_analysis(stmt->body);
+        perform_statement_analysis(stmt->else_body);
 
     } else if (stmt->stmt_type == ST_WHILE) {
         perform_expression_analysis(stmt->eval);
-        perform_statement_analysis(stmt->body, curr_function);
+        perform_statement_analysis(stmt->body);
 
     } else if (stmt->stmt_type == ST_RETURN) {
         // possible return value expression
         perform_expression_analysis(stmt->eval);
-        verify_expression_type(stmt->eval, curr_function->return_type);
+        ast_func_decl_node *curr_func = get_function_in_scope();
+        if (curr_func == NULL) {
+            error(stmt->token->filename, stmt->token->line_no, "return outside of a function is not supported");
+        } else if (curr_func->return_type->family == TF_VOID && stmt->eval != NULL) {
+            error(stmt->token->filename, stmt->token->line_no, "cannot return a value in this function");
+        } else if (curr_func->return_type->family != TF_VOID && stmt->eval == NULL) {
+            error(stmt->token->filename, stmt->token->line_no, "return needs to provide a value in this function");
+        } else if (curr_func->return_type->family == TF_VOID && stmt->eval == NULL) {
+            ; // nothing we are good, returning void
+        } else {
+            verify_expression_type(stmt->eval, curr_func->return_type);
+        }
 
     } else if (stmt->stmt_type == ST_VAR_DECL) {
         // possible initialization expression
@@ -136,16 +141,17 @@ static void perform_function_analysis(ast_func_decl_node *func) {
 
     // functions are declared at their parent scope
     if (scope_symbol_declared_at_curr_level(func->func_name)) {
-        error("function \"%s\" already defined\n", 
+        error(
             func->token->filename,
             func->token->line_no,
+            "function \"%s\" already defined", 
             func->func_name);
     } else {
         symbol *sym = create_symbol(func->func_name, func->return_type, SYM_FUNC, func->token->filename, func->token->line_no);
         scope_declare_symbol(sym);
     }
 
-    scope_entered();
+    scope_entered(func); // scope of function
 
     ast_var_decl_node *arg = func->args_list;
     int arg_no = 0;
@@ -155,27 +161,24 @@ static void perform_function_analysis(ast_func_decl_node *func) {
         arg_no++;
     }
 
-    perform_statement_analysis(func->body, func);
+    perform_statement_analysis(func->body);
 
     scope_exited();
 }
 
 void perform_module_analysis(ast_module_node *ast_root) {
+    scope_entered(NULL);
 
-    // maybe first a full cycle to calculate all expr return types
-    // then verify them against expectations
-
-    scope_entered();
-
-    ast_statement_node *s = ast_root->statements_list;
-    while (s != NULL) {
-        perform_statement_analysis(s, NULL);
-        s = s->next;
+    ast_statement_node *stmt = ast_root->statements_list;
+    while (stmt != NULL) {
+        perform_statement_analysis(stmt);
+        stmt = stmt->next;
     }
-    ast_func_decl_node *f = ast_root->funcs_list;
-    while (f != NULL) {
-        perform_function_analysis(f);
-        f = f->next;
+
+    ast_func_decl_node *func = ast_root->funcs_list;
+    while (func != NULL) {
+        perform_function_analysis(func);
+        func = func->next;
     }
 
     scope_exited();

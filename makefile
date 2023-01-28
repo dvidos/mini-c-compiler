@@ -16,7 +16,9 @@ SRC_FILES = \
 	scope.c \
 	analysis.c
 
-target: tested
+
+# target: tested
+target: $(BINARY)
 
 
 tested: $(BINARY) run-tests.sh

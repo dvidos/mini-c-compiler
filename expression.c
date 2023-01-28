@@ -4,6 +4,8 @@
 #include "data_type.h"
 #include "symbol.h"
 #include "scope.h"
+#include "error.h"
+#include "lexer/token.h"
 
 
 expr_node *create_ast_expression(oper op, expr_node *arg1, expr_node *arg2, token *token) {
@@ -52,66 +54,96 @@ expr_node *create_ast_expr_bool_literal(bool value, token *token) {
     return n;
 }
 
-data_type *get_expression_result_type(expr_node *expr) {
+data_type *expr_get_result_type(expr_node *expr) {
+    if (expr == NULL)
+        return NULL;
+
+    // if already discovered, no need to lose time
+    if (expr->result_type != NULL)
+        return expr->result_type;
+    
+    // let's discover it...
     oper op = expr->op;
-    switch (op) {
-        case OP_STR_LITERAL:
-            return create_data_type(TF_POINTER, create_data_type(TF_CHAR, NULL));
-        case OP_NUM_LITERAL:
-            return create_data_type(TF_INT, NULL);
-        case OP_CHR_LITERAL:
-            return create_data_type(TF_CHAR, NULL);
-        case OP_BOOL_LITERAL:
-            return create_data_type(TF_BOOL, NULL);
-
-        case OP_SYMBOL_NAME:
-        case OP_FUNC_CALL:
-            // we have to lookup the symbol type...
-            // or whatever that function returns...
-            symbol *sym = scope_lookup((char *)expr->arg1);
-            if (sym == NULL) return NULL;
-            return clone_data_type(sym->data_type);
-
-        case OP_ADDRESS_OF:
-        case OP_ARRAY_SUBSCRIPT:
-            // for pointers, arg1 is the pointed expression, whose nested type
-            //     is the pointed thing.
-            // for arrays, arg1 is the array, whose nested type
-            //     is the array element.
-            // keping it simple for now.
-            data_type *arg_type = get_expression_result_type(expr->arg1);
-            data_type *result = clone_data_type(arg_type->nested);
-            free_data_type(arg_type);
-            return result;
-        
-        case OP_BITWISE_NOT:
-        case OP_BITWISE_AND:
-        case OP_BITWISE_OR:
-        case OP_BITWISE_XOR:
-        case OP_POSITIVE_NUM:
-        case OP_NEGATIVE_NUM:
-            // in theory int, but let's return whatever our first arg is.
-            return get_expression_result_type(expr->arg1);
-
-        case OP_ADD:
-        case OP_SUB:
-        case OP_MUL:
-        case OP_DIV:
-        case OP_MOD:
-            // in theory int, but let's return whatever our first arg is.
-            return get_expression_result_type(expr->arg1);
-
-        case OP_EQ:
-        case OP_NEQ:
-        case OP_LT:
-        case OP_LE:
-        case OP_GT:
-        case OP_GE:
-        case OP_LOGICAL_AND:
-        case OP_LOGICAL_OR:
-        case OP_LOGICAL_NOT:
-            // comparisons and logical operations
-            return create_data_type(TF_BOOL, NULL);
+    
+    // first calculate terminal cases, we don't need nested expressions
+    if (op == OP_STR_LITERAL) {
+        expr->result_type = create_data_type(TF_POINTER, create_data_type(TF_CHAR, NULL));
+    } else if (op == OP_NUM_LITERAL) {
+        expr->result_type = create_data_type(TF_INT, NULL);
+    } else if (op == OP_CHR_LITERAL) {
+        expr->result_type = create_data_type(TF_CHAR, NULL);
+    } else if (op == OP_BOOL_LITERAL) {
+        expr->result_type = create_data_type(TF_BOOL, NULL);
+    } else if (op == OP_SYMBOL_NAME) {
+        // we have to lookup the symbol type...
+        symbol *sym = scope_lookup((char *)expr->arg1);
+        if (sym == NULL)
+            error(expr->token->filename, expr->token->line_no, "symbol \"%s\" not defined in current scope", expr->arg1);
+        else
+            expr->result_type = clone_data_type(sym->data_type);
+    } else if (op == OP_FUNC_CALL) {
+        // we have to lookup the symbol type...
+        symbol *sym = scope_lookup((char *)expr->arg1);
+        if (sym == NULL)
+            error(expr->token->filename, expr->token->line_no, "symbol \"%s\" not defined in current scope", expr->arg1);
+        else
+            expr->result_type = clone_data_type(sym->data_type);
+    } else if (op == OP_EQ || op == OP_NEQ
+            || op == OP_LT || op == OP_LE || op == OP_GT || op == OP_GE
+            || op == OP_LOGICAL_AND || op == OP_LOGICAL_OR || op == OP_LOGICAL_NOT) {
+        // comparisons and logical operations
+        expr->result_type = create_data_type(TF_BOOL, NULL);
     }
-    return NULL;
+
+    // if discovered already, we are done.
+    if (expr->result_type != NULL)
+        return expr->result_type;
+    
+    // now we need to consult our arguments types.
+    data_type *a1 = expr_get_result_type(expr->arg1);
+    if (op == OP_POINTED_VALUE) {
+        // return the nested type of arg1 type, i.e. *(of a char*) is a char
+        if (a1 == NULL || a1->nested == NULL) {
+            error(expr->token->filename, expr->token->line_no, "pointer dereference, but pointee nested data type undefined");
+        } else {
+            expr->result_type = clone_data_type(a1->nested);
+        }
+    } else if (op == OP_ARRAY_SUBSCRIPT) {
+        // return the nested type of arg1 type, e.g. "int[]" will become int
+        if (a1 == NULL || a1->nested == NULL) {
+            error(expr->token->filename, expr->token->line_no, "array element operation, but array item data type undefined");
+        } else {
+            expr->result_type = clone_data_type(a1->nested);
+        }
+    } else if (op == OP_ADDRESS_OF) {
+        // return a pointer to the type of arg1
+        if (a1 == NULL) {
+            error(expr->token->filename, expr->token->line_no, "address of opration, but target data type undefined");
+        } else {
+            expr->result_type = create_data_type(TF_POINTER, clone_data_type(a1));
+        }
+    } else if (op == OP_BITWISE_NOT
+            || op == OP_BITWISE_AND
+            || op == OP_BITWISE_OR
+            || op == OP_BITWISE_XOR
+            || op == OP_POSITIVE_NUM
+            || op == OP_NEGATIVE_NUM
+            || op == OP_ADD
+            || op == OP_SUB
+            || op == OP_MUL
+            || op == OP_DIV
+            || op == OP_MOD) {
+        // in theory int, but let's return whatever our first arg is.
+        if (expr->arg1->result_type != NULL)
+            expr->result_type = clone_data_type(expr->arg1->result_type);
+    }
+    
+    // could be a warning
+    if (expr->result_type == NULL)
+        error(expr->token->filename, expr->token->line_no, 
+            "could not derive returned data type of expression with operator %s", 
+            oper_debug_name(op)
+        );
+    
+    return expr->result_type;
 }

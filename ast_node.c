@@ -31,7 +31,8 @@ ast_func_decl_node *create_ast_func_decl_node(data_type *return_type, char* func
 
 static ast_statement_node *_create_ast_statement_node(statement_type stmt_type, 
         ast_var_decl_node *decl, expr_node *eval, 
-        ast_statement_node *body, ast_statement_node *else_body
+        ast_statement_node *body, ast_statement_node *else_body,
+        token *token
 ) {
     ast_statement_node *n = malloc(sizeof(ast_statement_node));
     n->stmt_type = stmt_type;
@@ -39,33 +40,35 @@ static ast_statement_node *_create_ast_statement_node(statement_type stmt_type,
     n->eval = eval;
     n->body = body;
     n->else_body = else_body;
+
+    n->token = token;
     n->next = NULL;
     return n;
 }
 
-ast_statement_node *create_ast_block_node(ast_statement_node *stmts_list) {
-    return _create_ast_statement_node(ST_BLOCK, NULL, NULL, stmts_list, NULL);
+ast_statement_node *create_ast_block_node(ast_statement_node *stmts_list, token *token) {
+    return _create_ast_statement_node(ST_BLOCK, NULL, NULL, stmts_list, NULL, token);
 }
-ast_statement_node *create_ast_decl_statement(ast_var_decl_node *decl, expr_node *init) {
-    return _create_ast_statement_node(ST_VAR_DECL, decl, init, NULL, NULL);
+ast_statement_node *create_ast_decl_statement(ast_var_decl_node *decl, expr_node *init, token *token) {
+    return _create_ast_statement_node(ST_VAR_DECL, decl, init, NULL, NULL, token);
 }
-ast_statement_node *create_ast_if_statement(expr_node *condition, ast_statement_node *if_body, ast_statement_node *else_body) {
-    return _create_ast_statement_node(ST_IF, NULL, condition, if_body, else_body);
+ast_statement_node *create_ast_if_statement(expr_node *condition, ast_statement_node *if_body, ast_statement_node *else_body, token *token) {
+    return _create_ast_statement_node(ST_IF, NULL, condition, if_body, else_body, token);
 }
-ast_statement_node *create_ast_while_statement(expr_node *condition, ast_statement_node *body) {
-    return _create_ast_statement_node(ST_WHILE, NULL, condition, body, NULL);
+ast_statement_node *create_ast_while_statement(expr_node *condition, ast_statement_node *body, token *token) {
+    return _create_ast_statement_node(ST_WHILE, NULL, condition, body, NULL, token);
 }
-ast_statement_node *create_ast_continue_statement() {
-    return _create_ast_statement_node(ST_CONTINUE, NULL, NULL, NULL, NULL);
+ast_statement_node *create_ast_continue_statement(token *token) {
+    return _create_ast_statement_node(ST_CONTINUE, NULL, NULL, NULL, NULL, token);
 }
-ast_statement_node *create_ast_break_statement() {
-    return _create_ast_statement_node(ST_BREAK, NULL, NULL, NULL, NULL);
+ast_statement_node *create_ast_break_statement(token *token) {
+    return _create_ast_statement_node(ST_BREAK, NULL, NULL, NULL, NULL, token);
 }
-ast_statement_node *create_ast_return_statement(expr_node *return_value) {
-    return _create_ast_statement_node(ST_RETURN, NULL, return_value, NULL, NULL);
+ast_statement_node *create_ast_return_statement(expr_node *return_value, token *token) {
+    return _create_ast_statement_node(ST_RETURN, NULL, return_value, NULL, NULL, token);
 }
-ast_statement_node *create_ast_expr_statement(expr_node *expression) {
-    return _create_ast_statement_node(ST_EXPRESSION, NULL, expression, NULL, NULL);
+ast_statement_node *create_ast_expr_statement(expr_node *expression, token *token) {
+    return _create_ast_statement_node(ST_EXPRESSION, NULL, expression, NULL, NULL, token);
 }
 
 char *statement_type_name(statement_type type) {

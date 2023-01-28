@@ -18,6 +18,7 @@ typedef struct expr_node {
     } value;
 
     token *token;
+    data_type *result_type;
 } expr_node;
 
 
@@ -28,4 +29,5 @@ expr_node *create_ast_expr_numeric_literal(char *number, token *token);
 expr_node *create_ast_expr_char_literal(char chr, token *token);
 expr_node *create_ast_expr_bool_literal(bool value, token *token);
 
-data_type *get_expression_result_type(expr_node *expr);
+data_type *expr_get_result_type(expr_node *expr);
+

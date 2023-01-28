@@ -3,16 +3,17 @@
 #include <stddef.h>
 #include <string.h>
 #include "scope.h"
+#include "ast_node.h"
 
 // a stack of scopes, the outermost pushed first
 scope *scopes_stack_top = NULL;
 
-
 // creates a new scope on the stack
-void scope_entered() {
+void scope_entered(ast_func_decl_node *func) {
     scope *s = malloc(sizeof(scope));
     s->symbols_list_head = NULL;
     s->symbols_list_tail = NULL;
+    s->scoped_func = func;
     
     // add it to stack
     s->higher = scopes_stack_top;
@@ -44,6 +45,18 @@ symbol *scope_lookup(char *symbol_name) {
                 return sym;
             sym = sym->next;
         }
+        // not found, try wider scope
+        sc = sc->higher;
+    }
+    return NULL;
+}
+
+ast_func_decl_node *get_function_in_scope() {
+    scope *sc = scopes_stack_top;
+    while (sc != NULL) {
+        if (sc->scoped_func != NULL)
+            return sc->scoped_func;
+        
         // not found, try wider scope
         sc = sc->higher;
     }

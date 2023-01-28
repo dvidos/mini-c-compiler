@@ -75,17 +75,18 @@ typedef struct ast_statement_node {
     ast_statement_node *body; // statements or blocks for if's and while's, a list of statements for blocks
     ast_statement_node *else_body;  // for "else" only
 
+    token *token; // for line information
     struct ast_statement_node *next; // for a list of statements in a block
 } ast_statement_node;
 
-ast_statement_node *create_ast_block_node(ast_statement_node *body);
-ast_statement_node *create_ast_decl_statement(ast_var_decl_node *decl, expr_node *init);
-ast_statement_node *create_ast_if_statement(expr_node *condition, ast_statement_node *if_body, ast_statement_node *else_nody);
-ast_statement_node *create_ast_while_statement(expr_node *condition, ast_statement_node *body);
-ast_statement_node *create_ast_continue_statement();
-ast_statement_node *create_ast_break_statement();
-ast_statement_node *create_ast_return_statement(expr_node *return_value);
-ast_statement_node *create_ast_expr_statement(expr_node *expression);
+ast_statement_node *create_ast_block_node(ast_statement_node *body, token *token);
+ast_statement_node *create_ast_decl_statement(ast_var_decl_node *decl, expr_node *init, token *token);
+ast_statement_node *create_ast_if_statement(expr_node *condition, ast_statement_node *if_body, ast_statement_node *else_nody, token *token);
+ast_statement_node *create_ast_while_statement(expr_node *condition, ast_statement_node *body, token *token);
+ast_statement_node *create_ast_continue_statement(token *token);
+ast_statement_node *create_ast_break_statement(token *token);
+ast_statement_node *create_ast_return_statement(expr_node *return_value, token *token);
+ast_statement_node *create_ast_expr_statement(expr_node *expression, token *token);
 char *statement_type_name(statement_type type);
 
 

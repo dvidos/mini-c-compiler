@@ -2,6 +2,7 @@
 #include "stdio.h"
 #include "stdarg.h"
 #include "../error.h"
+#include "../options.h"
 #include "../lexer/token.h"
 
 // iteration for our parser
@@ -47,8 +48,7 @@ bool lookahead_is(int times, token_type type) {
 void consume() {
 
     if (current_token != NULL && current_token->type != TOK_EOF) {
-        extern bool verbose;
-        if (verbose) {
+        if (options.verbose) {
             if (current_token->value == NULL)
                 printf("at line %d, consumed %s\n", current_token->line_no, token_type_name(current_token->type));
             else 

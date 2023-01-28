@@ -1,67 +1,19 @@
-void return_demonstration_1() {
-    return; // simple return
+int global_a;
+
+int func1() {
+    int x;
+    int y;
 }
 
-bool return_demonstration_2() {
-    return 1; // return with value
+bool func2(int a, char b) {
+    int local;
 }
 
-char return_demonstration_3() {
-    return 1 > 0; // return with expression
-}
+// we must run tests with function calling (0, 1, 2 arguments)
+// and with array indexing, 1 or 2 dimensions
 
-void ifs_demonstration() {
-
-    // sample if without blocks
-    if (true)
-        return;
-
-    // sample if/else
-    if (true)
-        return;
-    else
-        return;
-
-    // if with blocks
-    if (true) {
-        return;
-    }
-
-    // if/else with blocks
-    if (true) {
-        return;
-    } else {
-        return;
-    }
-}
-
-void while_demonstration() {
-
-    // simple while
-    while (true)
-        return;
-
-    // with blocks
-    while (true) {
-        return;
-    }
-
-    // with break
-    while (true) {
-        break;
-    }
-
-    // with continue
-    while (true) {
-        continue;
-    }
-
-    // all together now
-    while (true) {
-        if (false) {
-            break;
-        } else {
-            continue;
-        }
-    }
+int main(int argc, char **argv) {
+    func1();
+    func2(5);
+    return argc - 1;
 }

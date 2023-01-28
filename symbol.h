@@ -21,7 +21,7 @@ typedef struct symbol {
 
 symbol *create_symbol(char *name, data_type *data_type, symbol_type definition, char *file_name, int line_no);
 symbol *create_func_arg_symbol(char *name, data_type *data_type, int arg_no, char *file_name, int line_no);
-
+char *symbol_type_name(symbol_type st);
 
 
 

@@ -75,19 +75,25 @@ data_type *expr_get_result_type(expr_node *expr) {
     } else if (op == OP_BOOL_LITERAL) {
         expr->result_type = create_data_type(TF_BOOL, NULL);
     } else if (op == OP_SYMBOL_NAME) {
-        // we have to lookup the symbol type...
-        symbol *sym = scope_lookup((char *)expr->arg1);
+        // result will be whatever type the symbol is
+        symbol *sym = scope_lookup(expr->value.str);
         if (sym == NULL)
             error(expr->token->filename, expr->token->line_no, "symbol \"%s\" not defined in current scope", expr->arg1);
         else
             expr->result_type = clone_data_type(sym->data_type);
     } else if (op == OP_FUNC_CALL) {
-        // we have to lookup the symbol type...
-        symbol *sym = scope_lookup((char *)expr->arg1);
-        if (sym == NULL)
-            error(expr->token->filename, expr->token->line_no, "symbol \"%s\" not defined in current scope", expr->arg1);
-        else
-            expr->result_type = clone_data_type(sym->data_type);
+        // result will be whatever type the function returns
+        if (!expr->arg1->op == OP_SYMBOL_NAME) {
+            // for now we support symbols, lvalues (pointers) later
+            error(expr->token->filename, expr->token->line_no, "func call expression did not have the symbol as arg1");
+        } else {
+            symbol *sym = scope_lookup(expr->arg1->value.str);
+            if (sym == NULL) {
+                error(expr->token->filename, expr->token->line_no, "symbol \"%s\" not defined in current scope", expr->arg1->value.str);
+            } else {
+                expr->result_type = clone_data_type(sym->data_type);
+            }
+        }
     } else if (op == OP_EQ || op == OP_NEQ
             || op == OP_LT || op == OP_LE || op == OP_GT || op == OP_GE
             || op == OP_LOGICAL_AND || op == OP_LOGICAL_OR || op == OP_LOGICAL_NOT) {
@@ -100,27 +106,27 @@ data_type *expr_get_result_type(expr_node *expr) {
         return expr->result_type;
     
     // now we need to consult our arguments types.
-    data_type *a1 = expr_get_result_type(expr->arg1);
+    data_type *arg1_type = expr_get_result_type(expr->arg1);
     if (op == OP_POINTED_VALUE) {
         // return the nested type of arg1 type, i.e. *(of a char*) is a char
-        if (a1 == NULL || a1->nested == NULL) {
+        if (arg1_type == NULL || arg1_type->nested == NULL) {
             error(expr->token->filename, expr->token->line_no, "pointer dereference, but pointee nested data type undefined");
         } else {
-            expr->result_type = clone_data_type(a1->nested);
+            expr->result_type = clone_data_type(arg1_type->nested);
         }
     } else if (op == OP_ARRAY_SUBSCRIPT) {
         // return the nested type of arg1 type, e.g. "int[]" will become int
-        if (a1 == NULL || a1->nested == NULL) {
+        if (arg1_type == NULL || arg1_type->nested == NULL) {
             error(expr->token->filename, expr->token->line_no, "array element operation, but array item data type undefined");
         } else {
-            expr->result_type = clone_data_type(a1->nested);
+            expr->result_type = clone_data_type(arg1_type->nested);
         }
     } else if (op == OP_ADDRESS_OF) {
         // return a pointer to the type of arg1
-        if (a1 == NULL) {
+        if (arg1_type == NULL) {
             error(expr->token->filename, expr->token->line_no, "address of opration, but target data type undefined");
         } else {
-            expr->result_type = create_data_type(TF_POINTER, clone_data_type(a1));
+            expr->result_type = create_data_type(TF_POINTER, clone_data_type(arg1_type));
         }
     } else if (op == OP_BITWISE_NOT
             || op == OP_BITWISE_AND

@@ -2,6 +2,7 @@ BINARY = mcc
 SRC_FILES = \
 	mcc.c \
 	error.c \
+	options.c \
 	lexer/token.c \
 	lexer/lexer.c \
 	ast_node.c \
@@ -26,12 +27,6 @@ tested: $(BINARY) run-tests.sh
 
 $(BINARY): $(SRC_FILES)
 	gcc -o $@ -g $^
-
-test: $(BINARY) sample.c
-	./$(BINARY) sample.c
-
-vtest: $(BINARY) sample.c
-	./$(BINARY) -v sample.c
 
 clean:
 	rm -f mcc

@@ -3,6 +3,7 @@
 #include <stddef.h>
 #include <string.h>
 #include "scope.h"
+#include "symbol.h"
 #include "ast_node.h"
 
 // a stack of scopes, the outermost pushed first
@@ -30,6 +31,20 @@ void scope_exited() {
     scope *top = scopes_stack_top;
     scopes_stack_top = top->higher;
 
+    if (top->symbols_list_head != NULL) {
+        if (top->scoped_func != NULL) {
+            printf("Symbols list of function %s()\n", top->scoped_func->func_name);
+        } else if (top->higher == NULL) {
+            printf("Symbols list of file scope\n");
+        } else {
+            printf("Symbols list for block\n");
+        }
+        symbol *sym = top->symbols_list_head;
+        while (sym != NULL) {
+            printf("- %-4s %-10s %s\n", symbol_type_name(sym->sym_type), data_type_to_string(sym->data_type), sym->name);
+            sym = sym->next;
+        }
+    }
     // maybe we should also free all symbols???
     free(top);
 }

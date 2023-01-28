@@ -118,28 +118,26 @@ oper to_unary_operator(token_type type) {
 // convert a token to a unary operator, if applicable
 oper to_binary_operator(token_type type) {
     switch (type) {
-        case TOK_PLUS_SIGN:    return OP_ADD;
-        case TOK_MINUS_SIGN:   return OP_SUB;
-        case TOK_STAR:         return OP_MUL;
-        case TOK_SLASH:        return OP_DIV;
-        case TOK_PERCENT:      return OP_MOD;
-        case TOK_AMPERSAND:    return OP_BITWISE_AND;
-        case TOK_PIPE:         return OP_BITWISE_OR;
-        case TOK_CARET:        return OP_BITWISE_XOR;
-        case TOK_LESS_THAN:    return OP_LT;
-        case TOK_LESS_EQUAL:   return OP_LE;
-        case TOK_LARGER_THAN:  return OP_GT;
-        case TOK_LARGER_EQUAL: return OP_GE;
-        case TOK_COMMA:        return OP_COMMA;
-        case TOK_EQUAL_SIGN:   return OP_ASSIGNMENT;
-        case TOK_LPAREN:       return OP_FUNC_CALL;
-        case TOK_LBRACKET: return OP_ARRAY_SUBSCRIPT;
-        case TOK_DBL_PIPE:   return OP_LOGICAL_OR;
-        case TOK_DBL_AMPERSAND:  return OP_LOGICAL_AND;
-        case TOK_EXCLAMANTION:  return OP_LOGICAL_NOT;
-        case TOK_DBL_EQUAL_SIGN:   return OP_EQ;
-        case TOK_DBL_LESS_THAN:       return OP_LSHIFT;
-        case TOK_DBL_GRATER_THAN:       return OP_RSHIFT;
+        case TOK_PLUS_SIGN:       return OP_ADD;
+        case TOK_MINUS_SIGN:      return OP_SUB;
+        case TOK_STAR:            return OP_MUL;
+        case TOK_SLASH:           return OP_DIV;
+        case TOK_PERCENT:         return OP_MOD;
+        case TOK_AMPERSAND:       return OP_BITWISE_AND;
+        case TOK_PIPE:            return OP_BITWISE_OR;
+        case TOK_CARET:           return OP_BITWISE_XOR;
+        case TOK_LESS_THAN:       return OP_LT;
+        case TOK_LESS_EQUAL:      return OP_LE;
+        case TOK_LARGER_THAN:     return OP_GT;
+        case TOK_LARGER_EQUAL:    return OP_GE;
+        case TOK_COMMA:           return OP_COMMA;
+        case TOK_EQUAL_SIGN:      return OP_ASSIGNMENT;
+        case TOK_DBL_PIPE:        return OP_LOGICAL_OR;
+        case TOK_DBL_AMPERSAND:   return OP_LOGICAL_AND;
+        case TOK_EXCLAMANTION:    return OP_LOGICAL_NOT;
+        case TOK_DBL_EQUAL_SIGN:  return OP_EQ;
+        case TOK_DBL_LESS_THAN:   return OP_LSHIFT;
+        case TOK_DBL_GRATER_THAN: return OP_RSHIFT;
     }
     return OP_UNKNOWN;
 }

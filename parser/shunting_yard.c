@@ -153,18 +153,28 @@ static void parse_operand() {
         oper op = accept_postfix_operator();
         push_operator_with_priority(op);
 
-        // post-increment is not binary, it does not expect another operand
-        if (!is_unary_operator(op)) {
+        if (op == OP_FUNC_CALL) {
+            if (accept(TOK_RPAREN)) {
+                push_operand(NULL); // i.e. no arguments for the function call
+            } else {
+                push_operator(OP_SENTINEL);
+                parse_complex_expression();
+                pop_operator(); // pop sentinel
+                expect(TOK_RPAREN);
+            }
+        } else if (op == OP_ARRAY_SUBSCRIPT) {
+            push_operator(OP_SENTINEL);
+            parse_complex_expression();
+            pop_operator(); // pop sentinel
+            expect(TOK_RBRACKET);
+        } else if (!is_unary_operator(op)) {
+            // post-increment is not binary, it does not expect another operand
+            // otoh, array subscript is binary, so it needs another operand
             // pushing a sentinel forces the subexpression to be parsed
             // without interfering with the current contents of the stacks
             push_operator(OP_SENTINEL);
             parse_complex_expression();
             pop_operator(); // pop sentinel
-
-            if (op == OP_FUNC_CALL)
-                expect(TOK_RPAREN);
-            else if (op == OP_ARRAY_SUBSCRIPT)
-                expect(TOK_RBRACKET);
         }
     }
 }
@@ -200,7 +210,9 @@ static void pop_operator_into_expression()
         op1 = pop_operand();
         op2 = pop_operand();
         // note op2, then op1, to make them appear in "correct" order as a result
-        expr = create_ast_expression(op, op2, op1, op1->token); 
+        // also, op1 may be null, e.g. when calling a func without args
+        token *token = op1 == NULL ? (op2 == NULL ? NULL : op2->token) : op1->token;
+        expr = create_ast_expression(op, op2, op1, token); 
     }
 
     push_operand(expr);

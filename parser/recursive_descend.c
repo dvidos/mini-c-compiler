@@ -271,7 +271,7 @@ static ast_statement_node *parse_statement() {
     }
     
     // what is left? treat the rest as expressions
-    start_token = accepted();
+    start_token = next();
     expr_node *expr = parse_expression_using_shunting_yard();
     if (!expect(TOK_SEMICOLON)) return NULL;
     return create_ast_expr_statement(expr, start_token);

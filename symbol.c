@@ -29,3 +29,12 @@ symbol *create_func_arg_symbol(char *name, data_type *data_type, int arg_no, cha
 
     return s;
 }
+
+char *symbol_type_name(symbol_type st) {
+    switch (st) {
+        case SYM_VAR: return "var";
+        case SYM_FUNC: return "func";
+        case SYM_FUNC_ARG: return "arg";
+    }
+    return "(unknown)";
+}

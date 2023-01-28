@@ -28,17 +28,18 @@ static void perform_declaration_analysis(ast_var_decl_node *decl, int arg_no) {
 }
 
 static void verify_expression_type(expr_node *expr, data_type *needed_type) {
-    if (expr->result_type == NULL) {
+    data_type *expr_result = expr_get_result_type(expr);
+    if (expr_result == NULL) {
         error(expr->token->filename, expr->token->line_no, "expression returned type could not be calculated");
         return;
     }
 
-    if (!data_types_equal(expr->result_type, needed_type)) {
+    if (!data_types_equal(expr_result, needed_type)) {
         error(
             expr->token->filename, 
             expr->token->line_no,
             "expression returns a '%s', but a type of '%s' is required",
-            data_type_to_string(expr->result_type),
+            data_type_to_string(expr_result),
             data_type_to_string(needed_type)
         );
     }
@@ -67,9 +68,9 @@ static void perform_expression_analysis(expr_node *expr) {
         }
     } else if (expr->op == OP_FUNC_CALL) {
         // should validate the type of each argument passed
-    } else {
         expr_get_result_type(expr);
     }
+
     /*  some ideas to explore
         - expression to be assigned must have the same type as the target lvalue
         - arguments passed in functions must match the argument's type
@@ -163,7 +164,7 @@ static void perform_function_analysis(ast_func_decl_node *func) {
 
     perform_statement_analysis(func->body);
 
-    scope_exited();
+    scope_exited(); // exiting function
 }
 
 void perform_module_analysis(ast_module_node *ast_root) {

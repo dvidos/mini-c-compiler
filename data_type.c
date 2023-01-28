@@ -96,9 +96,9 @@ char *data_type_to_string(data_type *type) {
         case TF_VOID:  strcpy(p, "void");  break;
 
         case TF_POINTER:
-            strcpy(p, "*");
             if (type->nested != NULL)
                 strcat(p, data_type_to_string(type->nested));
+            strcat(p, "*");
             break;
 
         case TF_ARRAY:

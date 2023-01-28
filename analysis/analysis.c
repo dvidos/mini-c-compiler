@@ -1,11 +1,11 @@
 #include <stdio.h>
 #include <stdarg.h>
-#include "error.h"
+#include "../error.h"
+#include "../ast_node.h"
+#include "../statement.h"
+#include "../scope.h"
+#include "../symbol.h"
 #include "analysis.h"
-#include "ast_node.h"
-#include "statement.h"
-#include "scope.h"
-#include "symbol.h"
 
 
 static void perform_declaration_analysis(var_declaration *decl, int arg_no) {

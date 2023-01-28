@@ -13,7 +13,7 @@
 #include "parser/iterator.h"
 #include "parser/recursive_descend.h"
 #include "parser/shunting_yard.h"
-#include "analysis.h"
+#include "analysis/analysis.h"
 
 void read_file(char *filename, char **buffer_pp) {
     FILE *f = fopen(filename, "r");

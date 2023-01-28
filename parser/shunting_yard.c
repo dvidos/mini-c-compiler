@@ -78,12 +78,12 @@ expression *accept_terminal() {
     consume();
     switch (t->type)
     {
-        case TOK_IDENTIFIER:      return create_expr_symbol_name(t->value, t);
-        case TOK_STRING_LITERAL:  return create_expr_string_literal(t->value, t);
-        case TOK_NUMERIC_LITERAL: return create_expr_numeric_literal(t->value, t);
-        case TOK_CHAR_LITERAL:    return create_expr_char_literal(t->value[0], t);
-        case TOK_TRUE:            return create_expr_bool_literal(true, t);
-        case TOK_FALSE:           return create_expr_bool_literal(false, t);
+        case TOK_IDENTIFIER:      return create_symbol_name_expr(t->value, t);
+        case TOK_STRING_LITERAL:  return create_string_literal_expr(t->value, t);
+        case TOK_NUMERIC_LITERAL: return create_number_literal_expr(t->value, t);
+        case TOK_CHAR_LITERAL:    return create_char_literal_expr(t->value[0], t);
+        case TOK_TRUE:            return create_bool_literal_expr(true, t);
+        case TOK_FALSE:           return create_bool_literal_expr(false, t);
     }
     return NULL;
 }

@@ -179,7 +179,7 @@ static statement *accept_variable_declaration() {
 
     if (!expect(TOK_SEMICOLON))
         return NULL;
-    return create_decl_statement(vd, initialization, identifier_token);
+    return create_var_decl_statement(vd, initialization, identifier_token);
 }
 
 static func_declaration *accept_function_declaration() {

@@ -17,17 +17,17 @@ expression *create_expression(oper op, expression *arg1, expression *arg2, token
     return n;
 }
 
-expression *create_expr_symbol_name(char *name, token *token) {
+expression *create_symbol_name_expr(char *name, token *token) {
     expression *n = create_expression(OP_SYMBOL_NAME, NULL, NULL, token);
     n->value.str = name;
     return n;
 }
-expression *create_expr_string_literal(char *str, token *token) {
+expression *create_string_literal_expr(char *str, token *token) {
     expression *n = create_expression(OP_STR_LITERAL, NULL, NULL, token);
     n->value.str = str;
     return n;
 }
-expression *create_expr_numeric_literal(char *number, token *token) {
+expression *create_number_literal_expr(char *number, token *token) {
     expression *n = create_expression(OP_NUM_LITERAL, NULL, NULL, token);
     int base = 10;
     if (number[0] == '0' && number[1] != '\0') {
@@ -42,13 +42,13 @@ expression *create_expr_numeric_literal(char *number, token *token) {
     n->value.num = strtol(number, NULL, base);
     return n;
 }
-expression *create_expr_char_literal(char chr, token *token) {
+expression *create_char_literal_expr(char chr, token *token) {
     expression *n = create_expression(OP_CHR_LITERAL, NULL, NULL, token);
     n->value.chr = chr;
     return n;
 }
 
-expression *create_expr_bool_literal(bool value, token *token) {
+expression *create_bool_literal_expr(bool value, token *token) {
     expression *n = create_expression(OP_BOOL_LITERAL, NULL, NULL, token);
     n->value.bln = value;
     return n;

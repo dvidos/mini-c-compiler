@@ -5,18 +5,18 @@ SRC_FILES = \
 	options.c \
 	lexer/token.c \
 	lexer/lexer.c \
-	ast_node.c \
 	statement.c \
 	data_type.c \
 	expression.c \
-	ast.c \
 	operators.c \
+	symbol.c \
+	scope.c \
+	ast_node.c \
+	ast.c \
 	parser/iterator.c \
 	parser/recursive_descend.c \
 	parser/shunting_yard.c \
-	symbol.c \
-	scope.c \
-	analysis.c
+	analysis/analysis.c 
 
 
 # target: tested

@@ -24,7 +24,7 @@ static statement *_create_statement(statement_type stmt_type,
 statement *create_statements_block(statement *stmts_list, token *token) {
     return _create_statement(ST_BLOCK, NULL, NULL, stmts_list, NULL, token);
 }
-statement *create_decl_statement(var_declaration *decl, expression *init, token *token) {
+statement *create_var_decl_statement(var_declaration *decl, expression *init, token *token) {
     return _create_statement(ST_VAR_DECL, decl, init, NULL, NULL, token);
 }
 statement *create_if_statement(expression *condition, statement *if_body, statement *else_body, token *token) {
@@ -45,6 +45,7 @@ statement *create_return_statement(expression *return_value, token *token) {
 statement *create_expr_statement(expression *expression, token *token) {
     return _create_statement(ST_EXPRESSION, NULL, expression, NULL, NULL, token);
 }
+
 
 char *statement_type_name(statement_type type) {
     switch (type) {

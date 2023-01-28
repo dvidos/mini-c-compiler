@@ -73,8 +73,6 @@ struct operator_info operators_info_list[] = {
     { OP_CHR_LITERAL,       1, false, false, "CHR" }, // carries a char value
     { OP_BOOL_LITERAL,      1, false, false, "BOOL" }, // carries a boolean value
 
-
-    
     { OP_SENTINEL,          0, false, false, "SNTL" }, // for the shunting yard algorithm, this has the lowest priority of all
 };
 

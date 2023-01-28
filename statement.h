@@ -51,7 +51,7 @@ typedef struct statement {
 } statement;
 
 statement *create_statements_block(statement *stmts_list, token *token);
-statement *create_decl_statement(var_declaration *decl, expression *init, token *token);
+statement *create_var_decl_statement(var_declaration *decl, expression *init, token *token);
 statement *create_if_statement(expression *condition, statement *if_body, statement *else_nody, token *token);
 statement *create_while_statement(expression *condition, statement *body, token *token);
 statement *create_continue_statement(token *token);

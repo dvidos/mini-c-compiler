@@ -7,8 +7,8 @@
 
 // ------------------------------------------------------------------
 
-typedef struct ast_statement_node  ast_statement_node;  // what can be found in a block
-typedef struct ast_var_decl_node   ast_var_decl_node;   // type + variable name
+typedef struct statement  statement;  // what can be found in a block
+typedef struct var_declaration   var_declaration;   // type + variable name
 
 // blocks can be nested, so they are a form of statement inside the parent block. 
 // they don't appear only in association with an "if" or a "while".
@@ -27,25 +27,38 @@ typedef enum statement_type {
     ST_EXPRESSION,
 } statement_type;
 
-typedef struct ast_statement_node {
+typedef struct statement {
+    // IF, WHILE, VAR_DECL, BLOCK etc
     statement_type stmt_type;
-    ast_var_decl_node *decl;  // for var declarations, inside functions or blocks
-    expr_node *eval; // initial value for declarations, condition for "if" and "while", value for "return"
-    ast_statement_node *body; // statements or blocks for if's and while's, a list of statements for blocks
-    ast_statement_node *else_body;  // for "else" only
 
+    // variables can be module scope, function scope, or block scope.
+    var_declaration *decl;
+
+    // for variables declaration, it's the initial value
+    // for "return" it's the return value
+    // for "if" and "while" it's the condition
+    expression *expr;
+
+    // for a BLOCK, body is a list of statements
+    // for IF and WHILE it's the single statement or a block of statements
+    // for functions, it's the BLOCK with all the statements
+    statement *body;
+    statement *else_body;  // for "else" only
+
+    // house keeping properties
     token *token; // for line information
-    struct ast_statement_node *next; // for a list of statements in a block
-} ast_statement_node;
+    struct statement *next; // for a list of statements in a block
+} statement;
 
-ast_statement_node *create_ast_block_node(ast_statement_node *body, token *token);
-ast_statement_node *create_ast_decl_statement(ast_var_decl_node *decl, expr_node *init, token *token);
-ast_statement_node *create_ast_if_statement(expr_node *condition, ast_statement_node *if_body, ast_statement_node *else_nody, token *token);
-ast_statement_node *create_ast_while_statement(expr_node *condition, ast_statement_node *body, token *token);
-ast_statement_node *create_ast_continue_statement(token *token);
-ast_statement_node *create_ast_break_statement(token *token);
-ast_statement_node *create_ast_return_statement(expr_node *return_value, token *token);
-ast_statement_node *create_ast_expr_statement(expr_node *expression, token *token);
+statement *create_statements_block(statement *stmts_list, token *token);
+statement *create_decl_statement(var_declaration *decl, expression *init, token *token);
+statement *create_if_statement(expression *condition, statement *if_body, statement *else_nody, token *token);
+statement *create_while_statement(expression *condition, statement *body, token *token);
+statement *create_continue_statement(token *token);
+statement *create_break_statement(token *token);
+statement *create_return_statement(expression *return_value, token *token);
+statement *create_expr_statement(expression *expression, token *token);
+
 char *statement_type_name(statement_type type);
 
 

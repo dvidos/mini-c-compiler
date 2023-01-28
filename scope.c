@@ -10,7 +10,7 @@
 scope *scopes_stack_top = NULL;
 
 // creates a new scope on the stack
-void scope_entered(ast_func_decl_node *func) {
+void scope_entered(func_declaration *func) {
     scope *s = malloc(sizeof(scope));
     s->symbols_list_head = NULL;
     s->symbols_list_tail = NULL;
@@ -66,7 +66,7 @@ symbol *scope_lookup(char *symbol_name) {
     return NULL;
 }
 
-ast_func_decl_node *get_function_in_scope() {
+func_declaration *get_function_in_scope() {
     scope *sc = scopes_stack_top;
     while (sc != NULL) {
         if (sc->scoped_func != NULL)

@@ -54,12 +54,12 @@ static bool is_variable_declaration();
 static bool is_function_declaration();
 
 static data_type *accept_data_type_description();
-static ast_statement_node *accept_variable_declaration();
-static ast_func_decl_node *accept_function_declaration();
+static statement *accept_variable_declaration();
+static func_declaration *accept_function_declaration();
 
-static ast_statement_node *parse_statement();
-static ast_statement_node *parse_block(token *opening_token); // parses statements in a loop
-static ast_var_decl_node *parse_function_arguments_list();
+static statement *parse_statement();
+static statement *parse_block(token *opening_token); // parses statements in a loop
+static var_declaration *parse_function_arguments_list();
 
 static bool is_data_type_description(int *num_tokens) {
     // storage_class_specifiers: typedef, extern, static, auto, register.
@@ -145,7 +145,7 @@ static data_type *accept_data_type_description() {
     return t;
 }
 
-static ast_statement_node *accept_variable_declaration() {
+static statement *accept_variable_declaration() {
     if (!is_variable_declaration())
         return NULL;
 
@@ -171,18 +171,18 @@ static ast_statement_node *accept_variable_declaration() {
         }
     }
 
-    ast_var_decl_node *vd = create_ast_var_decl_node(dt, name, identifier_token);
-    expr_node *initialization = NULL;
+    var_declaration *vd = create_var_declaration(dt, name, identifier_token);
+    expression *initialization = NULL;
     if (accept(TOK_EQUAL_SIGN)) {
         initialization = parse_expression_using_shunting_yard();
     }
 
     if (!expect(TOK_SEMICOLON))
         return NULL;
-    return create_ast_decl_statement(vd, initialization, identifier_token);
+    return create_decl_statement(vd, initialization, identifier_token);
 }
 
-static ast_func_decl_node *accept_function_declaration() {
+static func_declaration *accept_function_declaration() {
     if (!is_function_declaration())
         return NULL;
 
@@ -194,28 +194,28 @@ static ast_func_decl_node *accept_function_declaration() {
     token *identifier_token = accepted();
 
     if (!expect(TOK_LPAREN)) return NULL;
-    ast_var_decl_node *args = NULL;
+    var_declaration *args = NULL;
     if (!accept(TOK_RPAREN)) {
         args = parse_function_arguments_list();
         if (!expect(TOK_RPAREN)) return NULL;
     }
 
-    ast_statement_node *body = NULL;
+    statement *body = NULL;
     if (!accept(TOK_SEMICOLON)) {
         body = parse_statement();
     }
     // no ";" required after functions
 
-    return create_ast_func_decl_node(ret_type, name, args, body, identifier_token);
+    return create_func_declaration(ret_type, name, args, body, identifier_token);
 }
 
 // cannot parse a function, but can parse a block and anything in it.
-static ast_statement_node *parse_statement() {
+static statement *parse_statement() {
     token *start_token;
 
     if (accept(TOK_BLOCK_START)) {
         // we need to parse the nested block
-        ast_statement_node *bl = parse_block(accepted());
+        statement *bl = parse_block(accepted());
         if (!expect(TOK_BLOCK_END)) return NULL;
         return bl;
     }
@@ -227,72 +227,72 @@ static ast_statement_node *parse_statement() {
     if (accept(TOK_IF)) {
         start_token = accepted();
         if (!expect(TOK_LPAREN)) return NULL;
-        expr_node *cond = parse_expression_using_shunting_yard();
+        expression *cond = parse_expression_using_shunting_yard();
         if (!expect(TOK_RPAREN)) return NULL;
-        ast_statement_node *if_body = parse_statement();
+        statement *if_body = parse_statement();
         if (if_body == NULL) return NULL;
-        ast_statement_node *else_body = NULL;
+        statement *else_body = NULL;
         if (accept(TOK_ELSE)) {
             else_body = parse_statement();
             if (else_body == NULL) return NULL;
         }
-        return create_ast_if_statement(cond, if_body, else_body, start_token);
+        return create_if_statement(cond, if_body, else_body, start_token);
     }
 
     if (accept(TOK_WHILE)) {
         start_token = accepted();
         if (!expect(TOK_LPAREN)) return NULL;
-        expr_node *cond = parse_expression_using_shunting_yard();
+        expression *cond = parse_expression_using_shunting_yard();
         if (!expect(TOK_RPAREN)) return NULL;
-        ast_statement_node *body = parse_statement();
+        statement *body = parse_statement();
         if (body == NULL) return NULL;
-        return create_ast_while_statement(cond, body, start_token);
+        return create_while_statement(cond, body, start_token);
     }
 
     if (accept(TOK_CONTINUE)) {
         start_token = accepted();
         if (!expect(TOK_SEMICOLON)) return NULL;
-        return create_ast_continue_statement(start_token);
+        return create_continue_statement(start_token);
     }
 
     if (accept(TOK_BREAK)) {
         start_token = accepted();
         if (!expect(TOK_SEMICOLON)) return NULL;
-        return create_ast_break_statement(start_token);
+        return create_break_statement(start_token);
     }
 
     if (accept(TOK_RETURN)) {
         start_token = accepted();
-        expr_node *value = NULL;
+        expression *value = NULL;
         if (!accept(TOK_SEMICOLON)) {
             value = parse_expression_using_shunting_yard();
             if (!expect(TOK_SEMICOLON)) return NULL;
         }
-        return create_ast_return_statement(value, start_token);
+        return create_return_statement(value, start_token);
     }
     
     // what is left? treat the rest as expressions
     start_token = next();
-    expr_node *expr = parse_expression_using_shunting_yard();
+    expression *expr = parse_expression_using_shunting_yard();
     if (!expect(TOK_SEMICOLON)) return NULL;
-    return create_ast_expr_statement(expr, start_token);
+    return create_expr_statement(expr, start_token);
 }
 
-static ast_statement_node *parse_block(token *opening_token) {
-    declare_list(ast_statement_node);
+static statement *parse_block(token *opening_token) {
+    declare_list(statement);
 
     while (!next_is(TOK_BLOCK_END) && !next_is(TOK_EOF) && errors_count == 0) {
-        ast_statement_node *n = parse_statement();
+        statement *n = parse_statement();
         if (n == NULL) // error?
             return NULL;
         list_append(n);
     }
 
-    return create_ast_block_node(list, opening_token);
+    return create_statements_block(list, opening_token);
 }
 
-static ast_var_decl_node *parse_function_arguments_list() {
-    declare_list(ast_var_decl_node);
+static var_declaration *parse_function_arguments_list() {
+    declare_list(var_declaration);
 
     while (!next_is(TOK_RPAREN)) {
         data_type *dt = accept_data_type_description();
@@ -317,7 +317,7 @@ static ast_var_decl_node *parse_function_arguments_list() {
             }
         }
 
-        ast_var_decl_node *n = create_ast_var_decl_node(dt, name, identifier_token);
+        var_declaration *n = create_var_declaration(dt, name, identifier_token);
         list_append(n);
 
         if (!accept(TOK_COMMA))
@@ -330,11 +330,11 @@ static ast_var_decl_node *parse_function_arguments_list() {
 
 static void parse_file_level_element() {
     if (is_variable_declaration()) {
-        ast_statement_node *n = accept_variable_declaration();
+        statement *n = accept_variable_declaration();
         ast_add_statement(n);
     }
     else if (is_function_declaration()) {
-        ast_func_decl_node *n = accept_function_declaration();
+        func_declaration *n = accept_function_declaration();
         ast_add_function(n);
     }
     else {

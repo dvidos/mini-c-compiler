@@ -8,8 +8,8 @@
 #include "lexer/token.h"
 
 
-expr_node *create_ast_expression(oper op, expr_node *arg1, expr_node *arg2, token *token) {
-    expr_node *n = malloc(sizeof(expr_node));
+expression *create_expression(oper op, expression *arg1, expression *arg2, token *token) {
+    expression *n = malloc(sizeof(expression));
     n->op = op;
     n->arg1 = arg1;
     n->arg2 = arg2;
@@ -17,18 +17,18 @@ expr_node *create_ast_expression(oper op, expr_node *arg1, expr_node *arg2, toke
     return n;
 }
 
-expr_node *create_ast_expr_name(char *name, token *token) {
-    expr_node *n = create_ast_expression(OP_SYMBOL_NAME, NULL, NULL, token);
+expression *create_expr_symbol_name(char *name, token *token) {
+    expression *n = create_expression(OP_SYMBOL_NAME, NULL, NULL, token);
     n->value.str = name;
     return n;
 }
-expr_node *create_ast_expr_string_literal(char *str, token *token) {
-    expr_node *n = create_ast_expression(OP_STR_LITERAL, NULL, NULL, token);
+expression *create_expr_string_literal(char *str, token *token) {
+    expression *n = create_expression(OP_STR_LITERAL, NULL, NULL, token);
     n->value.str = str;
     return n;
 }
-expr_node *create_ast_expr_numeric_literal(char *number, token *token) {
-    expr_node *n = create_ast_expression(OP_NUM_LITERAL, NULL, NULL, token);
+expression *create_expr_numeric_literal(char *number, token *token) {
+    expression *n = create_expression(OP_NUM_LITERAL, NULL, NULL, token);
     int base = 10;
     if (number[0] == '0' && number[1] != '\0') {
         if ((number[1] == 'x' || number[1] == 'X') && number[2] != '\0') {
@@ -42,19 +42,19 @@ expr_node *create_ast_expr_numeric_literal(char *number, token *token) {
     n->value.num = strtol(number, NULL, base);
     return n;
 }
-expr_node *create_ast_expr_char_literal(char chr, token *token) {
-    expr_node *n = create_ast_expression(OP_CHR_LITERAL, NULL, NULL, token);
+expression *create_expr_char_literal(char chr, token *token) {
+    expression *n = create_expression(OP_CHR_LITERAL, NULL, NULL, token);
     n->value.chr = chr;
     return n;
 }
 
-expr_node *create_ast_expr_bool_literal(bool value, token *token) {
-    expr_node *n = create_ast_expression(OP_BOOL_LITERAL, NULL, NULL, token);
+expression *create_expr_bool_literal(bool value, token *token) {
+    expression *n = create_expression(OP_BOOL_LITERAL, NULL, NULL, token);
     n->value.bln = value;
     return n;
 }
 
-data_type *expr_get_result_type(expr_node *expr) {
+data_type *expr_get_result_type(expression *expr) {
     if (expr == NULL)
         return NULL;
 

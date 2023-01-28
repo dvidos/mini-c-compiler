@@ -71,19 +71,19 @@ bool next_is_terminal() {
         || tt == TOK_IDENTIFIER;
 }
 
-expr_node *accept_terminal() {
+expression *accept_terminal() {
     if (!next_is_terminal())
         return NULL;
     token *t = next();
     consume();
     switch (t->type)
     {
-        case TOK_IDENTIFIER:      return create_ast_expr_name(t->value, t);
-        case TOK_STRING_LITERAL:  return create_ast_expr_string_literal(t->value, t);
-        case TOK_NUMERIC_LITERAL: return create_ast_expr_numeric_literal(t->value, t);
-        case TOK_CHAR_LITERAL:    return create_ast_expr_char_literal(t->value[0], t);
-        case TOK_TRUE:            return create_ast_expr_bool_literal(true, t);
-        case TOK_FALSE:           return create_ast_expr_bool_literal(false, t);
+        case TOK_IDENTIFIER:      return create_expr_symbol_name(t->value, t);
+        case TOK_STRING_LITERAL:  return create_expr_string_literal(t->value, t);
+        case TOK_NUMERIC_LITERAL: return create_expr_numeric_literal(t->value, t);
+        case TOK_CHAR_LITERAL:    return create_expr_char_literal(t->value[0], t);
+        case TOK_TRUE:            return create_expr_bool_literal(true, t);
+        case TOK_FALSE:           return create_expr_bool_literal(false, t);
     }
     return NULL;
 }
@@ -100,11 +100,11 @@ static inline void push_operator(oper op) { operators_stack[operators_stack_len+
 static inline oper pop_operator() { return operators_stack[--operators_stack_len]; }
 static inline oper peek_operator() { return operators_stack[operators_stack_len - 1]; }
 
-expr_node *operands_stack[MAX_STACK_SIZE];
+expression *operands_stack[MAX_STACK_SIZE];
 int operands_stack_len = 0;
-static inline void push_operand(expr_node *n) { operands_stack[operands_stack_len++] = n; if (operands_stack_len >= MAX_STACK_SIZE) error(NULL, 0, "expr stack overflow"); }
-static inline expr_node *pop_operand() { return operands_stack[--operands_stack_len]; }
-static inline expr_node *peek_operand() { return operands_stack[operands_stack_len - 1]; }
+static inline void push_operand(expression *n) { operands_stack[operands_stack_len++] = n; if (operands_stack_len >= MAX_STACK_SIZE) error(NULL, 0, "expr stack overflow"); }
+static inline expression *pop_operand() { return operands_stack[--operands_stack_len]; }
+static inline expression *peek_operand() { return operands_stack[operands_stack_len - 1]; }
 
 // -------------------------------------------------------------------
 
@@ -200,19 +200,19 @@ static void pop_operator_into_expression()
 {
     oper op = pop_operator();
     bool is_unary = is_unary_operator(op);
-    expr_node *op1, *op2;
-    expr_node *expr;
+    expression *op1, *op2;
+    expression *expr;
 
     if (is_unary) { 
         op1 = pop_operand();
-        expr = create_ast_expression(op, op1, NULL, op1->token);
+        expr = create_expression(op, op1, NULL, op1->token);
     } else { 
         op1 = pop_operand();
         op2 = pop_operand();
         // note op2, then op1, to make them appear in "correct" order as a result
         // also, op1 may be null, e.g. when calling a func without args
         token *token = op1 == NULL ? (op2 == NULL ? NULL : op2->token) : op1->token;
-        expr = create_ast_expression(op, op2, op1, token); 
+        expr = create_expression(op, op2, op1, token); 
     }
 
     push_operand(expr);
@@ -220,7 +220,7 @@ static void pop_operator_into_expression()
 
 // -------------------------------------------------------------------
 
-expr_node *parse_expression_using_shunting_yard() {
+expression *parse_expression_using_shunting_yard() {
 
     // reset stacks, push SENTINEL to serve as lowest priority indicator
     operators_stack_len = 0;

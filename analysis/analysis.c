@@ -1,6 +1,6 @@
 #include <stdio.h>
 #include <stdarg.h>
-#include "../error.h"
+#include "../err_handler.h"
 #include "../ast_node.h"
 #include "../statement.h"
 #include "../scope.h"
@@ -8,7 +8,7 @@
 #include "analysis.h"
 
 
-static void perform_declaration_analysis(var_declaration *decl, int arg_no) {
+void perform_declaration_analysis(var_declaration *decl, int arg_no) {
 
     if (scope_symbol_declared_at_curr_level(decl->var_name)) {
         error(
@@ -28,118 +28,7 @@ static void perform_declaration_analysis(var_declaration *decl, int arg_no) {
     scope_declare_symbol(sym);
 }
 
-static void verify_expression_type(expression *expr, data_type *needed_type) {
-    data_type *expr_result = expr_get_result_type(expr);
-    if (expr_result == NULL) {
-        error(expr->token->filename, expr->token->line_no, "expression returned type could not be calculated");
-        return;
-    }
-
-    if (!data_types_equal(expr_result, needed_type)) {
-        error(
-            expr->token->filename, 
-            expr->token->line_no,
-            "expression returns a '%s', but a type of '%s' is required",
-            data_type_to_string(expr_result),
-            data_type_to_string(needed_type)
-        );
-    }
-}
-
-static void perform_expression_analysis(expression *expr) {
-    if (expr == NULL)
-        return;
-    
-    // expression analyses are performed in a post-order manner,
-    // to make sure the innermost expressions are verified first.
-    perform_expression_analysis(expr->arg1);
-    perform_expression_analysis(expr->arg2);
-
-    // see if identifiers are declared
-    // see if the data types match what the operator expects or provides
-    if (expr->op == OP_SYMBOL_NAME) {
-        symbol *s = scope_lookup(expr->value.str);
-        if (s == NULL) {
-            error(
-                expr->token->filename,
-                expr->token->line_no,
-                "symbol \"%s\" not declared",
-                expr->value.str
-            );
-        }
-    } else if (expr->op == OP_FUNC_CALL) {
-        // should validate the type of each argument passed
-        expr_get_result_type(expr);
-    }
-
-    /*  some ideas to explore
-        - expression to be assigned must have the same type as the target lvalue
-        - arguments passed in functions must match the argument's type
-        - return value should match the return type of the function
-        - all binary operators must have the same type left and right
-        - (in)equality operators can not be applied to arrays, void.
-        - (in)equality operators always return boolean
-        - comparison > >= < <= operators can be applied to ints and return bool
-          (could / should we apply to char? float? pointers?)
-        - arithmetic operators + - * / etc apply to int/float and return int/float
-    */
-}
-
-
-static void perform_statement_analysis(statement *stmt) {
-    if (stmt == NULL)
-        return;
-
-    if (stmt->stmt_type == ST_BLOCK) {
-        scope_entered(NULL);
-        statement *s = stmt->body;
-        while (s != NULL) {
-            perform_statement_analysis(s);
-            s = s->next;
-        }
-        scope_exited();
-
-    } else if (stmt->stmt_type == ST_IF) {
-        perform_expression_analysis(stmt->expr);
-        perform_statement_analysis(stmt->body);
-        perform_statement_analysis(stmt->else_body);
-
-    } else if (stmt->stmt_type == ST_WHILE) {
-        perform_expression_analysis(stmt->expr);
-        perform_statement_analysis(stmt->body);
-
-    } else if (stmt->stmt_type == ST_RETURN) {
-        // possible return value expression
-        perform_expression_analysis(stmt->expr);
-        func_declaration *curr_func = get_function_in_scope();
-        if (curr_func == NULL) {
-            error(stmt->token->filename, stmt->token->line_no, "return outside of a function is not supported");
-        } else if (curr_func->return_type->family == TF_VOID && stmt->expr != NULL) {
-            error(stmt->token->filename, stmt->token->line_no, "cannot return a value in this function");
-        } else if (curr_func->return_type->family != TF_VOID && stmt->expr == NULL) {
-            error(stmt->token->filename, stmt->token->line_no, "return needs to provide a value in this function");
-        } else if (curr_func->return_type->family == TF_VOID && stmt->expr == NULL) {
-            ; // nothing we are good, returning void
-        } else {
-            verify_expression_type(stmt->expr, curr_func->return_type);
-        }
-
-    } else if (stmt->stmt_type == ST_VAR_DECL) {
-        // possible initialization expression
-        perform_declaration_analysis(stmt->decl, -1);
-        perform_expression_analysis(stmt->expr);
-
-    } else if (stmt->stmt_type == ST_EXPRESSION) {
-        perform_expression_analysis(stmt->expr);
-
-    } else if (stmt->stmt_type == ST_BREAK) {
-        // nothing here
-    } else if (stmt->stmt_type == ST_CONTINUE) {
-        // nothing here
-    }
-}
-
-static void perform_function_analysis(func_declaration *func) {
+void perform_function_analysis(func_declaration *func) {
 
     // functions are declared at their parent scope
     if (scope_symbol_declared_at_curr_level(func->func_name)) {

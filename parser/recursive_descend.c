@@ -2,7 +2,7 @@
 #include <stdio.h>
 #include <stdarg.h>
 #include <stdlib.h>
-#include "../error.h"
+#include "../err_handler.h"
 #include "../lexer/token.h"
 #include "../ast_node.h"
 #include "../statement.h"

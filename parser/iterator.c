@@ -1,7 +1,7 @@
 #include "stddef.h"
 #include "stdio.h"
 #include "stdarg.h"
-#include "../error.h"
+#include "../err_handler.h"
 #include "../options.h"
 #include "../lexer/token.h"
 

@@ -4,7 +4,7 @@
 #include "data_type.h"
 #include "symbol.h"
 #include "scope.h"
-#include "error.h"
+#include "err_handler.h"
 #include "lexer/token.h"
 
 

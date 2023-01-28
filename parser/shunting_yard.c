@@ -1,6 +1,6 @@
 #include <stddef.h>
 #include <stdlib.h>
-#include "../error.h"
+#include "../err_handler.h"
 #include "../lexer/token.h"
 #include "../operators.h"
 #include "../ast_node.h"

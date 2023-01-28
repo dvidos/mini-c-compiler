@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include <stddef.h>
 #include <string.h>
-#include "../error.h"
+#include "../err_handler.h"
 #include "lexer.h"
 #include "token.h"
 

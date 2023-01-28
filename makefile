@@ -1,7 +1,7 @@
 BINARY = mcc
 SRC_FILES = \
 	mcc.c \
-	error.c \
+	err_handler.c \
 	options.c \
 	lexer/token.c \
 	lexer/lexer.c \
@@ -16,7 +16,9 @@ SRC_FILES = \
 	parser/iterator.c \
 	parser/recursive_descend.c \
 	parser/shunting_yard.c \
-	analysis/analysis.c 
+	analysis/analysis.c  \
+	analysis/expr_analysis.c  \
+	analysis/stmt_analysis.c 
 
 
 # target: tested

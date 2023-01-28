@@ -5,6 +5,7 @@
 #include "../error.h"
 #include "../lexer/token.h"
 #include "../ast_node.h"
+#include "../statement.h"
 #include "../ast.h"
 #include "iterator.h"
 #include "shunting_yard.h"

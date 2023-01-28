@@ -3,6 +3,7 @@
 #include "error.h"
 #include "analysis.h"
 #include "ast_node.h"
+#include "statement.h"
 #include "scope.h"
 #include "symbol.h"
 

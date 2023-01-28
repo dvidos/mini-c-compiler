@@ -6,6 +6,7 @@ SRC_FILES = \
 	lexer/token.c \
 	lexer/lexer.c \
 	ast_node.c \
+	statement.c \
 	data_type.c \
 	expression.c \
 	ast.c \

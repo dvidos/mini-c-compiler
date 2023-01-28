@@ -8,6 +8,8 @@
 // the lists below at file level
 static ast_module_node ast_root;
 
+static void print_statement_list(statement *list, int depth);
+
 
 void init_ast() {
     ast_root.statements_list = NULL;
@@ -43,7 +45,7 @@ void ast_add_function(func_declaration *func) {
 
 static void indent(int depth) {
     while (depth--)
-        printf(".  ");
+        printf("    ");
 }
 
 static void print_data_type(data_type *n) {
@@ -74,7 +76,7 @@ static void print_expression_using_func_format(expression *expr) {
         printf("%s(", oper_debug_name(expr->op));
         print_expression_using_func_format(expr->arg1);
         if (!is_unary_operator(expr->op)) {
-            printf(",");
+            printf(", ");
             print_expression_using_func_format(expr->arg2);
         }
         printf(")");
@@ -110,11 +112,7 @@ static void print_statement(statement *st, int depth) {
         case ST_BLOCK:
             indent(depth - 1);
             printf("{\n");
-            statement *s = st->body;
-            while (s != NULL) {
-                print_statement(s, depth);
-                s = s->next;
-            }
+            print_statement_list(st->body, depth);
             indent(depth - 1);
             printf("}\n");
             break;
@@ -175,6 +173,7 @@ static void print_statement(statement *st, int depth) {
         case ST_EXPRESSION:
             //print_expression_using_tree_format(st->expr, depth);
             indent(depth);
+            printf("expr ");
             print_expression_using_func_format(st->expr);
             printf("\n");
             break;
@@ -185,16 +184,27 @@ static void print_statement(statement *st, int depth) {
     }
 }
 
+static void print_statement_list(statement *list, int depth) {
+    statement *stmt = list;
+    while (stmt != NULL) {
+        print_statement(stmt, depth);
+        stmt = stmt->next;
+    }
+}
+
 void print_ast() {
+
+    printf("Abstract Syntax Tree\n");
 
     statement *stmt = ast_root.statements_list;
     while (stmt != NULL) {
-        print_statement(stmt, 0);
+        print_statement(stmt, 1);
         stmt = stmt->next;
     }
 
     func_declaration *func = ast_root.funcs_list;
     while (func != NULL) {
+        indent(1);
         printf("function: ");
         print_data_type(func->return_type);
         printf(" %s(", func->func_name);
@@ -207,11 +217,9 @@ void print_ast() {
             arg = arg->next;
         }
         printf(")\n");
-
+        
         // func body here...
-        if (func->body != NULL) {
-            print_statement(func->body, 1);
-        }
+        print_statement_list(func->stmts_list, 2);
 
         func = func->next;
     }
@@ -263,7 +271,8 @@ void ast_count_nodes(int *functions, int *statements, int *expressions) {
     func_declaration *func = ast_root.funcs_list;
     while (func != NULL) {
         (*functions)++;
-        ast_count_statements(func->body, statements, expressions);
+        // TODO: fix this so that function bodies count correct
+        ast_count_statements(func->stmts_list, statements, expressions);
         func = func->next;
     }
 }

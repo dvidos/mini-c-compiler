@@ -9,6 +9,14 @@ bool func2(int a, char b) {
     int local;
 }
 
+void func3_with_block() {
+    int a;
+    if (a) {
+        int b;
+        b = a + 1;
+    }
+}
+
 // we must run tests with function calling (0, 1, 2 arguments)
 // and with array indexing, 1 or 2 dimensions
 

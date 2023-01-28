@@ -21,7 +21,7 @@ func_declaration *create_func_declaration(data_type *return_type, char* func_nam
     n->func_name = func_name;
     n->return_type = return_type;
     n->args_list = args_list;
-    n->body = body;
+    n->stmts_list = body;
     n->token = token;
     n->next = NULL;
     return n;

@@ -54,7 +54,7 @@ typedef struct func_declaration {
     var_declaration *args_list;
 
     // usually a block statement
-    statement *body;
+    statement *stmts_list;
 
     // housekeeping
     token *token;

@@ -53,7 +53,7 @@ void perform_function_analysis(func_declaration *func) {
     }
 
     // functions have a list of statements as their body.
-    statement *stmt = func->body;
+    statement *stmt = func->stmts_list;
     while (stmt != NULL) {
         perform_statement_analysis(stmt);
         stmt = stmt->next;

@@ -139,7 +139,7 @@ void verify_expr_same_data_types(expression *expr1, expression *expr2, token *to
         error(expr2->token->filename, expr2->token->line_no, "cannot determine expression's data type");
         return;
     }
-    if (data_types_equal(type1, type2)) {
+    if (!data_types_equal(type1, type2)) {
         error(token->filename, token->line_no, 
             "operands need to be of same type, but first is '%s' and second is '%s'",
                 data_type_to_string(type1),

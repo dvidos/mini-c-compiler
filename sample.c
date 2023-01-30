@@ -1,5 +1,6 @@
 int global_a;
 
+
 int func1() {
     int x;
     int y;
@@ -11,7 +12,7 @@ bool func2(int a, char b) {
 
 void func3_with_block() {
     int a;
-    if (a) {
+    if (a > 0) {
         int b;
         b = a + 1;
     }

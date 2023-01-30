@@ -18,7 +18,8 @@ SRC_FILES = \
 	parser/shunting_yard.c \
 	analysis/analysis.c  \
 	analysis/expr_analysis.c  \
-	analysis/stmt_analysis.c 
+	analysis/stmt_analysis.c \
+	codegen/codegen.c
 
 
 # target: tested

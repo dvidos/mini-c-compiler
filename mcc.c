@@ -14,6 +14,7 @@
 #include "parser/recursive_descend.h"
 #include "parser/shunting_yard.h"
 #include "analysis/analysis.h"
+#include "codegen/codegen.h"
 
 void read_file(char *filename, char **buffer_pp) {
     FILE *f = fopen(filename, "r");
@@ -104,6 +105,7 @@ void perform_semantic_analysis() {
 
 void generate_code() {
     // for now a.out or something simple
+    generate_module_code(get_ast_root_node());
 }
 
 int main(int argc, char *argv[]) {
@@ -143,11 +145,11 @@ int main(int argc, char *argv[]) {
     if (errors_count)
         return 1;
     
-    // err = generate_code();
-    // if (err)
-    //     return 1;
+    generate_code();
+    if (errors_count)
+        return 1;
 
     // "Wrote x.obj with 1234 bytes"
-    printf("Success!\n");
+    printf("success!\n");
     return 0;
 }

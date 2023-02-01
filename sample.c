@@ -1,28 +1,31 @@
-int global_a;
+/// @brief 
+/// @return
 
+int func_no_args() {
+    return 1;
+}
 
-int func1() {
+int func_one_arg(int a) {
+    return 1;
+}
+
+int func_two_args(int a, char b) {
+    return 1;
+}
+
+int func_three_args(int a, char b, bool c) {
+    return 1;
+}
+
+int func_four_args(int a, char b, bool c, int d) {
+    return 1;
+}
+
+int main() {
     int x;
-    int y;
-}
-
-bool func2(int a, char b) {
-    int local;
-}
-
-void func3_with_block() {
-    int a;
-    if (a > 0) {
-        int b;
-        b = a + 1;
-    }
-}
-
-// we must run tests with function calling (0, 1, 2 arguments)
-// and with array indexing, 1 or 2 dimensions
-
-int main(int argc, char **argv) {
-    func1();
-    func2(5);
-    return argc - 1;
+    x = func_no_args();
+    x = func_one_arg(123);
+    x = func_two_args(123, 456);
+    x = func_three_args(123, 456, 789);
+    x = func_four_args(123, 456, 0, 555);
 }

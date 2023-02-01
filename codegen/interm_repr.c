@@ -1,0 +1,178 @@
+#include <stddef.h>
+#include <stdbool.h>
+#include <string.h>
+#include <stdlib.h>
+#include <stdio.h>
+#include "interm_repr.h"
+#include "../symbol.h"
+
+/*
+    It seems there are lots of formats for intermediate representation (IR)
+
+    Some examples here:
+    https://suif.stanford.edu/dragonbook/lecture-notes/Stanford-CS143/16-Intermediate-Rep.pdf
+
+    Wikipedia also has good article:
+    https://en.wikipedia.org/wiki/Intermediate_representation
+
+
+    One central quation on the level of IR, is how low we want to get.
+    For example, array subscripts and struct memberships can be either
+    left for further transformation, or be replaced by offsets
+
+    Usually we model things for a machine that has infinite number of registers
+    and we track which registers are used at the time.
+
+    Expressions can be translated into assembly, by:
+
+    - using a post-order tranversal,
+    - each operation is told which register to store the result,
+    - results from previous operations are used in the subsequent ones,
+    - finally the result of the whole expression is stored on a predefined register
+
+    Branching is more interesting, in the sense that,
+    blocks without jumps are identified and can be moved around.
+
+    Wikipedia says that a popular format is Three Address Code, i.e.
+    a format in the form of "a1 = a2 <op> a3". 
+
+    Ideally, our IR will contain no ambiguous operations,
+    so operations can be translated into instructions.
+    examples are: IMUL, FMUL, ISUB, etc, so that 
+    types are specific.
+
+    Oh, the other thing is that IR is mainly produced for 
+    optimization reasons, one can generate code straight 
+    out of the AST or a DAG.
+*/
+
+
+
+typedef struct data_chunk {
+    char *mnemonic;
+    int size;
+    symbol *sym;
+    int address;
+    void *init_data;
+    int init_data_size;
+} data_chunk;
+
+typedef struct data_seg {
+    data_chunk *chunks[512];
+    int used_chunks;
+    int allocated_size;
+} data_seg;
+
+
+
+typedef enum code_chunk_type {
+    CCT_JMP,
+    CCT_TAC
+} code_chunk_type;
+
+typedef struct code_chunk {
+    char *label;
+    enum code_chunk_type type;
+    union {
+        struct three_address_code {
+            int operator;
+            int addr1;
+            int addr2;
+            int addr3;
+        } tac;
+        struct jump_instruction {
+            bool conditional;
+            char *target_label;
+        } jmp;
+    } u;
+} code_chunk;
+
+struct code_seg {
+    code_chunk *chunks[512];
+    int used_chunks;
+} code_seg;
+
+
+struct data_seg init_data; // data
+struct data_seg zero_data; // bss
+struct code_seg text_seg; // text
+
+
+
+void init_intermediate_representation() {
+    memset(&init_data, 0, sizeof(init_data));
+    memset(&zero_data, 0, sizeof(zero_data));
+    memset(&text_seg, 0, sizeof(text_seg));
+}
+
+void reserve_data_area(char *name, int size, bool initialized) {
+    // create a new mem chunk and append it to the list
+    data_chunk *chunk = malloc(sizeof(data_chunk));
+    chunk->size = size;
+    chunk->mnemonic = strdup(name);
+    
+    data_seg *seg = initialized ? &init_data : &zero_data;
+    seg->chunks[seg->used_chunks++] = chunk;
+    seg->allocated_size += size;
+}
+
+void add_jump_operation(char *label, bool conditional, char *target_label) {
+    // either conditional or unconditional branch
+    // we'll figure out the CMP operation, later
+    code_chunk *c = malloc(sizeof(code_chunk));
+    c->type = CCT_JMP;
+    c->label = (label == NULL) ? NULL : strdup(label);
+    c->u.jmp.conditional = conditional;
+    c->u.jmp.target_label = strdup(target_label);
+
+    text_seg.chunks[text_seg.used_chunks++] = c;
+}
+
+void add_output_operation(char *label, int op, int address1, int address2, int address3) {
+    // essentially a Three Address Code.
+    code_chunk *c = malloc(sizeof(code_chunk));
+    c->type = CCT_TAC;
+    c->label = (label == NULL) ? NULL : strdup(label);
+    c->u.tac.operator = op;
+    c->u.tac.addr1 = address1;
+    c->u.tac.addr2 = address2;
+    c->u.tac.addr3 = address3;
+
+    text_seg.chunks[text_seg.used_chunks++] = c;
+}
+
+void ir_dump_code_segment() {
+    for (int i = 0; i < sizeof(text_seg.chunks) / sizeof(text_seg.chunks[0]); i++) {
+        code_chunk *c = text_seg.chunks[i];
+        if (c == NULL)
+            break;
+
+        if (c->label != NULL)
+            printf("%s:\n", c->label);
+
+        printf("\t");
+        if (c->type == CCT_JMP) {
+            if (c->u.jmp.conditional) {
+                printf("JMP <condition> %s", c->u.jmp.target_label);
+            } else {
+                printf("JMP %s", c->u.jmp.target_label);
+            }
+        } else if (c->type == CCT_TAC) {
+            // we need to print the operator and the three addresses
+            printf("OP <addr1> <addr2> <addr3>");
+        }
+        printf("\n");
+    }
+}
+
+void ir_dump_data_segment(bool initialized) {
+    data_seg *seg = initialized ? &init_data : &zero_data;
+    for (int i = 0; i < sizeof(init_data.chunks) / sizeof(init_data.chunks[0]); i++) {
+        data_chunk *c = seg->chunks[i];
+        if (c == NULL)
+            break;
+
+        printf("\t%-15s %5d\n", c->mnemonic, c->size);
+    }
+}
+

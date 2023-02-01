@@ -17,7 +17,7 @@ char **ar2pp[10][20]; // 2-dimensional array of pointers to pointers
 
 // simple values with initializer expression
 int   val_a = 1;
-float val_b = 1;
+// float val_b = 1.0; let's keep it simple for now...
 char  val_c = 'c';
 bool  val_d = true;
 

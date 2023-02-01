@@ -34,7 +34,7 @@ void perform_statement_analysis(statement *stmt) {
 
     } else if (stmt->stmt_type == ST_RETURN) {
         perform_expression_analysis(stmt->expr);
-        func_declaration *curr_func = get_function_in_scope();
+        func_declaration *curr_func = get_scope_owning_function();
         if (curr_func == NULL) {
             error(stmt->token->filename, stmt->token->line_no, "return outside of a function is not supported");
         } else if (curr_func->return_type->family == TF_VOID && stmt->expr != NULL) {

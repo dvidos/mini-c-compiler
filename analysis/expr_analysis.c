@@ -11,6 +11,36 @@
 void perform_function_call_analysis(expression *call_expr) {
     // validate number and type of arguments passed
     // there may be commas or NULL for no args at all
+    if (call_expr == NULL)
+        return;
+    if (call_expr->arg1 == NULL) {
+        error(call_expr->token->filename, call_expr->token->line_no, "call expression without arg1");
+        return;
+    }
+    if (call_expr->arg1->op != OP_SYMBOL_NAME) {
+        // we'll support pointers later
+        error(call_expr->token->filename, call_expr->token->line_no, 
+            "call expression arg1 expected symbol, got %s", oper_debug_name(call_expr->arg1->op));
+        return;
+    }
+    symbol *sym = scope_lookup(call_expr->arg1->value.str);
+    if (sym == NULL) {
+        error(call_expr->token->filename, call_expr->token->line_no,
+            "called function '%s' not found", call_expr->arg1->value.str);
+        return;
+    }
+
+    // how to get the function description to check the arguments?
+    var_declaration *arg = sym->func->args_list;
+    while (arg != NULL) {
+        // make sure there is an argument or comma with an argument etc.
+        // validate the type as well.
+        // TODO: implement me!
+        arg = arg->next;
+    }
+
+    // make sure the number of arguments passed match the number required.
+    // TODO: implement me!
 }
 
 void perform_expression_analysis(expression *expr) {

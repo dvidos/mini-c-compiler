@@ -1,3 +1,3 @@
 int f1() {
-    return true;
+    return true; // wrong type
 }

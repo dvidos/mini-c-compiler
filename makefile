@@ -19,7 +19,8 @@ SRC_FILES = \
 	analysis/analysis.c  \
 	analysis/expr_analysis.c  \
 	analysis/stmt_analysis.c \
-	codegen/codegen.c
+	codegen/codegen.c \
+	codegen/interm_repr.c
 
 
 # target: tested

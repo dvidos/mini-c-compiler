@@ -1,4 +1,5 @@
 #include <stdlib.h>
+#include <string.h>
 #include "expression.h"
 #include "operators.h"
 #include "data_type.h"
@@ -138,8 +139,12 @@ data_type *get_expr_result_type(expression *expr) {
             || op == OP_SUB
             || op == OP_MUL
             || op == OP_DIV
-            || op == OP_MOD) {
-        // in theory int, but let's return whatever our first arg is.
+            || op == OP_MOD
+            || op == OP_PRE_INC
+            || op == OP_PRE_DEC
+            || op == OP_POST_INC
+            || op == OP_POST_DEC) {
+        // in theory int, but let's return whatever our first arg is (maybe a pointer)
         if (expr->arg1->result_type != NULL)
             expr->result_type = clone_data_type(expr->arg1->result_type);
     }

@@ -9,6 +9,7 @@ symbol *create_symbol(char *name, data_type *data_type, symbol_type definition, 
     s->data_type = data_type;
     s->sym_type = definition;
     s->arg_no = -1;
+    s->func = NULL;
     s->file_name = file_name;
     s->line_no = line_no;
     s->next = NULL;
@@ -23,6 +24,22 @@ symbol *create_func_arg_symbol(char *name, data_type *data_type, int arg_no, cha
     s->data_type = data_type;
     s->sym_type = SYM_FUNC_ARG;
     s->arg_no = arg_no;
+    s->func = NULL;
+    s->file_name = file_name;
+    s->line_no = line_no;
+    s->next = NULL;
+
+    return s;
+}
+
+symbol *create_func_symbol(char *name, func_declaration *func, char *file_name, int line_no) {
+    symbol *s = malloc(sizeof(symbol));
+
+    s->name = name;
+    s->data_type = func->return_type;
+    s->sym_type = SYM_FUNC;
+    s->arg_no = -1;
+    s->func = func;
     s->file_name = file_name;
     s->line_no = line_no;
     s->next = NULL;

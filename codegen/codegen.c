@@ -8,48 +8,8 @@
 #include "../statement.h"
 #include "../symbol.h"
 #include "../ast_node.h"
+#include "interm_repr.h"
 
-
-
-/*
-    It seems there are lots of formats for intermediate representation (IR)
-
-    Some examples here:
-    https://suif.stanford.edu/dragonbook/lecture-notes/Stanford-CS143/16-Intermediate-Rep.pdf
-
-    Wikipedia also has good article:
-    https://en.wikipedia.org/wiki/Intermediate_representation
-
-*/
-/*
-One central quation on the level of IR, is how low we want to get.
-For example, array subscripts and struct memberships can be either
-left for further transformation, or be replaced by offsets
-
-Usually we model things for a machine that has infinite number of registers
-and we track which registers are used at the time.
-
-Expressions can be translated into assembly, by:
-    - using a post-order tranversal,
-    - each operation is told which register to store the result,
-    - results from previous operations are used in the subsequent ones,
-    - finally the result of the whole expression is stored on a predefined register
-
-Branching is more interesting, in the sense that,
-blocks without jumps are identified and can be moved around.
-
-Wikipedia says that a popular format is Three Address Code, i.e.
-a format in the form of "a1 = a2 <op> a3". 
-
-Ideally, our IR will contain no ambiguous operations,
-so operations can be translated into instructions.
-examples are: IMUL, FMUL, ISUB, etc, so that 
-types are specific.
-
-Oh, the other thing is that IR is mainly produced for 
-optimization reasons, one can generate code straight 
-out of the AST or a DAG.
-*/
 
 
 // we shall need some infrastructure
@@ -58,143 +18,67 @@ out of the AST or a DAG.
 
 // ----------------------------------------------------------
 
-typedef struct data_chunk {
-    char *mnemonic;
-    int size;
-    symbol *sym;
-    int address;
 
-    bool non_zero_initialization; // determines if we go through data or bss segment.
-    char *initialization_value;
 
-    struct data_chunk *next;
-} data_chunk;
-
-typedef struct data_seg {
-    struct data_chunk *chunks_head;
-    struct data_chunk *chunks_tail;
-    int allocated_size;
-} data_seg;
-
-struct data_seg init_data; // data
-struct data_seg zero_data; // bss
-
-data_chunk *allocate_data_chunk(int size, char *name, bool initialized) {
-    // create a new mem chunk and append it to the list
-    data_chunk *chunk = malloc(sizeof(data_chunk));
-    chunk->size = size;
-    chunk->mnemonic = name;
-    chunk->next = NULL;
-    
-    data_seg *seg = initialized ? &init_data : &zero_data;
-    chunk->address = seg->allocated_size;
-
-    if (seg->chunks_tail == NULL) {
-        seg->chunks_head = chunk;
-        seg->chunks_tail = chunk;
-    } else {
-        seg->chunks_tail->next = chunk;
-        seg->chunks_tail = chunk;
-    }
-    seg->allocated_size += chunk->size;
-
-    return chunk;
+#define WHILES_STACK_SIZE  16
+static int ifs_counter = 0;
+static int whiles_counter = 0;
+static int whiles_stack_len;
+static int whiles_stack[WHILES_STACK_SIZE];
+static int get_next_if_number() {
+    return ++ifs_counter;
 }
-
-void generate_data_segment_assembly(bool initialized_segment) {
-    // walk the mem_chunks and print them out
-    data_seg *seg = initialized_segment ? &init_data : &zero_data;
-    data_chunk *chunk = seg->chunks_head;
-    while (chunk != NULL) {
-        printf("...");
-        chunk = chunk->next;
+static void begin_while() {
+    if (whiles_stack_len == WHILES_STACK_SIZE) {
+        error(NULL, 0, "more than %d nested whiles detected, we need more stack!", WHILES_STACK_SIZE);
+        return;
     }
+    whiles_stack[whiles_stack_len++] = ++whiles_counter;
 }
-
-struct reference {
-    // can be immediate number, a register name, a memory address, 
-    // an address a register points, an address a register points with offset etc
-    // if we can make this a value object will be best, to avoid allocation / deallocation
-};
-
-typedef struct code_chunk {
-    int operator; // e.g. ADD, FADD, LOAD, STORE etc
-    struct reference op1;
-    struct reference op2;
-} code_chunk;
-
-#define CODE_CHUNKS_PER_PAGE  64   // to avoid allocating each individually
-typedef struct code_seg_page { 
-    struct code_chunk chunks[CODE_CHUNKS_PER_PAGE];
-    int chunks_used; // 
-
-    struct code_seg_page *next;
-} code_seg_page;
-
-struct code_seg {
-    code_seg_page *pages_head;
-    code_seg_page *pages_tail;
-} code_seg;
-
-void append_code_chunk(code_chunk *chunk) {
-    code_seg_page *page;
-
-    if (code_seg.pages_tail == NULL ||
-        (code_seg.pages_tail != NULL && code_seg.pages_tail->chunks_used == CODE_CHUNKS_PER_PAGE)) {
-        // we need a new page
-        page = malloc(sizeof(code_seg_page));
-        memset(page, 0, sizeof(code_seg_page));
-        if (code_seg.pages_tail == NULL) {
-            code_seg.pages_head = page;
-            code_seg.pages_tail = page;
-        } else {
-            code_seg.pages_tail->next = page;
-            code_seg.pages_tail = page;
-        }
+static int curr_while_number() {
+    if (whiles_stack_len == 0) {
+        error(NULL, 0, "while was expected, but none started");
+        return 0;
     }
-
-    // append chunk to last page, given there is capacity
-    page = code_seg.pages_tail;
-    memcpy(&page->chunks[page->chunks_used], chunk, sizeof(code_chunk));
-    page->chunks_used++;
+    return whiles_stack[whiles_stack_len - 1];
 }
-
-void generate_code_segment_assembly() {
-    // walk the pages and generate either mnemonic assembly
-    // and/or machine code.
-    // it can reference using mnemonics, that will resolved in the linking stages
-
-    code_seg_page *page = code_seg.pages_head;
-    while (page != NULL) {
-        for (int i = 0; i < page->chunks_used; i++) {
-            // ...
-        }
-        page = page->next;
+static void end_while() {
+    if (whiles_stack_len == 0) {
+        error(NULL, 0, "stack of whiles underflow!");
+        return;
     }
+    whiles_stack_len--;
 }
 
 // --------------------------------------------------------
 
-struct machine_model {
-    int num_registers;
-    char *registers_names[64]; // we could use HI/LO sections like AX, AH, AL, EAX, RAX
-    int register_size; // 16, 32 or 64
-};
+struct function_code_generation_info {
+    func_declaration *decl;
+    // a way to track which registers we use?
+    // a way to track arguments and local variables, and their relation to BP
+} current_function_generated;
 
-// we could also have the mnemonicis or machine capabilities encoded somehow.
-
-// ---------------------------------------------------------------------
 
 void generate_expression_code(expression *expr) {
     // post-order visit, 
     // each operation is told where to store its result,
     // which is used 
+    printf("\t(generating expression code)\n");
 }
 
 void generate_statement_code(statement *stmt) {
+    char label[32];
+
     // blocks of statements and expressions, together with jumps
     switch (stmt->stmt_type) {
         case ST_BLOCK:
+            // don't we need to push scope? in order
+            // to make sure inner names resolve to correct target?
+            statement *entry = stmt->body;
+            while (entry != NULL) {
+                generate_statement_code(entry);
+                entry = entry->next;
+            }
             break;
 
         case ST_VAR_DECL:
@@ -204,32 +88,59 @@ void generate_statement_code(statement *stmt) {
 
         case ST_IF:
             // generate condition and jumps in the true and false bodies
+            generate_expression_code(stmt->expr);
+            int if_no = get_next_if_number();
+            printf("\tJNE if_%d_true_body\n", if_no); // we need a name for this if...
+            printf("\tJMP if_%d_false_body\n", if_no); // we need a name for this if...
+            printf("if_%d_true_body:\n", if_no);
+            generate_statement_code(stmt->body);
+            printf("\tJMP if_%d_end\n", if_no);
+            if (stmt->else_body != NULL) {
+                printf("if_%d_false_body:\n", curr_while_number());
+                generate_statement_code(stmt->else_body);
+            }
+            printf("if_%d_end:\n", curr_while_number());
             break;
 
         case ST_WHILE:
             // generate condition and jumps in the end of the loop
+            // we need a stack of whiles
+            begin_while();
+            printf("while_%d_start:\n", curr_while_number());
+            generate_expression_code(stmt->expr);
+            printf("\t<condition>\n");
+            printf("\tJNE while_%d_end\n", curr_while_number());
+            generate_statement_code(stmt->body);
+            end_while();
+            printf("while_%d_end:\n", curr_while_number());
             break;
 
         case ST_CONTINUE:
-            // I think i'll handle it in WHILE
+            printf("\tJMP while_%d_start\n", curr_while_number());
             break;
 
         case ST_BREAK:
-            // I think i'll handle it in WHILE
+            printf("\tJMP while_%d_end\n", curr_while_number());
             break;
 
         case ST_RETURN:
-            // generate the return value expression, if any
-            printf("\tRET\n");
+            if (stmt->expr != NULL) {
+                generate_expression_code(stmt->expr);
+            }
+            printf("\tJMP %s_exit\n", current_function_generated.decl->func_name);
             break;
 
         case ST_EXPRESSION:
             // generate expression using a DAG? as is?
+            printf("\t<expression generation>\n");
             break;    
     }
 }
 
 void generate_function_code(func_declaration *func) {
+    memset(&current_function_generated, 0, sizeof(struct function_code_generation_info));
+    current_function_generated.decl = func;
+
     // stack frame, decoding of arguments, local data, etc.
     // where do we go from here?
 
@@ -246,10 +157,12 @@ void generate_function_code(func_declaration *func) {
         stmt = stmt->next;
     }
 
-    printf("%s__exit__:\n", func->func_name);
+    printf("%s_exit:\n", func->func_name);
     printf("\tPOP bp\n");
     printf("\tRET\n");
     printf("\n");
+
+
 }
 
 void generate_module_code(ast_module_node *module) {
@@ -271,10 +184,11 @@ void generate_module_code(ast_module_node *module) {
 
     printf("--- Generated code follows: ---\n");
     printf(".bss (uninitialized\n");
-    generate_data_segment_assembly(false);
+    ir_dump_data_segment(false);
     printf(".data (initialized\n");
-    generate_data_segment_assembly(true);
+    ir_dump_data_segment(true);
     printf(".text\n");
-    generate_code_segment_assembly();
+    ir_dump_code_segment();
+    printf("--- end ---\n");
 }
 

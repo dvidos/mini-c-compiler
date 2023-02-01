@@ -45,7 +45,7 @@ void perform_function_analysis(func_declaration *func) {
             "function \"%s\" already defined", 
             func->func_name);
     } else {
-        symbol *sym = create_symbol(func->func_name, func->return_type, SYM_FUNC, func->token->filename, func->token->line_no);
+        symbol *sym = create_func_symbol(func->func_name, func, func->token->filename, func->token->line_no);
         scope_declare_symbol(sym);
     }
 

@@ -56,7 +56,7 @@ symbol *scope_lookup(char *symbol_name) {
     return NULL;
 }
 
-func_declaration *get_function_in_scope() {
+func_declaration *get_scope_owning_function() {
     scope *sc = scopes_stack_top;
     while (sc != NULL) {
         if (sc->scoped_func != NULL)

@@ -8,6 +8,43 @@
 #include "analysis.h"
 
 
+int count_function_required_args(func_declaration *func) {
+    int required_args = 0;
+    var_declaration *arg_decl = func->args_list;
+    while (arg_decl != NULL) {
+        required_args++;
+        arg_decl = arg_decl->next;
+    }
+    return required_args;
+}
+
+int count_function_call_provided_arguments(expression *call_expr) {
+    int provided_args = 0;
+    expression *arg_expr = call_expr->arg2; // arg1 is the function name or pointer
+    while (arg_expr != NULL) {
+        if (arg_expr->op != OP_COMMA) {
+            provided_args++;
+            break;
+        }
+
+        if (arg_expr->arg1 != NULL) // the left node is definitely a value, not a comma
+            provided_args++;
+        arg_expr = arg_expr->arg2; // the right node will be a comma or the last value
+    }
+    return provided_args;
+}
+
+void validate_function_call_argument_type(var_declaration *arg_decl, expression *arg_expr, func_declaration *func) {
+    if (!data_types_equal(arg_decl->data_type, get_expr_result_type(arg_expr))) {
+        error(arg_expr->token->filename, arg_expr->token->line_no,
+            "argument '%s' of function '%s' needs to be of type '%s', but type '%s' was given",
+            arg_decl->var_name,
+            func->func_name,
+            data_type_to_string(arg_decl->data_type),
+            data_type_to_string(get_expr_result_type(arg_expr)));
+    }
+}
+
 void perform_function_call_analysis(expression *call_expr) {
     // validate number and type of arguments passed
     // there may be commas or NULL for no args at all
@@ -30,17 +67,32 @@ void perform_function_call_analysis(expression *call_expr) {
         return;
     }
 
-    // how to get the function description to check the arguments?
-    var_declaration *arg = sym->func->args_list;
-    while (arg != NULL) {
-        // make sure there is an argument or comma with an argument etc.
-        // validate the type as well.
-        // TODO: implement me!
-        arg = arg->next;
+    // ensure at least the required arguments are provided
+    int required_args = count_function_required_args(sym->func);
+    int provided_args = count_function_call_provided_arguments(call_expr);
+    if (provided_args < required_args) {
+        error(call_expr->token->filename, call_expr->token->line_no,
+            "function '%s' requires %d arguments, but %d were provided",
+            sym->func->func_name, required_args, provided_args);
     }
 
-    // make sure the number of arguments passed match the number required.
-    // TODO: implement me!
+    // verify the type of the arguments
+    var_declaration *arg_decl = sym->func->args_list;
+    expression *arg_expr = call_expr->arg2;
+    while (arg_expr != NULL) {
+        if (arg_expr->op != OP_COMMA) {
+            validate_function_call_argument_type(arg_decl, arg_expr, sym->func);
+            break; // we are done
+        }
+
+        // the left node is definitely a value, not a comma
+        if (arg_expr->arg1 != NULL) {
+            validate_function_call_argument_type(arg_decl, arg_expr->arg1, sym->func);
+            arg_decl = arg_decl->next; // go to the next func arg declaration
+        }
+        
+        arg_expr = arg_expr->arg2; // the right node will be a comma or the last value
+    }
 }
 
 void perform_expression_analysis(expression *expr) {
@@ -67,7 +119,7 @@ void perform_expression_analysis(expression *expr) {
         case OP_FUNC_CALL:
             perform_function_call_analysis(expr);
             break;
-        case OP_ADD:
+        case OP_ADD: // fallthroughs...
         case OP_SUB:
         case OP_MUL:
         case OP_DIV:
@@ -84,7 +136,7 @@ void perform_expression_analysis(expression *expr) {
             verify_expr_result_integer(expr->arg1);
             verify_expr_result_integer(expr->arg2);
             break;
-        case OP_BITWISE_NOT:
+        case OP_BITWISE_NOT: // fallthroughs
         case OP_PRE_INC:
         case OP_PRE_DEC:
         case OP_POST_INC:

@@ -19,6 +19,7 @@ for file in tests/passing/*; do
         echo "$file: ${RED}Compilation failed, success was expected${END}"
         return 1
     fi
+    echo "----------------------"
     tests_count=$((tests_count + 1))
 done
 
@@ -28,6 +29,7 @@ for file in tests/failing/*; do
         echo "$file: ${RED}expected failure, but compilation succeeded${END}"
         return 1
     fi
+    echo "----------------------"
     tests_count=$((tests_count + 1))
 done
 

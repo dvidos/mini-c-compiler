@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include "../options.h"
 #include "../err_handler.h"
 #include "../expression.h"
 #include "../lexer/token.h"
@@ -96,10 +97,10 @@ void generate_statement_code(statement *stmt) {
             generate_statement_code(stmt->body);
             printf("\tJMP if_%d_end\n", if_no);
             if (stmt->else_body != NULL) {
-                printf("if_%d_false_body:\n", curr_while_number());
+                printf("if_%d_false_body:\n", if_no);
                 generate_statement_code(stmt->else_body);
             }
-            printf("if_%d_end:\n", curr_while_number());
+            printf("if_%d_end:\n", if_no);
             break;
 
         case ST_WHILE:
@@ -111,8 +112,8 @@ void generate_statement_code(statement *stmt) {
             printf("\t<condition>\n");
             printf("\tJNE while_%d_end\n", curr_while_number());
             generate_statement_code(stmt->body);
-            end_while();
             printf("while_%d_end:\n", curr_while_number());
+            end_while();
             break;
 
         case ST_CONTINUE:
@@ -178,17 +179,20 @@ void generate_module_code(ast_module_node *module) {
 
     func_declaration *func = module->funcs_list;
     while (func != NULL) {
-        generate_function_code(func);
+        if (func->stmts_list != NULL)
+            generate_function_code(func);
         func = func->next;
     }
 
-    printf("--- Generated code follows: ---\n");
-    printf(".bss (uninitialized\n");
-    ir_dump_data_segment(false);
-    printf(".data (initialized\n");
-    ir_dump_data_segment(true);
-    printf(".text\n");
-    ir_dump_code_segment();
-    printf("--- end ---\n");
+    if (options.verbose) {
+        printf("--- Generated code follows: ---\n");
+        printf(".bss (uninitialized\n");
+        ir_dump_data_segment(false);
+        printf(".data (initialized\n");
+        ir_dump_data_segment(true);
+        printf(".text\n");
+        ir_dump_code_segment();
+        printf("--- end ---\n");
+    }
 }
 

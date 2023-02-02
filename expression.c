@@ -11,6 +11,7 @@
 
 expression *create_expression(oper op, expression *arg1, expression *arg2, token *token) {
     expression *n = malloc(sizeof(expression));
+    memset(n, 0, sizeof(expression));
     n->op = op;
     n->arg1 = arg1;
     n->arg2 = arg2;

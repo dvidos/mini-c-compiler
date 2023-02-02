@@ -1,6 +1,6 @@
 
 // if we do not have this declaration, we get a "symbol not defined"
-void printf();
+void printf(char *fmt, int a, int b);
 
 
 int fibonacci(int n) {

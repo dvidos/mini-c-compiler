@@ -3,6 +3,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <stdarg.h>
 #include "interm_repr.h"
 #include "../symbol.h"
 
@@ -67,7 +68,8 @@ typedef struct data_seg {
 
 typedef enum code_chunk_type {
     CCT_JMP,
-    CCT_TAC
+    CCT_TAC,
+    CCT_STRING,
 } code_chunk_type;
 
 typedef struct code_chunk {
@@ -84,6 +86,7 @@ typedef struct code_chunk {
             bool conditional;
             char *target_label;
         } jmp;
+        char *str;
     } u;
 } code_chunk;
 
@@ -93,6 +96,7 @@ struct code_seg {
 } code_seg;
 
 
+char *next_code_label;
 struct data_seg init_data; // data
 struct data_seg zero_data; // bss
 struct code_seg text_seg; // text
@@ -103,6 +107,7 @@ void init_intermediate_representation() {
     memset(&init_data, 0, sizeof(init_data));
     memset(&zero_data, 0, sizeof(zero_data));
     memset(&text_seg, 0, sizeof(text_seg));
+    next_code_label = NULL;
 }
 
 void reserve_data_area(char *name, int size, bool initialized) {
@@ -141,6 +146,82 @@ void add_output_operation(char *label, int op, int address1, int address2, int a
     text_seg.chunks[text_seg.used_chunks++] = c;
 }
 
+// a = b <op> c
+// a = <op> b
+// a = b
+// if a <rel-op> b goto x
+// goto x
+// a = call b using d, e, f
+
+typedef enum interm_repr_operator {
+    IR_NOP,
+    IR_IADD,   // a = b + c
+    IR_ISUB,   // a = b - c
+    IR_IMUL,   // a = b * c
+    IR_IDIV,   // a = b / c
+    IR_INV,    // a = ~b (bitwise inverse)
+    IR_ASSIGN, // a = b
+    IR_JMP_EQ, // GOTO a if b == c
+    IR_JMP_NE, // GOTO a if b != c
+    IR_JMP_LE, // GOTO a if b <= c
+    IR_JMP_LT, // GOTO a if b < c
+    IR_JMP_GE, // GOTO a if b >= c
+    IR_JMP_GT, // GOTO a if b > c
+    IR_JMP_Z,  // GOTO a if b == 0
+    IR_JMP_NZ, // GOTO a if b != 0
+    IR_JMP,    // GOTO a
+    IR_CALL,   // push a & goto a
+    IR_RET,    // goto (popped value)
+    IR_PUSH,   // push a
+    IR_POP,    // pop a
+} interm_repr_operator;
+
+
+void ir_set_next_label(char *fmt, ...) {
+    char buff[100];
+    va_list args;
+    va_start(args, fmt);
+    vsnprintf(buff, 100, fmt, args);
+    va_end(args);
+    next_code_label = strdup(buff);
+}
+
+void ir_jmp(char *label_fmt, ...) {
+    char label[100];
+    va_list args;
+    va_start(args, label_fmt);
+    vsnprintf(label, 100, label_fmt, args);
+    va_end(args);
+
+    ir_add_str("JMP %s", label);
+}
+
+void ir_jmp_if(bool if_true, char *label_fmt, ...) {
+    char label[100];
+    va_list args;
+    va_start(args, label_fmt);
+    vsnprintf(label, 100, label_fmt, args);
+    va_end(args);
+
+    ir_add_str("J%s %s", if_true ? "EQ" : "NE", label);
+}
+
+void ir_add_str(char *fmt, ...) {
+    char buff[100];
+    va_list args;
+    va_start(args, fmt);
+    vsnprintf(buff, 100, fmt, args);
+    va_end(args);
+
+    code_chunk *c = malloc(sizeof(code_chunk));
+    c->type = CCT_STRING;
+    c->label = next_code_label; // it may be null
+    c->u.str = strdup(buff);
+
+    text_seg.chunks[text_seg.used_chunks++] = c;
+    next_code_label = NULL;
+}
+
 void ir_dump_code_segment() {
     for (int i = 0; i < sizeof(text_seg.chunks) / sizeof(text_seg.chunks[0]); i++) {
         code_chunk *c = text_seg.chunks[i];
@@ -160,6 +241,8 @@ void ir_dump_code_segment() {
         } else if (c->type == CCT_TAC) {
             // we need to print the operator and the three addresses
             printf("OP <addr1> <addr2> <addr3>");
+        } else if (c->type == CCT_STRING) {
+            printf("%s", c->u.str);
         }
         printf("\n");
     }

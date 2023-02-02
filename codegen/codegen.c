@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <stdarg.h>
 #include "../options.h"
 #include "../err_handler.h"
 #include "../expression.h"
@@ -12,21 +13,12 @@
 #include "interm_repr.h"
 
 
-
-// we shall need some infrastructure
-// reserve and release registers, a way to allocate things for the segments etc.
-
-
-// ----------------------------------------------------------
-
-
-
 #define WHILES_STACK_SIZE  16
 static int ifs_counter = 0;
 static int whiles_counter = 0;
 static int whiles_stack_len;
 static int whiles_stack[WHILES_STACK_SIZE];
-static int get_next_if_number() {
+static int get_next_if_num() {
     return ++ifs_counter;
 }
 static void begin_while() {
@@ -36,7 +28,7 @@ static void begin_while() {
     }
     whiles_stack[whiles_stack_len++] = ++whiles_counter;
 }
-static int curr_while_number() {
+static int get_curr_while_num() {
     if (whiles_stack_len == 0) {
         error(NULL, 0, "while was expected, but none started");
         return 0;
@@ -64,7 +56,7 @@ void generate_expression_code(expression *expr) {
     // post-order visit, 
     // each operation is told where to store its result,
     // which is used 
-    printf("\t(generating expression code)\n");
+    ir_add_str("<expression generation>");
 }
 
 void generate_statement_code(statement *stmt) {
@@ -89,51 +81,55 @@ void generate_statement_code(statement *stmt) {
 
         case ST_IF:
             // generate condition and jumps in the true and false bodies
-            generate_expression_code(stmt->expr);
-            int if_no = get_next_if_number();
-            printf("\tJNE if_%d_true_body\n", if_no); // we need a name for this if...
-            printf("\tJMP if_%d_false_body\n", if_no); // we need a name for this if...
-            printf("if_%d_true_body:\n", if_no);
-            generate_statement_code(stmt->body);
-            printf("\tJMP if_%d_end\n", if_no);
-            if (stmt->else_body != NULL) {
-                printf("if_%d_false_body:\n", if_no);
+            int ifnum = get_next_if_num();
+            if (stmt->else_body == NULL) {
+                // simple if
+                generate_expression_code(stmt->expr);
+                ir_jmp_if(false, "if%d_end", ifnum);
+                generate_statement_code(stmt->body);
+                ir_set_next_label("if%d_end", ifnum);
+            } else {
+                // if & else
+                generate_expression_code(stmt->expr);
+                ir_jmp_if(false, "if%d_false", ifnum);
+                generate_statement_code(stmt->body);
+                ir_jmp("if%d_end", ifnum);
+                ir_set_next_label("if%d_false", ifnum);
                 generate_statement_code(stmt->else_body);
+                ir_set_next_label("if%d_end", ifnum);
             }
-            printf("if_%d_end:\n", if_no);
             break;
 
         case ST_WHILE:
             // generate condition and jumps in the end of the loop
             // we need a stack of whiles
             begin_while();
-            printf("while_%d_start:\n", curr_while_number());
+            ir_set_next_label("wh%d", get_curr_while_num());
             generate_expression_code(stmt->expr);
-            printf("\t<condition>\n");
-            printf("\tJNE while_%d_end\n", curr_while_number());
+            ir_jmp_if(false, "wh%d_end", get_curr_while_num());
             generate_statement_code(stmt->body);
-            printf("while_%d_end:\n", curr_while_number());
+            ir_set_next_label("wh%d_end", get_curr_while_num());
             end_while();
             break;
 
         case ST_CONTINUE:
-            printf("\tJMP while_%d_start\n", curr_while_number());
+            ir_add_str("JMP wh%d", get_curr_while_num());
             break;
 
         case ST_BREAK:
-            printf("\tJMP while_%d_end\n", curr_while_number());
+            ir_add_str("JMP wh%d_end", get_curr_while_num());
             break;
 
         case ST_RETURN:
             if (stmt->expr != NULL) {
                 generate_expression_code(stmt->expr);
             }
-            printf("\tJMP %s_exit\n", current_function_generated.decl->func_name);
+            ir_jmp("%s_exit", current_function_generated.decl->func_name);
             break;
 
         case ST_EXPRESSION:
             // generate expression using a DAG? as is?
-            printf("\t<expression generation>\n");
+            generate_expression_code(stmt->expr);
             break;    
     }
 }
@@ -145,9 +141,7 @@ void generate_function_code(func_declaration *func) {
     // stack frame, decoding of arguments, local data, etc.
     // where do we go from here?
 
-    printf("%s:\n", func->func_name);
-    printf("\tPUSH bp\n");
-    printf("\tMOV bp, sp\n");
+    ir_set_next_label("%s", func->func_name);
 
     // allocate stack space for func arguments and locals
     // find all var declarations in the subtree
@@ -158,12 +152,8 @@ void generate_function_code(func_declaration *func) {
         stmt = stmt->next;
     }
 
-    printf("%s_exit:\n", func->func_name);
-    printf("\tPOP bp\n");
-    printf("\tRET\n");
-    printf("\n");
-
-
+    ir_set_next_label("%s_exit", func->func_name);
+    ir_add_str("RET");
 }
 
 void generate_module_code(ast_module_node *module) {

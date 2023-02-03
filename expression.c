@@ -159,3 +159,40 @@ data_type *get_expr_result_type(expression *expr) {
     
     return expr->result_type;
 }
+
+
+// instead of a COMMA tree, put everything in an array for easier handling
+void flatten_func_call_args_to_array(expression *call_expr, expression *arr[], int arr_size, int *args_count) {
+    memset(arr, 0, sizeof(expression *) * arr_size);
+    *args_count = 0;
+    int i = 0;
+
+    expression *node = call_expr->arg2; // arg1 is the function name or pointer
+    while (node != NULL) {
+        if (node->op != OP_COMMA) {
+            // finding a non comma on arg2 means we are done!
+            if (i >= arr_size) {
+                error(call_expr->token->filename, call_expr->token->line_no, "function calls flattening supports up to %d args for now", arr_size);
+                break;
+            }
+            arr[i++] = node;
+            break;
+        }
+
+        // the left node is definitely a value, not a comma
+        if (node->arg1 != NULL) {
+            if (i >= arr_size) {
+                error(call_expr->token->filename, call_expr->token->line_no, "function calls flattening supports up to %d args for now", arr_size);
+                break;
+            }
+
+            arr[i++] = node->arg1;
+        }
+
+        // the right node will be a comma or the last value
+        node = node->arg2; 
+    }
+
+    *args_count = i;
+}
+

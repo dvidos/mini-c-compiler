@@ -18,22 +18,6 @@ int count_function_required_args(func_declaration *func) {
     return required_args;
 }
 
-int count_function_call_provided_arguments(expression *call_expr) {
-    int provided_args = 0;
-    expression *arg_expr = call_expr->arg2; // arg1 is the function name or pointer
-    while (arg_expr != NULL) {
-        if (arg_expr->op != OP_COMMA) {
-            provided_args++;
-            break;
-        }
-
-        if (arg_expr->arg1 != NULL) // the left node is definitely a value, not a comma
-            provided_args++;
-        arg_expr = arg_expr->arg2; // the right node will be a comma or the last value
-    }
-    return provided_args;
-}
-
 void validate_function_call_argument_type(var_declaration *arg_decl, expression *arg_expr, func_declaration *func) {
     if (!data_types_equal(arg_decl->data_type, get_expr_result_type(arg_expr))) {
         error(arg_expr->token->filename, arg_expr->token->line_no,
@@ -67,9 +51,13 @@ void perform_function_call_analysis(expression *call_expr) {
         return;
     }
 
-    // ensure at least the required arguments are provided
+    // convert the COMMA tree into a flat array
+    expression *arg_exprs[32];
+    int provided_args = 0;
+    flatten_func_call_args_to_array(call_expr, arg_exprs, 32, &provided_args);
     int required_args = count_function_required_args(sym->func);
-    int provided_args = count_function_call_provided_arguments(call_expr);
+
+    // ensure at least the required arguments are provided
     if (provided_args < required_args) {
         error(call_expr->token->filename, call_expr->token->line_no,
             "function '%s' requires %d arguments, but %d were provided",
@@ -77,21 +65,12 @@ void perform_function_call_analysis(expression *call_expr) {
     }
 
     // verify the type of the arguments
+    int i = 0;
     var_declaration *arg_decl = sym->func->args_list;
-    expression *arg_expr = call_expr->arg2;
-    while (arg_expr != NULL) {
-        if (arg_expr->op != OP_COMMA) {
-            validate_function_call_argument_type(arg_decl, arg_expr, sym->func);
-            break; // we are done
-        }
-
-        // the left node is definitely a value, not a comma
-        if (arg_expr->arg1 != NULL) {
-            validate_function_call_argument_type(arg_decl, arg_expr->arg1, sym->func);
-            arg_decl = arg_decl->next; // go to the next func arg declaration
-        }
-        
-        arg_expr = arg_expr->arg2; // the right node will be a comma or the last value
+    while (arg_decl != NULL) {
+        validate_function_call_argument_type(arg_decl, arg_exprs[i], sym->func);
+        i++;
+        arg_decl = arg_decl->next;
     }
 }
 
@@ -121,7 +100,9 @@ void perform_expression_analysis(expression *expr) {
             break;
         case OP_ADD: // fallthroughs...
         case OP_SUB:
-        case OP_MUL:
+            verify_expr_result_integer_or_pointer(expr);
+            break;
+        case OP_MUL: // fallthroughs...
         case OP_DIV:
         case OP_MOD:
         case OP_LT:
@@ -157,7 +138,7 @@ void perform_expression_analysis(expression *expr) {
             verify_expr_result_boolean(expr->arg2);
             break;
         case OP_LOGICAL_NOT:
-            // this one is unary, it does not have 
+            // this one is unary, it does not have arg2
             verify_expr_result_boolean(expr->arg1);
             break;
     }
@@ -193,13 +174,24 @@ void verify_expr_result_integer(expression *expr) {
     }
 }
 
+void verify_expr_result_integer_or_pointer(expression *expr) {
+    if (expr == NULL)
+        return;
+    data_type *type = get_expr_result_type(expr);
+    if (!(type->family == TF_INT || type->family == TF_POINTER)) {
+        error(expr->token->filename, expr->token->line_no,
+            "expression needs to produce integer or pointer type, instead of '%s'",
+            data_type_to_string(type));
+    }
+}
+
 void verify_expr_result_boolean(expression *expr) {
     if (expr == NULL)
         return;
     data_type *type = get_expr_result_type(expr);
     if (type->family != TF_BOOL || type->nested != NULL) {
         error(expr->token->filename, expr->token->line_no,
-            "expression needs to produce integer type, instead of '%s'",
+            "expression needs to produce boolean type, instead of '%s'",
             data_type_to_string(type));
     }
 }

@@ -33,3 +33,4 @@ expression *create_bool_literal_expr(bool value, token *token);
 
 data_type *get_expr_result_type(expression *expr);
 
+void flatten_func_call_args_to_array(expression *call_expr, expression *arr[], int arr_size, int *args_count);

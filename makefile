@@ -20,6 +20,8 @@ SRC_FILES = \
 	analysis/expr_analysis.c  \
 	analysis/stmt_analysis.c \
 	codegen/codegen.c \
+	codegen/codegen_stmt.c \
+	codegen/codegen_expr.c \
 	codegen/interm_repr.c
 
 

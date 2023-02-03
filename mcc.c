@@ -15,6 +15,7 @@
 #include "parser/shunting_yard.h"
 #include "analysis/analysis.h"
 #include "codegen/codegen.h"
+#include "codegen/interm_repr.h"
 
 void read_file(char *filename, char **buffer_pp) {
     FILE *f = fopen(filename, "r");
@@ -106,6 +107,17 @@ void perform_semantic_analysis() {
 void generate_code() {
     // for now a.out or something simple
     generate_module_code(get_ast_root_node());
+
+    if (options.verbose) {
+        printf("--- Generated code follows: ---\n");
+        printf(".bss (uninitialized)\n");
+        ir_dump_data_segment(false);
+        printf(".data (initialized)\n");
+        ir_dump_data_segment(true);
+        printf(".text\n");
+        ir_dump_code_segment();
+        printf("--- end ---\n");
+    }
 }
 
 int main(int argc, char *argv[]) {

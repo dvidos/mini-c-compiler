@@ -15,7 +15,8 @@
 
 
 static int next_reg_num();
-static void resolve_lvalue(expression *expr, bool *is_calculated, int *lvalue_reg_no);
+static void resolve_lvalue(expression *expr, bool *is_symbol, int *lvalue_reg_no);
+static void generate_code_for_assignment(expression *expr);
 static void generate_code_for_function_call(expression *expr);
 static void generate_code_for_any(expression *expr, int target);
 
@@ -35,30 +36,51 @@ static void generate_code_for_any(expression *expr, int target);
       variables.
 */
 
-static void resolve_lvalue(expression *expr, bool *is_calculated, int *lvalue_reg_no) {
+static void resolve_lvalue(expression *expr, bool *is_symbol, int *lvalue_reg_no) {
     // e.g. we can have "a = 1", but also "a[offsets[slot].bytes] = 1"
     // ideally we want to get to a Three-Address-Code of
     // essentially we shall end up with a memory location,
     // either by direct symbol name ("a"), or after a calculation.
-
-    // a = 1
-    // t1 = offsets
-    // t2 = slot_size * slot
-    // t1 = t1 + t2
-    // t1 = t1 + bytes
-    // t3 = a + t1
-    // [t3] = 1
     // we need to return info of whether it's a symbol or complex lvalue...
 
     if (expr->op == OP_SYMBOL_NAME) {
-        *is_calculated = false;
+        *is_symbol = true;
         return;
     }
 
     // so we need to calculate it.
-    *is_calculated = true;
+    *is_symbol = false;
     *lvalue_reg_no = next_reg_num();
     generate_code_for_any(expr, *lvalue_reg_no);
+}
+
+static void generate_code_for_assignment(expression *expr) {
+
+    bool lvalue_is_symbol;
+    int lvalue_reg_no;
+    resolve_lvalue(expr->arg1, &lvalue_is_symbol, &lvalue_reg_no);
+
+    int rvalue_reg_no;
+    if (expr->arg2->op != OP_SYMBOL_NAME && expr->arg2->op != OP_NUM_LITERAL) {
+        rvalue_reg_no = next_reg_num();
+        generate_code_for_any(expr->arg2, rvalue_reg_no);
+    }
+
+    char buffer[10];
+    char *lv;
+    if (lvalue_is_symbol) {
+        lv = expr->arg1->value.str;
+    } else {
+        sprintf(buffer, "[t%d]", lvalue_reg_no);
+        lv = buffer;
+    }
+
+    if (expr->arg2->op == OP_SYMBOL_NAME)
+        ir_add_str("%s = %s", lv, expr->arg2->value.str);
+    else if (expr->arg2->op == OP_NUM_LITERAL)
+        ir_add_str("%s = %d", lv, expr->arg2->value.str);
+    else 
+        ir_add_str("%s = t%d", lv, rvalue_reg_no);
 }
 
 static void generate_code_for_function_call(expression *expr) {
@@ -88,9 +110,9 @@ static void generate_code_for_function_call(expression *expr) {
     }
 
     // also, precalculate lvalue if needed
-    bool lvalue_calculated;
+    bool lvalue_is_symbol;
     int lvalue_reg_no;
-    resolve_lvalue(expr->arg1, &lvalue_calculated, &lvalue_reg_no);
+    resolve_lvalue(expr->arg1, &lvalue_is_symbol, &lvalue_reg_no);
 
     // push what's needed in reverse order (right-to-left)
     for (int i = args_count - 1; i >= 0; i--) {
@@ -103,10 +125,10 @@ static void generate_code_for_function_call(expression *expr) {
     }
 
     // call, direct or indirect
-    if (lvalue_calculated)
-        ir_add_str("CALL [t%d]", lvalue_reg_no);
-    else
+    if (lvalue_is_symbol)
         ir_add_str("CALL %s", expr->arg1->value.str);
+    else
+        ir_add_str("CALL [t%d]", lvalue_reg_no);
 
     // clean up stack as needed
     if (args_count > 0)
@@ -136,10 +158,6 @@ static void generate_code_for_any(expression *expr, int target) {
             break;
         case OP_SYMBOL_NAME:
             ir_add_str("t%d = %s", target, expr->value.str);
-            break;
-        case OP_ASSIGNMENT:
-            // somehow resolve lvalue?
-            ir_add_str("assignment");
             break;
         case OP_ADD:
             r1 = next_reg_num();
@@ -196,6 +214,9 @@ static void generate_code_for_any(expression *expr, int target) {
             generate_code_for_any(expr->arg2, r1);
             ir_add_str("t%d = 0xFFFFFFFF", r2);
             ir_add_str("t%d = t%d XOR t%d", target, r1, r2); // essentially a NOT
+            break;
+        case OP_ASSIGNMENT:
+            generate_code_for_assignment(expr);
             break;
         case OP_FUNC_CALL:
             generate_code_for_function_call(expr);

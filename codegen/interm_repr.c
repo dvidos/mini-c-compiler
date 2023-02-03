@@ -48,7 +48,6 @@
 */
 
 
-
 typedef struct data_chunk {
     char *mnemonic;
     int size;
@@ -78,7 +77,7 @@ typedef struct code_chunk {
     union {
         struct three_address_code {
             int operator;
-            int addr1;
+            int addr1; // so far, each operator can be a symbol, a number, or a register...
             int addr2;
             int addr3;
         } tac;

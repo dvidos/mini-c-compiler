@@ -4,6 +4,7 @@
 #include "lexer/token.h"
 
 typedef struct expression expression; // parsed expression for evaluation
+struct expression_ops;
 
 typedef struct expression {
     oper op;
@@ -21,8 +22,13 @@ typedef struct expression {
     // house keeping
     token *token;
     data_type *result_type;
+    struct expression_ops *ops;
 } expression;
 
+struct expression_ops {
+    data_type *(*get_data_type)(expression *expr);
+    void (*flatten_func_call_args_to_array)(expression *call_expr, expression *arr[], int arr_size, int *args_count);
+};
 
 expression *create_expression(oper op, expression *arg1, expression *arg2, token *token);
 expression *create_symbol_name_expr(char *name, token *token);
@@ -31,6 +37,3 @@ expression *create_number_literal_expr(char *number, token *token);
 expression *create_char_literal_expr(char chr, token *token);
 expression *create_bool_literal_expr(bool value, token *token);
 
-data_type *get_expr_result_type(expression *expr);
-
-void flatten_func_call_args_to_array(expression *call_expr, expression *arr[], int arr_size, int *args_count);

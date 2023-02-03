@@ -9,6 +9,17 @@
 #include "lexer/token.h"
 
 
+static data_type *get_data_type(expression *expr);
+static void flatten_func_call_args_to_array(expression *call_expr, expression *arr[], int arr_size, int *args_count);
+
+
+static struct expression_ops ops = {
+    .get_data_type = get_data_type,
+    .flatten_func_call_args_to_array = flatten_func_call_args_to_array,
+};
+
+
+
 expression *create_expression(oper op, expression *arg1, expression *arg2, token *token) {
     expression *n = malloc(sizeof(expression));
     memset(n, 0, sizeof(expression));
@@ -16,6 +27,7 @@ expression *create_expression(oper op, expression *arg1, expression *arg2, token
     n->arg1 = arg1;
     n->arg2 = arg2;
     n->token = token;
+    n->ops = &ops;
     return n;
 }
 
@@ -56,7 +68,7 @@ expression *create_bool_literal_expr(bool value, token *token) {
     return n;
 }
 
-data_type *get_expr_result_type(expression *expr) {
+static data_type *get_data_type(expression *expr) {
     if (expr == NULL)
         return NULL;
 
@@ -82,7 +94,7 @@ data_type *get_expr_result_type(expression *expr) {
         if (sym == NULL)
             error(expr->token->filename, expr->token->line_no, "symbol \"%s\" not defined in current scope", expr->arg1);
         else
-            expr->result_type = clone_data_type(sym->data_type);
+            expr->result_type = sym->data_type->ops->clone(sym->data_type);
     } else if (op == OP_FUNC_CALL) {
         // result will be whatever type the function returns
         if (!expr->arg1->op == OP_SYMBOL_NAME) {
@@ -93,7 +105,7 @@ data_type *get_expr_result_type(expression *expr) {
             if (sym == NULL) {
                 error(expr->token->filename, expr->token->line_no, "symbol \"%s\" not defined in current scope", expr->arg1->value.str);
             } else {
-                expr->result_type = clone_data_type(sym->data_type);
+                expr->result_type = sym->data_type->ops->clone(sym->data_type);
             }
         }
     } else if (op == OP_EQ || op == OP_NEQ
@@ -108,27 +120,27 @@ data_type *get_expr_result_type(expression *expr) {
         return expr->result_type;
     
     // now we need to consult our arguments types.
-    data_type *arg1_type = get_expr_result_type(expr->arg1);
+    data_type *arg1_type = expr->arg1->ops->get_data_type(expr->arg1);
     if (op == OP_POINTED_VALUE) {
         // return the nested type of arg1 type, i.e. *(of a char*) is a char
         if (arg1_type == NULL || arg1_type->nested == NULL) {
             error(expr->token->filename, expr->token->line_no, "pointer dereference, but pointee nested data type undefined");
         } else {
-            expr->result_type = clone_data_type(arg1_type->nested);
+            expr->result_type = arg1_type->nested->ops->clone(arg1_type->nested);
         }
     } else if (op == OP_ARRAY_SUBSCRIPT) {
         // return the nested type of arg1 type, e.g. "int[]" will become int
         if (arg1_type == NULL || arg1_type->nested == NULL) {
             error(expr->token->filename, expr->token->line_no, "array element operation, but array item data type undefined");
         } else {
-            expr->result_type = clone_data_type(arg1_type->nested);
+            expr->result_type = arg1_type->nested->ops->clone(arg1_type->nested);
         }
     } else if (op == OP_ADDRESS_OF) {
         // return a pointer to the type of arg1
         if (arg1_type == NULL) {
             error(expr->token->filename, expr->token->line_no, "address of opration, but target data type undefined");
         } else {
-            expr->result_type = create_data_type(TF_POINTER, clone_data_type(arg1_type));
+            expr->result_type = create_data_type(TF_POINTER, arg1_type->ops->clone(arg1_type));
         }
     } else if (op == OP_BITWISE_NOT
             || op == OP_BITWISE_AND
@@ -147,7 +159,7 @@ data_type *get_expr_result_type(expression *expr) {
             || op == OP_POST_DEC) {
         // in theory int, but let's return whatever our first arg is (maybe a pointer)
         if (expr->arg1->result_type != NULL)
-            expr->result_type = clone_data_type(expr->arg1->result_type);
+            expr->result_type = expr->arg1->result_type->ops->clone(expr->arg1->result_type);
     }
     
     // could be a warning
@@ -162,7 +174,7 @@ data_type *get_expr_result_type(expression *expr) {
 
 
 // instead of a COMMA tree, put everything in an array for easier handling
-void flatten_func_call_args_to_array(expression *call_expr, expression *arr[], int arr_size, int *args_count) {
+static void flatten_func_call_args_to_array(expression *call_expr, expression *arr[], int arr_size, int *args_count) {
     memset(arr, 0, sizeof(expression *) * arr_size);
     *args_count = 0;
     int i = 0;

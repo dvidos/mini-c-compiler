@@ -11,7 +11,7 @@ SRC_FILES = \
 	operators.c \
 	symbol.c \
 	scope.c \
-	ast_node.c \
+	declaration.c \
 	ast.c \
 	parser/iterator.c \
 	parser/recursive_descend.c \

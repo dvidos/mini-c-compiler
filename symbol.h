@@ -1,5 +1,5 @@
 #pragma once
-#include "ast_node.h"
+#include "declaration.h"
 
 
 typedef enum symbol_type {

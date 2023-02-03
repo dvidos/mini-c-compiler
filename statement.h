@@ -3,12 +3,9 @@
 #include "operators.h"
 #include "data_type.h"
 #include "expression.h"
-#include "ast_node.h"
+#include "declaration.h"
 
-// ------------------------------------------------------------------
-
-typedef struct statement  statement;  // what can be found in a block
-typedef struct var_declaration   var_declaration;   // type + variable name
+typedef struct var_declaration var_declaration;
 
 // blocks can be nested, so they are a form of statement inside the parent block. 
 // they don't appear only in association with an "if" or a "while".
@@ -42,12 +39,12 @@ typedef struct statement {
     // for a BLOCK, body is a list of statements
     // for IF and WHILE it's the single statement or a block of statements
     // for functions, it's the BLOCK with all the statements
-    statement *body;
-    statement *else_body;  // for "else" only
+    struct statement *body;
+    struct statement *else_body;  // for "else" only
 
     // house keeping properties
     token *token; // for line information
-    struct statement *next; // for a list of statements in a block
+    struct statement *next; // for a list of statements in a block or function
 } statement;
 
 statement *create_statements_block(statement *stmts_list, token *token);

@@ -4,7 +4,7 @@
 #include <stdlib.h>
 #include "../err_handler.h"
 #include "../lexer/token.h"
-#include "../ast_node.h"
+#include "../declaration.h"
 #include "../statement.h"
 #include "../ast.h"
 #include "iterator.h"

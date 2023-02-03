@@ -3,7 +3,7 @@
 #include "../err_handler.h"
 #include "../lexer/token.h"
 #include "../operators.h"
-#include "../ast_node.h"
+#include "../declaration.h"
 #include "../expression.h"
 #include "iterator.h"
 

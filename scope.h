@@ -1,6 +1,6 @@
 #include <stddef.h>
 #include "symbol.h"
-#include "ast_node.h"
+#include "declaration.h"
 
 typedef struct scope {
     symbol *symbols_list_head;

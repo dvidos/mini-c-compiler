@@ -1,10 +1,11 @@
 #include <stdio.h>
 #include <stdarg.h>
 #include "../err_handler.h"
-#include "../ast_node.h"
+#include "../declaration.h"
 #include "../statement.h"
 #include "../scope.h"
 #include "../symbol.h"
+#include "../ast.h"
 #include "analysis.h"
 
 /*

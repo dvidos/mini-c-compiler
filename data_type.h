@@ -12,19 +12,29 @@ typedef enum type_family {
     TF_ARRAY,
 } type_family;
 
+struct data_type_ops;
+
 // type of a variable or symbol
 typedef struct data_type {
     type_family family; // int, char, etc
     struct data_type *nested; // for pointer-of, or array-of etc.
     int array_size; // only for arrays
-    char *to_string;
+    char *string_repr; // calculated on the first to_string() call
+
+    struct data_type_ops *ops;
 } data_type;
+
+struct data_type_ops {
+    bool (*equals)(data_type *a, data_type *b);
+    data_type *(*clone)(data_type *type);
+    char *(*to_string)(data_type *type); // no need to free
+    void (*free)(data_type *type);
+};
 
 
 type_family data_type_family_for_token(token_type type);
-char *data_type_family_name(type_family t);
 data_type *create_data_type(type_family family, data_type *nested);
-data_type *clone_data_type(data_type *type);
-void free_data_type(data_type *type);
-bool data_types_equal(data_type *a, data_type *b);
-char *data_type_to_string(data_type *type);
+
+
+
+

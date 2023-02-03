@@ -9,7 +9,7 @@
 #include "../lexer/token.h"
 #include "../statement.h"
 #include "../symbol.h"
-#include "../ast_node.h"
+#include "../declaration.h"
 #include "interm_repr.h"
 #include "codegen.h"
 
@@ -95,7 +95,7 @@ static void generate_code_for_function_call(expression *expr) {
     // now we need to push the results of all the expressions of arguments...
     expression *args[32];
     int args_count = 0;
-    flatten_func_call_args_to_array(expr, args, 32, &args_count);
+    expr->ops->flatten_func_call_args_to_array(expr, args, 32, &args_count);
 
     // in a parallel array, calculate things if needed
     int calculated_regs[32];

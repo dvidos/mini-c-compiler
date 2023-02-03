@@ -19,12 +19,12 @@ struct operator_info operators_info_list[] = {
     // enum oper          prio  unary  postfix   mnemonic
     { OP_UNKNOWN,            0, false, false, "UNKNOWN" },  // to signify an unknown operator, when the token does not work
 
-    { OP_FUNC_CALL,         29, false, true, "CALL" },     // a()
-    { OP_ARRAY_SUBSCRIPT,   29, false, true, "ELEM" },     // a[b]
-    { OP_STRUCT_MEMBER_PTR, 29, false, true, "SPTR" },     // a->b
-    { OP_STRUCT_MEMBER_REF, 29, false, true, "SMBM" },     // a.b
-    { OP_POST_INC,          29, true,  true, "POSTINC" },  // a++
-    { OP_POST_DEC,          29, true,  true, "POSTDEC" },  // a--
+    { OP_FUNC_CALL,         29, false, true, "CALL" },          // a()
+    { OP_ARRAY_SUBSCRIPT,   29, false, true, "ARR_ITEM" },      // a[b]
+    { OP_STRUCT_MEMBER_PTR, 29, false, true, "STRU_PTR_MBR" },  // a->b
+    { OP_STRUCT_MEMBER_REF, 29, false, true, "STRU_VAR_MBR" },  // a.b
+    { OP_POST_INC,          29, true,  true, "POSTINC" },       // a++
+    { OP_POST_DEC,          29, true,  true, "POSTDEC" },       // a--
     { OP_POSITIVE_NUM,      28, true,  false, "POS" },     // +123
     { OP_NEGATIVE_NUM,      28, true,  false, "NEG" },     // -123
     { OP_LOGICAL_NOT,       28, true,  false, "NOT" },     // !a

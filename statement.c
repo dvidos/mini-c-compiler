@@ -1,5 +1,5 @@
 #include <stdlib.h>
-#include "ast_node.h"
+#include "declaration.h"
 #include "lexer/token.h"
 #include "operators.h"
 #include "statement.h"

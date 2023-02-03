@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <stdarg.h>
 #include "../err_handler.h"
-#include "../ast_node.h"
+#include "../declaration.h"
 #include "../statement.h"
 #include "../scope.h"
 #include "../symbol.h"
@@ -19,13 +19,14 @@ int count_function_required_args(func_declaration *func) {
 }
 
 void validate_function_call_argument_type(var_declaration *arg_decl, expression *arg_expr, func_declaration *func) {
-    if (!data_types_equal(arg_decl->data_type, get_expr_result_type(arg_expr))) {
+    data_type *expr_type = arg_expr->ops->get_data_type(arg_expr);
+    if (!arg_decl->data_type->ops->equals(arg_decl->data_type, expr_type)) {
         error(arg_expr->token->filename, arg_expr->token->line_no,
             "argument '%s' of function '%s' needs to be of type '%s', but type '%s' was given",
             arg_decl->var_name,
             func->func_name,
-            data_type_to_string(arg_decl->data_type),
-            data_type_to_string(get_expr_result_type(arg_expr)));
+            arg_decl->data_type->ops->to_string(arg_decl->data_type),
+            expr_type->ops->to_string(expr_type));
     }
 }
 
@@ -54,7 +55,7 @@ void perform_function_call_analysis(expression *call_expr) {
     // convert the COMMA tree into a flat array
     expression *arg_exprs[32];
     int provided_args = 0;
-    flatten_func_call_args_to_array(call_expr, arg_exprs, 32, &provided_args);
+    call_expr->ops->flatten_func_call_args_to_array(call_expr, arg_exprs, 32, &provided_args);
     int required_args = count_function_required_args(sym->func);
 
     // ensure at least the required arguments are provided
@@ -141,24 +142,29 @@ void perform_expression_analysis(expression *expr) {
             // this one is unary, it does not have arg2
             verify_expr_result_boolean(expr->arg1);
             break;
+        case OP_ARRAY_SUBSCRIPT:
+            // yeah... arg1 can be array or pointer... hence they are the same in C...
+            verify_expr_result_array_or_pointer(expr->arg1);
+            verify_expr_result_integer(expr->arg2);
+            break;
     }
 }
 
 
 void verify_expression_result_type(expression *expr, data_type *needed_type) {
-    data_type *expr_result = get_expr_result_type(expr);
+    data_type *expr_result = expr->ops->get_data_type(expr);
     if (expr_result == NULL) {
         error(expr->token->filename, expr->token->line_no, "expression returned type could not be calculated");
         return;
     }
 
-    if (!data_types_equal(expr_result, needed_type)) {
+    if (!expr_result->ops->equals(expr_result, needed_type)) {
         error(
             expr->token->filename, 
             expr->token->line_no,
             "expression returns a '%s', but a type of '%s' is required",
-            data_type_to_string(expr_result),
-            data_type_to_string(needed_type)
+            expr_result->ops->to_string(expr_result),
+            needed_type->ops->to_string(needed_type)
         );
     }
 }
@@ -166,33 +172,44 @@ void verify_expression_result_type(expression *expr, data_type *needed_type) {
 void verify_expr_result_integer(expression *expr) {
     if (expr == NULL)
         return;
-    data_type *type = get_expr_result_type(expr);
+    data_type *type = expr->ops->get_data_type(expr);
     if (type->family != TF_INT || type->nested != NULL) {
         error(expr->token->filename, expr->token->line_no,
             "expression needs to produce integer type, instead of '%s'",
-            data_type_to_string(type));
+            type->ops->to_string(type));
     }
 }
 
 void verify_expr_result_integer_or_pointer(expression *expr) {
     if (expr == NULL)
         return;
-    data_type *type = get_expr_result_type(expr);
+    data_type *type = expr->ops->get_data_type(expr);
     if (!(type->family == TF_INT || type->family == TF_POINTER)) {
         error(expr->token->filename, expr->token->line_no,
             "expression needs to produce integer or pointer type, instead of '%s'",
-            data_type_to_string(type));
+            type->ops->to_string(type));
+    }
+}
+
+void verify_expr_result_array_or_pointer(expression *expr) {
+    if (expr == NULL)
+        return;
+    data_type *type = expr->ops->get_data_type(expr);
+    if (!(type->family == TF_INT || type->family == TF_POINTER)) {
+        error(expr->token->filename, expr->token->line_no,
+            "expression needs to produce array or pointer type, instead of '%s'",
+            type->ops->to_string(type));
     }
 }
 
 void verify_expr_result_boolean(expression *expr) {
     if (expr == NULL)
         return;
-    data_type *type = get_expr_result_type(expr);
+    data_type *type = expr->ops->get_data_type(expr);
     if (type->family != TF_BOOL || type->nested != NULL) {
         error(expr->token->filename, expr->token->line_no,
             "expression needs to produce boolean type, instead of '%s'",
-            data_type_to_string(type));
+            type->ops->to_string(type));
     }
 }
 
@@ -203,20 +220,20 @@ void verify_expr_same_data_types(expression *expr1, expression *expr2, token *to
         error(token->filename, token->line_no, "both operands need to be of same type, but one is missing");
         return;
     }
-    data_type *type1 = get_expr_result_type(expr1);
+    data_type *type1 = expr1->ops->get_data_type(expr1);
     if (type1 == NULL) {
         error(expr1->token->filename, expr1->token->line_no, "cannot determine expression's data type");
         return;
     }
-    data_type *type2 = get_expr_result_type(expr2);
+    data_type *type2 = expr2->ops->get_data_type(expr2);
     if (type2 == NULL) {
         error(expr2->token->filename, expr2->token->line_no, "cannot determine expression's data type");
         return;
     }
-    if (!data_types_equal(type1, type2)) {
+    if (!type1->ops->equals(type1, type2)) {
         error(token->filename, token->line_no, 
             "operands need to be of same type, but first is '%s' and second is '%s'",
-                data_type_to_string(type1),
-                data_type_to_string(type2));
+            type1->ops->to_string(type1),
+            type2->ops->to_string(type2));
     }
 }

@@ -1,6 +1,7 @@
 #include <stddef.h>
 #include <stdio.h>
-#include "ast_node.h"
+#include "ast.h"
+#include "declaration.h"
 
 // currently we do not have a "tree" in the correct sense of the word.
 // if we wanted to do so, we need to make function declarations part of a statement.
@@ -46,17 +47,6 @@ void ast_add_function(func_declaration *func) {
 static void indent(int depth) {
     while (depth--)
         printf("    ");
-}
-
-static void print_data_type(data_type *n) {
-    printf("%s", data_type_family_name(n->family));
-    if (n->family == TF_ARRAY)
-        printf(":%d", n->array_size);
-    if (n->nested != NULL) {
-        printf("(");
-        print_data_type(n->nested);
-        printf(")");
-    }
 }
 
 static void print_expression_using_func_format(expression *expr) {
@@ -120,7 +110,7 @@ static void print_statement(statement *st, int depth) {
         case ST_VAR_DECL:
             indent(depth);
             printf("decl %s ", st->decl->var_name);
-            print_data_type(st->decl->data_type);
+            printf("%s", st->decl->data_type->ops->to_string(st->decl->data_type));
             if (st->expr != NULL) {
                 printf(" (= ");
                 print_expression_using_func_format(st->expr);
@@ -206,11 +196,11 @@ void print_ast() {
     while (func != NULL) {
         indent(1);
         printf("function: ");
-        print_data_type(func->return_type);
+        printf("%s", func->return_type->ops->to_string(func->return_type));
         printf(" %s(", func->func_name);
         var_declaration *arg = func->args_list;
         while (arg != NULL) {
-            print_data_type(arg->data_type);
+            printf("%s", arg->data_type->ops->to_string(arg->data_type));
             printf(" %s", arg->var_name);
             if (arg->next != NULL)
                 printf(", ");

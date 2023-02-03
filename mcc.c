@@ -5,7 +5,7 @@
 #include "options.h"
 #include "lexer/token.h"
 #include "lexer/lexer.h"
-#include "ast_node.h"
+#include "declaration.h"
 #include "ast.h"
 #include "operators.h"
 #include "scope.h"

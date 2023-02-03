@@ -2,29 +2,10 @@
 #include "lexer/token.h"
 #include "operators.h"
 #include "data_type.h"
-#include "expression.h"
 #include "statement.h"
 
-// ------------------------------------------------------------------
+typedef struct statement statement;
 
-typedef struct ast_module_node     ast_module_node;     // source-file level
-typedef struct func_declaration  func_declaration;  // function declaration or definition
-typedef struct var_declaration   var_declaration;   // type + variable name
-typedef struct statement  statement;  // what can be found in a block
-
-// ------------------------------------------------------------------
-
-typedef struct ast_module_node {
-
-    // list of variables defined at module level
-    statement *statements_list;
-
-    // list of functions in the source file
-    func_declaration *funcs_list;
-
-} ast_module_node;
-
-// ------------------------------------------------------------
 
 typedef struct var_declaration {
 
@@ -40,7 +21,7 @@ typedef struct var_declaration {
 
 var_declaration *create_var_declaration(data_type *data_type, char* var_name, token *token);
 
-// ------------------------------------------------------------
+
 
 typedef struct func_declaration {
 
@@ -53,7 +34,7 @@ typedef struct func_declaration {
     // can be null for functions without arguments
     var_declaration *args_list;
 
-    // usually a block statement
+    // the list of contents
     statement *stmts_list;
 
     // housekeeping
@@ -62,5 +43,4 @@ typedef struct func_declaration {
 } func_declaration;
 
 func_declaration *create_func_declaration(data_type *return_type, char *func_name, var_declaration *args_list, statement *body, token *token);
-
 

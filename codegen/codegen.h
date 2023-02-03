@@ -1,5 +1,6 @@
 #pragma once
-#include "../ast_node.h"
+#include "../declaration.h"
+#include "../ast.h"
 
 
 struct function_code_generation_info {

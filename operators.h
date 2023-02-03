@@ -65,6 +65,7 @@ typedef enum oper {
 
 
 void init_operators();
+
 int oper_precedence(oper op);
 char *oper_debug_name(oper op);
 oper to_unary_operator(token_type type); // or OP_UNKNOWN if not supported

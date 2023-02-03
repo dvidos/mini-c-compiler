@@ -3,6 +3,19 @@
 #include <stdio.h>
 #include "data_type.h"
 
+static data_type *clone_data_type(data_type *type);
+static void free_data_type(data_type *type);
+static bool data_types_equal(data_type *a, data_type *b);
+static char *data_type_to_string(data_type *type);
+
+
+
+static struct data_type_ops ops = {
+    .equals = data_types_equal,
+    .to_string = data_type_to_string,
+    .clone = clone_data_type,
+    .free = free_data_type,
+};
 
 type_family data_type_family_for_token(token_type type) {
     switch (type) {
@@ -17,29 +30,17 @@ type_family data_type_family_for_token(token_type type) {
     return TF_INT;
 }
 
-char *data_type_family_name(type_family t) {
-    switch (t) {
-        case TF_INT: return "int";
-        case TF_FLOAT: return "float";
-        case TF_CHAR: return "char";
-        case TF_BOOL: return "bool";
-        case TF_VOID: return "void";
-        case TF_POINTER: return "pointer";
-        case TF_ARRAY: return "array";
-        default: return "*** unnamed ***";
-    }
-}
-
 data_type *create_data_type(type_family family, data_type *nested) {
     data_type *n = malloc(sizeof(data_type));
     n->family = family;
     n->nested = nested;
     n->array_size = 0;
-    n->to_string = 0;
+    n->string_repr = 0;
+    n->ops = &ops;
     return n;
 }
 
-data_type *clone_data_type(data_type *type) {
+static data_type *clone_data_type(data_type *type) {
     if (type == NULL)
         return NULL;
     
@@ -47,23 +48,22 @@ data_type *clone_data_type(data_type *type) {
     clone->family = type->family;
     clone->nested = clone_data_type(type->nested);
     clone->array_size = type->array_size;
-    clone->to_string = type->to_string;
+    clone->string_repr = type->string_repr;
+    clone->ops = &ops;
     return clone;
 }
 
-void free_data_type(data_type *type) {
+static void free_data_type(data_type *type) {
     if (type->nested != NULL)
         free_data_type(type);
-    if (type->to_string != NULL)
-        free(type->to_string);
+    if (type->string_repr != NULL)
+        free(type->string_repr);
     free(type);
 }
 
-bool data_types_equal(data_type *a, data_type *b) {
-    if ((a == b) || (a == NULL && b == NULL))
+static bool data_types_equal(data_type *a, data_type *b) {
+    if ((a == b))
         return true;
-    if (a == NULL || b == NULL)
-        return false; // only one is null
     
     if (a->family != b->family)
         return false;
@@ -81,11 +81,11 @@ bool data_types_equal(data_type *a, data_type *b) {
 }
 
 
-char *data_type_to_string(data_type *type) {
-    if (type->to_string != NULL)
-        return type->to_string;
+static char *data_type_to_string(data_type *type) {
+    if (type->string_repr != NULL)
+        return type->string_repr;
     
-    char *p = malloc(16); // careful when we introduce structs or func pointers
+    char *p = malloc(64); // careful when we introduce structs or func pointers
     p[0] = '\0';
 
     switch (type->family) {
@@ -112,6 +112,6 @@ char *data_type_to_string(data_type *type) {
             break;
    }
 
-   type->to_string = p;
-   return type->to_string;
+   type->string_repr = p;
+   return type->string_repr;
 }

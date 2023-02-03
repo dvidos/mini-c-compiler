@@ -9,7 +9,7 @@
 #include "../lexer/token.h"
 #include "../statement.h"
 #include "../symbol.h"
-#include "../ast_node.h"
+#include "../declaration.h"
 #include "codegen.h"
 #include "interm_repr.h"
 

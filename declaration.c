@@ -1,9 +1,11 @@
+#include <stddef.h>
 #include <stdlib.h>
-#include "ast_node.h"
 #include "lexer/token.h"
 #include "operators.h"
+#include "data_type.h"
+#include "statement.h"
+#include "declaration.h"
 
-// ------------------------------------------------------------------------------
 
 var_declaration *create_var_declaration(data_type *data_type, char* var_name, token *token) {
     var_declaration *n = malloc(sizeof(var_declaration));
@@ -13,8 +15,6 @@ var_declaration *create_var_declaration(data_type *data_type, char* var_name, to
     n->next = NULL;
     return n;
 }
-
-// ------------------------------------------------------------------------------
 
 func_declaration *create_func_declaration(data_type *return_type, char* func_name, var_declaration *args_list, statement *body, token *token) {
     func_declaration *n = malloc(sizeof(func_declaration));

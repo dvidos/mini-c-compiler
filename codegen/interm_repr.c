@@ -77,7 +77,12 @@ typedef struct code_chunk {
     union {
         struct three_address_code {
             int operator;
-            int addr1; // so far, each operator can be a symbol, a number, or a register...
+            // so far, each operator can be a symbol, a number, a register,
+            // or the address pointed by a register
+            // as an lvalue, it can be either a symbol, or an address pointed by a register.
+            // in assembly, a symbol represents the address of the symbol, 
+            //              and brackets (e.g. [my_str]) represent the value stored in that address
+            int addr1; 
             int addr2;
             int addr3;
         } tac;

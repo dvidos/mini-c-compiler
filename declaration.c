@@ -6,6 +6,13 @@
 #include "statement.h"
 #include "declaration.h"
 
+static int count_required_arguments(func_declaration *func);
+
+static struct func_declaration_ops func_ops = {
+    .count_required_arguments = count_required_arguments,
+};
+
+
 
 var_declaration *create_var_declaration(data_type *data_type, char* var_name, token *token) {
     var_declaration *n = malloc(sizeof(var_declaration));
@@ -24,6 +31,16 @@ func_declaration *create_func_declaration(data_type *return_type, char* func_nam
     n->stmts_list = body;
     n->token = token;
     n->next = NULL;
+    n->ops = &func_ops;
     return n;
 }
 
+static int count_required_arguments(func_declaration *func) {
+    int count = 0;
+    var_declaration *arg = func->args_list;
+    while (arg != NULL) {
+        count++;
+        arg = arg->next;
+    }
+    return count;
+}

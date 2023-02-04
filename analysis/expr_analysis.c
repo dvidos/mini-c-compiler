@@ -8,16 +8,6 @@
 #include "analysis.h"
 
 
-int count_function_required_args(func_declaration *func) {
-    int required_args = 0;
-    var_declaration *arg_decl = func->args_list;
-    while (arg_decl != NULL) {
-        required_args++;
-        arg_decl = arg_decl->next;
-    }
-    return required_args;
-}
-
 void validate_function_call_argument_type(var_declaration *arg_decl, expression *arg_expr, func_declaration *func) {
     data_type *expr_type = arg_expr->ops->get_data_type(arg_expr);
     if (!arg_decl->data_type->ops->equals(arg_decl->data_type, expr_type)) {
@@ -56,19 +46,19 @@ void perform_function_call_analysis(expression *call_expr) {
     expression *arg_exprs[32];
     int provided_args = 0;
     call_expr->ops->flatten_func_call_args_to_array(call_expr, arg_exprs, 32, &provided_args);
-    int required_args = count_function_required_args(sym->func);
+    int required_args = sym->func->ops->count_required_arguments(sym->func);
 
     // ensure at least the required arguments are provided
     if (provided_args < required_args) {
         error(call_expr->token->filename, call_expr->token->line_no,
-            "function '%s' requires %d arguments, but %d were provided",
+            "function '%s' requires %d arguments, but only %d was/were given",
             sym->func->func_name, required_args, provided_args);
     }
 
     // verify the type of the arguments
     int i = 0;
     var_declaration *arg_decl = sym->func->args_list;
-    while (arg_decl != NULL) {
+    while (arg_decl != NULL && i < provided_args) {
         validate_function_call_argument_type(arg_decl, arg_exprs[i], sym->func);
         i++;
         arg_decl = arg_decl->next;

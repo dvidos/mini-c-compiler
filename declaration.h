@@ -23,6 +23,8 @@ var_declaration *create_var_declaration(data_type *data_type, char* var_name, to
 
 
 
+struct func_declaration_ops;
+
 typedef struct func_declaration {
 
     char *func_name;
@@ -40,7 +42,11 @@ typedef struct func_declaration {
     // housekeeping
     token *token;
     struct func_declaration *next;
+    struct func_declaration_ops *ops;
 } func_declaration;
 
 func_declaration *create_func_declaration(data_type *return_type, char *func_name, var_declaration *args_list, statement *body, token *token);
 
+struct func_declaration_ops {
+    int (*count_required_arguments)(func_declaration *func);
+};

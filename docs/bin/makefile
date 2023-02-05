@@ -1,50 +1,57 @@
 # $@ target, $< first dependency, $^ all dependencies
+BASE = tiny
+STAT = $(BASE)-stat
+DYN = $(BASE)-dyn
+OBJ = $(BASE)-obj
+
+STAT32 = $(STAT)32
+STAT64 = $(STAT)64
+DYN32 = $(DYN)32
+DYN64 = $(DYN)64
+OBJ32 = $(OBJ)32
+OBJ64 = $(OBJ)64
 
 
-default: elf-diff asm-diff obj_elf32 obj_elf64 obj_asm32 obj_asm64
 
-elf-diff: elf32 elf64
-	diff -y $^ > $@; true
 
-asm-diff: asm32 asm64
-	diff -y $^ > $@; true
 
-elf32: tiny32 
+
+
+default: \
+	$(STAT32).elf $(STAT32).asm \
+	$(STAT64).elf $(STAT64).asm \
+	$(DYN32).elf $(DYN32).asm \
+	$(DYN64).elf $(DYN64).asm \
+	$(OBJ32).elf $(OBJ32).asm \
+	$(OBJ64).elf $(OBJ64).asm
+
+%.elf: %
 	readelf -a $< > $@
 
-elf64: tiny64
-	readelf -a $< > $@
-
-asm32: tiny32
+%.asm: %
 	objdump -d -M "intel" $< > $@
 
-asm64: tiny64
-	objdump -d -M "intel" $< > $@
-
-obj_elf32: tiny32.o
-	readelf -a $< > $@
-
-obj_elf64: tiny64.o
-	readelf -a $< > $@
-
-obj_asm32: tiny32.o
-	objdump -d -M "intel" $< > $@
-
-obj_asm64: tiny64.o
-	objdump -d -M "intel" $< > $@
-
-tiny32: tiny.c
+tiny-dyn32: tiny.c
 	gcc -O0 -m32 -std=c99 -o $@ $<
 
-tiny64: tiny.c
+tiny-dyn64: tiny.c
 	gcc -O0 -m64 -std=c99 -o $@ $<
 
-tiny32.o: tiny.c
+tiny-stat32: tiny.c
+	gcc -m32 -static -o $@ $<
+
+tiny-stat64: tiny.c
+	gcc -m64 -static -o $@ $<
+
+tiny-obj32: tiny.c
 	gcc -O0 -m32 -std=c99 -c -o $@ $<
 
-tiny64.o: tiny.c
+tiny-obj64: tiny.c
 	gcc -O0 -m64 -std=c99 -c -o $@ $<
 
 clean:
-	rm -f tiny32 tiny64 asm32 asm64 elf32 elf64 elf-diff asm-diff
+	rm -f tiny-dyn32 tiny-dyn64 tiny-stat32 tiny-stat64 tiny-obj32 tiny-obj64 \
+		asm32 asm64 elf32 elf64 elf-diff asm-diff \
+		obj_* *.elf *.asm
+
 

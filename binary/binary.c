@@ -7,9 +7,9 @@
 #include "elf_format.h"
 
 void printf16hex(void *address);
-char *elf_file_type_names[] = { "NONE", "REL", "EXEC", "DYN", "CORE" };
-char *elf_class_names[] = { "NONE", "32", "64" };
-char *elf_data_encoding_names[] = { "NONE", "LSB", "MSB" };
+char *elf_file_type_names[] = { "NONE", "REL - object code", "EXEC - statically linked executable", "DYN - executable requiring dyn libraries", "CORE" };
+char *elf_class_names[] = { "NONE", "32 bits", "64 bits" };
+char *elf_data_encoding_names[] = { "NONE", "LSB first", "MSB first" };
 
 
 
@@ -30,7 +30,7 @@ void perform_elf_test_object_64() {
 
 bool read_elf32_file(FILE *f, char *filename) {
     size_t bytes;
-    printf("%s ELF information\n", filename);
+    printf("ELF information - %s\n", filename);
     elf32_header *hdr = malloc(sizeof(elf32_header));
     fseek(f, 0, SEEK_CUR);
     bytes = fread(hdr, 1, sizeof(elf32_header), f);
@@ -50,6 +50,7 @@ bool read_elf32_file(FILE *f, char *filename) {
     printf("  Version    : %d\n", hdr->version);
     printf("  Entry point: 0x%x\n", hdr->entry_point);
     printf("  Flags      : 0x%x\n", hdr->flags);
+    printf("  Header size: %d\n", hdr->elf_header_size);
     printf("  Program Headers - Num %u, Size %u, Offset %u\n", 
         hdr->prog_headers_entries, hdr->prog_headers_entry_size, hdr->prog_headers_offset);
     printf("  Section Headers - Num %u, Size %u, Offset %u\n", 
@@ -63,8 +64,41 @@ bool read_elf32_file(FILE *f, char *filename) {
 
     return true;
 }
-void read_elf64_file(FILE *f, char *filename) {
+bool read_elf64_file(FILE *f, char *filename) {
+    size_t bytes;
+    printf("ELF information - %s\n", filename);
+    elf64_header *hdr = malloc(sizeof(elf64_header));
+    fseek(f, 0, SEEK_CUR);
+    bytes = fread(hdr, 1, sizeof(elf64_header), f);
+    if (bytes < sizeof(elf64_header)) {
+        return false;
+    }
+    printf("  Identity   : %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x\n",
+        hdr->identity[0], hdr->identity[1], hdr->identity[2], hdr->identity[3], 
+        hdr->identity[4], hdr->identity[5], hdr->identity[6], hdr->identity[7], 
+        hdr->identity[8], hdr->identity[9], hdr->identity[10], hdr->identity[11], 
+        hdr->identity[12], hdr->identity[13], hdr->identity[14], hdr->identity[15]
+    );
+    printf("  Class      : %d (%s)\n", hdr->identity[ELF_IDENTITY_CLASS], elf_class_names[hdr->identity[ELF_IDENTITY_CLASS]]);
+    printf("  Encoding   : %d (%s)\n", hdr->identity[ELF_IDENTITY_DATA], elf_data_encoding_names[hdr->identity[ELF_IDENTITY_DATA]]);
+    printf("  File type  : %d (%s)\n", hdr->file_type, elf_file_type_names[hdr->file_type]);
+    printf("  Machine    : %d\n", hdr->machine);
+    printf("  Version    : %d\n", hdr->version);
+    printf("  Entry point: 0x%lx\n", hdr->entry_point);
+    printf("  Flags      : 0x%x\n", hdr->flags);
+    printf("  Header size: %d\n", hdr->elf_header_size);
+    printf("  Program Headers - Num %u, Size %u, Offset %lu\n", 
+        hdr->prog_headers_entries, hdr->prog_headers_entry_size, hdr->prog_headers_offset);
+    printf("  Section Headers - Num %u, Size %u, Offset %lu\n", 
+        hdr->section_headers_entries, hdr->section_headers_entry_size, hdr->section_headers_offset);
+    printf("  Section header string table index: %d\n", hdr->section_headers_strings_entry);
 
+    // printf("Header hex dump:\n");
+    // printf16hex(((char *)hdr));
+    // printf16hex(((char *)hdr)+16);
+    // printf16hex(((char *)hdr)+64);
+
+    return true;
 }
 
 void try_reading_elf_file(char *filename) {
@@ -164,10 +198,12 @@ void perform_elf_test() {
     printf("sizeof u8 %d, u16 %d, u32 %d, u64 %d\n", (int)sizeof(u8), (int)sizeof(u16), (int)sizeof(u32), (int)sizeof(u64));
     printf("sizeof s8 %d, s16 %d, s32 %d, s64 %d\n", (int)sizeof(s8), (int)sizeof(s16), (int)sizeof(s32), (int)sizeof(s64));
     try_reading_elf_file("mcc");
-    try_reading_elf_file("./docs/bin/tiny32");
-    try_reading_elf_file("./docs/bin/tiny64");
-    try_reading_elf_file("./docs/bin/tiny32.o");
-    try_reading_elf_file("./docs/bin/tiny64.o");
+    try_reading_elf_file("./docs/bin/tiny-obj32");
+    try_reading_elf_file("./docs/bin/tiny-obj64");
+    try_reading_elf_file("./docs/bin/tiny-dyn32");
+    try_reading_elf_file("./docs/bin/tiny-dyn64");
+    try_reading_elf_file("./docs/bin/tiny-stat32");
+    try_reading_elf_file("./docs/bin/tiny-stat64");
 }
 
 

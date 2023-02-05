@@ -1,3 +1,4 @@
+CFLAGS = -g -Werror
 BINARY = mcc
 SRC_FILES = \
 	mcc.c \
@@ -36,7 +37,7 @@ tested: $(BINARY) run-tests.sh
 	./run-tests.sh
 
 $(BINARY): $(SRC_FILES)
-	gcc -o $@ -g $^
+	gcc -o $@ $(CFLAGS) $^
 
 clean:
 	rm -f mcc

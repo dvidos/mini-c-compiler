@@ -63,7 +63,7 @@ typedef struct elf64_header {
   elf64_half_word machine;
   elf64_word      version;    // 1 = current
   elf64_address   entry_point;  // entry point for executables
-  elf64_offset    program_headers_offset;
+  elf64_offset    prog_headers_offset;
   elf64_offset    section_headers_offset;
   elf64_word      flags;
   elf64_half_word elf_header_size;
@@ -371,7 +371,7 @@ typedef struct elf64_header {
   elf64_half_word e_machine;
   elf64_word e_version;
   elf64_address entry_point;   // Entry point virtual address
-  elf64_offset program_headers_offset;   // Program header table file offset
+  elf64_offset prog_headers_offset;   // Program header table file offset
   elf64_offset section_headers_offset;   // Section header table file offset
   elf64_word e_flags;
   elf64_half_word e_ehsize;

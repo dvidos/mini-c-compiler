@@ -1,4 +1,3 @@
-#pragma once
 
 /*
 
@@ -37,3 +36,26 @@ https://www.muppetlabs.com/~breadbox/software/tiny/teensy.html
 
 */
 
+
+typedef struct object_code object_code;
+
+struct object_code {
+    // address and size in memory
+    unsigned long code_address;
+    unsigned long code_size;
+    char *code_contents;
+
+    // entry point in memory
+    unsigned long entry_point;
+
+    unsigned long init_data_address;
+    unsigned long init_data_size;
+    char *init_data_contents;
+
+    // address and size in memory
+    unsigned long zero_data_addr;
+    unsigned long zero_data_size;
+};
+
+
+void perform_elf_test();

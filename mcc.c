@@ -16,6 +16,7 @@
 #include "analysis/analysis.h"
 #include "codegen/codegen.h"
 #include "codegen/interm_repr.h"
+#include "binary/binary.h"
 
 void read_file(char *filename, char **buffer_pp) {
     FILE *f = fopen(filename, "r");
@@ -125,10 +126,13 @@ int main(int argc, char *argv[]) {
 
     printf("mini-c-compiler, v0.01\n");
     parse_options(argc, argv);
-    
+
+    if (options.elf_test) {
+        perform_elf_test();
+        return 0;
+    }
     if (options.filename == NULL) {
-        printf("Syntax: mcc [-v] file.c\n");
-        printf("  -v: verbose\n");
+        show_syntax();
         return 1;
     }
 

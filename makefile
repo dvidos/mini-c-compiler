@@ -22,7 +22,10 @@ SRC_FILES = \
 	codegen/codegen.c \
 	codegen/codegen_stmt.c \
 	codegen/codegen_expr.c \
-	codegen/interm_repr.c
+	codegen/interm_repr.c \
+	binary/elf_format.c \
+	binary/binary.c
+
 
 
 # target: tested

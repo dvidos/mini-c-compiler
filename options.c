@@ -1,10 +1,19 @@
 #include <stdbool.h>
+#include <stdio.h>
 #include <string.h>
 #include "options.h"
 
 // global read-only variable
 struct options options;
 
+
+void show_syntax() {
+    printf("Syntax: mcc [options] file.c\n");
+    printf("\t-v           verbose\n");
+    printf("\t-m32         generate 32 bits code\n");
+    printf("\t-m64         generate 64 bits code\n");
+    printf("\t--elf-test   run elf test\n");
+}
 
 void parse_options(int argc, char *argv[]) {
 
@@ -32,6 +41,8 @@ void parse_options(int argc, char *argv[]) {
         } else if (strcmp(p, "-m64") == 0) {
             options.bits = 64;
             options.int_size = 8;
+        } else if (strcmp(p, "--elf-test") == 0) {
+            options.elf_test = true;
         }
     }
 }

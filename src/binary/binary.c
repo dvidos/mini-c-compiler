@@ -11,9 +11,9 @@ char *elf_file_type_names[] = { "NONE", "REL - object code", "EXEC - statically 
 char *elf_class_names[] = { "NONE", "32 bits", "64 bits" };
 char *elf_data_encoding_names[] = { "NONE", "LSB first", "MSB first" };
 char *elf_prog_type_names[] = { "NULL", "LOAD", "DYN", "INTER", "NOTE", "SHLIB", "PHDR", "TLS" };
-char *elf_section_type_names[] = { "NULL", "PROGBITS", "SYMTAB", "STRTAB", "RELA", "HASH", "DYNAMIC", "NOTE", "NOBITS", "REL", "SHLIB", "DYNSYM", "NUM" };
+char *elf_section_type_names[] = { "NULL", "PROGBITS", "SYMTAB", "STRTAB", "RELA", "HASH", "DYNAMIC", "NOTE", "NOBITS", "REL", "SHLIB", "DYNSYM", "NUM", "13", "INIT_ARR", "FINI_ARR", "PREINIT_ARR", "GROUP", "SYMTAB_SHNDX" };
 
-#define ARR(arr, ndx)   (ndx > 0 && ndx < (sizeof(arr) / sizeof(arr[0]))) ? arr[ndx] : "???"
+#define ARR(arr, ndx)   (ndx >= 0 && ndx < (sizeof(arr) / sizeof(arr[0]))) ? arr[ndx] : "???"
 
 void printf16hex(void *address, int size);
 

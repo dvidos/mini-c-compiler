@@ -62,7 +62,7 @@ bool read_elf32_file(FILE *f) {
         printf("    P# Type    File pos   File sz     V.Addr     P.Addr    Mem Sz Algn Flg\n");
         //          nn XXXXXX 123456789 123456789 0x00000000 0x00000000 123456789 1234 XXX
         elf32_prog_header *ph = malloc(sizeof(elf32_prog_header));
-        for (o = hdr->prog_headers_offset, i = 0; i++ < hdr->prog_headers_entries; o += hdr->prog_headers_entry_size) {
+        for (o = hdr->prog_headers_offset, i = 0; i < hdr->prog_headers_entries; o += hdr->prog_headers_entry_size) {
             fseek(f, o, SEEK_SET);
             bytes = fread(ph, 1, sizeof(elf32_prog_header), f);
             if (bytes < sizeof(elf32_prog_header))
@@ -76,6 +76,7 @@ bool read_elf32_file(FILE *f) {
                 ph->flags & PROG_FLAGS_WRITE ? 'W' : '.',
                 ph->flags & PROG_FLAGS_EXECUTE ? 'X' : '.'
             );
+            i++;
         }
         free(ph);
     }
@@ -100,7 +101,7 @@ bool read_elf32_file(FILE *f) {
         }
         printf("    S# Name                 Type        Offset      Size  Algn Flg\n");
         //          nn 12345678901234567890 12345678 123456789 123456789  1234 XXX
-        for (o = hdr->section_headers_offset, i = 0; i++ < hdr->section_headers_entries; o += hdr->section_headers_entry_size) {
+        for (o = hdr->section_headers_offset, i = 0; i < hdr->section_headers_entries; o += hdr->section_headers_entry_size) {
             fseek(f, o, SEEK_SET);
             bytes = fread(sh, 1, sizeof(elf32_section_header), f);
             if (bytes < sizeof(elf32_section_header))
@@ -116,6 +117,7 @@ bool read_elf32_file(FILE *f) {
                 sh->flags & SECTION_FLAGS_ALLOC ? 'A' : '.',
                 sh->flags & SECTION_FLAGS_EXECINSTR ? 'X' : '.'
             );
+            i++;
         }
         if (symbols != NULL) free(symbols);
         free(sh);
@@ -153,7 +155,7 @@ bool read_elf64_file(FILE *f) {
         printf("    P# Type    File pos   File sz     V.Addr     P.Addr    Mem Sz Algn Flg\n");
         //          nn XXXXXX 123456789 123456789 0x00000000 0x00000000 123456789 1234 XXX
         elf64_prog_header *ph = malloc(sizeof(elf64_prog_header));
-        for (o = hdr->prog_headers_offset, i = 0; i++ < hdr->prog_headers_entries; o += hdr->prog_headers_entry_size) {
+        for (o = hdr->prog_headers_offset, i = 0; i < hdr->prog_headers_entries; o += hdr->prog_headers_entry_size) {
             fseek(f, o, SEEK_SET);
             bytes = fread(ph, 1, sizeof(elf64_prog_header), f);
             if (bytes < sizeof(elf64_prog_header))
@@ -167,6 +169,7 @@ bool read_elf64_file(FILE *f) {
                 ph->flags & PROG_FLAGS_WRITE ? 'W' : '.',
                 ph->flags & PROG_FLAGS_EXECUTE ? 'X' : '.'
             );
+            i++;
         }
         free(ph);
     }
@@ -191,7 +194,7 @@ bool read_elf64_file(FILE *f) {
         }
         printf("    S# Name                 Type        Offset      Size  Algn Flg\n");
         //          nn 12345678901234567890 12345678 123456789 123456789  1234 XXX
-        for (o = hdr->section_headers_offset, i = 0; i++ < hdr->section_headers_entries; o += hdr->section_headers_entry_size) {
+        for (o = hdr->section_headers_offset, i = 0; i < hdr->section_headers_entries; o += hdr->section_headers_entry_size) {
             fseek(f, o, SEEK_SET);
             bytes = fread(sh, 1, sizeof(elf64_section_header), f);
             if (bytes < sizeof(elf64_section_header))
@@ -207,6 +210,7 @@ bool read_elf64_file(FILE *f) {
                 sh->flags & SECTION_FLAGS_ALLOC ? 'A' : '.',
                 sh->flags & SECTION_FLAGS_EXECINSTR ? 'X' : '.'
             );
+            i++;
         }
         if (symbols != NULL) free(symbols);
         free(sh);

@@ -120,7 +120,7 @@ typedef struct elf32_prog_header {
   elf32_word    align;
 } elf32_prog_header;
 
-typedef struct elf64_program_header {
+typedef struct elf64_prog_header {
   elf64_word       type;
   elf64_word       flags;
   elf64_offset     file_offset;
@@ -129,7 +129,7 @@ typedef struct elf64_program_header {
   elf64_extra_word file_size;
   elf64_extra_word memory_size;
   elf64_extra_word align;
-} elf64_program_header;
+} elf64_prog_header;
 
 // program header type
 #define PROG_TYPE_NULL    0 

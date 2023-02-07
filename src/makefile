@@ -24,8 +24,9 @@ SRC_FILES = \
 	codegen/codegen_stmt.c \
 	codegen/codegen_expr.c \
 	codegen/interm_repr.c \
-	binary/elf_format.c \
-	binary/binary.c
+	binary/read_elf.c \
+	binary/write_elf.c \
+	binary/object_code.c
 
 
 

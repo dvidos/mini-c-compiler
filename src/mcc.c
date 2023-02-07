@@ -16,7 +16,7 @@
 #include "analysis/analysis.h"
 #include "codegen/codegen.h"
 #include "codegen/interm_repr.h"
-#include "binary/binary.h"
+#include "binary/object_code.h"
 
 void read_file(char *filename, char **buffer_pp) {
     FILE *f = fopen(filename, "r");

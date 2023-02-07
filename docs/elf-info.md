@@ -3,8 +3,8 @@
 It seems that ELF files contain the following blocks, one after the other.
 
 * header (diff 32-64)
-* program headers (grouped sections to load, e.g. may be more than one contiguous sections)
-* each section one after the other
+* program headers (grouped sections to load, e.g. may be two or more contiguous sections)
+* each section one after the other (i.e. the raw contents)
 * section headers (apparently collected while writing the sections)
 
 Note that the first section header is all zeros. The object files have no program entries at all. The static files are generally much larger (e.g. 500K instead of 20K)

@@ -100,11 +100,13 @@ typedef struct elf64_header {
 // identity[6], version
 #define ELF_VERSION_CURRENT  1
 
+// identity[7], OS ABI
+#define ELF_OSABI_SYSV   0
+#define ELF_OSABI_LINUX  3  // this was interpreted by "readelf",c creating expectations...
+
 // elf header machine type
 #define ELF_MACHINE_386         3
 #define ELF_MACHINE_X86_64     62
-
-
 
 
 //-----------------------------------------------------------------

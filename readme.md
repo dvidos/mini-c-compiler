@@ -306,4 +306,12 @@ comes into play (e.g. multiplications must be done before additions, even if the
 appear to the right of the additions), I used a *Shunting Yard* algorithm, which 
 uses stacks to make the highest priority operations pop last.
 
+I also learned that the final code generated (even the machine code),
+still needs a big piece of supporting data, formats, addresses etc. Enter the ELF 
+format. This format, way more than just containing the code, describes
+to the OS what to load, how, where etc, so that the program can be executed.
+Similarly, it tells the Linker how to link a piece of object code, what the 
+unsolved symbols are etc.
+Therefore, I need to have code that supports ELF creation. 
+
 

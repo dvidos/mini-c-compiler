@@ -32,7 +32,7 @@ typedef enum oper {
     OP_GT,                 // >
     OP_GE,                 // >=
     OP_EQ,                 // ==
-    OP_NEQ,                // !=
+    OP_NE,                 // !=
     OP_BITWISE_AND,        // &
     OP_BITWISE_OR,         // |
     OP_BITWISE_XOR,        // ^

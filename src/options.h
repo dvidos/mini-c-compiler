@@ -3,8 +3,8 @@
 
 struct options {
     bool verbose;
-    int bits;       // 32 or 64
-    int int_size;   // 4 for 32bits, 8 for 64 bits
+    bool is_32_bits;
+    bool is_64_bits;
     char *filename;
     bool elf_test;
 };

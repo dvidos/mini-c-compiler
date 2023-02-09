@@ -47,7 +47,7 @@ struct operator_info operators_info_list[] = {
     { OP_GT,                24, false, false, "GT" },      // a > b
     { OP_GE,                24, false, false, "GE" },      // a >= b
     { OP_EQ,                23, false, false, "EQ" },      // a == b
-    { OP_NEQ,               23, false, false, "NEQ" },     // a != b
+    { OP_NE,               23, false, false, "NEQ" },     // a != b
     { OP_BITWISE_AND,       22, false, false, "BIT_AND" }, // a & b
     { OP_BITWISE_OR,        21, false, false, "BIT_OR" },  // a | b
     { OP_BITWISE_XOR,       20, false, false, "BIT_XOR" }, // a ^ b

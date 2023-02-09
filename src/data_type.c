@@ -1,8 +1,10 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
+#include "options.h"
 #include "data_type.h"
 
+static int data_type_size_of(data_type *type);
 static data_type *clone_data_type(data_type *type);
 static void free_data_type(data_type *type);
 static bool data_types_equal(data_type *a, data_type *b);
@@ -11,6 +13,7 @@ static char *data_type_to_string(data_type *type);
 
 
 static struct data_type_ops ops = {
+    .size_of = data_type_size_of,
     .equals = data_types_equal,
     .to_string = data_type_to_string,
     .clone = clone_data_type,
@@ -39,6 +42,29 @@ data_type *create_data_type(type_family family, data_type *nested) {
     n->ops = &ops;
     return n;
 }
+
+static int data_type_size_of(data_type *type) {
+    switch (type->family) {
+        case TF_INT:
+            return options.is_32_bits ? 4 : 8;
+        case TF_FLOAT:
+            return 8;
+        case TF_CHAR:
+            return 1;
+        case TF_BOOL:
+            return 1;
+        case TF_VOID:
+            return 0;
+        case TF_POINTER:
+            return options.is_32_bits ? 4 : 8;
+        case TF_ARRAY:
+            return type->array_size * data_type_size_of(type->nested);
+    }
+    
+    return 0;
+}
+
+
 
 static data_type *clone_data_type(data_type *type) {
     if (type == NULL)

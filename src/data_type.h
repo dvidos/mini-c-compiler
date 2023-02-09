@@ -25,6 +25,7 @@ typedef struct data_type {
 } data_type;
 
 struct data_type_ops {
+    int (*size_of)(data_type *type);
     bool (*equals)(data_type *a, data_type *b);
     data_type *(*clone)(data_type *type);
     char *(*to_string)(data_type *type); // no need to free

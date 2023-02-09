@@ -62,8 +62,13 @@ void generate_module_code(ast_module_node *module) {
 
     func_declaration *func = module->funcs_list;
     while (func != NULL) {
-        if (func->stmts_list != NULL)
-            generate_function_code(func);
+        if (func->stmts_list == NULL) {
+            func = func->next;
+            continue;
+
+        }
+        ir_add_str("");
+        generate_function_code(func);
         func = func->next;
     }
 }

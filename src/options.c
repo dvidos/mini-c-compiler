@@ -19,8 +19,7 @@ void parse_options(int argc, char *argv[]) {
 
     // defaults
     memset(&options, 0, sizeof(options));
-    options.bits = 32;
-    options.int_size = 4;
+    options.is_32_bits = true; // the default
 
     char *p;
     for (int i = 1; i < argc; i++) {
@@ -36,11 +35,11 @@ void parse_options(int argc, char *argv[]) {
         if (strcmp(p, "-v") == 0) {
             options.verbose = true;
         } else if (strcmp(p, "-m32") == 0) {
-            options.bits = 32;
-            options.int_size = 4;
-        } else if (strcmp(p, "-m64") == 0) {
-            options.bits = 64;
-            options.int_size = 8;
+            options.is_32_bits = true;
+            options.is_64_bits = false;
+        } else if (strcmp(p, "-m64") == 0) { // what should be the default?
+            options.is_32_bits = false;
+            options.is_64_bits = true;
         } else if (strcmp(p, "--elf-test") == 0) {
             options.elf_test = true;
         }

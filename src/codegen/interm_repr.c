@@ -5,6 +5,7 @@
 #include <stdio.h>
 #include <stdarg.h>
 #include "interm_repr.h"
+#include "../err_handler.h"
 #include "../symbol.h"
 
 /*
@@ -114,11 +115,60 @@ void init_intermediate_representation() {
     next_code_label = NULL;
 }
 
-void reserve_data_area(char *name, int size, bool initialized) {
+// --------------------------------------------------------------------
+
+#define WHILES_STACK_SIZE  16
+
+static int regs_counter = 1; 
+static int ifs_counter = 0;
+static int whiles_counter = 0;
+static int whiles_stack_len;
+static int whiles_stack[WHILES_STACK_SIZE];
+
+int get_next_reg_num() {
+    return ++regs_counter;
+}
+
+int get_next_if_num() {
+    return ++ifs_counter;
+}
+
+// --------------------------------------------------------------------
+
+void push_while() {
+    if (whiles_stack_len == WHILES_STACK_SIZE) {
+        error(NULL, 0, "more than %d nested whiles detected, we need more stack!", WHILES_STACK_SIZE);
+        return;
+    }
+    whiles_stack[whiles_stack_len++] = ++whiles_counter;
+}
+
+int get_curr_while_num() {
+    if (whiles_stack_len == 0) {
+        error(NULL, 0, "while was expected, but none started");
+        return 0;
+    }
+    return whiles_stack[whiles_stack_len - 1];
+}
+
+void pop_while() {
+    if (whiles_stack_len == 0) {
+        error(NULL, 0, "stack of whiles underflow!");
+        return;
+    }
+    whiles_stack_len--;
+}
+
+
+// -----------------------------------
+
+void reserve_data_area(char *name, int size, bool initialized, void *initial_data) {
     // create a new mem chunk and append it to the list
     data_chunk *chunk = malloc(sizeof(data_chunk));
     chunk->size = size;
     chunk->mnemonic = strdup(name);
+    chunk->init_data = initial_data;
+    chunk->init_data_size = size;
     
     data_seg *seg = initialized ? &init_data : &zero_data;
     seg->chunks[seg->used_chunks++] = chunk;
@@ -198,16 +248,6 @@ void ir_jmp(char *label_fmt, ...) {
     va_end(args);
 
     ir_add_str("JMP %s", label);
-}
-
-void ir_jmp_if(bool if_true, char *label_fmt, ...) {
-    char label[100];
-    va_list args;
-    va_start(args, label_fmt);
-    vsnprintf(label, 100, label_fmt, args);
-    va_end(args);
-
-    ir_add_str("J%s %s", if_true ? "EQ" : "NE", label);
 }
 
 void ir_add_str(char *fmt, ...) {

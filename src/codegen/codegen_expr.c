@@ -14,11 +14,11 @@
 #include "codegen.h"
 
 
-static int next_reg_num();
 static void resolve_lvalue(expression *expr, bool *is_symbol, int *lvalue_reg_no);
 static void generate_code_for_assignment(expression *expr);
 static void generate_code_for_function_call(expression *expr);
-static void generate_code_for_any(expression *expr, int target);
+
+
 
 // dragon book, 6.2.1
 /*
@@ -50,8 +50,8 @@ static void resolve_lvalue(expression *expr, bool *is_symbol, int *lvalue_reg_no
 
     // so we need to calculate it.
     *is_symbol = false;
-    *lvalue_reg_no = next_reg_num();
-    generate_code_for_any(expr, *lvalue_reg_no);
+    *lvalue_reg_no = get_next_reg_num();
+    generate_expression_code(expr, *lvalue_reg_no, NULL);
 }
 
 static void generate_code_for_assignment(expression *expr) {
@@ -62,8 +62,8 @@ static void generate_code_for_assignment(expression *expr) {
 
     int rvalue_reg_no;
     if (expr->arg2->op != OP_SYMBOL_NAME && expr->arg2->op != OP_NUM_LITERAL) {
-        rvalue_reg_no = next_reg_num();
-        generate_code_for_any(expr->arg2, rvalue_reg_no);
+        rvalue_reg_no = get_next_reg_num();
+        generate_expression_code(expr->arg2, rvalue_reg_no, NULL);
     }
 
     char buffer[10];
@@ -103,9 +103,9 @@ static void generate_code_for_function_call(expression *expr) {
         if (args[i]->op == OP_SYMBOL_NAME || args[i]->op == OP_NUM_LITERAL) {
             calculated_regs[i] = 0;
         } else {
-            int r = next_reg_num();
-            generate_code_for_any(args[i], r);
-            calculated_regs[i] = r;
+            int reg = get_next_reg_num();
+            generate_expression_code(args[i], reg, NULL);
+            calculated_regs[i] = reg;
         }
     }
 
@@ -135,85 +135,86 @@ static void generate_code_for_function_call(expression *expr) {
         ir_add_str("POP %d items", args_count);
 }
 
-
-static void generate_code_for_any(expression *expr, int target) {
+void generate_expression_code(expression *expr, int target_reg, char *target_symbol) {
     int r1, r2;
+    char dest_name[32];
 
-    // post-order visit, resolve children first, 
-    // maybe tell the generator where to store things.
+    if      (target_reg > 0)        sprintf(dest_name, "t%d", target_reg);
+    else if (target_symbol != NULL) sprintf(dest_name, "%s", target_symbol);
+    else                            strcpy(dest_name, "nothing");
 
     switch (expr->op) {
         case OP_NUM_LITERAL:
-            ir_add_str("t%d = %d", target, expr->value.num);
+            ir_add_str("%s = %d", dest_name, expr->value.num);
             break;
         case OP_CHR_LITERAL:
-            ir_add_str("t%d = %d", target, (int)expr->value.chr);
+            ir_add_str("%s = %d", dest_name, (int)expr->value.chr);
             break;
         case OP_STR_LITERAL:
             // we should allocate this in the data segment and use the address?
-            ir_add_str("t%d = ADDRESS_OF(\"%s\")", target, expr->value.str);
+            ir_add_str("%s = ADDRESS_OF(\"%s\")", dest_name, expr->value.str);
             break;
         case OP_BOOL_LITERAL:
-            ir_add_str("t%d = %d", target, expr->value.bln ? 1 : 0);
+            ir_add_str("%s = %d", dest_name, expr->value.bln ? 1 : 0);
             break;
         case OP_SYMBOL_NAME:
-            ir_add_str("t%d = %s", target, expr->value.str);
+            ir_add_str("%s = %s", dest_name, expr->value.str);
             break;
         case OP_ADD:
-            r1 = next_reg_num();
-            r2 = next_reg_num();
-            generate_code_for_any(expr->arg1, r1);
-            generate_code_for_any(expr->arg2, r2);
-            ir_add_str("t%d = t%d + t%d", target, r1, r2);
+            r1 = get_next_reg_num();
+            r2 = get_next_reg_num();
+            generate_expression_code(expr->arg1, r1, NULL);
+            generate_expression_code(expr->arg2, r2, NULL);
+            ir_add_str("%s = t%d + t%d", dest_name, r1, r2);
             break;
         case OP_SUB:
-            r1 = next_reg_num();
-            r2 = next_reg_num();
-            generate_code_for_any(expr->arg1, r1);
-            generate_code_for_any(expr->arg2, r2);
-            ir_add_str("t%d = t%d - t%d", target, r1, r2);
+            r1 = get_next_reg_num();
+            r2 = get_next_reg_num();
+            generate_expression_code(expr->arg1, r1, NULL);
+            generate_expression_code(expr->arg2, r2, NULL);
+            ir_add_str("%s = t%d - t%d", dest_name, r1, r2);
             break;
         case OP_MUL:
-            r1 = next_reg_num();
-            r2 = next_reg_num();
-            generate_code_for_any(expr->arg1, r1);
-            generate_code_for_any(expr->arg2, r2);
-            ir_add_str("t%d = t%d * t%d", target, r1, r2);
+            r1 = get_next_reg_num();
+            r2 = get_next_reg_num();
+            generate_expression_code(expr->arg1, r1, NULL);
+            generate_expression_code(expr->arg2, r2, NULL);
+            ir_add_str("%s = t%d * t%d", dest_name, r1, r2);
             break;
         case OP_DIV:
-            r1 = next_reg_num();
-            r2 = next_reg_num();
-            generate_code_for_any(expr->arg1, r1);
-            generate_code_for_any(expr->arg2, r2);
-            ir_add_str("t%d = t%d / t%d", target, r1, r2);
+            r1 = get_next_reg_num();
+            r2 = get_next_reg_num();
+            generate_expression_code(expr->arg1, r1, NULL);
+            generate_expression_code(expr->arg2, r2, NULL);
+            ir_add_str("%s = t%d / t%d", dest_name, r1, r2);
             break;
         case OP_BITWISE_AND:
-            r1 = next_reg_num();
-            r2 = next_reg_num();
-            generate_code_for_any(expr->arg1, r1);
-            generate_code_for_any(expr->arg2, r2);
-            ir_add_str("t%d = t%d AND t%d", target, r1, r2);
+            r1 = get_next_reg_num();
+            r2 = get_next_reg_num();
+            generate_expression_code(expr->arg1, r1, NULL);
+            generate_expression_code(expr->arg2, r2, NULL);
+            ir_add_str("%s = t%d AND t%d", dest_name, r1, r2);
             break;
         case OP_BITWISE_OR:
-            r1 = next_reg_num();
-            r2 = next_reg_num();
-            generate_code_for_any(expr->arg1, r1);
-            generate_code_for_any(expr->arg2, r2);
-            ir_add_str("t%d = t%d OR t%d", target, r1, r2);
+            r1 = get_next_reg_num();
+            r2 = get_next_reg_num();
+            generate_expression_code(expr->arg1, r1, NULL);
+            generate_expression_code(expr->arg2, r2, NULL);
+            ir_add_str("%s = t%d OR t%d", dest_name, r1, r2);
             break;
         case OP_BITWISE_XOR:
-            r1 = next_reg_num();
-            r2 = next_reg_num();
-            generate_code_for_any(expr->arg1, r1);
-            generate_code_for_any(expr->arg2, r2);
-            ir_add_str("t%d = t%d XOR t%d", target, r1, r2);
+            r1 = get_next_reg_num();
+            r2 = get_next_reg_num();
+            generate_expression_code(expr->arg1, r1, NULL);
+            generate_expression_code(expr->arg2, r2, NULL);
+            ir_add_str("%s = t%d XOR t%d", dest_name, r1, r2);
             break;
         case OP_BITWISE_NOT:
-            r1 = next_reg_num();
-            r2 = next_reg_num();
-            generate_code_for_any(expr->arg2, r1);
-            ir_add_str("t%d = 0xFFFFFFFF", r2);
-            ir_add_str("t%d = t%d XOR t%d", target, r1, r2); // essentially a NOT
+            r1 = get_next_reg_num();
+            r2 = get_next_reg_num();
+            generate_expression_code(expr->arg2, r1, NULL);
+            ir_add_str("%s = 0xFFFFFFFF", r2);
+            ir_add_str("%s = t%d XOR t%d", dest_name, r1, r2); // essentially a NOT
             break;
         case OP_ASSIGNMENT:
             generate_code_for_assignment(expr);
@@ -223,39 +224,13 @@ static void generate_code_for_any(expression *expr, int target) {
             break;
 
         default:
-            if (expr->arg1) generate_code_for_any(expr->arg1, next_reg_num());
-            if (expr->arg2) generate_code_for_any(expr->arg2, next_reg_num());
-            ir_add_str("expression %s code", oper_debug_name(expr->op));
+            r1 = get_next_reg_num();
+            r2 = get_next_reg_num();
+            if (expr->arg1) generate_expression_code(expr->arg1, r1, NULL);
+            if (expr->arg2) generate_expression_code(expr->arg2, r2, NULL);
+            ir_add_str("unknown expression %s code, t%d and t%d", oper_debug_name(expr->op), r1, r2);
             break;
     }
 }
 
-
-void generate_expression_code(expression *expr, enum generation_type type) {
-
-    // post-order visit, 
-    // each operation is told where to store its result,
-    // which is used 
-
-    int destination = 0;
-    if (type == GT_RETURNED_VALUE) {
-        // put resulting value in r1
-        destination = 1;
-    } else if (type == GT_BRANCH_DECISION) {
-        // we need to resolve one more step for non-comparison expressions?
-        destination = 2;
-    } else {
-        // put resulting value anywhere, we don't care (do we?)
-        destination = next_reg_num();
-    }
-    generate_code_for_any(expr, destination);
-}
-
-// ---------------------------------
-
-static int regs_counter = 2;
-
-static int next_reg_num() {
-    return ++regs_counter;
-}
 

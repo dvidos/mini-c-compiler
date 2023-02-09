@@ -108,7 +108,7 @@ static data_type *get_data_type(expression *expr) {
                 expr->result_type = sym->data_type->ops->clone(sym->data_type);
             }
         }
-    } else if (op == OP_EQ || op == OP_NEQ
+    } else if (op == OP_EQ || op == OP_NE
             || op == OP_LT || op == OP_LE || op == OP_GT || op == OP_GE
             || op == OP_LOGICAL_AND || op == OP_LOGICAL_OR || op == OP_LOGICAL_NOT) {
         // comparisons and logical operations

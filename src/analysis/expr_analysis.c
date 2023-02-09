@@ -120,7 +120,7 @@ void perform_expression_analysis(expression *expr) {
             verify_expr_same_data_types(expr->arg1, expr->arg2, expr->token);
             break;
         case OP_EQ:
-        case OP_NEQ:
+        case OP_NE:
             verify_expr_same_data_types(expr->arg1, expr->arg2, expr->token);
             break;
         case OP_LOGICAL_AND:

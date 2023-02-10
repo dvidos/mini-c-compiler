@@ -66,4 +66,3 @@ struct object_code {
 
 
 void perform_elf_test();
-void printf16hex(void *address, int size);

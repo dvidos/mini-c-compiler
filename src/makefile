@@ -4,6 +4,7 @@ SRC_FILES = \
 	mcc.c \
 	err_handler.c \
 	options.c \
+	utils.c \
 	lexer/token.c \
 	lexer/lexer.c \
 	statement.c \

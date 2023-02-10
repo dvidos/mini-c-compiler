@@ -78,7 +78,7 @@ static bool read_elf32_file(FILE *f) {
             symbols = malloc(section->size);
             bytes = fread(symbols, 1, section->size, f);
             if (bytes < section->size) return false;
-            // printf16hex(symbols, section->size);
+            // print_16_hex(symbols, section->size);
             //   00 2e 73 79 6d 74 61 62   00 2e 73 74 72 74 61 62  ..symtab ..strtab
             //   00 2e 73 68 73 74 72 74   61 62 00 2e 72 65 6c 2e  ..shstrt ab..rel.
         }
@@ -172,7 +172,7 @@ static bool read_elf64_file(FILE *f) {
             symbols = malloc(section->size);
             bytes = fread(symbols, 1, section->size, f);
             if (bytes < section->size) return false;
-            // printf16hex(symbols, section->size);
+            // print_16_hex(symbols, section->size);
             //   00 2e 73 79 6d 74 61 62   00 2e 73 74 72 74 61 62  ..symtab ..strtab
             //   00 2e 73 68 73 74 72 74   61 62 00 2e 72 65 6c 2e  ..shstrt ab..rel.
         }

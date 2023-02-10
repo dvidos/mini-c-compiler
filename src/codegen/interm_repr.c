@@ -7,6 +7,7 @@
 #include <ctype.h>
 #include "interm_repr.h"
 #include "../err_handler.h"
+#include "../utils.h"
 #include "../symbol.h"
 
 /*
@@ -110,67 +111,6 @@ static int symbols_table_entries;
 
 
 static char *next_code_label;
-
-// typedef struct data_chunk {
-//     char *mnemonic;
-//     int size;
-//     symbol *sym;
-//     int address;
-//     void *init_data;
-//     int init_data_size;
-// } data_chunk;
-
-// typedef struct data_seg {
-//     data_chunk *chunks[512];
-//     int used_chunks;
-//     int allocated_size;
-// } data_seg;
-
-// typedef enum code_chunk_type {
-//     CCT_JMP,
-//     CCT_TAC,
-//     CCT_STRING,
-//     CCT_COMMENT,
-// } code_chunk_type;
-
-// typedef struct code_chunk {
-//     char *label;
-//     enum code_chunk_type type;
-//     union {
-//         struct three_address_code {
-//             int operator;
-//             // so far, each operator can be a symbol, a number, a register,
-//             // or the address pointed by a register
-//             // as an lvalue, it can be either a symbol, or an address pointed by a register.
-//             // in assembly, a symbol represents the address of the symbol, 
-//             //              and brackets (e.g. [my_str]) represent the value stored in that address
-//             int addr1; 
-//             int addr2;
-//             int addr3;
-//         } tac;
-//         struct jump_instruction {
-//             bool conditional;
-//             char *target_label;
-//         } jmp;
-//         char *str;
-//     } u;
-// } code_chunk;
-
-// struct code_seg {
-//     code_chunk *chunks[512];
-//     int used_chunks;
-// } code_seg;
-
-
-// char *next_code_label;
-// struct data_seg init_data; // data
-// struct data_seg zero_data; // bss
-// struct code_seg text_seg; // text
-
-// #define STRINGS_TABLE_SIZE   1024
-// char *strings_table;
-// int strings_table_len = 0;
-
 
 
 
@@ -298,6 +238,11 @@ static void ir_add_symbol(char *name, bool is_func, int offset) {
 }
 
 static void ir_dump_symbols() {
+    if (symbols_table_entries == 0) {
+        printf("No symbols declared\n");
+        return;
+    }
+    
     printf("    # Name                 Type  Data offs\n");
     //        123 12345678901234567890 1234  123456789
     for (int i = 0; i < symbols_table_entries; i++) {
@@ -312,6 +257,11 @@ static void ir_dump_symbols() {
 }
 
 static void ir_dump_code_segment() {
+    if (code_seg_entries == 0) {
+        printf("No code instructions\n");
+        return;
+    }
+
     for (int i = 0; i < code_seg_entries; i++) {
         struct code_chunk *c = code_seg[i];
         if (c->label != NULL)
@@ -321,23 +271,12 @@ static void ir_dump_code_segment() {
     }
 }
 
-static void pretty_print_string(char *str) {
-    char *buff = malloc(strlen(str) * 2);
-    char *dest = buff;
-    
-    while (*str != 0) {
-        if      (*str == '\n') { *dest++ = '\\'; *dest++ = 'n'; }
-        else if (*str == '\r') { *dest++ = '\\'; *dest++ = 'r'; }
-        else if (*str == '\t') { *dest++ = '\\'; *dest++ = 't'; }
-        else { *dest++ = *str; }
-        str++;
-    }
-    *dest = *str; // zero terminator
-    printf("%s", buff);
-    free(buff);
-}
-
 static void ir_dump_data_segment() {
+    if (data_seg_entries == 0) {
+        printf("No data entries\n");
+        return;
+    }
+    
     printf("    #    Offset      Size  Initial value\n");
     //        123 123456789 123456789  12 12 12 12...
     for (int i = 0; i < data_seg_entries; i++) {
@@ -345,7 +284,7 @@ static void ir_dump_data_segment() {
         printf("  %3d %9d %9d  ", i, d->offset, d->size);
 
         if (d->init_data == NULL) {
-            printf("\n");
+            printf("-\n");
             continue;
         }
 
@@ -354,7 +293,7 @@ static void ir_dump_data_segment() {
             && d->init_data[d->size - 1] == 0;
         if (is_string) {
             printf("\"");
-            pretty_print_string(d->init_data);
+            print_pretty(d->init_data);
             printf("\"\n");
             continue;
         }

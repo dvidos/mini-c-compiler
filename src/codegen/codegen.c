@@ -182,7 +182,7 @@ static void generate_global_variable_code(var_declaration *decl, expression *ini
     void *init_value = NULL;
     if (init_expr != NULL) {
         if (init_expr->op == OP_STR_LITERAL) {
-            // init_value = ir_get_strz_address(init_expr->value.str, init_expr->token);
+            // init_value = ir.get_strz_offset(init_expr->value.str, init_expr->token);
             init_value = init_expr->value.str;
         }
         else if (init_expr->op == OP_NUM_LITERAL) {
@@ -205,12 +205,11 @@ static void generate_global_variable_code(var_declaration *decl, expression *ini
     }
 
     // allocate memory, give size, get address
-    ir_reserve_data_area(
-        decl->var_name, 
+    int offset = ir.reserve_data(
         decl->data_type->ops->size_of(decl->data_type),
-        init_value != NULL,
         init_value
     );
+    ir.add_symbol(decl->var_name, false, offset);
 }
 
 static void generate_function_code(func_declaration *func) {
@@ -219,10 +218,10 @@ static void generate_function_code(func_declaration *func) {
     // stack frame, decoding of arguments, local data, etc.
     // where do we go from here?
 
-    ir_set_next_label("%s", func->func_name);
+    ir.set_next_label("%s", func->func_name);
     char reg_prefix = options.is_64_bits ? 'R' : 'E';
-    ir_add_str("PUSH %cBP", reg_prefix);
-    ir_add_str("MOV %cBP, %cSP", reg_prefix, reg_prefix);
+    ir.add_str("PUSH %cBP", reg_prefix);
+    ir.add_str("MOV %cBP, %cSP", reg_prefix, reg_prefix);
 
     var_declaration *arg = func->args_list;
     int arg_no = 0;
@@ -233,7 +232,7 @@ static void generate_function_code(func_declaration *func) {
     }
 
     // we also need to understand all the locals we need to allocate, then do:
-    ir_add_str("SUB %cSP, <bytes for local allocation>", reg_prefix); // or whatever bytes are needed for local variables
+    ir.add_str("SUB %cSP, <bytes for local allocation>", reg_prefix); // or whatever bytes are needed for local variables
 
     statement *stmt = func->stmts_list;
     while (stmt != NULL) {
@@ -241,10 +240,10 @@ static void generate_function_code(func_declaration *func) {
         stmt = stmt->next;
     }
 
-    ir_set_next_label("%s_exit", func->func_name);
-    ir_add_str("MOV %cSP, %cBP", reg_prefix, reg_prefix);
-    ir_add_str("POP %cBP", reg_prefix);
-    ir_add_str("RET");
+    ir.set_next_label("%s_exit", func->func_name);
+    ir.add_str("MOV %cSP, %cBP", reg_prefix, reg_prefix);
+    ir.add_str("POP %cBP", reg_prefix);
+    ir.add_str("RET");
 }
 
 void generate_module_code(ast_module_node *module) {
@@ -267,9 +266,9 @@ void generate_module_code(ast_module_node *module) {
             continue;
         }
 
-        ir_add_comment("; --- function %s() ----------------------", func->func_name);
+        ir.add_comment("; --- function %s() ----------------------", func->func_name);
         generate_function_code(func);
-        ir_add_comment("");
+        ir.add_comment("");
 
         func = func->next;
     }

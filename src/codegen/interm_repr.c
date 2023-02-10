@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <stdarg.h>
+#include <ctype.h>
 #include "interm_repr.h"
 #include "../err_handler.h"
 #include "../symbol.h"
@@ -48,114 +49,158 @@
     out of the AST or a DAG.
 */
 
+static void ir_init();
+static void ir_set_next_label(char *fmt, ...);
+static void ir_add_str(char *fmt, ...);
+static void ir_add_comment(char *fmt, ...);
+static void ir_jmp(char *label_fmt, ...);
+static int  ir_reserve_data(int bytes, void *init_data);
+static int  ir_reserve_strz(char *str);
+static void ir_add_symbol(char *name, bool is_func, int offset);
+static void ir_dump_symbols();
+static void ir_dump_code_segment();
+static void ir_dump_data_segment();
 
-typedef struct data_chunk {
-    char *mnemonic;
-    int size;
-    symbol *sym;
-    int address;
-    void *init_data;
-    int init_data_size;
-} data_chunk;
+intermediate_representation_ops ir = {
+    .init = ir_init,
+    .set_next_label = ir_set_next_label,
+    .add_str = ir_add_str,
+    .add_comment = ir_add_comment,
+    .jmp = ir_jmp,
+    .reserve_data = ir_reserve_data,
+    .reserve_strz = ir_reserve_strz,
+    .add_symbol = ir_add_symbol,
+    .dump_symbols = ir_dump_symbols,
+    .dump_code_segment = ir_dump_code_segment,
+    .dump_data_segment = ir_dump_data_segment
+};
 
-typedef struct data_seg {
-    data_chunk *chunks[512];
-    int used_chunks;
-    int allocated_size;
-} data_seg;
+// --------------------------------------------
 
-typedef enum code_chunk_type {
-    CCT_JMP,
-    CCT_TAC,
-    CCT_STRING,
-    CCT_COMMENT,
-} code_chunk_type;
-
-typedef struct code_chunk {
+struct code_chunk {
     char *label;
-    enum code_chunk_type type;
-    union {
-        struct three_address_code {
-            int operator;
-            // so far, each operator can be a symbol, a number, a register,
-            // or the address pointed by a register
-            // as an lvalue, it can be either a symbol, or an address pointed by a register.
-            // in assembly, a symbol represents the address of the symbol, 
-            //              and brackets (e.g. [my_str]) represent the value stored in that address
-            int addr1; 
-            int addr2;
-            int addr3;
-        } tac;
-        struct jump_instruction {
-            bool conditional;
-            char *target_label;
-        } jmp;
-        char *str;
-    } u;
-} code_chunk;
+    bool is_comment;
+    char *code;
+};
 
-struct code_seg {
-    code_chunk *chunks[512];
-    int used_chunks;
-} code_seg;
+struct data_chunk {
+    int offset;
+    int size;
+    char *init_data;
+};
 
+struct ir_symbol {
+    char *name;
+    bool is_func;
+    int data_offset;
+};
 
-char *next_code_label;
-struct data_seg init_data; // data
-struct data_seg zero_data; // bss
-struct code_seg text_seg; // text
+struct code_chunk **code_seg;
+struct data_chunk **data_seg;
+struct ir_symbol **symbols_table;
 
-#define STRINGS_TABLE_SIZE   1024
-char *strings_table;
-int strings_table_len = 0;
+static int code_seg_capacity;
+static int data_seg_capacity;
+static int symbols_table_capacity;
+
+static int code_seg_entries;
+static int data_seg_entries;
+static int data_seg_offset;
+static int symbols_table_entries;
 
 
+static char *next_code_label;
+
+// typedef struct data_chunk {
+//     char *mnemonic;
+//     int size;
+//     symbol *sym;
+//     int address;
+//     void *init_data;
+//     int init_data_size;
+// } data_chunk;
+
+// typedef struct data_seg {
+//     data_chunk *chunks[512];
+//     int used_chunks;
+//     int allocated_size;
+// } data_seg;
+
+// typedef enum code_chunk_type {
+//     CCT_JMP,
+//     CCT_TAC,
+//     CCT_STRING,
+//     CCT_COMMENT,
+// } code_chunk_type;
+
+// typedef struct code_chunk {
+//     char *label;
+//     enum code_chunk_type type;
+//     union {
+//         struct three_address_code {
+//             int operator;
+//             // so far, each operator can be a symbol, a number, a register,
+//             // or the address pointed by a register
+//             // as an lvalue, it can be either a symbol, or an address pointed by a register.
+//             // in assembly, a symbol represents the address of the symbol, 
+//             //              and brackets (e.g. [my_str]) represent the value stored in that address
+//             int addr1; 
+//             int addr2;
+//             int addr3;
+//         } tac;
+//         struct jump_instruction {
+//             bool conditional;
+//             char *target_label;
+//         } jmp;
+//         char *str;
+//     } u;
+// } code_chunk;
+
+// struct code_seg {
+//     code_chunk *chunks[512];
+//     int used_chunks;
+// } code_seg;
 
 
-void init_intermediate_representation() {
-    memset(&init_data, 0, sizeof(init_data));
-    memset(&zero_data, 0, sizeof(zero_data));
-    memset(&text_seg, 0, sizeof(text_seg));
+// char *next_code_label;
+// struct data_seg init_data; // data
+// struct data_seg zero_data; // bss
+// struct code_seg text_seg; // text
+
+// #define STRINGS_TABLE_SIZE   1024
+// char *strings_table;
+// int strings_table_len = 0;
+
+
+
+
+static void ir_init() {
+    code_seg_capacity = 512;
+    data_seg_capacity = 128;
+    symbols_table_capacity = 128;
+
+    code_seg = malloc(sizeof(struct code_chunk) * code_seg_capacity);
+    data_seg = malloc(sizeof(struct code_chunk) * data_seg_capacity);
+    symbols_table = malloc(sizeof(struct symbol) * symbols_table_capacity);
+
+    code_seg_entries = 0;
+    data_seg_entries = 0;
+    data_seg_offset = 0;
+    symbols_table_entries = 0;
+
     next_code_label = NULL;
 
-    strings_table = malloc(STRINGS_TABLE_SIZE);
-    memset(strings_table, 0, STRINGS_TABLE_SIZE);
-    strings_table_len = 1; // allow first char to be the empty string
+    // memset(&init_data, 0, sizeof(init_data));
+    // memset(&zero_data, 0, sizeof(zero_data));
+    // memset(&text_seg, 0, sizeof(text_seg));
+    // next_code_label = NULL;
+
+    // strings_table = malloc(STRINGS_TABLE_SIZE);
+    // memset(strings_table, 0, STRINGS_TABLE_SIZE);
+    // strings_table_len = 1; // allow first char to be the empty string
 }
 
-// -----------------------------------
-
-int ir_get_strz_address(char *value, token *token) {
-    char *p = strstr(strings_table, value);
-    if (p == NULL) {
-        if (strings_table_len + strlen(value) + 1 > STRINGS_TABLE_SIZE) {
-            error(token->filename, token->line_no, 
-                "Strings table insufficient, unable to store %d bytes", strlen(value) + 1);
-            return 0;
-        }
-        p = strings_table + strings_table_len;
-        strcpy(p, value);
-        strings_table_len += strlen(value) + 1;
-    }
-
-    return p - strings_table;
-}
-
-void ir_reserve_data_area(char *name, int size, bool initialized, void *initial_data) {
-    data_chunk *chunk = malloc(sizeof(data_chunk));
-    chunk->size = size;
-    chunk->mnemonic = strdup(name);
-    chunk->init_data = initial_data;
-    chunk->init_data_size = size;
-    
-    data_seg *seg = initialized ? &init_data : &zero_data;
-    seg->chunks[seg->used_chunks++] = chunk;
-    seg->allocated_size += size;
-}
-
-
-
-void ir_set_next_label(char *fmt, ...) {
+static void ir_set_next_label(char *fmt, ...) {
     char buff[100];
     va_list args;
     va_start(args, fmt);
@@ -164,86 +209,159 @@ void ir_set_next_label(char *fmt, ...) {
     next_code_label = strdup(buff);
 }
 
-void ir_jmp(char *label_fmt, ...) {
+static void ir_add_comment(char *fmt, ...) {
+    char buff[100];
+    va_list args;
+
+    va_start(args, fmt);
+    vsnprintf(buff, sizeof(buff), fmt, args);
+    va_end(args);
+
+    struct code_chunk *c = malloc(sizeof(struct code_chunk));
+    c->label = NULL;
+    c->is_comment = true;
+    c->code = strdup(buff);
+
+    if (code_seg_entries == code_seg_capacity) {
+        code_seg_capacity *= 2;
+        code_seg = realloc(code_seg, code_seg_capacity);
+    }
+    code_seg[code_seg_entries++] = c;
+}
+
+static void ir_add_str(char *fmt, ...) {
+    char buff[100];
+    va_list args;
+
+    va_start(args, fmt);
+    vsnprintf(buff, sizeof(buff), fmt, args);
+    va_end(args);
+
+    struct code_chunk *c = malloc(sizeof(struct code_chunk));
+    c->label = next_code_label;
+    c->is_comment = false;
+    c->code = strdup(buff);
+    next_code_label = NULL;
+
+    if (code_seg_entries == code_seg_capacity) {
+        code_seg_capacity *= 2;
+        code_seg = realloc(code_seg, code_seg_capacity);
+    }
+    code_seg[code_seg_entries++] = c;
+}
+
+static void ir_jmp(char *label_fmt, ...) {
     char label[100];
     va_list args;
+
     va_start(args, label_fmt);
-    vsnprintf(label, 100, label_fmt, args);
+    vsnprintf(label, sizeof(label), label_fmt, args);
     va_end(args);
 
     ir_add_str("JMP %s", label);
 }
 
-void ir_add_comment(char *fmt, ...) {
-    char buff[200];
-    va_list args;
-    va_start(args, fmt);
-    vsnprintf(buff, 100, fmt, args);
-    va_end(args);
+static int ir_reserve_data(int bytes, void *init_data) {
+    if (bytes == 0)
+        return 0;
+    
+    struct data_chunk *d = malloc(sizeof(struct data_chunk));
+    d->offset = data_seg_offset;
+    d->size = bytes;
+    d->init_data = init_data;
 
-    code_chunk *c = malloc(sizeof(code_chunk));
-    c->type = CCT_COMMENT;
-    c->label = NULL;
-    c->u.str = strdup(buff);
+    if (data_seg_entries == data_seg_capacity) {
+        data_seg_capacity *= 2;
+        data_seg = realloc(data_seg, data_seg_capacity);
+    }
+    data_seg[data_seg_entries++] = d;
+    data_seg_offset += d->size;
 
-    text_seg.chunks[text_seg.used_chunks++] = c;
+    return d->offset;
 }
 
-void ir_add_str(char *fmt, ...) {
-    char buff[100];
-    va_list args;
-    va_start(args, fmt);
-    vsnprintf(buff, 100, fmt, args);
-    va_end(args);
-
-    code_chunk *c = malloc(sizeof(code_chunk));
-    c->type = CCT_STRING;
-    c->label = next_code_label; // it may be null
-    c->u.str = strdup(buff);
-
-    text_seg.chunks[text_seg.used_chunks++] = c;
-    next_code_label = NULL;
+static int ir_reserve_strz(char *str) {
+    return ir_reserve_data(strlen(str) + 1, str);
 }
 
-void ir_dump_code_segment() {
-    for (int i = 0; i < sizeof(text_seg.chunks) / sizeof(text_seg.chunks[0]); i++) {
-        code_chunk *c = text_seg.chunks[i];
-        if (c == NULL)
-            break;
+static void ir_add_symbol(char *name, bool is_func, int offset) {
+    struct ir_symbol *s = malloc(sizeof(struct ir_symbol));
+    s->name = name;
+    s->is_func = is_func;
+    s->data_offset = offset;
 
-        if (c->type == CCT_COMMENT) {
-            printf("%s\n", c->u.str);
-            continue;
-        }
+    if (symbols_table_entries == symbols_table_capacity) {
+        symbols_table_capacity *= 2;
+        symbols_table = realloc(symbols_table, symbols_table_capacity);
+    }
+    symbols_table[symbols_table_entries++] = s;
+}
 
-        if (c->label != NULL)
-            printf("%s:\n", c->label);
-
-        printf("\t");
-        if (c->type == CCT_JMP) {
-            if (c->u.jmp.conditional) {
-                printf("JMP <condition> %s", c->u.jmp.target_label);
-            } else {
-                printf("JMP %s", c->u.jmp.target_label);
-            }
-        } else if (c->type == CCT_TAC) {
-            // we need to print the operator and the three addresses
-            printf("OP <addr1> <addr2> <addr3>");
-        } else if (c->type == CCT_STRING) {
-            printf("%s", c->u.str);
-        }
-        printf("\n");
+static void ir_dump_symbols() {
+    printf("    # Name                 Type  Data offs\n");
+    //        123 12345678901234567890 1234  123456789
+    for (int i = 0; i < symbols_table_entries; i++) {
+        struct ir_symbol *s = symbols_table[i];
+        printf("  %3d %-20s %-4s  %9d\n", 
+            i,
+            s->name,
+            s->is_func ? "FUNC" : "VAR",
+            s->is_func ? 0 : s->data_offset
+        );
     }
 }
 
-void ir_dump_data_segment(bool initialized) {
-    data_seg *seg = initialized ? &init_data : &zero_data;
-    for (int i = 0; i < sizeof(init_data.chunks) / sizeof(init_data.chunks[0]); i++) {
-        data_chunk *c = seg->chunks[i];
-        if (c == NULL)
-            break;
+static void ir_dump_code_segment() {
+    for (int i = 0; i < code_seg_entries; i++) {
+        struct code_chunk *c = code_seg[i];
+        if (c->label != NULL)
+            printf("%s:\n", c->label);
 
-        printf("\t%-15s %5d\n", c->mnemonic, c->size);
+        printf("%s%s\n", c->is_comment ? "" : "\t", c->code);
+    }
+}
+
+static void pretty_print_string(char *str) {
+    char *buff = malloc(strlen(str) * 2);
+    char *dest = buff;
+    
+    while (*str != 0) {
+        if      (*str == '\n') { *dest++ = '\\'; *dest++ = 'n'; }
+        else if (*str == '\r') { *dest++ = '\\'; *dest++ = 'r'; }
+        else if (*str == '\t') { *dest++ = '\\'; *dest++ = 't'; }
+        else { *dest++ = *str; }
+        str++;
+    }
+    *dest = *str; // zero terminator
+    printf("%s", buff);
+    free(buff);
+}
+
+static void ir_dump_data_segment() {
+    printf("    #    Offset      Size  Initial value\n");
+    //        123 123456789 123456789  12 12 12 12...
+    for (int i = 0; i < data_seg_entries; i++) {
+        struct data_chunk *d = data_seg[i];
+        printf("  %3d %9d %9d  ", i, d->offset, d->size);
+
+        if (d->init_data == NULL) {
+            printf("\n");
+            continue;
+        }
+
+        bool is_string = d->init_data != NULL 
+            && d->init_data[0] > ' ' && d->init_data[0] <= 'z'
+            && d->init_data[d->size - 1] == 0;
+        if (is_string) {
+            printf("\"");
+            pretty_print_string(d->init_data);
+            printf("\"\n");
+            continue;
+        }
+
+        for (int j = 0; j < d->size; j++)
+            printf("%02x ", (unsigned char)d->init_data[j]);
+        printf("\n");
     }
 }
 

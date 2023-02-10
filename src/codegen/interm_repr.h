@@ -2,22 +2,22 @@
 #include <stdbool.h>
 #include "../lexer/token.h"
 
+typedef struct intermediate_representation_ops {
+    void (*init)();
 
+    void (*set_next_label)(char *fmt, ...);
+    void (*add_str)(char *fmt, ...);
+    void (*add_comment)(char *fmt, ...);
+    void (*jmp)(char *label_fmt, ...);
+    
+    int (*reserve_data)(int bytes, void *init_data);
+    int (*reserve_strz)(char *str);
+    void (*add_symbol)(char *name, bool is_func, int offset);
 
-// usage from code that is generating intermediate
-void init_intermediate_representation();
+    void (*dump_symbols)();
+    void (*dump_code_segment)();
+    void (*dump_data_segment)();
+} intermediate_representation_ops;
 
-int ir_get_strz_address(char *value, token *token);
-void ir_reserve_data_area(char *name, int size, bool initialized, void *initial_data);
-
-void ir_set_next_label(char *fmt, ...);
-void ir_add_str(char *fmt, ...);
-void ir_add_comment(char *fmt, ...);
-void ir_jmp(char *label_fmt, ...);
-
-
-
-// usage to dump what is generated into output
-void ir_dump_data_segment(bool initialized);
-void ir_dump_code_segment();
+extern intermediate_representation_ops ir;
 

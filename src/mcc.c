@@ -105,18 +105,19 @@ void perform_semantic_analysis() {
     perform_module_analysis(get_ast_root_node());
 }
 
-void generate_code() {
+void generate_intermediate_code() {
     // for now a.out or something simple
+    ir.init();
     generate_module_code(get_ast_root_node());
 
     if (options.verbose) {
-        printf("--- Generated code follows: ---\n");
-        printf(".bss (uninitialized)\n");
-        ir_dump_data_segment(false);
-        printf(".data (initialized)\n");
-        ir_dump_data_segment(true);
-        printf(".text\n");
-        ir_dump_code_segment();
+        printf("--- Generated Intermediate Representation ---\n");
+        printf("Symbols\n");
+        ir.dump_symbols();
+        printf("Data\n");
+        ir.dump_data_segment();
+        printf("Code\n");
+        ir.dump_code_segment();
         printf("--- end ---\n");
     }
 }
@@ -161,7 +162,7 @@ int main(int argc, char *argv[]) {
     if (errors_count)
         return 1;
     
-    generate_code();
+    generate_intermediate_code();
     if (errors_count)
         return 1;
 

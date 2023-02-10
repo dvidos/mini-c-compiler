@@ -27,7 +27,7 @@ static void generate_failing_condition_jump(expression *condition, char *label, 
         r2 = cg.next_reg_num();
         cg.generate_expression_code(condition->arg1, r1, NULL);
         cg.generate_expression_code(condition->arg2, r2, NULL);
-        ir_add_str("CMP t%d, t%d", r1, r2);
+        ir.add_str("CMP t%d, t%d", r1, r2);
         switch (op) {
             case OP_GE: cmp_operation = "JLT"; break;
             case OP_GT: cmp_operation = "JLE"; break;
@@ -39,13 +39,13 @@ static void generate_failing_condition_jump(expression *condition, char *label, 
     } else {
         r1 = cg.next_reg_num();
         cg.generate_expression_code(condition, r1, NULL);
-        ir_add_str("CMP t%d, 0", r1, r2);
+        ir.add_str("CMP t%d, 0", r1, r2);
         cmp_operation = "JEQ"; // jump if EQ to zero, i.e. to false.
     }
     
     char formatted_label[32];
     sprintf(formatted_label, label, label_num);
-    ir_add_str("%s %s", cmp_operation, formatted_label); 
+    ir.add_str("%s %s", cmp_operation, formatted_label); 
 }
 
 void generate_statement_code(statement *stmt) {
@@ -65,10 +65,10 @@ void generate_statement_code(statement *stmt) {
         case ST_VAR_DECL:
             if (cg.curr_func_name() == NULL) {
                 // allocate space in data segment
-                ir_add_str(".data \"%s\" %d bytes", stmt->decl->var_name, stmt->decl->data_type->ops->size_of(stmt->decl->data_type));
+                ir.add_str(".data \"%s\" %d bytes", stmt->decl->var_name, stmt->decl->data_type->ops->size_of(stmt->decl->data_type));
             } else {
                 // allocate local space
-                ir_add_str(".stack \"%s\" %d bytes", stmt->decl->var_name, stmt->decl->data_type->ops->size_of(stmt->decl->data_type));
+                ir.add_str(".stack \"%s\" %d bytes", stmt->decl->var_name, stmt->decl->data_type->ops->size_of(stmt->decl->data_type));
             }
 
             // maybe assignment of value?
@@ -84,15 +84,15 @@ void generate_statement_code(statement *stmt) {
                 // simple if
                 generate_failing_condition_jump(stmt->expr, "if%d_end", ifno);
                 cg.generate_statement_code(stmt->body);
-                ir_set_next_label("if%d_end", ifno);
+                ir.set_next_label("if%d_end", ifno);
             } else {
                 // if & else
                 generate_failing_condition_jump(stmt->expr, "if%d_false", ifno);
                 cg.generate_statement_code(stmt->body);
-                ir_jmp("if%d_end", ifno);
-                ir_set_next_label("if%d_false", ifno);
+                ir.jmp("if%d_end", ifno);
+                ir.set_next_label("if%d_false", ifno);
                 cg.generate_statement_code(stmt->else_body);
-                ir_set_next_label("if%d_end", ifno);
+                ir.set_next_label("if%d_end", ifno);
             }
             break;
 
@@ -100,11 +100,11 @@ void generate_statement_code(statement *stmt) {
             // generate condition and jumps in the end of the loop
             // we need a stack of whiles
             cg.push_while();
-            ir_set_next_label("wh%d", cg.curr_while_num());
+            ir.set_next_label("wh%d", cg.curr_while_num());
             generate_failing_condition_jump(stmt->expr, "wh%d_end", cg.curr_while_num());
             cg.generate_statement_code(stmt->body);
-            ir_jmp("wh%d", cg.curr_while_num());
-            ir_set_next_label("wh%d_end", cg.curr_while_num());
+            ir.jmp("wh%d", cg.curr_while_num());
+            ir.set_next_label("wh%d_end", cg.curr_while_num());
             cg.pop_while();
             break;
 
@@ -112,26 +112,26 @@ void generate_statement_code(statement *stmt) {
             if (cg.curr_while_num() == 0)
                 error(stmt->token->filename, stmt->token->line_no, "continue without while");
             else
-                ir_add_str("JMP wh%d", cg.curr_while_num());
+                ir.add_str("JMP wh%d", cg.curr_while_num());
             break;
 
         case ST_BREAK:
             if (cg.curr_while_num() == 0)
                 error(stmt->token->filename, stmt->token->line_no, "break without while");
             else
-                ir_add_str("JMP wh%d_end", cg.curr_while_num());
+                ir.add_str("JMP wh%d_end", cg.curr_while_num());
             break;
 
         case ST_RETURN:
             if (stmt->expr != NULL)
                 cg.generate_expression_code(stmt->expr, 0, "retval");
-            ir_jmp("%s_exit", cg.curr_func_name());
+            ir.jmp("%s_exit", cg.curr_func_name());
             break;
 
         case ST_EXPRESSION:
             // there may be expressions that don't return anything, e.g. calling void functions.
             cg.generate_expression_code(stmt->expr, 0, NULL);
-            ir_add_str("what now?");
+            ir.add_str("what now?");
             break;    
     }
 }

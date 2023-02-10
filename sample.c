@@ -3,7 +3,7 @@
 // if we do not have this declaration, we get a "symbol not defined"
 void printf(char *fmt, int a, int b);
 
-int counter = 0;
+int counter = 65534;
 char *message = "Hello world!";
 int numbers[10];
 

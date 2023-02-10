@@ -109,12 +109,12 @@ static void print_statement(statement *st, int depth) {
 
         case ST_VAR_DECL:
             indent(depth);
-            printf("decl %s ", st->decl->var_name);
-            printf("%s", st->decl->data_type->ops->to_string(st->decl->data_type));
+            printf("global variable: %s %s", 
+                st->decl->var_name, 
+                st->decl->data_type->ops->to_string(st->decl->data_type));
             if (st->expr != NULL) {
-                printf(" (= ");
+                printf(" = ");
                 print_expression_using_func_format(st->expr);
-                printf(")");
             }
             printf("\n");
             break;

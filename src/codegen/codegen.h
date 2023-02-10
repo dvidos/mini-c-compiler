@@ -3,17 +3,25 @@
 #include "../ast.h"
 
 
-struct function_code_generation_info {
-    func_declaration *decl;
-    // a way to track which registers we use?
-    // a way to track arguments and local variables, and their relation to BP
-};
-extern struct function_code_generation_info current_function_generated;
+typedef struct code_gen {
+    int (*next_reg_num)();
+    int (*next_var_num)();
+    int (*next_if_num)();
+    int (*curr_while_num)();
+    void (*push_while)();
+    void (*pop_while)();
+
+    void  (*assign_curr_func)(func_declaration *func);
+    char *(*curr_func_name)();
+    void  (*register_local_var)(var_declaration *decl, bool is_arg, int arg_no);
+    int   (*get_local_var_bp_offset)(char *name);
+
+    void (*generate_statement_code)(statement *stmt);
+    void (*generate_expression_code)(expression *expr, int target_reg_no, char *target_symbol_name);
+} code_gen;
 
 
-
-void generate_expression_code(expression *expr, int reg_no, char *symbol_name);
-void generate_statement_code(statement *stmt);
-void generate_function_code(func_declaration *func);
+extern code_gen cg;
 void generate_module_code(ast_module_node *module);
+
 

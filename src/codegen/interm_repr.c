@@ -64,12 +64,11 @@ typedef struct data_seg {
     int allocated_size;
 } data_seg;
 
-
-
 typedef enum code_chunk_type {
     CCT_JMP,
     CCT_TAC,
     CCT_STRING,
+    CCT_COMMENT,
 } code_chunk_type;
 
 typedef struct code_chunk {
@@ -106,6 +105,11 @@ struct data_seg init_data; // data
 struct data_seg zero_data; // bss
 struct code_seg text_seg; // text
 
+#define STRINGS_TABLE_SIZE   1024
+char *strings_table;
+int strings_table_len = 0;
+
+
 
 
 void init_intermediate_representation() {
@@ -113,57 +117,31 @@ void init_intermediate_representation() {
     memset(&zero_data, 0, sizeof(zero_data));
     memset(&text_seg, 0, sizeof(text_seg));
     next_code_label = NULL;
+
+    strings_table = malloc(STRINGS_TABLE_SIZE);
+    memset(strings_table, 0, STRINGS_TABLE_SIZE);
+    strings_table_len = 1; // allow first char to be the empty string
 }
-
-// --------------------------------------------------------------------
-
-#define WHILES_STACK_SIZE  16
-
-static int regs_counter = 1; 
-static int ifs_counter = 0;
-static int whiles_counter = 0;
-static int whiles_stack_len;
-static int whiles_stack[WHILES_STACK_SIZE];
-
-int get_next_reg_num() {
-    return ++regs_counter;
-}
-
-int get_next_if_num() {
-    return ++ifs_counter;
-}
-
-// --------------------------------------------------------------------
-
-void push_while() {
-    if (whiles_stack_len == WHILES_STACK_SIZE) {
-        error(NULL, 0, "more than %d nested whiles detected, we need more stack!", WHILES_STACK_SIZE);
-        return;
-    }
-    whiles_stack[whiles_stack_len++] = ++whiles_counter;
-}
-
-int get_curr_while_num() {
-    if (whiles_stack_len == 0) {
-        error(NULL, 0, "while was expected, but none started");
-        return 0;
-    }
-    return whiles_stack[whiles_stack_len - 1];
-}
-
-void pop_while() {
-    if (whiles_stack_len == 0) {
-        error(NULL, 0, "stack of whiles underflow!");
-        return;
-    }
-    whiles_stack_len--;
-}
-
 
 // -----------------------------------
 
-void reserve_data_area(char *name, int size, bool initialized, void *initial_data) {
-    // create a new mem chunk and append it to the list
+int ir_get_strz_address(char *value, token *token) {
+    char *p = strstr(strings_table, value);
+    if (p == NULL) {
+        if (strings_table_len + strlen(value) + 1 > STRINGS_TABLE_SIZE) {
+            error(token->filename, token->line_no, 
+                "Strings table insufficient, unable to store %d bytes", strlen(value) + 1);
+            return 0;
+        }
+        p = strings_table + strings_table_len;
+        strcpy(p, value);
+        strings_table_len += strlen(value) + 1;
+    }
+
+    return p - strings_table;
+}
+
+void ir_reserve_data_area(char *name, int size, bool initialized, void *initial_data) {
     data_chunk *chunk = malloc(sizeof(data_chunk));
     chunk->size = size;
     chunk->mnemonic = strdup(name);
@@ -175,60 +153,6 @@ void reserve_data_area(char *name, int size, bool initialized, void *initial_dat
     seg->allocated_size += size;
 }
 
-void add_jump_operation(char *label, bool conditional, char *target_label) {
-    // either conditional or unconditional branch
-    // we'll figure out the CMP operation, later
-    code_chunk *c = malloc(sizeof(code_chunk));
-    c->type = CCT_JMP;
-    c->label = (label == NULL) ? NULL : strdup(label);
-    c->u.jmp.conditional = conditional;
-    c->u.jmp.target_label = strdup(target_label);
-
-    text_seg.chunks[text_seg.used_chunks++] = c;
-}
-
-void add_output_operation(char *label, int op, int address1, int address2, int address3) {
-    // essentially a Three Address Code.
-    code_chunk *c = malloc(sizeof(code_chunk));
-    c->type = CCT_TAC;
-    c->label = (label == NULL) ? NULL : strdup(label);
-    c->u.tac.operator = op;
-    c->u.tac.addr1 = address1;
-    c->u.tac.addr2 = address2;
-    c->u.tac.addr3 = address3;
-
-    text_seg.chunks[text_seg.used_chunks++] = c;
-}
-
-// a = b <op> c
-// a = <op> b
-// a = b
-// if a <rel-op> b goto x
-// goto x
-// a = call b using d, e, f
-
-typedef enum interm_repr_operator {
-    IR_NOP,
-    IR_IADD,   // a = b + c
-    IR_ISUB,   // a = b - c
-    IR_IMUL,   // a = b * c
-    IR_IDIV,   // a = b / c
-    IR_INV,    // a = ~b (bitwise inverse)
-    IR_ASSIGN, // a = b
-    IR_JMP_EQ, // GOTO a if b == c
-    IR_JMP_NE, // GOTO a if b != c
-    IR_JMP_LE, // GOTO a if b <= c
-    IR_JMP_LT, // GOTO a if b < c
-    IR_JMP_GE, // GOTO a if b >= c
-    IR_JMP_GT, // GOTO a if b > c
-    IR_JMP_Z,  // GOTO a if b == 0
-    IR_JMP_NZ, // GOTO a if b != 0
-    IR_JMP,    // GOTO a
-    IR_CALL,   // push a & goto a
-    IR_RET,    // goto (popped value)
-    IR_PUSH,   // push a
-    IR_POP,    // pop a
-} interm_repr_operator;
 
 
 void ir_set_next_label(char *fmt, ...) {
@@ -248,6 +172,21 @@ void ir_jmp(char *label_fmt, ...) {
     va_end(args);
 
     ir_add_str("JMP %s", label);
+}
+
+void ir_add_comment(char *fmt, ...) {
+    char buff[200];
+    va_list args;
+    va_start(args, fmt);
+    vsnprintf(buff, 100, fmt, args);
+    va_end(args);
+
+    code_chunk *c = malloc(sizeof(code_chunk));
+    c->type = CCT_COMMENT;
+    c->label = NULL;
+    c->u.str = strdup(buff);
+
+    text_seg.chunks[text_seg.used_chunks++] = c;
 }
 
 void ir_add_str(char *fmt, ...) {
@@ -271,6 +210,11 @@ void ir_dump_code_segment() {
         code_chunk *c = text_seg.chunks[i];
         if (c == NULL)
             break;
+
+        if (c->type == CCT_COMMENT) {
+            printf("%s\n", c->u.str);
+            continue;
+        }
 
         if (c->label != NULL)
             printf("%s:\n", c->label);

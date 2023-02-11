@@ -126,6 +126,7 @@ int main(int argc, char *argv[]) {
     int err;
 
     printf("mini-c-compiler, v0.01\n");
+    printf("ptr size %ld\n", sizeof(void *));
     parse_options(argc, argv);
 
     if (options.elf_test) {

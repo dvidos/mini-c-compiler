@@ -66,3 +66,7 @@ struct object_code {
 
 
 void perform_elf_test();
+
+void parse_asm_line(char **stream, char *label, char *opcode, char *op1, char *op2, int line_no, int str_size);
+bool encode_asm(char *opcode, char *op1, char *op2, char *output, int *out_len);
+

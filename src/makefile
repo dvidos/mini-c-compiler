@@ -27,7 +27,9 @@ SRC_FILES = \
 	codegen/interm_repr.c \
 	binary/read_elf.c \
 	binary/write_elf.c \
-	binary/object_code.c
+	binary/object_code.c \
+	binary/parse_asm.c \
+	binary/encode_asm.c
 
 
 

@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdbool.h>
 #include <string.h>
 
 
@@ -51,3 +52,10 @@ void print_pretty(char *str) {
     free(buff);
 }
 
+bool load_text(char *filemame, char **buffer) {
+
+}
+
+bool save_text(char *filename, char *buffer) { 
+
+}

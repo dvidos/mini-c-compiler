@@ -61,6 +61,7 @@ static void ir_add_symbol(char *name, bool is_func, int offset);
 static void ir_dump_symbols();
 static void ir_dump_code_segment();
 static void ir_dump_data_segment();
+static void ir_generate_assembly_listing(char **listing);
 
 intermediate_representation_ops ir = {
     .init = ir_init,
@@ -73,7 +74,8 @@ intermediate_representation_ops ir = {
     .add_symbol = ir_add_symbol,
     .dump_symbols = ir_dump_symbols,
     .dump_code_segment = ir_dump_code_segment,
-    .dump_data_segment = ir_dump_data_segment
+    .dump_data_segment = ir_dump_data_segment,
+    .generate_assembly_listing = ir_generate_assembly_listing
 };
 
 // --------------------------------------------
@@ -304,3 +306,12 @@ static void ir_dump_data_segment() {
     }
 }
 
+static void ir_generate_assembly_listing(char **listing) {
+    // convert everything to a big assembly listing.
+    char *p = malloc(1024);
+    strcpy(p, "; auto generated assembly\n");
+
+    // we'll fill in the gaps in the future
+
+    (*listing) = p;
+}

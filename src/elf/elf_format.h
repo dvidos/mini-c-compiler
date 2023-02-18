@@ -5,38 +5,23 @@
 // and https://courses.cs.washington.edu/courses/cse351/12wi/supp-docs/abi.pdf
 
 
-typedef uint8_t   u8;
-typedef uint16_t  u16;
-typedef uint32_t  u32;
-typedef uint64_t  u64;
-
-typedef int8_t    s8;
-typedef int16_t   s16;
-typedef int32_t   s32;
-typedef int64_t   s64;
-
-typedef u8  byte;
-typedef u16 word;
-typedef u32 dword;
-typedef u64 quad;
-
 
 // base elf-32 sizes
-typedef u32 elf32_address;
-typedef u16 elf32_half_word;
-typedef u32 elf32_offset;
-typedef s32 elf32_signed_word;
-typedef u32 elf32_word;
+typedef uint32_t elf32_address;
+typedef uint16_t elf32_half_word;
+typedef uint32_t elf32_offset;
+typedef  int32_t elf32_signed_word;
+typedef uint32_t elf32_word;
 
 // base elf-64 sizes
-typedef u64 elf64_address;
-typedef u16 elf64_half_word;
-typedef s16 elf64_signed_half;
-typedef u64 elf64_offset;
-typedef s32 elf64_signed_word;
-typedef u32 elf64_word;
-typedef u64 elf64_extra_word;
-typedef s64 elf64_signed_extra_word;
+typedef uint64_t elf64_address;
+typedef uint16_t elf64_half_word;
+typedef  int16_t elf64_signed_half;
+typedef uint64_t elf64_offset;
+typedef  int32_t elf64_signed_word;
+typedef uint32_t elf64_word;
+typedef uint64_t elf64_extra_word;
+typedef  int64_t elf64_signed_extra_word;
 
 //-----------------------------------------------------------------
 

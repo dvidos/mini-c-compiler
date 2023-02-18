@@ -1,3 +1,5 @@
+#pragma once
+#include "../elf/binary_program.h"
 
 /*
 
@@ -14,14 +16,12 @@ It is mainly divided in sections, e.g. one for .text, one for .data and one for 
 Each section can be marked writable or read only. Another section may have a symbol table.
 We also need to include any relocations e.g. references to external libraries.
 
-
 * One file header up top.
 * An area (table) with zero or more program headers, each with information about a segment.
   (the main header has information about the offset, the number of entries and their size)
 * An area (table) with zero or more section headers, each with information about a segment.
   (the main header has information about the offset, the number of entries and their size)
 * ...
-
 
 Oh well, it seems there's too much trouble, one has to set things up 
 to work for the target system they intend to run on. For example, 
@@ -36,37 +36,9 @@ https://www.muppetlabs.com/~breadbox/software/tiny/teensy.html
 
 */
 
-
-typedef struct object_code object_code;
-
-struct object_code {
-    struct {
-      int is_64_bits: 1;
-      int is_object_code;
-      int is_dynamic_executable;
-      int is_static_executable;
-    } flags;
-    
-    // address and size in memory
-    unsigned long code_address;
-    unsigned long code_size;
-    char *code_contents;
-
-    // entry point in memory
-    unsigned long code_entry_point;
-
-    unsigned long init_data_address;
-    unsigned long init_data_size;
-    char *init_data_contents;
-
-    // address and size in memory
-    unsigned long zero_data_address;
-    unsigned long zero_data_size;
-};
-
-
-void perform_elf_test();
-
 void parse_asm_line(char **stream, char *label, char *opcode, char *op1, char *op2, int line_no, int str_size);
 bool encode_asm(char *opcode, char *op1, char *op2, char *output, int *out_len);
+
+
+void generate_binary_code(char *assembly_code, binary_program **program);
 

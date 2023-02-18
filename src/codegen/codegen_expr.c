@@ -27,6 +27,38 @@
       pilers, to create a distinct name each time a temporary is needed. These
       temporaries can be combined, if possible, when registers are allocated to
       variables.
+
+
+    Running environment in IA-32:
+        - access to 4 GB of memory
+        Program execution registers:
+        - eight general purpose registers (EAX, EBX, ECX, EDX, ESI, EDI, EBP, ESP)
+        - six segment registers (16bits) (CS, DS, SS, ES, FS, GS)
+        - 32-bit instruction pointer EIP, 32-bit EFLAGS register
+        These do integer arithmetic, string manipulation, flow control etc.
+        Extra registers: FPU, MMX, XMM, YMM, BND etc for floating, boudaries etc
+        I/O ports
+        Status registers (CR0 - CR3)
+        Memory managmeent registers (GDTR, IDTR, LDTR etc)
+        Debug registers (DR0 - DR7)
+
+    Running environment in IA-64:
+        - access to 17179869183 GB of memory...
+        Program execution registers:
+        - eight general purpose registers (RAX, RBX, RCX, RDX, RSI, RDI, RBP, RSP)
+        - six segment registers (CS, DS, SS, ES, FS, GS)
+        - 64-bit instruction pointer RIP, 64-bit RFLAGS register
+        These do integer arithmetic, string manipulation, flow control etc.
+        Extra registers: FPU, MMX, XMM, YMM, BND etc for floating, boudaries etc
+        I/O ports
+        Status registers (CR0 - CR3)
+        Memory managmeent registers (GDTR, IDTR, LDTR etc)
+        Debug registers (DR0 - DR7)
+
+    
+
+
+    
 */
 
 static void resolve_lvalue(expression *expr, bool *is_symbol, int *lvalue_reg_no) {

@@ -4,11 +4,8 @@
 #include <string.h>
 #include "../options.h"
 #include "../err_handler.h"
-#include "object_code.h"
-#include "elf_format.h"
-#include "read_elf.h"
-#include "write_elf.h"
-
+#include "../elf/binary_program.h"
+#include "binary_gen.h"
 
 
 // see https://www.intel.com/content/www/us/en/developer/articles/technical/intel-sdm.html#three-volume
@@ -110,8 +107,6 @@ static void replace_code_bytes(unsigned address, char *bytes, int length) {
     memcpy(wm.code.buffer + offset, bytes, length);
 }
 
-
-
 static void pass_1_encode_assembly(char *assembly) {
     char label[64];
     char opcode[64];
@@ -139,7 +134,7 @@ static void pass_1_encode_assembly(char *assembly) {
     }
 }
 
-static void pass_2_backfill_addresses(int bytes_to_patch) {
+static void pass_2_backfill_addresses(int address_size_in_bytes) {
     bool found;
     unsigned long resolved_address;
 
@@ -159,58 +154,18 @@ static void pass_2_backfill_addresses(int bytes_to_patch) {
             error(NULL, 0, "failed resolving label \"%s\" to an address", re->label);
             return;
         }
-        replace_code_bytes(re->address, (char *)resolved_address, bytes_to_patch);
+        replace_code_bytes(re->address, (char *)resolved_address, address_size_in_bytes);
     }
 }
 
-void generate_binary_code(char *assembly) {
+void generate_binary_code(char *assembly_code, binary_program **program) {
     // two passes, first generate assembly, marking jumps as open ended
     // then come back and fill in jumps final addresses
     init(0x800000);
-    pass_1_encode_assembly(assembly);
+    pass_1_encode_assembly(assembly_code);
     pass_2_backfill_addresses(8);
+
+    (*program) = NULL;
 }
 
 
-
-
-void perform_elf_test() {
-    // read_elf_file("mcc");
-    // read_elf_file("/bin/sh");
-    // read_elf_file("./docs/bin/tiny-obj32");
-    // read_elf_file("./docs/bin/tiny-obj64");
-    // read_elf_file("./docs/bin/tiny-dyn32");
-    // read_elf_file("./docs/bin/tiny-dyn64");
-    // read_elf_file("./docs/bin/tiny-stat32");
-    // read_elf_file("./docs/bin/tiny-stat64");
-
-    // then we should write a test ELF file, and read it with readelf in terminal.
-    
-    // object_code c;
-    // memset(&c, 0, sizeof(c));
-    // c.code_address = 0x10;
-    // c.code_size = 0x10;
-    // c.code_contents = "CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC";
-    // c.init_data_address = 0x30;
-    // c.init_data_size = 0x10;
-    // c.init_data_contents = "DDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDD";
-    // c.zero_data_address = 0x50;
-    // c.zero_data_size = 0x10;
-    // c.code_entry_point = 0x13;
-    // c.flags.is_64_bits = true;
-
-    // c.flags.is_object_code = true;
-    // c.flags.is_static_executable = false;
-    // c.flags.is_dynamic_executable = false;
-    // write_elf_file(&c, "demo-obj");
-
-    // c.flags.is_object_code = false;
-    // c.flags.is_static_executable = true;
-    // c.flags.is_dynamic_executable = false;
-    // write_elf_file(&c, "demo-stat");
-
-    // c.flags.is_object_code = false;
-    // c.flags.is_static_executable = false;
-    // c.flags.is_dynamic_executable = true;
-    // write_elf_file(&c, "demo-dyn");
-}

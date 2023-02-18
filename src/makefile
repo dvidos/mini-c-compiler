@@ -25,9 +25,10 @@ SRC_FILES = \
 	codegen/codegen_stmt.c \
 	codegen/codegen_expr.c \
 	codegen/interm_repr.c \
-	binary/read_elf.c \
-	binary/write_elf.c \
-	binary/object_code.c \
+	elf/read_elf.c \
+	elf/write_elf.c \
+	elf/elf_test.c \
+	binary/binary_gen.c \
 	binary/parse_asm.c \
 	binary/encode_asm.c
 

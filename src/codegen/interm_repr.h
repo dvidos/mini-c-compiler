@@ -17,6 +17,8 @@ typedef struct intermediate_representation_ops {
     void (*dump_symbols)();
     void (*dump_code_segment)();
     void (*dump_data_segment)();
+
+    void (*generate_assembly_listing)(char **buffer);
 } intermediate_representation_ops;
 
 extern intermediate_representation_ops ir;

@@ -16,7 +16,11 @@
 #include "analysis/analysis.h"
 #include "codegen/codegen.h"
 #include "codegen/interm_repr.h"
-#include "binary/object_code.h"
+#include "binary/binary_gen.h"
+#include "elf/binary_program.h"
+#include "elf/elf.h"
+
+
 
 void read_file(char *filename, char **buffer_pp) {
     FILE *f = fopen(filename, "r");
@@ -122,6 +126,29 @@ void generate_intermediate_code() {
     }
 }
 
+void produce_output_files() {
+    // get things from Intermediate Representation (ir)
+    // generate intel compatible binary output
+    // write the elf file
+
+    char *assembly_code;
+    // we could write this to file *.asm for fun
+    ir.generate_assembly_listing(&assembly_code);
+    if (errors_count)
+        return;
+    
+    // "Wrote 1234 bytes to file x.asm"
+
+
+    binary_program *program;
+    generate_binary_code(assembly_code, &program);
+    if (errors_count)
+        return;
+    
+    // "Wrote 1234 bytes to file a.out"
+    write_elf_file(program, "a.out");
+}
+
 int main(int argc, char *argv[]) {
     int err;
 
@@ -167,7 +194,10 @@ int main(int argc, char *argv[]) {
     if (errors_count)
         return 1;
 
-    // "Wrote x.obj with 1234 bytes"
+    produce_output_files();
+    if (errors_count)
+        return 1;
+
     printf("success!\n");
     return 0;
 }

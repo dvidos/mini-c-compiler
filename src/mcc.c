@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include "err_handler.h"
+#include "utils.h"
 #include "options.h"
 #include "lexer/token.h"
 #include "lexer/lexer.h"
@@ -21,35 +22,22 @@
 #include "elf/elf.h"
 
 
+void load_source_code(char **source_code) {
 
-void read_file(char *filename, char **buffer_pp) {
-    FILE *f = fopen(filename, "r");
-    if (f == NULL) {
-        error(filename, 0, "error opening file");
+    char *p = NULL;
+    if (!load_text(options.filename, &p)) {
+        error(options.filename, 0, "Failed loading source code");
         return;
     }
-    fseek(f, 0, SEEK_END);
-    int size = (int)ftell(f);
-    fseek(f, 0, SEEK_SET);
-
-    *buffer_pp = malloc(size + 1);
-    int bytes_read = (int)fread(*buffer_pp, 1, size, f);
-    (*buffer_pp)[bytes_read] = '\0';
-    fclose(f);
-
-    if (bytes_read < size) {
-        error(filename, 0, "read %d bytes instead of the expected %d", bytes_read, size);
-        return;
-    }
-
-    printf("Read %d bytes from file %s\n", bytes_read, filename);
+    
+    printf("Loaded %ld bytes from file \"%s\"\n", strlen(p), options.filename);
     if (options.verbose) {
-        puts("---------------------");
-        puts(*buffer_pp);
-        puts("---------------------");
+        printf("------- Source code -------\n");
+        printf("%s\n", p);
     }
-}
 
+    (*source_code) = p;
+}
 
 void parse_file_into_lexer_tokens(char *file_buffer, char *filename, token **first_token) {
     char *p = file_buffer;
@@ -115,14 +103,10 @@ void generate_intermediate_code() {
     generate_module_code(get_ast_root_node());
 
     if (options.verbose) {
-        printf("--- Generated Intermediate Representation ---\n");
-        printf("Symbols\n");
+        printf("--------- Generated Intermediate Representation ---------\n");
         ir.dump_symbols();
-        printf("Data\n");
         ir.dump_data_segment();
-        printf("Code\n");
         ir.dump_code_segment();
-        printf("--- end ---\n");
     }
 }
 
@@ -137,29 +121,63 @@ void produce_output_files() {
     if (errors_count)
         return;
     
-    // "Wrote 1234 bytes to file x.asm"
-
+    char *asm_filename = "out.asm";
+    if (!save_text("out.asm", assembly_code)) {
+        printf("Warning: could not write assembly file %s\n", asm_filename);
+    } else {
+        printf("Wrote %ld bytes of assembly to file \"%s\"\n", strlen(assembly_code), asm_filename);
+        if (options.verbose) {
+            printf("----- Assembly code -----\n");
+            printf("%s\n", assembly_code);
+        }
+    }
 
     binary_program *program;
     generate_binary_code(assembly_code, &program);
     if (errors_count)
         return;
+
+    free(assembly_code);
     
     // "Wrote 1234 bytes to file a.out"
-    write_elf_file(program, "a.out");
+    char *out_filename = "a.out";
+    long bytes_written;
+    if (!write_elf_file(program, out_filename, &bytes_written)) {
+        error(out_filename, 0, "Failed writing file \"%s\"", out_filename);
+        return;
+    }
+
+    printf("Wrote %ld bytes to final file \"%s\"\n", bytes_written, out_filename);
+    if (options.verbose) {
+        printf("------- ELF information ---------\n");
+        printf("  File type %s\n", 
+                (program->flags.is_dynamic_executable) ? "DYN_EXEC" : (
+                    program->flags.is_static_executable ? "STAT_EXEC" : (
+                        program->flags.is_object_code ? "RELOC_OBJ_CODE" : "(unkowkn)"
+                    )
+                ));
+        printf("  Architecture %d bits\n", 
+                    program->flags.is_64_bits ? 64 : 32);
+        printf("\n");
+        printf("  Segment    Address      Size\n");
+        //                0x12345678 123456789
+        printf("  .code   0x%08lx %9ld\n", program->code_address, program->code_size);
+        printf("  .data   0x%08lx %9ld\n", program->init_data_address, program->init_data_size);
+        printf("  .bss    0x%08lx %9ld\n", program->zero_data_address, program->zero_data_size);
+        printf("  code entry point at 0x%lx\n", program->code_entry_point);
+    }
 }
 
 int main(int argc, char *argv[]) {
-    int err;
-
     printf("mini-c-compiler, v0.01\n");
-    printf("ptr size %ld\n", sizeof(void *));
+
     parse_options(argc, argv);
 
     if (options.elf_test) {
         perform_elf_test();
         return 0;
     }
+
     if (options.filename == NULL) {
         show_syntax();
         return 1;
@@ -169,19 +187,17 @@ int main(int argc, char *argv[]) {
     init_lexer();
     init_tokens();
 
-    char *file_buffer = NULL;
-    read_file(options.filename, &file_buffer);
-    if (errors_count)
-        return 1;
-    
-    token *first_token;
-    parse_file_into_lexer_tokens(file_buffer, options.filename, &first_token);
+    char *source_code;
+    load_source_code(&source_code);
     if (errors_count)
         return 1;
 
-    // we no longer need this
-    free(file_buffer);
-    
+    token *first_token;
+    parse_file_into_lexer_tokens(source_code, options.filename, &first_token);
+    free(source_code);
+    if (errors_count)
+        return 1;
+
     parse_abstract_syntax_tree(first_token);
     if (errors_count)
         return 1;

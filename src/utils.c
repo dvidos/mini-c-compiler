@@ -52,10 +52,36 @@ void print_pretty(char *str) {
     free(buff);
 }
 
-bool load_text(char *filemame, char **buffer) {
+bool load_text(char *filename, char **buffer) {
 
+    FILE *f = fopen(filename, "r");
+    if (f == NULL)
+        return false;
+
+    fseek(f, 0, SEEK_END);
+    long size = (int)ftell(f);
+    fseek(f, 0, SEEK_SET);
+
+    // allow for null terminator
+    char *p = malloc(size + 1);
+    memset(p, 0, size + 1);
+
+    long gotten = fread(p, 1, size, f);
+    fclose(f);
+
+    *buffer = p;
+    return (gotten == size);
 }
 
 bool save_text(char *filename, char *buffer) { 
 
+    FILE *f = fopen(filename, "w");
+    if (f == NULL)
+        return false;
+
+    long len = strlen(buffer);
+    long written = fwrite(buffer, 1, len, f);
+    fclose(f);
+
+    return (written == len);
 }

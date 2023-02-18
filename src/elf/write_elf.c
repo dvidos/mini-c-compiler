@@ -336,7 +336,7 @@ static void write_elf64_file(binary_program *prog, FILE *f) {
 }
 
 
-bool write_elf_file(binary_program *prog, char *filename) {
+bool write_elf_file(binary_program *prog, char *filename, long *bytes_written) {
     FILE *f = fopen(filename, "w+");
     if (f == NULL) {
         printf("Error opening file %s for writing\n", filename);
@@ -348,6 +348,10 @@ bool write_elf_file(binary_program *prog, char *filename) {
     else
         write_elf32_file(prog, f);
 
+    long last_location = ftell(f);
     fclose(f);
+
+    if (bytes_written != NULL)
+        *bytes_written = last_location;
 }
 

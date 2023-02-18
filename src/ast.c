@@ -109,7 +109,7 @@ static void print_statement(statement *st, int depth) {
 
         case ST_VAR_DECL:
             indent(depth);
-            printf("global variable: %s %s", 
+            printf("local variable: %s %s", 
                 st->decl->var_name, 
                 st->decl->data_type->ops->to_string(st->decl->data_type));
             if (st->expr != NULL) {

@@ -50,9 +50,9 @@ void consume() {
     if (current_token != NULL && current_token->type != TOK_EOF) {
         if (options.verbose) {
             if (current_token->value == NULL)
-                printf("at line %d, consumed %s\n", current_token->line_no, token_type_name(current_token->type));
+                printf("  Parsing AST, at line %d, consumed %s\n", current_token->line_no, token_type_name(current_token->type));
             else 
-                printf("at line %d, consumed %s: %s\n", current_token->line_no, token_type_name(current_token->type), current_token->value);
+                printf("  Parsing AST, at line %d, consumed %s: %s\n", current_token->line_no, token_type_name(current_token->type), current_token->value);
         }
         accepted_token = current_token;
         current_token = current_token->next;

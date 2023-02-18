@@ -30,15 +30,15 @@ void perform_elf_test() {
     c.flags.is_object_code = true;
     c.flags.is_static_executable = false;
     c.flags.is_dynamic_executable = false;
-    write_elf_file(&c, "demo-obj");
+    write_elf_file(&c, "demo-obj", NULL);
 
     c.flags.is_object_code = false;
     c.flags.is_static_executable = true;
     c.flags.is_dynamic_executable = false;
-    write_elf_file(&c, "demo-stat");
+    write_elf_file(&c, "demo-stat", NULL);
 
     c.flags.is_object_code = false;
     c.flags.is_static_executable = false;
     c.flags.is_dynamic_executable = true;
-    write_elf_file(&c, "demo-dyn");
+    write_elf_file(&c, "demo-dyn", NULL);
 }

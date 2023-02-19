@@ -32,7 +32,7 @@ static int curr_while_num();
 static void push_while();
 static void pop_while();
 
-static void assign_curr_func(func_declaration *func);
+static void assign_curr_func(func_declaration *decl);
 static char *curr_func_name();
 static void register_local_var(var_declaration *decl, bool is_arg, int arg_no);
 static int get_local_var_bp_offset(char *name);
@@ -110,24 +110,43 @@ static void pop_while() {
 
 // ---------------------------------------------------
 
-struct local_variable_info {
+struct local_var_info {
     var_declaration *decl;
+    bool is_arg;
+    int arg_no;
     int bp_offset;
+    int size_bytes;
 };
 
-#define LOCAL_VARS_ARR_SIZE  32
-static func_declaration *curr_func;
-static struct local_variable_info curr_func_vars[LOCAL_VARS_ARR_SIZE];
-static int curr_func_vars_count;
+struct curr_func_info {
+    func_declaration *decl;
 
-static void assign_curr_func(func_declaration *func) {
-    curr_func = func;
-    memset(curr_func_vars, 0, sizeof(curr_func_vars));
-    curr_func_vars_count = 0;
+    struct local_var_info *vars;
+    int vars_count;
+    int vars_capacity;
+};
+
+static struct curr_func_info *curr_func = NULL;
+
+
+static void assign_curr_func(func_declaration *decl) {
+    if (curr_func == NULL) {
+        curr_func = malloc(sizeof(struct curr_func_info));
+        memset(curr_func, 0, sizeof(struct curr_func_info));
+
+        curr_func->vars_capacity = 5;
+        curr_func->vars = malloc(sizeof(struct local_var_info) * curr_func->vars_capacity);
+    }
+
+    curr_func->decl = decl;
+    curr_func->vars_count = 0;
+    memset(curr_func->vars, 0, sizeof(curr_func->vars_capacity * sizeof(struct local_var_info)));
 }
 
 static char *curr_func_name() {
-    return curr_func == NULL ? NULL : curr_func->func_name;
+    return curr_func == NULL || curr_func->decl == NULL ? 
+        NULL : 
+        curr_func->decl->func_name;
 }
 
 static void register_local_var(var_declaration *decl, bool is_arg, int arg_no) {
@@ -151,28 +170,54 @@ static void register_local_var(var_declaration *decl, bool is_arg, int arg_no) {
         :    :
         |    | [ebp - X]  (esp - the current stack pointer. The use of push / pop is valid now) */
 
-
-    if (curr_func_vars_count >= LOCAL_VARS_ARR_SIZE) {
-        error(decl->token->filename, decl->token->line_no, "local vars array filled, need more room!");
+    if (curr_func == NULL || curr_func->decl == NULL) {
+        error(decl->token->filename, decl->token->line_no, "current function not registered yet!");
         return;
     }
 
-    int last_offset = 0;
-    if (curr_func_vars_count > 0)
-        last_offset = curr_func_vars[curr_func_vars_count - 1].bp_offset;
-    int var_size = decl->data_type->ops->size_of(decl->data_type);
+    // extend storage if needed
+    if (curr_func->vars_count + 1 >= curr_func->vars_capacity) {
+        curr_func->vars_capacity *= 2;
+        curr_func->vars = realloc(curr_func->vars, curr_func->vars_capacity * sizeof(struct local_var_info));
+    }   
 
-    curr_func_vars[curr_func_vars_count].decl = decl;
-    curr_func_vars[curr_func_vars_count].bp_offset += last_offset + var_size;
-    curr_func_vars_count++;
+    // find size to allocate
+    int size = decl->data_type->ops->size_of(decl->data_type);
+
+    // find BP offset
+    int bp_offset;
+    if (is_arg) {
+        // need to skip two pushed values: old BP value & return address
+        // i.e. 1st arg at [EBP + 8], 2nd at [EBP + 12], 3rd at [EBP + 16]
+        bp_offset = (arg_no + 2) * options.pointer_size;
+    } else {
+        // first local variable is below EBP
+        bp_offset = -size;
+        // but subsequent are even lower
+        if (curr_func->vars_count > 0 && curr_func->vars[curr_func->vars_count - 1].bp_offset < 0) {
+            bp_offset = curr_func->vars[curr_func->vars_count - 1].bp_offset - size;
+        }
+    }
+
+    curr_func->vars[curr_func->vars_count].decl = decl;
+    curr_func->vars[curr_func->vars_count].is_arg = is_arg;
+    curr_func->vars[curr_func->vars_count].arg_no = arg_no;
+    curr_func->vars[curr_func->vars_count].bp_offset = bp_offset;
+    curr_func->vars[curr_func->vars_count].size_bytes = size;
+    curr_func->vars_count++;
 }
 
 static int get_local_var_bp_offset(char *name) {
-    for (int i = 0; i < curr_func_vars_count; i++) {
-        if (strcmp(curr_func_vars[i].decl->var_name, name) == 0)
-            return curr_func_vars[i].bp_offset;
+
+    if (curr_func == NULL || curr_func->decl == NULL)
+        return 0; // invalid
+
+    for (int i = 0; i < curr_func->vars_count; i++) {
+        if (strcmp(curr_func->vars[i].decl->var_name, name) == 0)
+            return curr_func->vars[i].bp_offset;
     }
-    return 0; // not found
+
+    return 0; // not found - zero offset is invalid
 }
 
 // ----------------------------------------------
@@ -212,38 +257,108 @@ static void generate_global_variable_code(var_declaration *decl, expression *ini
     ir.add_symbol(decl->var_name, false, offset);
 }
 
+
+static void gather_local_var_declarations(statement *stmt) {
+    if (stmt == NULL)
+        return;
+    
+    switch (stmt->stmt_type) {
+        case ST_VAR_DECL:
+            // bingo!
+            cg.register_local_var(stmt->decl, false, 0);
+            break;
+
+        case ST_BLOCK:
+            statement *inner = stmt->body;
+            while (inner != NULL) {
+                gather_local_var_declarations(inner);
+                inner = inner->next;
+            }
+            break;
+
+        case ST_IF:
+            gather_local_var_declarations(stmt->body);
+            gather_local_var_declarations(stmt->else_body);
+            break;
+
+        case ST_WHILE:
+            gather_local_var_declarations(stmt->body);
+            break;
+
+        case ST_CONTINUE: // fallthrough
+        case ST_BREAK:
+        case ST_RETURN:
+        case ST_EXPRESSION:
+            break;    
+    }
+}
+
+void generate_local_var_code() {
+    if (curr_func->vars_count == 0)
+        return;
+
+    for (int i = 0; i < curr_func->vars_count; i++) {
+        struct local_var_info *var = &curr_func->vars[i];
+        if (var->is_arg) {
+            ir.add_comment("\t; arg #%d, %s %s, located at %cBP+%d", 
+                var->arg_no,
+                var->decl->data_type->ops->to_string(var->decl->data_type), 
+                var->decl->var_name, 
+                options.register_prefix,
+                var->bp_offset);
+        } else {
+            ir.add_str("SUB %cSP, %d   ; %s %s, at %cBP%d", 
+                options.register_prefix, 
+                var->size_bytes,
+                var->decl->data_type->ops->to_string(var->decl->data_type), 
+                var->decl->var_name,
+                options.register_prefix,
+                var->bp_offset
+            );
+        }
+    }
+}
+
 static void generate_function_code(func_declaration *func) {
+
     assign_curr_func(func);
 
-    // stack frame, decoding of arguments, local data, etc.
-    // where do we go from here?
-
-    ir.set_next_label("%s", func->func_name);
-    char reg_prefix = options.is_64_bits ? 'R' : 'E';
-    ir.add_str("PUSH %cBP", reg_prefix);
-    ir.add_str("MOV %cBP, %cSP", reg_prefix, reg_prefix);
-
-    var_declaration *arg = func->args_list;
+    // register arguments as local variables
     int arg_no = 0;
+    var_declaration *arg = func->args_list;
     while (arg != NULL) {
-        cg.register_local_var(arg, true, arg_no);
-        arg_no ++;
+        cg.register_local_var(arg, true, arg_no++);
         arg = arg->next;
     }
 
-    // we also need to understand all the locals we need to allocate, then do:
-    ir.add_str("SUB %cSP, <bytes for local allocation>", reg_prefix); // or whatever bytes are needed for local variables
-
+    // traverse function tree to find local variables.
     statement *stmt = func->stmts_list;
     while (stmt != NULL) {
+        gather_local_var_declarations(stmt);
+        stmt = stmt->next;
+    }
+
+    // establish stack frame
+    ir.set_next_label("%s", func->func_name);
+    ir.add_str("PUSH %cBP", options.register_prefix);
+    ir.add_str("MOV %cBP, %cSP", options.register_prefix, options.register_prefix);
+
+    // generate code for stack allocation
+    generate_local_var_code();
+
+    // generate code for function statements tree
+    stmt = func->stmts_list;
+     while (stmt != NULL) {
         generate_statement_code(stmt);
         stmt = stmt->next;
     }
 
+    // preparng to exit
     ir.set_next_label("%s_exit", func->func_name);
-    ir.add_str("MOV %cSP, %cBP", reg_prefix, reg_prefix);
-    ir.add_str("POP %cBP", reg_prefix);
+    ir.add_str("MOV %cSP, %cBP", options.register_prefix, options.register_prefix);
+    ir.add_str("POP %cBP", options.register_prefix);
     ir.add_str("RET");
+    ir.add_str("");
 }
 
 void generate_module_code(ast_module_node *module) {

@@ -44,5 +44,9 @@ void parse_options(int argc, char *argv[]) {
             options.elf_test = true;
         }
     }
+
+    // derived values that help execution
+    options.pointer_size = options.is_32_bits ? 4 : 8;
+    options.register_prefix = options.is_32_bits ? 'E' : 'R';
 }
 

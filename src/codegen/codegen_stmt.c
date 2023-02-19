@@ -67,14 +67,12 @@ void generate_statement_code(statement *stmt) {
                 // allocate space in data segment
                 ir.add_str(".data \"%s\" %d bytes", stmt->decl->var_name, stmt->decl->data_type->ops->size_of(stmt->decl->data_type));
             } else {
-                // allocate local space
-                ir.add_str(".stack \"%s\" %d bytes", stmt->decl->var_name, stmt->decl->data_type->ops->size_of(stmt->decl->data_type));
+                // stack allocation has already happened
+                if (stmt->expr != NULL) {
+                    // should generate directly to EBP-x...
+                    cg.generate_expression_code(stmt->expr, 0, stmt->decl->var_name);
+                }
             }
-
-            // maybe assignment of value?
-            // in theory, stack allocation has already happened
-            if (stmt->expr)
-                cg.generate_expression_code(stmt->expr, 0, stmt->decl->var_name);
             break;
 
         case ST_IF:

@@ -59,8 +59,12 @@ int main(int argc, char **argv) {
 }
 */
 
-void main() {
+void main(int argc, char **argv) {
     int a = 1;
     int b;
+    char c;
+    int *d;
+    char buffer[16];
+
     b = a + 2;
 }

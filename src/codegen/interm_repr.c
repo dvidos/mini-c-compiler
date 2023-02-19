@@ -309,7 +309,7 @@ static void ir_dump_data_segment() {
 static void ir_generate_assembly_listing(char **listing) {
     // convert everything to a big assembly listing.
     char *p = malloc(1024);
-    strcpy(p, "; auto generated assembly\n");
+    strcpy(p, "; auto generated assembly code\n");
 
     // we'll fill in the gaps in the future
 

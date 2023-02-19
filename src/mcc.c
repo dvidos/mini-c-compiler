@@ -210,10 +210,10 @@ int main(int argc, char *argv[]) {
     if (errors_count)
         return 1;
 
-    produce_output_files();
-    if (errors_count)
-        return 1;
+    // produce_output_files();
+    // if (errors_count)
+    //     return 1;
 
-    printf("success!\n");
+    printf("Done!\n");
     return 0;
 }

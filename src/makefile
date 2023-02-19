@@ -24,6 +24,7 @@ SRC_FILES = \
 	codegen/codegen.c \
 	codegen/codegen_stmt.c \
 	codegen/codegen_expr.c \
+	codegen/codegen_func.c \
 	codegen/interm_repr.c \
 	elf/read_elf.c \
 	elf/write_elf.c \

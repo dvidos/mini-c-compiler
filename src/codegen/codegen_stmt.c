@@ -25,8 +25,8 @@ static void generate_failing_condition_jump(expression *condition, char *label, 
     if (op == OP_GE || op == OP_GT || op == OP_LE || op == OP_LT || op == OP_EQ || op == OP_NE) {
         r1 = cg.next_reg_num();
         r2 = cg.next_reg_num();
-        cg.generate_expression_code(condition->arg1, r1, NULL);
-        cg.generate_expression_code(condition->arg2, r2, NULL);
+        generate_expression_code(condition->arg1, r1, NULL);
+        generate_expression_code(condition->arg2, r2, NULL);
         ir.add_str("CMP t%d, t%d", r1, r2);
         switch (op) {
             case OP_GE: cmp_operation = "JLT"; break;
@@ -38,7 +38,7 @@ static void generate_failing_condition_jump(expression *condition, char *label, 
         }
     } else {
         r1 = cg.next_reg_num();
-        cg.generate_expression_code(condition, r1, NULL);
+        generate_expression_code(condition, r1, NULL);
         ir.add_str("CMP t%d, 0", r1, r2);
         cmp_operation = "JEQ"; // jump if EQ to zero, i.e. to false.
     }
@@ -57,7 +57,7 @@ void generate_statement_code(statement *stmt) {
             // to make sure inner names resolve to correct target?
             statement *entry = stmt->body;
             while (entry != NULL) {
-                cg.generate_statement_code(entry);
+                generate_statement_code(entry);
                 entry = entry->next;
             }
             break;
@@ -70,7 +70,7 @@ void generate_statement_code(statement *stmt) {
                 // stack allocation has already happened
                 if (stmt->expr != NULL) {
                     // should generate directly to EBP-x...
-                    cg.generate_expression_code(stmt->expr, 0, stmt->decl->var_name);
+                    generate_expression_code(stmt->expr, 0, stmt->decl->var_name);
                 }
             }
             break;
@@ -81,15 +81,15 @@ void generate_statement_code(statement *stmt) {
             if (stmt->else_body == NULL) {
                 // simple if
                 generate_failing_condition_jump(stmt->expr, "if%d_end", ifno);
-                cg.generate_statement_code(stmt->body);
+                generate_statement_code(stmt->body);
                 ir.set_next_label("if%d_end", ifno);
             } else {
                 // if & else
                 generate_failing_condition_jump(stmt->expr, "if%d_false", ifno);
-                cg.generate_statement_code(stmt->body);
+                generate_statement_code(stmt->body);
                 ir.jmp("if%d_end", ifno);
                 ir.set_next_label("if%d_false", ifno);
-                cg.generate_statement_code(stmt->else_body);
+                generate_statement_code(stmt->else_body);
                 ir.set_next_label("if%d_end", ifno);
             }
             break;
@@ -100,7 +100,7 @@ void generate_statement_code(statement *stmt) {
             cg.push_while();
             ir.set_next_label("wh%d", cg.curr_while_num());
             generate_failing_condition_jump(stmt->expr, "wh%d_end", cg.curr_while_num());
-            cg.generate_statement_code(stmt->body);
+            generate_statement_code(stmt->body);
             ir.jmp("wh%d", cg.curr_while_num());
             ir.set_next_label("wh%d_end", cg.curr_while_num());
             cg.pop_while();
@@ -122,13 +122,13 @@ void generate_statement_code(statement *stmt) {
 
         case ST_RETURN:
             if (stmt->expr != NULL)
-                cg.generate_expression_code(stmt->expr, 0, "retval");
+                generate_expression_code(stmt->expr, 0, "retval");
             ir.jmp("%s_exit", cg.curr_func_name());
             break;
 
         case ST_EXPRESSION:
             // there may be expressions that don't return anything, e.g. calling void functions.
-            cg.generate_expression_code(stmt->expr, 0, NULL);
+            generate_expression_code(stmt->expr, 0, NULL);
             ir.add_str("what now?");
             break;    
     }

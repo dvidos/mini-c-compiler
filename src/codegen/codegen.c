@@ -37,12 +37,6 @@ static char *curr_func_name();
 static void register_local_var(var_declaration *decl, bool is_arg, int arg_no);
 static int get_local_var_bp_offset(char *name);
 
-// codegen_stmt.c
-void generate_statement_code(statement *stmt);
-
-// codegen_expr.c
-void generate_expression_code(expression *expr, int target_reg_no, char *target_symbol_name);
-
 
 code_gen cg = {
     .next_reg_num = next_reg_num,
@@ -55,10 +49,7 @@ code_gen cg = {
     .assign_curr_func = assign_curr_func,
     .curr_func_name = curr_func_name,
     .register_local_var = register_local_var,
-    .get_local_var_bp_offset = get_local_var_bp_offset,
-
-    .generate_expression_code = generate_expression_code,
-    .generate_statement_code = generate_statement_code,
+    .get_local_var_bp_offset = get_local_var_bp_offset
 };
 
 // --------------------------------------------------------------------
@@ -258,115 +249,13 @@ static void generate_global_variable_code(var_declaration *decl, expression *ini
 }
 
 
-static void gather_local_var_declarations(statement *stmt) {
-    if (stmt == NULL)
-        return;
-    
-    switch (stmt->stmt_type) {
-        case ST_VAR_DECL:
-            // bingo!
-            cg.register_local_var(stmt->decl, false, 0);
-            break;
-
-        case ST_BLOCK:
-            statement *inner = stmt->body;
-            while (inner != NULL) {
-                gather_local_var_declarations(inner);
-                inner = inner->next;
-            }
-            break;
-
-        case ST_IF:
-            gather_local_var_declarations(stmt->body);
-            gather_local_var_declarations(stmt->else_body);
-            break;
-
-        case ST_WHILE:
-            gather_local_var_declarations(stmt->body);
-            break;
-
-        case ST_CONTINUE: // fallthrough
-        case ST_BREAK:
-        case ST_RETURN:
-        case ST_EXPRESSION:
-            break;    
-    }
-}
-
-void generate_local_var_code() {
-    if (curr_func->vars_count == 0)
-        return;
-
-    for (int i = 0; i < curr_func->vars_count; i++) {
-        struct local_var_info *var = &curr_func->vars[i];
-        if (var->is_arg) {
-            ir.add_comment("\t; arg #%d, %s %s, located at %cBP+%d", 
-                var->arg_no,
-                var->decl->data_type->ops->to_string(var->decl->data_type), 
-                var->decl->var_name, 
-                options.register_prefix,
-                var->bp_offset);
-        } else {
-            ir.add_str("SUB %cSP, %d   ; %s %s, at %cBP%d", 
-                options.register_prefix, 
-                var->size_bytes,
-                var->decl->data_type->ops->to_string(var->decl->data_type), 
-                var->decl->var_name,
-                options.register_prefix,
-                var->bp_offset
-            );
-        }
-    }
-}
-
-static void generate_function_code(func_declaration *func) {
-
-    assign_curr_func(func);
-
-    // register arguments as local variables
-    int arg_no = 0;
-    var_declaration *arg = func->args_list;
-    while (arg != NULL) {
-        cg.register_local_var(arg, true, arg_no++);
-        arg = arg->next;
-    }
-
-    // traverse function tree to find local variables.
-    statement *stmt = func->stmts_list;
-    while (stmt != NULL) {
-        gather_local_var_declarations(stmt);
-        stmt = stmt->next;
-    }
-
-    // establish stack frame
-    ir.set_next_label("%s", func->func_name);
-    ir.add_str("PUSH %cBP", options.register_prefix);
-    ir.add_str("MOV %cBP, %cSP", options.register_prefix, options.register_prefix);
-
-    // generate code for stack allocation
-    generate_local_var_code();
-
-    // generate code for function statements tree
-    stmt = func->stmts_list;
-     while (stmt != NULL) {
-        generate_statement_code(stmt);
-        stmt = stmt->next;
-    }
-
-    // preparng to exit
-    ir.set_next_label("%s_exit", func->func_name);
-    ir.add_str("MOV %cSP, %cBP", options.register_prefix, options.register_prefix);
-    ir.add_str("POP %cBP", options.register_prefix);
-    ir.add_str("RET");
-    ir.add_str("");
-}
-
 void generate_module_code(ast_module_node *module) {
 
     statement *stmt = module->statements_list;
     while (stmt != NULL) {
         if (stmt->stmt_type != ST_VAR_DECL) {
             error(stmt->token->filename, stmt->token->line_no, "only var declarations are supported in code generation");
+            return;
         } else {
             generate_global_variable_code(stmt->decl, stmt->expr);
         }
@@ -381,7 +270,6 @@ void generate_module_code(ast_module_node *module) {
             continue;
         }
 
-        ir.add_comment("; --- function %s() ----------------------", func->func_name);
         generate_function_code(func);
         ir.add_comment("");
 

@@ -76,7 +76,7 @@ static void resolve_lvalue(expression *expr, bool *is_symbol, int *lvalue_reg_no
     // so we need to calculate it.
     *is_symbol = false;
     *lvalue_reg_no = cg.next_reg_num();
-    cg.generate_expression_code(expr, *lvalue_reg_no, NULL);
+    generate_expression_code(expr, *lvalue_reg_no, NULL);
 }
 
 static void generate_code_for_assignment(expression *expr) {
@@ -88,7 +88,7 @@ static void generate_code_for_assignment(expression *expr) {
     int rvalue_reg_no;
     if (expr->arg2->op != OP_SYMBOL_NAME && expr->arg2->op != OP_NUM_LITERAL) {
         rvalue_reg_no = cg.next_reg_num();
-        cg.generate_expression_code(expr->arg2, rvalue_reg_no, NULL);
+        generate_expression_code(expr->arg2, rvalue_reg_no, NULL);
     }
 
     char buffer[10];
@@ -129,7 +129,7 @@ static void generate_code_for_function_call(expression *expr) {
             calculated_regs[i] = 0;
         } else {
             int reg = cg.next_reg_num();
-            cg.generate_expression_code(args[i], reg, NULL);
+            generate_expression_code(args[i], reg, NULL);
             calculated_regs[i] = reg;
         }
     }
@@ -188,56 +188,56 @@ void generate_expression_code(expression *expr, int target_reg, char *target_sym
         case OP_ADD:
             r1 = cg.next_reg_num();
             r2 = cg.next_reg_num();
-            cg.generate_expression_code(expr->arg1, r1, NULL);
-            cg.generate_expression_code(expr->arg2, r2, NULL);
+            generate_expression_code(expr->arg1, r1, NULL);
+            generate_expression_code(expr->arg2, r2, NULL);
             ir.add_str("%s = t%d + t%d", dest_name, r1, r2);
             break;
         case OP_SUB:
             r1 = cg.next_reg_num();
             r2 = cg.next_reg_num();
-            cg.generate_expression_code(expr->arg1, r1, NULL);
-            cg.generate_expression_code(expr->arg2, r2, NULL);
+            generate_expression_code(expr->arg1, r1, NULL);
+            generate_expression_code(expr->arg2, r2, NULL);
             ir.add_str("%s = t%d - t%d", dest_name, r1, r2);
             break;
         case OP_MUL:
             r1 = cg.next_reg_num();
             r2 = cg.next_reg_num();
-            cg.generate_expression_code(expr->arg1, r1, NULL);
-            cg.generate_expression_code(expr->arg2, r2, NULL);
+            generate_expression_code(expr->arg1, r1, NULL);
+            generate_expression_code(expr->arg2, r2, NULL);
             ir.add_str("%s = t%d * t%d", dest_name, r1, r2);
             break;
         case OP_DIV:
             r1 = cg.next_reg_num();
             r2 = cg.next_reg_num();
-            cg.generate_expression_code(expr->arg1, r1, NULL);
-            cg.generate_expression_code(expr->arg2, r2, NULL);
+            generate_expression_code(expr->arg1, r1, NULL);
+            generate_expression_code(expr->arg2, r2, NULL);
             ir.add_str("%s = t%d / t%d", dest_name, r1, r2);
             break;
         case OP_BITWISE_AND:
             r1 = cg.next_reg_num();
             r2 = cg.next_reg_num();
-            cg.generate_expression_code(expr->arg1, r1, NULL);
-            cg.generate_expression_code(expr->arg2, r2, NULL);
+            generate_expression_code(expr->arg1, r1, NULL);
+            generate_expression_code(expr->arg2, r2, NULL);
             ir.add_str("%s = t%d AND t%d", dest_name, r1, r2);
             break;
         case OP_BITWISE_OR:
             r1 = cg.next_reg_num();
             r2 = cg.next_reg_num();
-            cg.generate_expression_code(expr->arg1, r1, NULL);
-            cg.generate_expression_code(expr->arg2, r2, NULL);
+            generate_expression_code(expr->arg1, r1, NULL);
+            generate_expression_code(expr->arg2, r2, NULL);
             ir.add_str("%s = t%d OR t%d", dest_name, r1, r2);
             break;
         case OP_BITWISE_XOR:
             r1 = cg.next_reg_num();
             r2 = cg.next_reg_num();
-            cg.generate_expression_code(expr->arg1, r1, NULL);
-            cg.generate_expression_code(expr->arg2, r2, NULL);
+            generate_expression_code(expr->arg1, r1, NULL);
+            generate_expression_code(expr->arg2, r2, NULL);
             ir.add_str("%s = t%d XOR t%d", dest_name, r1, r2);
             break;
         case OP_BITWISE_NOT:
             r1 = cg.next_reg_num();
             r2 = cg.next_reg_num();
-            cg.generate_expression_code(expr->arg2, r1, NULL);
+            generate_expression_code(expr->arg2, r1, NULL);
             ir.add_str("%s = 0xFFFFFFFF", r2);
             ir.add_str("%s = t%d XOR t%d", dest_name, r1, r2); // essentially a NOT
             break;
@@ -251,8 +251,8 @@ void generate_expression_code(expression *expr, int target_reg, char *target_sym
         default:
             r1 = cg.next_reg_num();
             r2 = cg.next_reg_num();
-            if (expr->arg1) cg.generate_expression_code(expr->arg1, r1, NULL);
-            if (expr->arg2) cg.generate_expression_code(expr->arg2, r2, NULL);
+            if (expr->arg1) generate_expression_code(expr->arg1, r1, NULL);
+            if (expr->arg2) generate_expression_code(expr->arg2, r2, NULL);
             ir.add_str("unknown expression %s code, t%d and t%d", oper_debug_name(expr->op), r1, r2);
             break;
     }

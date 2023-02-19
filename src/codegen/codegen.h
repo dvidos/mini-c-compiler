@@ -15,13 +15,21 @@ typedef struct code_gen {
     char *(*curr_func_name)();
     void  (*register_local_var)(var_declaration *decl, bool is_arg, int arg_no);
     int   (*get_local_var_bp_offset)(char *name);
-
-    void (*generate_statement_code)(statement *stmt);
-    void (*generate_expression_code)(expression *expr, int target_reg_no, char *target_symbol_name);
 } code_gen;
 
 
 extern code_gen cg;
+
+// codegen.c
 void generate_module_code(ast_module_node *module);
+
+// codegen_func.c
+void generate_function_code(func_declaration *func);
+
+// codegen_stmt.c
+void generate_statement_code(statement *stmt);
+
+// codegen_expr.c
+void generate_expression_code(expression *expr, int target_reg, char *target_symbol);
 
 

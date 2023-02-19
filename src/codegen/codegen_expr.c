@@ -61,56 +61,40 @@
     
 */
 
-static void resolve_lvalue(expression *expr, bool *is_symbol, int *lvalue_reg_no) {
+
+
+
+
+static expr_target *resolve_lvalue_target(expression *expr) {
     // e.g. we can have "a = 1", but also "a[offsets[slot].bytes] = 1"
     // ideally we want to get to a Three-Address-Code of
     // essentially we shall end up with a memory location,
     // either by direct symbol name ("a"), or after a calculation.
-    // we need to return info of whether it's a symbol or complex lvalue...
 
     if (expr->op == OP_SYMBOL_NAME) {
-        *is_symbol = true;
-        return;
-    }
+        return expr_target_named_symbol(expr->value.str);
 
-    // so we need to calculate it.
-    *is_symbol = false;
-    *lvalue_reg_no = cg.next_reg_num();
-    generate_expression_code(expr, *lvalue_reg_no, NULL);
-}
+    } else if (expr->op == OP_POINTED_VALUE 
+            || expr->op == OP_ARRAY_SUBSCRIPT
+            || expr->op == OP_STRUCT_MEMBER_PTR
+            || expr->op == OP_STRUCT_MEMBER_REF) {
+        // generate expression, store result in temp reg
+        expr_target *address_target = expr_target_temp_reg(cg.next_reg_num());
+        generate_expression_code(expr, address_target);
 
-static void generate_code_for_assignment(expression *expr) {
+        // use result as pointer
+        return expr_target_pointed_by_temp_reg(address_target->u.value);
 
-    bool lvalue_is_symbol;
-    int lvalue_reg_no;
-    resolve_lvalue(expr->arg1, &lvalue_is_symbol, &lvalue_reg_no);
-
-    int rvalue_reg_no;
-    if (expr->arg2->op != OP_SYMBOL_NAME && expr->arg2->op != OP_NUM_LITERAL) {
-        rvalue_reg_no = cg.next_reg_num();
-        generate_expression_code(expr->arg2, rvalue_reg_no, NULL);
-    }
-
-    char buffer[10];
-    char *lv;
-    if (lvalue_is_symbol) {
-        lv = expr->arg1->value.str;
     } else {
-        sprintf(buffer, "[t%d]", lvalue_reg_no);
-        lv = buffer;
+        error(expr->token->filename, expr->token->line_no, 
+            "invalid lvalue expression \"%s\", expecting symbol, pointer or array element", 
+            oper_debug_name(expr->op)
+        );
     }
-
-    if (expr->arg2->op == OP_SYMBOL_NAME)
-        ir.add_str("%s = %s", lv, expr->arg2->value.str);
-    else if (expr->arg2->op == OP_NUM_LITERAL)
-        ir.add_str("%s = %d", lv, expr->arg2->value.str);
-    else 
-        ir.add_str("%s = t%d", lv, rvalue_reg_no);
 }
 
 static void generate_code_for_function_call(expression *expr) {
-    // need to find the func reference?
-    // e.g. "(devices[0]->write)(h, 10, buffer)"
+    // need to find the func reference?  e.g. "(devices[0]->write)(h, 10, buffer)"
     // remember that C pushes args from right to left (IR opcode PUSH)
     // we can use "scall" IR code for direct symbol call,
     // or         "acall" IR code for calling the address stored in the symbol
@@ -128,16 +112,16 @@ static void generate_code_for_function_call(expression *expr) {
         if (args[i]->op == OP_SYMBOL_NAME || args[i]->op == OP_NUM_LITERAL) {
             calculated_regs[i] = 0;
         } else {
-            int reg = cg.next_reg_num();
-            generate_expression_code(args[i], reg, NULL);
-            calculated_regs[i] = reg;
+            expr_target *target = expr_target_temp_reg(cg.next_reg_num());
+            generate_expression_code(args[i], target);
+            calculated_regs[i] = target->u.value;
         }
     }
 
     // also, precalculate lvalue if needed
     bool lvalue_is_symbol;
     int lvalue_reg_no;
-    resolve_lvalue(expr->arg1, &lvalue_is_symbol, &lvalue_reg_no);
+    expr_target *target = resolve_lvalue_target(expr->arg1);
 
     // push what's needed in reverse order (right-to-left)
     for (int i = args_count - 1; i >= 0; i--) {
@@ -160,100 +144,92 @@ static void generate_code_for_function_call(expression *expr) {
         ir.add_str("POP %d items", args_count);
 }
 
-void generate_expression_code(expression *expr, int target_reg, char *target_symbol) {
-    int r1, r2;
-    char dest_name[32];
+static void generate_code_for_binary_operation(expression *expr, expr_target *target) {
+    expr_target *t1;
+    expr_target *t2;
 
-    if      (target_reg > 0)        sprintf(dest_name, "t%d", target_reg);
-    else if (target_symbol != NULL) sprintf(dest_name, "%s", target_symbol);
-    else                            strcpy(dest_name, "nothing");
+    t1 = expr_target_temp_reg(cg.next_reg_num());
+    t2 = expr_target_temp_reg(cg.next_reg_num());
+
+    generate_expression_code(expr->arg1, t1);
+    generate_expression_code(expr->arg2, t2);
+    
+    char o = ' ';
+    switch (expr->op) {
+        case OP_ADD: o = '+'; break;
+        case OP_SUB: o = '+'; break;
+        case OP_MUL: o = '*'; break;
+        case OP_DIV: o = '/'; break;
+        case OP_BITWISE_AND: o = '&'; break;
+        case OP_BITWISE_OR: o = '|'; break;
+        case OP_BITWISE_XOR: o = '^'; break;
+        case OP_BITWISE_NOT: o = '~'; break;
+
+        default:
+            error(expr->token->filename, expr->token->line_no,
+                "internal error, not a binary operation (%d, %s)", 
+                expr->op, oper_debug_name(expr->op));
+            break;
+    }
+
+    // we have operation in o
+    ir.add_tac(target, "t%d %c t%d", t1->u.value, o, t2->u.value);
+    // ir.add_str("%s = t%d + t%d", dest_name, t1->u.value, t2->u.value);
+}
+
+void generate_expression_code(expression *expr, expr_target *target) {
+    expr_target *t1;
+    expr_target *t2;
 
     switch (expr->op) {
         case OP_NUM_LITERAL:
-            ir.add_str("%s = %d", dest_name, expr->value.num);
+            ir.add_tac(target, " = %d", expr->value.num);
             break;
         case OP_CHR_LITERAL:
-            ir.add_str("%s = %d", dest_name, (int)expr->value.chr);
+            ir.add_tac(target, " = %d", (int)expr->value.chr);
             break;
         case OP_STR_LITERAL:
             int offset = ir.reserve_strz(expr->value.str);
-            ir.add_str("%s = .data + %d", dest_name, offset);
+            ir.add_tac(target, " = .data + %d", offset);
             break;
         case OP_BOOL_LITERAL:
-            ir.add_str("%s = %d", dest_name, expr->value.bln ? 1 : 0);
+            ir.add_tac(target, " = %d", expr->value.bln ? 1 : 0);
             break;
         case OP_SYMBOL_NAME:
-            ir.add_str("%s = %s", dest_name, expr->value.str);
+            ir.add_tac(target, " = %s", expr->value.str);
             break;
-        case OP_ADD:
-            r1 = cg.next_reg_num();
-            r2 = cg.next_reg_num();
-            generate_expression_code(expr->arg1, r1, NULL);
-            generate_expression_code(expr->arg2, r2, NULL);
-            ir.add_str("%s = t%d + t%d", dest_name, r1, r2);
-            break;
+
+        case OP_ADD: // fallthrough
         case OP_SUB:
-            r1 = cg.next_reg_num();
-            r2 = cg.next_reg_num();
-            generate_expression_code(expr->arg1, r1, NULL);
-            generate_expression_code(expr->arg2, r2, NULL);
-            ir.add_str("%s = t%d - t%d", dest_name, r1, r2);
-            break;
         case OP_MUL:
-            r1 = cg.next_reg_num();
-            r2 = cg.next_reg_num();
-            generate_expression_code(expr->arg1, r1, NULL);
-            generate_expression_code(expr->arg2, r2, NULL);
-            ir.add_str("%s = t%d * t%d", dest_name, r1, r2);
-            break;
         case OP_DIV:
-            r1 = cg.next_reg_num();
-            r2 = cg.next_reg_num();
-            generate_expression_code(expr->arg1, r1, NULL);
-            generate_expression_code(expr->arg2, r2, NULL);
-            ir.add_str("%s = t%d / t%d", dest_name, r1, r2);
-            break;
         case OP_BITWISE_AND:
-            r1 = cg.next_reg_num();
-            r2 = cg.next_reg_num();
-            generate_expression_code(expr->arg1, r1, NULL);
-            generate_expression_code(expr->arg2, r2, NULL);
-            ir.add_str("%s = t%d AND t%d", dest_name, r1, r2);
-            break;
         case OP_BITWISE_OR:
-            r1 = cg.next_reg_num();
-            r2 = cg.next_reg_num();
-            generate_expression_code(expr->arg1, r1, NULL);
-            generate_expression_code(expr->arg2, r2, NULL);
-            ir.add_str("%s = t%d OR t%d", dest_name, r1, r2);
-            break;
         case OP_BITWISE_XOR:
-            r1 = cg.next_reg_num();
-            r2 = cg.next_reg_num();
-            generate_expression_code(expr->arg1, r1, NULL);
-            generate_expression_code(expr->arg2, r2, NULL);
-            ir.add_str("%s = t%d XOR t%d", dest_name, r1, r2);
+            generate_code_for_binary_operation(expr, target);
             break;
+
         case OP_BITWISE_NOT:
-            r1 = cg.next_reg_num();
-            r2 = cg.next_reg_num();
-            generate_expression_code(expr->arg2, r1, NULL);
-            ir.add_str("%s = 0xFFFFFFFF", r2);
-            ir.add_str("%s = t%d XOR t%d", dest_name, r1, r2); // essentially a NOT
+            expr_target *t1 = expr_target_temp_reg(cg.next_reg_num());
+            generate_expression_code(expr->arg2, t1);
+            ir.add_tac(target, " = t%d XOR 0xFFFFFFFF");
             break;
+            
         case OP_ASSIGNMENT:
-            generate_code_for_assignment(expr);
+            // find lvalue target
+            expr_target *lvalue_target = resolve_lvalue_target(expr->arg1);
+            generate_expression_code(expr->arg2, lvalue_target);
             break;
         case OP_FUNC_CALL:
             generate_code_for_function_call(expr);
             break;
 
         default:
-            r1 = cg.next_reg_num();
-            r2 = cg.next_reg_num();
-            if (expr->arg1) generate_expression_code(expr->arg1, r1, NULL);
-            if (expr->arg2) generate_expression_code(expr->arg2, r2, NULL);
-            ir.add_str("unknown expression %s code, t%d and t%d", oper_debug_name(expr->op), r1, r2);
+            ir.add_comment("\t(unhandled expr op %d (%s) follows)", expr->op, oper_debug_name(expr->op));
+            t1 = expr_target_temp_reg(cg.next_reg_num());
+            t2 = expr_target_temp_reg(cg.next_reg_num());
+            if (expr->arg1) generate_expression_code(expr->arg1, t1);
+            if (expr->arg2) generate_expression_code(expr->arg2, t2);
             break;
     }
 }

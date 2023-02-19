@@ -9,6 +9,7 @@
 #include "../err_handler.h"
 #include "../utils.h"
 #include "../symbol.h"
+#include "../options.h"
 
 /*
     It seems there are lots of formats for intermediate representation (IR)
@@ -53,6 +54,7 @@
 static void ir_init();
 static void ir_set_next_label(char *fmt, ...);
 static void ir_add_str(char *fmt, ...);
+static void ir_add_tac(expr_target *target, char *fmt, ...);
 static void ir_add_comment(char *fmt, ...);
 static void ir_jmp(char *label_fmt, ...);
 static int  ir_reserve_data(int bytes, void *init_data);
@@ -67,7 +69,10 @@ intermediate_representation_ops ir = {
     .init = ir_init,
     .set_next_label = ir_set_next_label,
     .add_str = ir_add_str,
+    .add_tac = ir_add_tac,
     .add_comment = ir_add_comment,
+    // .add_function_call...
+    // .add_conditional_jump...
     .jmp = ir_jmp,
     .reserve_data = ir_reserve_data,
     .reserve_strz = ir_reserve_strz,
@@ -80,9 +85,16 @@ intermediate_representation_ops ir = {
 
 // --------------------------------------------
 
+typedef enum code_chunk_type {
+    CT_STRING,
+    CT_COMMENT,
+    CT_TAC, // three address code, e.g. "A = B <op> C"
+} code_chunk_type;
+
 struct code_chunk {
     char *label;
-    bool is_comment;
+    code_chunk_type type;
+    expr_target *target;
     char *code;
 };
 
@@ -161,7 +173,7 @@ static void ir_add_comment(char *fmt, ...) {
 
     struct code_chunk *c = malloc(sizeof(struct code_chunk));
     c->label = NULL;
-    c->is_comment = true;
+    c->type = CT_COMMENT;
     c->code = strdup(buff);
 
     if (code_seg_entries == code_seg_capacity) {
@@ -181,7 +193,30 @@ static void ir_add_str(char *fmt, ...) {
 
     struct code_chunk *c = malloc(sizeof(struct code_chunk));
     c->label = next_code_label;
-    c->is_comment = false;
+    c->type = CT_STRING;
+    c->target = NULL;
+    c->code = strdup(buff);
+    next_code_label = NULL;
+
+    if (code_seg_entries == code_seg_capacity) {
+        code_seg_capacity *= 2;
+        code_seg = realloc(code_seg, code_seg_capacity);
+    }
+    code_seg[code_seg_entries++] = c;
+}
+
+static void ir_add_tac(expr_target *target, char *fmt, ...) {
+    char buff[100];
+    va_list args;
+
+    va_start(args, fmt);
+    vsnprintf(buff, sizeof(buff), fmt, args);
+    va_end(args);
+
+    struct code_chunk *c = malloc(sizeof(struct code_chunk));
+    c->label = next_code_label;
+    c->type = CT_TAC;
+    c->target = target;
     c->code = strdup(buff);
     next_code_label = NULL;
 
@@ -269,7 +304,21 @@ static void ir_dump_code_segment() {
         if (c->label != NULL)
             printf("%s:\n", c->label);
 
-        printf("%s%s\n", c->is_comment ? "" : "\t", c->code);
+        switch (c->type) {
+            case CT_COMMENT:
+                printf("%s\n", c->code);
+                break;
+            case CT_STRING:
+                printf("\t%s\n", c->code);
+                break;
+            case CT_TAC:
+                printf("\t");
+                char *str;
+                expr_target_to_string(c->target, &str);
+                printf("%s %s\n", str, c->code);
+                free(str);
+                break;
+        }
     }
 }
 
@@ -315,3 +364,77 @@ static void ir_generate_assembly_listing(char **listing) {
 
     (*listing) = p;
 }
+
+
+// -------------------------------------
+
+
+expr_target *expr_target_temp_reg(int reg_no) {
+    expr_target *t = malloc(sizeof(expr_target));
+    memset(t, 0, sizeof(expr_target));
+    t->numbered_register = 1;
+    t->u.value = reg_no;
+    return t;
+}
+
+expr_target *expr_target_pointed_by_temp_reg(int reg_no) {
+    expr_target *t = malloc(sizeof(expr_target));
+    memset(t, 0, sizeof(expr_target));
+    t->numbered_register = true;
+    t->pointer_deref = true;
+    t->u.value = reg_no;
+    return t;
+}
+
+expr_target *expr_target_return_register() {
+    expr_target *t = malloc(sizeof(expr_target));
+    memset(t, 0, sizeof(expr_target));
+    t->return_register = 1;
+    return t;
+}
+
+expr_target *expr_target_stack_location(int frame_offset) {
+    expr_target *t = malloc(sizeof(expr_target));
+    memset(t, 0, sizeof(expr_target));
+    t->stack_location = 1;
+    t->pointer_deref = 1; // BP is essentially a pointer, the stack is the target.
+    t->u.offset = frame_offset;
+    return t;
+}
+
+expr_target *expr_target_named_symbol(char *symbol_name) {
+    expr_target *t = malloc(sizeof(expr_target));
+    memset(t, 0, sizeof(expr_target));
+    t->named_symbol = 1;
+    t->u.name = symbol_name;
+    return t;
+}
+
+void expr_target_to_string(expr_target *target, char **str) {
+    char buffer[64];
+
+    if (target->numbered_register) {
+        snprintf(buffer, sizeof(buffer), "t%d", target->u.value);
+
+    } else if (target->stack_location) {
+        snprintf(buffer, sizeof(buffer), "%cBP%c%d", options.register_prefix, 
+            target->u.offset < 0 ? '-' : '+',
+            target->u.offset < 0 ? target->u.offset * (-1) : target->u.offset);
+
+    } else if (target->return_register) {
+        snprintf(buffer, sizeof(buffer), "%cAX", options.register_prefix);
+
+    } else if (target->named_symbol) {
+        snprintf(buffer, sizeof(buffer), "%s", target->u.name);
+
+    }
+
+    if (target->pointer_deref) {
+        memmove(buffer + 1, buffer, sizeof(buffer) - 1);
+        buffer[0] = '[';
+        strcat(buffer, "]");
+    }
+    *str = strdup(buffer);
+}
+
+

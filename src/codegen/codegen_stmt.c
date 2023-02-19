@@ -22,11 +22,14 @@ static void generate_failing_condition_jump(expression *condition, char *label, 
     // if exmpression op is comparison, generate appropriate code
     // if it is a symbol or boolean literal etc.
     
-    if (op == OP_GE || op == OP_GT || op == OP_LE || op == OP_LT || op == OP_EQ || op == OP_NE) {
-        r1 = cg.next_reg_num();
-        r2 = cg.next_reg_num();
-        generate_expression_code(condition->arg1, r1, NULL);
-        generate_expression_code(condition->arg2, r2, NULL);
+    if (op == OP_GE || op == OP_GT || 
+        op == OP_LE || op == OP_LT || 
+        op == OP_EQ || op == OP_NE)
+    {
+        expr_target *t1 = expr_target_temp_reg(cg.next_reg_num());
+        expr_target *t2 = expr_target_temp_reg(cg.next_reg_num());
+        generate_expression_code(condition->arg1, t1);
+        generate_expression_code(condition->arg2, t2);
         ir.add_str("CMP t%d, t%d", r1, r2);
         switch (op) {
             case OP_GE: cmp_operation = "JLT"; break;
@@ -37,8 +40,8 @@ static void generate_failing_condition_jump(expression *condition, char *label, 
             case OP_NE: cmp_operation = "JEQ"; break;
         }
     } else {
-        r1 = cg.next_reg_num();
-        generate_expression_code(condition, r1, NULL);
+        expr_target *t1 = expr_target_temp_reg(cg.next_reg_num());
+        generate_expression_code(condition, t1);
         ir.add_str("CMP t%d, 0", r1, r2);
         cmp_operation = "JEQ"; // jump if EQ to zero, i.e. to false.
     }
@@ -67,10 +70,11 @@ void generate_statement_code(statement *stmt) {
                 // allocate space in data segment
                 ir.add_str(".data \"%s\" %d bytes", stmt->decl->var_name, stmt->decl->data_type->ops->size_of(stmt->decl->data_type));
             } else {
-                // stack allocation has already happened
+                // stack allocation has already happened, set initial value
                 if (stmt->expr != NULL) {
-                    // should generate directly to EBP-x...
-                    generate_expression_code(stmt->expr, 0, stmt->decl->var_name);
+                    int offset = cg.get_local_var_bp_offset(stmt->decl->var_name);
+                    expr_target *target = expr_target_stack_location(offset);
+                    generate_expression_code(stmt->expr, target);
                 }
             }
             break;
@@ -122,14 +126,13 @@ void generate_statement_code(statement *stmt) {
 
         case ST_RETURN:
             if (stmt->expr != NULL)
-                generate_expression_code(stmt->expr, 0, "retval");
+                generate_expression_code(stmt->expr, expr_target_return_register());
             ir.jmp("%s_exit", cg.curr_func_name());
             break;
 
         case ST_EXPRESSION:
             // there may be expressions that don't return anything, e.g. calling void functions.
-            generate_expression_code(stmt->expr, 0, NULL);
-            ir.add_str("what now?");
+            generate_expression_code(stmt->expr, expr_target_return_register());
             break;    
     }
 }

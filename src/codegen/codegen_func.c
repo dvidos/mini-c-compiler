@@ -14,27 +14,6 @@
 #include "interm_repr.h"
 
 
-
-struct local_var_info {
-    var_declaration *decl;
-    bool is_arg;
-    int arg_no;
-    int bp_offset;
-    int size_bytes;
-};
-
-struct curr_func_info {
-    func_declaration *decl;
-
-    struct local_var_info *vars;
-    int vars_count;
-    int vars_capacity;
-};
-
-static struct curr_func_info *curr_func = NULL;
-
-
-
 static void gather_local_var_declarations(statement *stmt) {
     if (stmt == NULL)
         return;
@@ -70,12 +49,12 @@ static void gather_local_var_declarations(statement *stmt) {
     }
 }
 
-static void generate_local_var_code() {
-    if (curr_func->vars_count == 0)
+static void generate_local_vars_code() {
+    if (cg_curr_func == NULL || cg_curr_func->vars_count == 0)
         return;
 
-    for (int i = 0; i < curr_func->vars_count; i++) {
-        struct local_var_info *var = &curr_func->vars[i];
+    for (int i = 0; i < cg_curr_func->vars_count; i++) {
+        struct local_var_info *var = &cg_curr_func->vars[i];
         if (var->is_arg) {
             ir.add_comment("\t; arg #%d, %s %s, located at %cBP+%d", 
                 var->arg_no,
@@ -121,7 +100,7 @@ void generate_function_code(func_declaration *func) {
     ir.add_str("MOV %cBP, %cSP", options.register_prefix, options.register_prefix);
 
     // generate code for stack allocation
-    generate_local_var_code();
+    generate_local_vars_code();
 
     // generate code for function statements tree
     stmt = func->stmts_list;

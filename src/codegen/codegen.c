@@ -101,43 +101,27 @@ static void pop_while() {
 
 // ---------------------------------------------------
 
-struct local_var_info {
-    var_declaration *decl;
-    bool is_arg;
-    int arg_no;
-    int bp_offset;
-    int size_bytes;
-};
-
-struct curr_func_info {
-    func_declaration *decl;
-
-    struct local_var_info *vars;
-    int vars_count;
-    int vars_capacity;
-};
-
-static struct curr_func_info *curr_func = NULL;
+struct curr_func_info *cg_curr_func = NULL;
 
 
 static void assign_curr_func(func_declaration *decl) {
-    if (curr_func == NULL) {
-        curr_func = malloc(sizeof(struct curr_func_info));
-        memset(curr_func, 0, sizeof(struct curr_func_info));
+    if (cg_curr_func == NULL) {
+        cg_curr_func = malloc(sizeof(struct curr_func_info));
+        memset(cg_curr_func, 0, sizeof(struct curr_func_info));
 
-        curr_func->vars_capacity = 5;
-        curr_func->vars = malloc(sizeof(struct local_var_info) * curr_func->vars_capacity);
+        cg_curr_func->vars_capacity = 5;
+        cg_curr_func->vars = malloc(sizeof(struct local_var_info) * cg_curr_func->vars_capacity);
     }
 
-    curr_func->decl = decl;
-    curr_func->vars_count = 0;
-    memset(curr_func->vars, 0, sizeof(curr_func->vars_capacity * sizeof(struct local_var_info)));
+    cg_curr_func->decl = decl;
+    cg_curr_func->vars_count = 0;
+    memset(cg_curr_func->vars, 0, sizeof(cg_curr_func->vars_capacity * sizeof(struct local_var_info)));
 }
 
 static char *curr_func_name() {
-    return curr_func == NULL || curr_func->decl == NULL ? 
+    return cg_curr_func == NULL || cg_curr_func->decl == NULL ? 
         NULL : 
-        curr_func->decl->func_name;
+        cg_curr_func->decl->func_name;
 }
 
 static void register_local_var(var_declaration *decl, bool is_arg, int arg_no) {
@@ -161,15 +145,15 @@ static void register_local_var(var_declaration *decl, bool is_arg, int arg_no) {
         :    :
         |    | [ebp - X]  (esp - the current stack pointer. The use of push / pop is valid now) */
 
-    if (curr_func == NULL || curr_func->decl == NULL) {
+    if (cg_curr_func == NULL || cg_curr_func->decl == NULL) {
         error(decl->token->filename, decl->token->line_no, "current function not registered yet!");
         return;
     }
 
     // extend storage if needed
-    if (curr_func->vars_count + 1 >= curr_func->vars_capacity) {
-        curr_func->vars_capacity *= 2;
-        curr_func->vars = realloc(curr_func->vars, curr_func->vars_capacity * sizeof(struct local_var_info));
+    if (cg_curr_func->vars_count + 1 >= cg_curr_func->vars_capacity) {
+        cg_curr_func->vars_capacity *= 2;
+        cg_curr_func->vars = realloc(cg_curr_func->vars, cg_curr_func->vars_capacity * sizeof(struct local_var_info));
     }   
 
     // find size to allocate
@@ -185,27 +169,27 @@ static void register_local_var(var_declaration *decl, bool is_arg, int arg_no) {
         // first local variable is below EBP
         bp_offset = -size;
         // but subsequent are even lower
-        if (curr_func->vars_count > 0 && curr_func->vars[curr_func->vars_count - 1].bp_offset < 0) {
-            bp_offset = curr_func->vars[curr_func->vars_count - 1].bp_offset - size;
+        if (cg_curr_func->vars_count > 0 && cg_curr_func->vars[cg_curr_func->vars_count - 1].bp_offset < 0) {
+            bp_offset = cg_curr_func->vars[cg_curr_func->vars_count - 1].bp_offset - size;
         }
     }
 
-    curr_func->vars[curr_func->vars_count].decl = decl;
-    curr_func->vars[curr_func->vars_count].is_arg = is_arg;
-    curr_func->vars[curr_func->vars_count].arg_no = arg_no;
-    curr_func->vars[curr_func->vars_count].bp_offset = bp_offset;
-    curr_func->vars[curr_func->vars_count].size_bytes = size;
-    curr_func->vars_count++;
+    cg_curr_func->vars[cg_curr_func->vars_count].decl = decl;
+    cg_curr_func->vars[cg_curr_func->vars_count].is_arg = is_arg;
+    cg_curr_func->vars[cg_curr_func->vars_count].arg_no = arg_no;
+    cg_curr_func->vars[cg_curr_func->vars_count].bp_offset = bp_offset;
+    cg_curr_func->vars[cg_curr_func->vars_count].size_bytes = size;
+    cg_curr_func->vars_count++;
 }
 
 static int get_local_var_bp_offset(char *name) {
 
-    if (curr_func == NULL || curr_func->decl == NULL)
+    if (cg_curr_func == NULL || cg_curr_func->decl == NULL)
         return 0; // invalid
 
-    for (int i = 0; i < curr_func->vars_count; i++) {
-        if (strcmp(curr_func->vars[i].decl->var_name, name) == 0)
-            return curr_func->vars[i].bp_offset;
+    for (int i = 0; i < cg_curr_func->vars_count; i++) {
+        if (strcmp(cg_curr_func->vars[i].decl->var_name, name) == 0)
+            return cg_curr_func->vars[i].bp_offset;
     }
 
     return 0; // not found - zero offset is invalid

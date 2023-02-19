@@ -17,8 +17,28 @@ typedef struct code_gen {
     int   (*get_local_var_bp_offset)(char *name);
 } code_gen;
 
-
 extern code_gen cg;
+
+
+struct local_var_info {
+    var_declaration *decl;
+    bool is_arg;
+    int arg_no;
+    int bp_offset;
+    int size_bytes;
+};
+
+struct curr_func_info {
+    func_declaration *decl;
+
+    struct local_var_info *vars;
+    int vars_count;
+    int vars_capacity;
+};
+
+extern struct curr_func_info *cg_curr_func;
+
+
 
 // codegen.c
 void generate_module_code(ast_module_node *module);
@@ -30,6 +50,11 @@ void generate_function_code(func_declaration *func);
 void generate_statement_code(statement *stmt);
 
 // codegen_expr.c
-void generate_expression_code(expression *expr, int target_reg, char *target_symbol);
+typedef struct expr_target expr_target;
+expr_target *expr_target_temp_reg(int reg_no);
+expr_target *expr_target_return_register();
+expr_target *expr_target_stack_location(int frame_offset);
+expr_target *expr_target_named_symbol(char *symbol_name);
+void generate_expression_code(expression *expr, expr_target *target);
 
 

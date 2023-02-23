@@ -12,7 +12,9 @@ typedef struct intermediate_representation_ops {
     void (*add_tac)(expr_target *target, char *fmt, ...);
     void (*add_comment)(char *fmt, ...);
     void (*jmp)(char *label_fmt, ...);
-    // we would need SET, PUSH, POP, CALL, RET, SET, JUMPIF with operands...
+
+    // we would need SET, PUSH, POP, CALL, RET, SET, JUMPIF with operands etc
+
     
     int (*reserve_data)(int bytes, void *init_data);
     int (*reserve_strz)(char *str);

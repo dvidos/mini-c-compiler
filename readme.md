@@ -314,4 +314,13 @@ Similarly, it tells the Linker how to link a piece of object code, what the
 unsolved symbols are etc.
 Therefore, I need to have code that supports ELF creation. 
 
+### Machine code blues...
+
+Turns out there's a very big number of instructions and not everything
+supports everything. It also sounds like some constructs of C map directly to some assembly/cpu capabilities. 
+
+So, I will try to also approach this from bottom-up perspective. Perhaps
+building an assembler and knowing what it can support, then we can build 
+the C compiler that will convert C to assembly.
+
 

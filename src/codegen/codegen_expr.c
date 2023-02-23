@@ -71,6 +71,11 @@ static expr_target *resolve_lvalue_target(expression *expr) {
     // essentially we shall end up with a memory location,
     // either by direct symbol name ("a"), or after a calculation.
 
+    // this C fragment     : "int y = points[i].ycoord;"
+    // can be translated as: "MOV EDX, [EBX + 8*EAX + 4]" to get the attribute's address
+    //                       if EBX holds the base of the array, EAX the i and ycoord offset is 4 bytes.
+    //                       therefore EDX gets the value as 'y'
+    
     if (expr->op == OP_SYMBOL_NAME) {
         return expr_target_named_symbol(expr->value.str);
 

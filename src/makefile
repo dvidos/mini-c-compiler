@@ -31,7 +31,12 @@ SRC_FILES = \
 	elf/elf_test.c \
 	binary/binary_gen.c \
 	binary/parse_asm.c \
-	binary/encode_asm.c
+	binary/encode_asm.c \
+	x86_encoder/bin_buffer.c \
+	x86_encoder/symbol_table.c \
+	x86_encoder/instruction.c \
+	x86_encoder/encoder.c
+
 
 
 

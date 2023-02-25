@@ -13,6 +13,7 @@ void show_syntax() {
     printf("\t-m32         generate 32 bits code\n");
     printf("\t-m64         generate 64 bits code\n");
     printf("\t--elf-test   run elf test\n");
+    printf("\t--asm-test   run asm test\n");
 }
 
 void parse_options(int argc, char *argv[]) {
@@ -42,6 +43,8 @@ void parse_options(int argc, char *argv[]) {
             options.is_64_bits = true;
         } else if (strcmp(p, "--elf-test") == 0) {
             options.elf_test = true;
+        } else if (strcmp(p, "--asm-test") == 0) {
+            options.asm_test = true;
         }
     }
 

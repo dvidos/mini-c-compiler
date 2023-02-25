@@ -6,9 +6,9 @@
 
 
 enum x86_cpu_mode {
-    MODE_REAL,      // 16 with segments
-    MODE_PROTECTED, // 32
-    MODE_LONG,      // 64
+    CPU_MODE_REAL,      // 16 with segments
+    CPU_MODE_PROTECTED, // 32
+    CPU_MODE_LONG,      // 64
 };
 
 struct x86_encoder {

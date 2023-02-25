@@ -176,6 +176,10 @@ int main(int argc, char *argv[]) {
     if (options.elf_test) {
         perform_elf_test();
         return 0;
+    } else if (options.asm_test) {
+        void perform_asm_test();
+        perform_asm_test();
+        return 0;
     }
 
     if (options.filename == NULL) {

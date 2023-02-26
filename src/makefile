@@ -34,8 +34,10 @@ SRC_FILES = \
 	binary/encode_asm.c \
 	x86_encoder/bin_buffer.c \
 	x86_encoder/symbol_table.c \
+	x86_encoder/ref_list.c \
 	x86_encoder/instruction.c \
-	x86_encoder/encoder.c
+	x86_encoder/encoder.c \
+	x86_encoder/asm_test.c
 
 
 

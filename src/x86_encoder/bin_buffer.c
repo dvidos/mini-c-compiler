@@ -17,9 +17,9 @@ static void bin_buff_add_repeat_dwords(struct bin_buffer *buff, u32 value, int t
 static void bin_buff_add_repeat_quads(struct bin_buffer *buff, u64 value, int times);
 
 
-struct bin_buffer *new_bin_buffer(int capacity) {
+struct bin_buffer *new_bin_buffer() {
     struct bin_buffer *p = malloc(sizeof(struct bin_buffer));
-    p->capacity = capacity < 10 ? 10 : capacity;
+    p->capacity = 10;
     p->data = malloc(p->capacity);
     p->length = 0;
 

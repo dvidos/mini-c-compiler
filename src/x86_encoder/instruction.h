@@ -6,12 +6,14 @@ typedef uint64_t u64;
 
 
 enum operand_type {
-    OT_IMMEDIATE,  // size depends on encoder mode
-    OT_REGISTER,
-    OT_MEMORY_POINTED_BY_REG,
-    OT_MEMORY_POINTED_BY_SYMBOL,
+    OT_NONE = 0,                 // this operand is not to be used
+    OT_IMMEDIATE,                // size depends
+    OT_REGISTER,                 // e.g. EAX
+    OT_MEMORY_POINTED_BY_REG,    // e.g. [EAX]
+    OT_MEMORY_POINTED_BY_SYMBOL, // e.g. address number (resolved at linking)
 };
 
+// these have to be 0 through 7, in this sequence.
 enum reg {
     REG_AX = 0, 
     REG_CX,
@@ -73,3 +75,4 @@ struct instruction {
     struct operand op2;
 };
 
+void print_instruction(char *prefix, struct instruction *inst);

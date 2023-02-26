@@ -4,30 +4,30 @@
 #include <string.h>
 
 
-#define P(c)    (((c) > 32 && (c) < 127) ? (c) : '.')
+#define printable(c)    (((c) > 32 && (c) < 127) ? (c) : '.')
 
 
 void print_16_hex(void *address, int size) {
-    char *p = address;
+    unsigned char *p = address;
     while (size > 0) {
         printf("    %02x %02x %02x %02x %02x %02x %02x %02x   %02x %02x %02x %02x %02x %02x %02x %02x  %c%c%c%c%c%c%c%c %c%c%c%c%c%c%c%c\n",
             p[0], p[1], p[2], p[3], p[4], p[5], p[6], p[7], p[8], p[9], p[10], p[11], p[12], p[13], p[14], p[15],
-            P(p[0]),
-            P(p[1]),
-            P(p[2]),
-            P(p[3]),
-            P(p[4]),
-            P(p[5]),
-            P(p[6]),
-            P(p[7]),
-            P(p[8]),
-            P(p[9]),
-            P(p[10]),
-            P(p[11]),
-            P(p[12]),
-            P(p[13]),
-            P(p[14]),
-            P(p[15])
+            printable(p[0]),
+            printable(p[1]),
+            printable(p[2]),
+            printable(p[3]),
+            printable(p[4]),
+            printable(p[5]),
+            printable(p[6]),
+            printable(p[7]),
+            printable(p[8]),
+            printable(p[9]),
+            printable(p[10]),
+            printable(p[11]),
+            printable(p[12]),
+            printable(p[13]),
+            printable(p[14]),
+            printable(p[15])
         );
         p += 16;
         size -= 16;

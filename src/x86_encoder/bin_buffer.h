@@ -25,4 +25,4 @@ struct bin_buffer {
     void (*add_repeat_quads)(struct bin_buffer *buff, u64 value, int times);
 };
 
-struct bin_buffer *new_bin_buffer(int capacity);
+struct bin_buffer *new_bin_buffer();

@@ -7,6 +7,7 @@ typedef uint16_t u16;
 typedef uint32_t u32;
 typedef uint64_t u64;
 
+
 /*
     machine code directly in the executable .text segment
     | .global _start
@@ -139,13 +140,16 @@ typedef uint64_t u64;
 // the different ways to encode instructions.
 
 
-static bool x86_encoder_encode(struct x86_encoder *encoder, struct instruction *instr, struct bin_buffer *target);
+static bool x86_encoder_encode(struct x86_encoder *enc, struct instruction *instr);
 
 struct x86_encoder *new_x86_encoder(enum x86_cpu_mode mode) {
-    struct x86_encoder *encoder = malloc(sizeof(struct x86_encoder));
-    encoder->mode = mode;
+    struct x86_encoder *enc = malloc(sizeof(struct x86_encoder));
+    enc->mode = mode;
 
-    encoder->encode = x86_encoder_encode;
+    enc->output = new_bin_buffer();
+    enc->references = new_ref_list();
+
+    enc->encode = x86_encoder_encode;
 };
 
 // seems like encoding is heavily based on the operands type + size.
@@ -219,41 +223,46 @@ struct encoding_information {
     u8 opcode_extension;         // eg the "/6" extension of the opcode (0-7 valid only)
 };
 
+#define REF_VALUE_MAGIC 0xFFFFFFFF
+
 
 static inline u8 modrm_byte(int mode, int reg, int regmem);
 static inline u8 sib_byte(int scale, int index, int base);
-static bool encode_single_byte_instruction_adding_register(u8 base_opcode, int reg_no, struct bin_buffer *buffer);
-static bool encode_extended_opcode_instruction_for_register_access(u8 opcode, u8 ext_opcode, int reg_no, struct bin_buffer *buffer);
-static bool encode_extended_opcode_instruction_for_memory_pointed_by_register(u8 opcode, u8 ext_opcode, int reg_no, int displacement, struct bin_buffer *buffer);
+static bool encode_single_byte_instruction_adding_reg_no(struct x86_encoder *enc, u8 base_opcode, int reg_no);
+static bool encode_extended_opcode_instruction_for_register_access(struct x86_encoder *enc, u8 opcode, u8 ext_opcode, int reg_no);
+static bool encode_extended_opcode_instruction_for_memory_pointed_by_register(struct x86_encoder *enc, u8 opcode, u8 ext_opcode, int reg_no, int displacement);
+static bool encode_extended_opcode_instruction_for_memory_at_address_by_symbol(struct x86_encoder *enc, u8 opcode, u8 ext_opcode, char *symbol_name);
 
 
 
-static bool x86_encoder_encode(struct x86_encoder *encoder, struct instruction *instr, struct bin_buffer *target) {
-    if (encoder->mode != CPU_MODE_PROTECTED) {
+static bool x86_encoder_encode(struct x86_encoder *enc, struct instruction *instr) {
+    if (enc->mode != CPU_MODE_PROTECTED) {
         return false;
     }
 
     switch (instr->opcode) {
         case OC_NOP:
-            target->add_byte(0x90); // simplest case
+            enc->output->add_byte(enc->output, 0x90); // simplest case
             break;
+
         case OC_PUSH:
             if (instr->op1.type == OT_REGISTER) {
                 // this one cannot push segment registers, only general ones
-                encode_single_byte_instruction_adding_register(0x50, instr->op1.value, target);
+                return encode_single_byte_instruction_adding_reg_no(enc, 0x50, instr->op1.value);
 
             } else if (instr->op1.type == OT_MEMORY_POINTED_BY_REG) {
                 // Intel gives this as: "FF /6   ModRM:r/m (r)"
-                encode_extended_opcode_instruction_for_memory_pointed_by_register(0xFF, 6, instr->op1.value, instr->op1.offset, target);
+                return encode_extended_opcode_instruction_for_memory_pointed_by_register(enc, 0xFF, 6, instr->op1.value, instr->op1.offset);
 
             } else if (instr->op1.type == OT_MEMORY_POINTED_BY_SYMBOL) {
                 // Intel gives this as: "FF /6   ModRM:r/m (r)"
-                encode_extended_opcode_instruction_for_memory_at_displacement(0xFF, 6, instr->op1.value, target);
+                return encode_extended_opcode_instruction_for_memory_at_address_by_symbol(enc, 0xFF, 6, instr->op1.symbol_name);
 
             } else if (instr->op1.type == OT_IMMEDIATE) {
                 // simple
-                target->add_byte(target, 0x68);
-                target->add_dword(target, instr->op1.value);
+                enc->output->add_byte(enc->output, 0x68);
+                enc->output->add_dword(enc->output, instr->op1.value);
+                return true;
             } else {
                 return false;
             }
@@ -261,6 +270,22 @@ static bool x86_encoder_encode(struct x86_encoder *encoder, struct instruction *
         case OC_POP:
             // pop reg
             // pop mem
+            if (instr->op1.type == OT_REGISTER) {
+                // this one cannot push segment registers, only general ones
+                return encode_single_byte_instruction_adding_reg_no(enc, 0x58, instr->op1.value);
+
+            } else if (instr->op1.type == OT_MEMORY_POINTED_BY_REG) {
+                // Intel gives this as: "8F /0"
+                return encode_extended_opcode_instruction_for_memory_pointed_by_register(enc, 0x8F, 0, instr->op1.value, instr->op1.offset);
+
+            } else if (instr->op1.type == OT_MEMORY_POINTED_BY_SYMBOL) {
+                // Intel gives this as: "8F /6   ModRM:r/m (r)"
+                return encode_extended_opcode_instruction_for_memory_at_address_by_symbol(enc, 0x8F, 0, instr->op1.symbol_name);
+
+            } else {
+                return false;
+            }
+            break;
             break;
         case OC_MOV:
             // mov reg, reg    - 89 or 8B
@@ -268,6 +293,11 @@ static bool x86_encoder_encode(struct x86_encoder *encoder, struct instruction *
             // mov reg, imm    - B8
             // mov mem, reg    - 89
             // mov mem, imm    - B8 or C7
+            break;
+        case OC_INT:
+            // should be easy
+            enc->output->add_byte(enc->output, 0xCD);
+            enc->output->add_byte(enc->output, instr->op1.value);
             break;
 
         default:
@@ -287,21 +317,21 @@ static inline u8 sib_byte(int scale, int index, int base) {
     return ((scale & 0x3) << 6) | ((index & 0x7) << 3) | (base & 0x7);
 }
 
-static bool encode_single_byte_instruction_adding_register(u8 base_opcode, int reg_no, struct bin_buffer *buffer) {
+static bool encode_single_byte_instruction_adding_reg_no(struct x86_encoder *enc, u8 base_opcode, int reg_no) {
     // e.g. "PUSH ECX" -> 51
-    buffer->add_byte(buffer, base_opcode + (reg_no & 0x7));
+    enc->output->add_byte(enc->output, base_opcode + (reg_no & 0x7));
 }
 
-static bool encode_extended_opcode_instruction_for_register_access(u8 opcode, u8 ext_opcode, int reg_no, struct bin_buffer *buffer) {
+static bool encode_extended_opcode_instruction_for_register_access(struct x86_encoder *enc, u8 opcode, u8 ext_opcode, int reg_no) {
     // e.g. "PUSH EAX"
     // ext_opcode goes to the "reg" field, reg_no is set, 
 
     u8 mode = 0x3;  // bin 11, i.e. direct register value
-    buffer->add_byte(buffer, opcode);
-    buffer->add_byte(buffer, modrm_byte(mode, ext_opcode, reg_no))
+    enc->output->add_byte(enc->output, opcode);
+    enc->output->add_byte(enc->output, modrm_byte(mode, ext_opcode, reg_no));
 }
 
-static bool encode_extended_opcode_instruction_for_memory_pointed_by_register(u8 opcode, u8 ext_opcode, int reg_no, int displacement, struct bin_buffer *buffer) {
+static bool encode_extended_opcode_instruction_for_memory_pointed_by_register(struct x86_encoder *enc, u8 opcode, u8 ext_opcode, int reg_no, int displacement) {
     // e.g. "PUSH [EAX+2]"
     // ext_opcode goes to the "reg" field, 
     // we shall code the special cases of SP and BP, 
@@ -334,22 +364,25 @@ static bool encode_extended_opcode_instruction_for_memory_pointed_by_register(u8
     }
 
     // finally...
-    buffer->add_byte(buffer, opcode);
-    buffer->add_byte(modrm_byte(mode, ext_opcode, reg_no));
+    enc->output->add_byte(enc->output, opcode);
+    enc->output->add_byte(enc->output, modrm_byte(mode, ext_opcode, reg_no));
     if (displacement_bytes == 1)
-        buffer->add_dword(buffer, (char)displacement);
+        enc->output->add_dword(enc->output, (char)displacement);
     else if (displacement_bytes == 4)
-        buffer->add_dword(buffer, displacement);
+        enc->output->add_dword(enc->output, displacement);
 
     return true;
 }
 
-static bool encode_extended_opcode_instruction_for_memory_at_displacement(u8 opcode, u8 ext_opcode, u32 displacement, struct bin_buffer *buffer) {
+static bool encode_extended_opcode_instruction_for_memory_at_address_by_symbol(struct x86_encoder *enc, u8 opcode, u8 ext_opcode, char *symbol_name) {
     // we utilize the 00 (bin) mode and 101 (bin) R/M value which actually means direct displacement
     // e.g. "PUSH [0x1234]" -> FF 35 34 12 00 00       push dword ptr [0x1234]
-    buffer->add_byte(buffer, opcode);
-    buffer->add_byte(buffer, modrm_byte(0x0, ext_opcode, 0x5));
-    buffer->add_dword(buffer, displacement);
+    enc->output->add_byte(enc->output, opcode);
+    enc->output->add_byte(enc->output, modrm_byte(0x0, ext_opcode, 0x5));
+
+    enc->references->add(enc->references, enc->output->length, symbol_name);
+    enc->output->add_dword(enc->output, REF_VALUE_MAGIC);
+
     return true;
 }
 

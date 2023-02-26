@@ -173,6 +173,12 @@ static void test_movs() {
     instr.op2.type = OT_NONE; \
     if (!verify_single_instruction(&instr, expect_bytes, expect_len)) return;
 
+#define VERIFY_INSTR1_IMMEDIATE(code, val, expect_bytes, expect_len) \
+    instr.opcode = code; \
+    instr.op1.type = OT_IMMEDIATE; \
+    instr.op1.value = val; \
+    instr.op2.type = OT_NONE; \
+    if (!verify_single_instruction(&instr, expect_bytes, expect_len)) return;
 
 static void test_instructions() {
     struct instruction instr;
@@ -182,7 +188,14 @@ static void test_instructions() {
     VERIFY_INSTR0(OC_NOP, "\x90", 1);
     VERIFY_INSTR0(OC_RET, "\xC3", 1);
 
-    // // one operand instructions: immediate, register, mem<-reg, mem<-symbol
+    // one operand instructions: immediate, register, mem<-reg, mem<-symbol
+    VERIFY_INSTR1_IMMEDIATE(OC_INT, 0x21, "\xCD\x21", 2);
+    VERIFY_INSTR1_IMMEDIATE(OC_INT, 0x80, "\xCD\x80", 2);
+    VERIFY_INSTR1_IMMEDIATE(OC_PUSH, 0, "\x6A\x00", 2);
+    VERIFY_INSTR1_IMMEDIATE(OC_PUSH, 1, "\x6A\x01", 2);
+    VERIFY_INSTR1_IMMEDIATE(OC_PUSH, -1, "\x6A\xFF", 2);
+    VERIFY_INSTR1_IMMEDIATE(OC_PUSH, 0x12345678, "\x68\x78\x56\x34\x12", 5);
+
     // VERIFY_INSTR1_IMMEDIATE(opcode, value, expect_bytes, expect_len);
     // VERIFY_INSTR1_REGISTER(opcode, regno, expect_bytes, expect_len);
     // VERIFY_INSTR1_MEMBYREG(opcode, regno, offset, expect_bytes, expect_len);

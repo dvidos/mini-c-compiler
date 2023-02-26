@@ -277,8 +277,13 @@ static bool x86_encoder_encode(struct x86_encoder *enc, struct instruction *inst
 
             } else if (instr->op1.type == OT_IMMEDIATE) {
                 // simple 68 + value
-                enc->output->add_byte(enc->output, 0x68);
-                enc->output->add_dword(enc->output, instr->op1.value);
+                if (instr->op1.value >= -128 && instr->op1.value <= 127) {
+                    enc->output->add_byte(enc->output, 0x6a);
+                    enc->output->add_byte(enc->output, (u8)instr->op1.value);
+                } else {
+                    enc->output->add_byte(enc->output, 0x68);
+                    enc->output->add_dword(enc->output, instr->op1.value);
+                }
                 return true;
             } else {
                 return false;

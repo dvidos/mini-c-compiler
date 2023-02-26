@@ -180,6 +180,13 @@ static void test_movs() {
     instr.op2.type = OT_NONE; \
     if (!verify_single_instruction(&instr, expect_bytes, expect_len)) return;
 
+#define VERIFY_INSTR1_REGISTER(code, reg_no, expect_bytes, expect_len) \
+    instr.opcode = code; \
+    instr.op1.type = OT_REGISTER; \
+    instr.op1.value = reg_no; \
+    instr.op2.type = OT_NONE; \
+    if (!verify_single_instruction(&instr, expect_bytes, expect_len)) return;
+
 static void test_instructions() {
     struct instruction instr;
     printf("Verifying instructions ");
@@ -195,9 +202,20 @@ static void test_instructions() {
     VERIFY_INSTR1_IMMEDIATE(OC_PUSH, 1, "\x6A\x01", 2);
     VERIFY_INSTR1_IMMEDIATE(OC_PUSH, -1, "\x6A\xFF", 2);
     VERIFY_INSTR1_IMMEDIATE(OC_PUSH, 0x12345678, "\x68\x78\x56\x34\x12", 5);
+    
+    // one operand, with a register
+    VERIFY_INSTR1_REGISTER(OC_PUSH, REG_AX, "\x50", 1);
+    VERIFY_INSTR1_REGISTER(OC_PUSH, REG_DX, "\x52", 1);
+    VERIFY_INSTR1_REGISTER(OC_POP,  REG_BX, "\x5b", 1);
+    VERIFY_INSTR1_REGISTER(OC_POP,  REG_CX, "\x59", 1);
+    VERIFY_INSTR1_REGISTER(OC_INC,  REG_SI, "\x46", 1);
+    VERIFY_INSTR1_REGISTER(OC_INC,  REG_DI, "\x47", 1);
+    VERIFY_INSTR1_REGISTER(OC_DEC,  REG_SI, "\x4e", 1);
+    VERIFY_INSTR1_REGISTER(OC_DEC,  REG_DI, "\x4f", 1);
+    VERIFY_INSTR1_REGISTER(OC_NOT,  REG_DX, "\xf7\xd2", 2);
+    VERIFY_INSTR1_REGISTER(OC_NEG,  REG_DX, "\xf7\xda", 2);
+    VERIFY_INSTR1_REGISTER(OC_CALL, REG_AX, "\xff\xd0", 2);
 
-    // VERIFY_INSTR1_IMMEDIATE(opcode, value, expect_bytes, expect_len);
-    // VERIFY_INSTR1_REGISTER(opcode, regno, expect_bytes, expect_len);
     // VERIFY_INSTR1_MEMBYREG(opcode, regno, offset, expect_bytes, expect_len);
     // VERIFY_INSTR1_MEMBYSYM(opcode, symbol_name, expect_bytes, expect_len);
 

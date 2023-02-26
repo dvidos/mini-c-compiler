@@ -242,15 +242,6 @@ static bool encode_ext_instr_mem_by_register(struct x86_encoder *enc, u8 opcode,
 static bool encode_ext_instr_mem_by_symbol(struct x86_encoder *enc, u8 opcode, u8 ext_opcode, char *symbol_name);
 
 
-#define ENC_OPCODE(b)               enc->output
-#define ENC_OPCODE_PLUS_REG(b)      
-#define ENC_MODRM(mode, reg, reg_mem)      // 
-#define ENC_SIB(scale, index, base)        // 
-#define ENC_DWORD(dw)            // add dword
-#define ENC_SYMBOL_REF(symbol)   // save ref, add four zeros
-
-
-
 
 static bool x86_encoder_encode(struct x86_encoder *enc, struct instruction *instr) {
     if (enc->mode != CPU_MODE_PROTECTED) {
@@ -358,6 +349,41 @@ static bool x86_encoder_encode(struct x86_encoder *enc, struct instruction *inst
             enc->output->add_byte(enc->output, 0xC3);
             break;
 
+        case OC_INC:
+            if (instr->op1.type == OT_REGISTER) {
+                enc->output->add_byte(enc->output, 0x40 + (instr->op1.value & 0x7));
+                return true;
+            }
+            break;
+        case OC_DEC:
+            if (instr->op1.type == OT_REGISTER) {
+                enc->output->add_byte(enc->output, 0x48 + (instr->op1.value & 0x7));
+                return true;
+            }
+            break;
+        case OC_NEG:
+            if (instr->op1.type == OT_REGISTER) {
+                // "F7/3"
+                enc->output->add_byte(enc->output, 0xF7);
+                enc->output->add_byte(enc->output, modrm_byte(MODE_DIRECT_REGISTER, 3, instr->op1.value));
+                return true;
+            }
+            break;
+        case OC_NOT:
+            if (instr->op1.type == OT_REGISTER) {
+                // "F7/2"
+                enc->output->add_byte(enc->output, 0xF7);
+                enc->output->add_byte(enc->output, modrm_byte(MODE_DIRECT_REGISTER, 2, instr->op1.value));
+                return true;
+            }
+            break;
+        case OC_CALL:
+            if (instr->op1.type == OT_REGISTER) {
+                // "FF/2"
+                enc->output->add_byte(enc->output, 0xFF);
+                enc->output->add_byte(enc->output, modrm_byte(MODE_DIRECT_REGISTER, 2, instr->op1.value));
+                return true;
+            }
         default:
             return false;
     }

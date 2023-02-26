@@ -10,7 +10,7 @@ enum operand_type {
     OT_IMMEDIATE,                // size depends
     OT_REGISTER,                 // e.g. EAX
     OT_MEMORY_POINTED_BY_REG,    // e.g. [EAX]
-    OT_MEMORY_POINTED_BY_SYMBOL, // e.g. address number (resolved at linking)
+    OT_MEMORY_ADDRESS_OF_SYMBOL, // e.g. address of symbol (resolved at linking)
 };
 
 // these have to be 0 through 7, in this sequence.

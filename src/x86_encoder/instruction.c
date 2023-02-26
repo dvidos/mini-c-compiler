@@ -46,8 +46,8 @@ static void append_operand_instruction(struct operand *op, char *buffer) {
         } else {
             sprintf(buffer + strlen(buffer), "[%c%s]", options.register_prefix, get_reg_str(op->value));
         }
-    } else if (op->type == OT_MEMORY_POINTED_BY_SYMBOL) {
-        sprintf(buffer + strlen(buffer), "[%s]", op->symbol_name);
+    } else if (op->type == OT_MEMORY_ADDRESS_OF_SYMBOL) {
+        sprintf(buffer + strlen(buffer), "%s", op->symbol_name);
     }
 }
 

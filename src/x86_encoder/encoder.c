@@ -223,7 +223,7 @@ struct encoding_information {
     u8 opcode_extension;         // eg the "/6" extension of the opcode (0-7 valid only)
 };
 
-#define REF_VALUE_MAGIC 0xFFFFFFFF
+#define REF_VALUE_MAGIC 0x00000000
 
 
 static inline u8 modrm_byte(int mode, int reg, int regmem);
@@ -254,7 +254,7 @@ static bool x86_encoder_encode(struct x86_encoder *enc, struct instruction *inst
                 // Intel gives this as: "FF /6   ModRM:r/m (r)"
                 return encode_extended_opcode_instruction_for_memory_pointed_by_register(enc, 0xFF, 6, instr->op1.value, instr->op1.offset);
 
-            } else if (instr->op1.type == OT_MEMORY_POINTED_BY_SYMBOL) {
+            } else if (instr->op1.type == OT_MEMORY_ADDRESS_OF_SYMBOL) {
                 // Intel gives this as: "FF /6   ModRM:r/m (r)"
                 return encode_extended_opcode_instruction_for_memory_at_address_by_symbol(enc, 0xFF, 6, instr->op1.symbol_name);
 
@@ -278,7 +278,7 @@ static bool x86_encoder_encode(struct x86_encoder *enc, struct instruction *inst
                 // Intel gives this as: "8F /0"
                 return encode_extended_opcode_instruction_for_memory_pointed_by_register(enc, 0x8F, 0, instr->op1.value, instr->op1.offset);
 
-            } else if (instr->op1.type == OT_MEMORY_POINTED_BY_SYMBOL) {
+            } else if (instr->op1.type == OT_MEMORY_ADDRESS_OF_SYMBOL) {
                 // Intel gives this as: "8F /6   ModRM:r/m (r)"
                 return encode_extended_opcode_instruction_for_memory_at_address_by_symbol(enc, 0x8F, 0, instr->op1.symbol_name);
 
@@ -367,7 +367,7 @@ static bool encode_extended_opcode_instruction_for_memory_pointed_by_register(st
     enc->output->add_byte(enc->output, opcode);
     enc->output->add_byte(enc->output, modrm_byte(mode, ext_opcode, reg_no));
     if (displacement_bytes == 1)
-        enc->output->add_dword(enc->output, (char)displacement);
+        enc->output->add_byte(enc->output, (char)displacement);
     else if (displacement_bytes == 4)
         enc->output->add_dword(enc->output, displacement);
 

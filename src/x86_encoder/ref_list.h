@@ -17,8 +17,10 @@ struct reference {
 struct ref_list {
     struct reference *references;
     int capacity;
-    int count;
+    int length;
     void (*add)(struct ref_list *list, u64 position, char *name);
+    void (*clear)(struct ref_list *list);
+    void (*free)(struct ref_list *list);
 };
 
 struct ref_list *new_ref_list();

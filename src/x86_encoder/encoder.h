@@ -19,6 +19,8 @@ struct x86_encoder {
     struct ref_list *references;
 
     bool (*encode)(struct x86_encoder *encoder, struct instruction *instr);
+    void (*reset)(struct x86_encoder *encoder);
+    void (*free)(struct x86_encoder *encoder);
 };
 
 struct x86_encoder *new_x86_encoder(enum x86_cpu_mode mode);

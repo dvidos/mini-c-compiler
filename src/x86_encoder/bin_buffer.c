@@ -15,6 +15,7 @@ static void bin_buff_add_repeat_bytes(struct bin_buffer *buff, u8 value, int tim
 static void bin_buff_add_repeat_words(struct bin_buffer *buff, u16 value, int times);
 static void bin_buff_add_repeat_dwords(struct bin_buffer *buff, u32 value, int times);
 static void bin_buff_add_repeat_quads(struct bin_buffer *buff, u64 value, int times);
+static void bin_buff_free(struct bin_buffer *buff);
 
 
 struct bin_buffer *new_bin_buffer() {
@@ -35,6 +36,7 @@ struct bin_buffer *new_bin_buffer() {
     p->add_repeat_words = bin_buff_add_repeat_words;
     p->add_repeat_dwords = bin_buff_add_repeat_dwords;
     p->add_repeat_quads = bin_buff_add_repeat_quads;
+    p->free = bin_buff_free;
 
     return p;
 }
@@ -124,4 +126,8 @@ static void bin_buff_add_repeat_quads(struct bin_buffer *buff, u64 value, int ti
         bin_buff_add_quad(buff, value);
 }
 
+static void bin_buff_free(struct bin_buffer *buff) {
+    free(buff->data);
+    free(buff);
+}
 

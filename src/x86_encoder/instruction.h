@@ -6,11 +6,11 @@ typedef uint64_t u64;
 
 
 enum operand_type {
-    OT_NONE = 0,                 // this operand is not to be used
-    OT_IMMEDIATE,                // size depends
-    OT_REGISTER,                 // e.g. EAX
-    OT_MEMORY_POINTED_BY_REG,    // e.g. [EAX]
-    OT_MEMORY_ADDRESS_OF_SYMBOL, // e.g. address of symbol (resolved at linking)
+    OT_NONE = 0,              // this operand is not to be used
+    OT_IMMEDIATE,             // size depends
+    OT_REGISTER,              // e.g. EAX
+    OT_MEMORY_POINTED_BY_REG, // e.g. [EAX]
+    OT_SYMBOL_MEM_ADDRESS,    // e.g. address of symbol (resolved at linking)
 };
 
 // these have to be 0 through 7, in this sequence.
@@ -75,4 +75,4 @@ struct instruction {
     struct operand op2;
 };
 
-void print_instruction(char *prefix, struct instruction *inst);
+void instruction_to_string(struct instruction *inst, char *buff);

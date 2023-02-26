@@ -23,6 +23,7 @@ struct bin_buffer {
     void (*add_repeat_words)(struct bin_buffer *buff, u16 value, int times);
     void (*add_repeat_dwords)(struct bin_buffer *buff, u32 value, int times);
     void (*add_repeat_quads)(struct bin_buffer *buff, u64 value, int times);
+    void (*free)(struct bin_buffer *buff);
 };
 
 struct bin_buffer *new_bin_buffer();

@@ -141,6 +141,8 @@ typedef uint64_t u64;
 
 
 static bool x86_encoder_encode(struct x86_encoder *enc, struct instruction *instr);
+static void x86_encoder_reset(struct x86_encoder *enc);
+static void x86_encoder_free(struct x86_encoder *enc);
 
 struct x86_encoder *new_x86_encoder(enum x86_cpu_mode mode) {
     struct x86_encoder *enc = malloc(sizeof(struct x86_encoder));
@@ -150,6 +152,8 @@ struct x86_encoder *new_x86_encoder(enum x86_cpu_mode mode) {
     enc->references = new_ref_list();
 
     enc->encode = x86_encoder_encode;
+    enc->reset = x86_encoder_reset;
+    enc->free = x86_encoder_free;
 };
 
 // seems like encoding is heavily based on the operands type + size.
@@ -223,15 +227,28 @@ struct encoding_information {
     u8 opcode_extension;         // eg the "/6" extension of the opcode (0-7 valid only)
 };
 
-#define REF_VALUE_MAGIC 0x00000000
+enum modrm_mode {
+    MODE_INDIRECT_NO_DISPLACEMENT         = 0x0,
+    MODE_INDIRECT_ONE_BYTE_DISPLACEMENT   = 0x1,
+    MODE_INDIRECT_FOUR_BYTES_DISPLACEMENT = 0x2,
+    MODE_DIRECT_REGISTER                  = 0x3
+};
 
-
-static inline u8 modrm_byte(int mode, int reg, int regmem);
+static inline u8 modrm_byte(int mode, int reg, int reg_mem);
 static inline u8 sib_byte(int scale, int index, int base);
 static bool encode_single_byte_instruction_adding_reg_no(struct x86_encoder *enc, u8 base_opcode, int reg_no);
-static bool encode_extended_opcode_instruction_for_register_access(struct x86_encoder *enc, u8 opcode, u8 ext_opcode, int reg_no);
-static bool encode_extended_opcode_instruction_for_memory_pointed_by_register(struct x86_encoder *enc, u8 opcode, u8 ext_opcode, int reg_no, int displacement);
-static bool encode_extended_opcode_instruction_for_memory_at_address_by_symbol(struct x86_encoder *enc, u8 opcode, u8 ext_opcode, char *symbol_name);
+static bool encode_ext_instr_direct_reg(struct x86_encoder *enc, u8 opcode, u8 ext_opcode, int reg_no);
+static bool encode_ext_instr_mem_by_register(struct x86_encoder *enc, u8 opcode, u8 ext_opcode, int reg_no, int displacement);
+static bool encode_ext_instr_mem_by_symbol(struct x86_encoder *enc, u8 opcode, u8 ext_opcode, char *symbol_name);
+
+
+#define ENC_OPCODE(b)               enc->output
+#define ENC_OPCODE_PLUS_REG(b)      
+#define ENC_MODRM(mode, reg, reg_mem)      // 
+#define ENC_SIB(scale, index, base)        // 
+#define ENC_DWORD(dw)            // add dword
+#define ENC_SYMBOL_REF(symbol)   // save ref, add four zeros
+
 
 
 
@@ -252,14 +269,14 @@ static bool x86_encoder_encode(struct x86_encoder *enc, struct instruction *inst
 
             } else if (instr->op1.type == OT_MEMORY_POINTED_BY_REG) {
                 // Intel gives this as: "FF /6   ModRM:r/m (r)"
-                return encode_extended_opcode_instruction_for_memory_pointed_by_register(enc, 0xFF, 6, instr->op1.value, instr->op1.offset);
+                return encode_ext_instr_mem_by_register(enc, 0xFF, 6, instr->op1.value, instr->op1.offset);
 
-            } else if (instr->op1.type == OT_MEMORY_ADDRESS_OF_SYMBOL) {
+            } else if (instr->op1.type == OT_SYMBOL_MEM_ADDRESS) {
                 // Intel gives this as: "FF /6   ModRM:r/m (r)"
-                return encode_extended_opcode_instruction_for_memory_at_address_by_symbol(enc, 0xFF, 6, instr->op1.symbol_name);
+                return encode_ext_instr_mem_by_symbol(enc, 0xFF, 6, instr->op1.symbol_name);
 
             } else if (instr->op1.type == OT_IMMEDIATE) {
-                // simple
+                // simple 68 + value
                 enc->output->add_byte(enc->output, 0x68);
                 enc->output->add_dword(enc->output, instr->op1.value);
                 return true;
@@ -268,36 +285,72 @@ static bool x86_encoder_encode(struct x86_encoder *enc, struct instruction *inst
             }
             break;
         case OC_POP:
-            // pop reg
-            // pop mem
             if (instr->op1.type == OT_REGISTER) {
                 // this one cannot push segment registers, only general ones
                 return encode_single_byte_instruction_adding_reg_no(enc, 0x58, instr->op1.value);
 
             } else if (instr->op1.type == OT_MEMORY_POINTED_BY_REG) {
                 // Intel gives this as: "8F /0"
-                return encode_extended_opcode_instruction_for_memory_pointed_by_register(enc, 0x8F, 0, instr->op1.value, instr->op1.offset);
+                return encode_ext_instr_mem_by_register(enc, 0x8F, 0, instr->op1.value, instr->op1.offset);
 
-            } else if (instr->op1.type == OT_MEMORY_ADDRESS_OF_SYMBOL) {
+            } else if (instr->op1.type == OT_SYMBOL_MEM_ADDRESS) {
                 // Intel gives this as: "8F /6   ModRM:r/m (r)"
-                return encode_extended_opcode_instruction_for_memory_at_address_by_symbol(enc, 0x8F, 0, instr->op1.symbol_name);
+                return encode_ext_instr_mem_by_symbol(enc, 0x8F, 0, instr->op1.symbol_name);
 
             } else {
                 return false;
             }
             break;
-            break;
         case OC_MOV:
+            // mov reg, imm    - B8
             // mov reg, reg    - 89 or 8B
             // mov reg, mem    - 8B
-            // mov reg, imm    - B8
             // mov mem, reg    - 89
             // mov mem, imm    - B8 or C7
+            if (instr->op1.type == OT_REGISTER && instr->op2.type == OT_IMMEDIATE) {
+                // B8+reg, imm32
+                enc->output->add_byte(enc->output, 0xB8 + (instr->op1.value & 0x7));
+                enc->output->add_dword(enc->output, instr->op2.value);
+            } else if (instr->op1.type == OT_REGISTER && instr->op2.type == OT_REGISTER) {
+                // "89 /r"  (mode 11, reg=src, r/m=dest)
+                // which one has the offset???
+                enc->output->add_byte(enc->output, 0x89);
+                enc->output->add_byte(enc->output, modrm_byte(MODE_DIRECT_REGISTER, instr->op2.value, instr->op1.value));
+            } else if (instr->op1.type == OT_REGISTER && instr->op2.type == OT_MEMORY_POINTED_BY_REG) {
+                // "8B /r"  (mode , reg=src, r/m=dest)
+                return encode_ext_instr_mem_by_register(enc, 
+                    0x8B, instr->op1.value, instr->op2.value, instr->op2.offset);
+            } else if (instr->op1.type == OT_REGISTER && instr->op2.type == OT_SYMBOL_MEM_ADDRESS) {
+                enc->output->add_byte(enc->output, 0xA1);
+                enc->output->add_byte(enc->output, modrm_byte(MODE_DIRECT_REGISTER, 0, instr->op1.value));
+                enc->references->add(enc->references, enc->output->length, instr->op2.symbol_name);
+                enc->output->add_dword(enc->output, 0x00000000);
+                return true;
+                
+            } else if (instr->op1.type == OT_MEMORY_POINTED_BY_REG && instr->op2.type == OT_REGISTER) {
+
+            } else if (instr->op1.type == OT_SYMBOL_MEM_ADDRESS && instr->op2.type == OT_REGISTER) {
+                enc->output->add_byte(enc->output, 0xA3);
+                enc->references->add(enc->references, enc->output->length, instr->op1.symbol_name);
+                enc->output->add_dword(enc->output, 0x00000000);
+                enc->output->add_byte(enc->output, modrm_byte(MODE_DIRECT_REGISTER, 0, instr->op2.value));
+                return true;
+
+            } else if (instr->op1.type == OT_MEMORY_POINTED_BY_REG && instr->op2.type == OT_IMMEDIATE) {
+            } else if (instr->op1.type == OT_SYMBOL_MEM_ADDRESS && instr->op2.type == OT_IMMEDIATE) {
+            } else {
+                return false;
+            }
             break;
         case OC_INT:
             // should be easy
             enc->output->add_byte(enc->output, 0xCD);
             enc->output->add_byte(enc->output, instr->op1.value);
+            break;
+
+        case OC_RET:
+            // near ret assumes no change in CS
+            enc->output->add_byte(enc->output, 0xC3);
             break;
 
         default:
@@ -307,9 +360,9 @@ static bool x86_encoder_encode(struct x86_encoder *enc, struct instruction *inst
 }
 
 
-static inline u8 modrm_byte(int mode, int reg, int regmem) {
+static inline u8 modrm_byte(int mode, int reg, int reg_mem) {
     // 2 bits + 3 bits + 3 bits
-    return ((mode & 0x3) << 6) | ((reg & 0x7) << 3) | (regmem & 0x7);
+    return ((mode & 0x3) << 6) | ((reg & 0x7) << 3) | (reg_mem & 0x7);
 }
 
 static inline u8 sib_byte(int scale, int index, int base) {
@@ -320,18 +373,18 @@ static inline u8 sib_byte(int scale, int index, int base) {
 static bool encode_single_byte_instruction_adding_reg_no(struct x86_encoder *enc, u8 base_opcode, int reg_no) {
     // e.g. "PUSH ECX" -> 51
     enc->output->add_byte(enc->output, base_opcode + (reg_no & 0x7));
+    return true;
 }
 
-static bool encode_extended_opcode_instruction_for_register_access(struct x86_encoder *enc, u8 opcode, u8 ext_opcode, int reg_no) {
+static bool encode_ext_instr_direct_reg(struct x86_encoder *enc, u8 opcode, u8 ext_opcode, int reg_no) {
     // e.g. "PUSH EAX"
     // ext_opcode goes to the "reg" field, reg_no is set, 
-
-    u8 mode = 0x3;  // bin 11, i.e. direct register value
     enc->output->add_byte(enc->output, opcode);
-    enc->output->add_byte(enc->output, modrm_byte(mode, ext_opcode, reg_no));
+    enc->output->add_byte(enc->output, modrm_byte(MODE_DIRECT_REGISTER, ext_opcode, reg_no));
+    return true;
 }
 
-static bool encode_extended_opcode_instruction_for_memory_pointed_by_register(struct x86_encoder *enc, u8 opcode, u8 ext_opcode, int reg_no, int displacement) {
+static bool encode_ext_instr_mem_by_register(struct x86_encoder *enc, u8 opcode, u8 ext_opcode, int reg_no, int displacement) {
     // e.g. "PUSH [EAX+2]"
     // ext_opcode goes to the "reg" field, 
     // we shall code the special cases of SP and BP, 
@@ -339,50 +392,57 @@ static bool encode_extended_opcode_instruction_for_memory_pointed_by_register(st
     // this will tell us the mode bits
     u8 mode;
     u8 reg_mem;
-    u8 displacement_bytes = 0;
 
     // ESP cannot be used for memory reference, it's not encodable
     if (reg_no == REG_SP)
         return false;
 
     if (displacement == 0) {
-        mode = 0;
-        displacement_bytes = 0;
+        mode = MODE_INDIRECT_NO_DISPLACEMENT;
     } else if (displacement >= -128 && displacement <= 127) {
-        mode = 1; // bin 01 - one byte displacement
-        displacement_bytes = 1;
+        mode = MODE_INDIRECT_ONE_BYTE_DISPLACEMENT;
     } else {
-        mode = 2; // bin 10 - four bytes displacement
-        displacement_bytes = 4;
+        mode = MODE_INDIRECT_FOUR_BYTES_DISPLACEMENT;
     }
 
-    // EBP cannot be accessed directly, only with a displacement
+    // EBP cannot be accessed directly, only through a displacement, we use zero
     if (reg_no == REG_BP && mode == 0) {
-        mode = 1;
-        displacement_bytes = 1;
+        mode = MODE_INDIRECT_ONE_BYTE_DISPLACEMENT;
         displacement = 0;
     }
 
     // finally...
     enc->output->add_byte(enc->output, opcode);
     enc->output->add_byte(enc->output, modrm_byte(mode, ext_opcode, reg_no));
-    if (displacement_bytes == 1)
+
+    if (mode == MODE_INDIRECT_ONE_BYTE_DISPLACEMENT)
         enc->output->add_byte(enc->output, (char)displacement);
-    else if (displacement_bytes == 4)
+    else if (mode == MODE_INDIRECT_FOUR_BYTES_DISPLACEMENT)
         enc->output->add_dword(enc->output, displacement);
 
     return true;
 }
 
-static bool encode_extended_opcode_instruction_for_memory_at_address_by_symbol(struct x86_encoder *enc, u8 opcode, u8 ext_opcode, char *symbol_name) {
+static bool encode_ext_instr_mem_by_symbol(struct x86_encoder *enc, u8 opcode, u8 ext_opcode, char *symbol_name) {
     // we utilize the 00 (bin) mode and 101 (bin) R/M value which actually means direct displacement
+    // 0x5 is the R/M value for direct memory addressing
     // e.g. "PUSH [0x1234]" -> FF 35 34 12 00 00       push dword ptr [0x1234]
     enc->output->add_byte(enc->output, opcode);
-    enc->output->add_byte(enc->output, modrm_byte(0x0, ext_opcode, 0x5));
+    enc->output->add_byte(enc->output, modrm_byte(MODE_INDIRECT_NO_DISPLACEMENT, ext_opcode, 0x5));
 
+    // save reference to backfill four bytes
     enc->references->add(enc->references, enc->output->length, symbol_name);
-    enc->output->add_dword(enc->output, REF_VALUE_MAGIC);
-
+    enc->output->add_dword(enc->output, 0x00000000);
     return true;
 }
 
+static void x86_encoder_reset(struct x86_encoder *enc) {
+    enc->output->clear(enc->output);
+    enc->references->clear(enc->references);
+}
+
+static void x86_encoder_free(struct x86_encoder *enc) {
+    enc->output->free(enc->output);
+    enc->references->free(enc->references);
+    free(enc);
+}

@@ -10,15 +10,8 @@ static char *get_reg_str(enum reg r);
 static void append_operand_instruction(struct operand *op, char *buffer);
 
 
-void print_instruction(char *prefix, struct instruction *inst) {
-    char buff[128];
-
-    if (prefix == NULL)
-        buff[0] = 0;
-    else
-        strcpy(buff, prefix);
-
-    strcat(buff, get_opcode_str(inst->opcode));
+void instruction_to_string(struct instruction *inst, char *buff) {
+    strcpy(buff, get_opcode_str(inst->opcode));
     if (inst->op1.type != OT_NONE) {
         strcat(buff, " ");
         append_operand_instruction(&inst->op1, buff);
@@ -27,8 +20,6 @@ void print_instruction(char *prefix, struct instruction *inst) {
             append_operand_instruction(&inst->op2, buff);
         }
     }
-
-    printf("%s\n", buff);
 }
 
 static void append_operand_instruction(struct operand *op, char *buffer) {
@@ -46,7 +37,7 @@ static void append_operand_instruction(struct operand *op, char *buffer) {
         } else {
             sprintf(buffer + strlen(buffer), "[%c%s]", options.register_prefix, get_reg_str(op->value));
         }
-    } else if (op->type == OT_MEMORY_ADDRESS_OF_SYMBOL) {
+    } else if (op->type == OT_SYMBOL_MEM_ADDRESS) {
         sprintf(buffer + strlen(buffer), "%s", op->symbol_name);
     }
 }

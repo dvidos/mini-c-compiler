@@ -194,6 +194,14 @@ static void test_movs() {
     instr.op2.type = OT_NONE; \
     if (!verify_single_instruction(&instr, expect_bytes, expect_len)) return;
 
+#define VERIFY_INSTR1_MEMBYSYM(code, sym, expect_bytes, expect_len) \
+    instr.opcode = code; \
+    instr.op1.type = OT_SYMBOL_MEM_ADDRESS; \
+    instr.op1.symbol_name = sym; \
+    instr.op2.type = OT_NONE; \
+    if (!verify_single_instruction(&instr, expect_bytes, expect_len)) return;
+
+
 static void test_instructions() {
     struct instruction instr;
     printf("Verifying instructions ");
@@ -223,6 +231,7 @@ static void test_instructions() {
     VERIFY_INSTR1_REGISTER(OC_NEG,  REG_DX, "\xf7\xda", 2);
     VERIFY_INSTR1_REGISTER(OC_CALL, REG_AX, "\xff\xd0", 2);
 
+    // modify dword pointed by register
     VERIFY_INSTR1_MEMBYREG(OC_PUSH, REG_AX,      0, "\xff\x30",     2);
     VERIFY_INSTR1_MEMBYREG(OC_PUSH, REG_CX,      0, "\xff\x31",     2);
     VERIFY_INSTR1_MEMBYREG(OC_PUSH, REG_CX,     -4, "\xff\x71\xfc", 3);
@@ -238,7 +247,14 @@ static void test_instructions() {
     VERIFY_INSTR1_MEMBYREG(OC_NEG,  REG_BX,      0, "\xf7\x1b",     2);
     VERIFY_INSTR1_MEMBYREG(OC_CALL, REG_DX,      0, "\xff\x12",     2);
 
-    // VERIFY_INSTR1_MEMBYSYM(opcode, symbol_name, expect_bytes, expect_len);
+    // modify dword pointed by symbol
+    VERIFY_INSTR1_MEMBYSYM(OC_PUSH, "var1", "\xff\x35\x00\x00\x00\x00", 6);
+    VERIFY_INSTR1_MEMBYSYM(OC_POP,  "var1", "\x8f\x05\x00\x00\x00\x00", 6);
+    VERIFY_INSTR1_MEMBYSYM(OC_INC,  "var1", "\xff\x05\x00\x00\x00\x00", 6);
+    VERIFY_INSTR1_MEMBYSYM(OC_DEC,  "var1", "\xff\x0d\x00\x00\x00\x00", 6);
+    VERIFY_INSTR1_MEMBYSYM(OC_NOT,  "var1", "\xf7\x15\x00\x00\x00\x00", 6);
+    VERIFY_INSTR1_MEMBYSYM(OC_NEG,  "var1", "\xf7\x1d\x00\x00\x00\x00", 6);
+    VERIFY_INSTR1_MEMBYSYM(OC_CALL, "var1", "\x2e\xff\x15\x00\x00\x00\x00", 7);
 
     // // two operands operations, target is a register
     // VERIFY_INSTR2_REG_REGISTER(opcode, target_regno, source_regno, expect_bytes, expect_len);

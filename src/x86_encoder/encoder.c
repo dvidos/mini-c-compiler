@@ -357,6 +357,8 @@ static bool x86_encoder_encode(struct x86_encoder *enc, struct instruction *inst
                 return true;
             } else if (instr->op1.type == OT_MEM_DWORD_POINTED_BY_REG) {
                 return encode_ext_instr_mem_by_register(enc, 0xFF, 0, instr->op1.value, instr->op1.offset);
+            } else if (instr->op1.type == OT_SYMBOL_MEM_ADDRESS) {
+                return encode_ext_instr_mem_by_symbol(enc, 0xFF, 0, instr->op1.symbol_name);
             }
             break;
         case OC_DEC:
@@ -365,6 +367,8 @@ static bool x86_encoder_encode(struct x86_encoder *enc, struct instruction *inst
                 return true;
             } else if (instr->op1.type == OT_MEM_DWORD_POINTED_BY_REG) {
                 return encode_ext_instr_mem_by_register(enc, 0xFF, 1, instr->op1.value, instr->op1.offset);
+            } else if (instr->op1.type == OT_SYMBOL_MEM_ADDRESS) {
+                return encode_ext_instr_mem_by_symbol(enc, 0xFF, 1, instr->op1.symbol_name);
             }
             break;
         case OC_NEG:
@@ -376,6 +380,9 @@ static bool x86_encoder_encode(struct x86_encoder *enc, struct instruction *inst
             } else if (instr->op1.type == OT_MEM_DWORD_POINTED_BY_REG) {
                 // "F7/3"
                 return encode_ext_instr_mem_by_register(enc, 0xF7, 3, instr->op1.value, instr->op1.offset);
+            } else if (instr->op1.type == OT_SYMBOL_MEM_ADDRESS) {
+                // "F7/3"
+                return encode_ext_instr_mem_by_symbol(enc, 0xF7, 3, instr->op1.symbol_name);
             }
             break;
         case OC_NOT:
@@ -387,6 +394,9 @@ static bool x86_encoder_encode(struct x86_encoder *enc, struct instruction *inst
             } else if (instr->op1.type == OT_MEM_DWORD_POINTED_BY_REG) {
                 // "F7/2"
                 return encode_ext_instr_mem_by_register(enc, 0xF7, 2, instr->op1.value, instr->op1.offset);
+            } else if (instr->op1.type == OT_SYMBOL_MEM_ADDRESS) {
+                // "F7/2"
+                return encode_ext_instr_mem_by_symbol(enc, 0xF7, 2, instr->op1.symbol_name);
             }
             break;
         case OC_CALL:
@@ -398,6 +408,12 @@ static bool x86_encoder_encode(struct x86_encoder *enc, struct instruction *inst
             } else if (instr->op1.type == OT_MEM_DWORD_POINTED_BY_REG) {
                 // "FF/2"
                 return encode_ext_instr_mem_by_register(enc, 0xFF, 2, instr->op1.value, instr->op1.offset);
+            } else if (instr->op1.type == OT_SYMBOL_MEM_ADDRESS) {
+                // "FF/2", we'll use a CODE_SEG override to make this an absolute call,
+                //         otherwise it will be relative to the next instruction
+                //         and it'd be encoded as "e8 01 00 00 00" with dword as relative offset
+                enc->output->add_byte(enc->output, 0x2E);
+                return encode_ext_instr_mem_by_symbol(enc, 0xFF, 2, instr->op1.symbol_name);
             }
         default:
             return false;

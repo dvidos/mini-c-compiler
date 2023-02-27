@@ -9,9 +9,8 @@
 static void test_push_pops();
 static void test_movs();
 static void test_instructions();
-static void test_exiting_code();
-static void verify_listing(char *title, struct instruction *list, int instr_count, char *expected, int expected_len);
 static bool verify_single_instruction(struct instruction *instr, char *expected_bytes, int expected_len);
+static void verify_listing(char *title, struct instruction *list, int instr_count, char *expected, int expected_len);
 
 
 #define DECLARE_LIST() \
@@ -80,11 +79,11 @@ static void test_push_pops() {
     memset(&list, 0, sizeof(list));
 
     ADD1_(OC_PUSH, OT_REGISTER, REG_AX);
-    ADD1o(OC_PUSH, OT_MEMORY_POINTED_BY_REG, REG_BX, +3);
+    ADD1o(OC_PUSH, OT_MEM_DWORD_POINTED_BY_REG, REG_BX, +3);
     ADD1_(OC_PUSH, OT_IMMEDIATE, 0x1234);
     ADD1s(OC_PUSH, "nicholas");
     ADD1_(OC_POP, OT_REGISTER, REG_CX);
-    ADD1o(OC_POP, OT_MEMORY_POINTED_BY_REG, REG_DX, +2);
+    ADD1o(OC_POP, OT_MEM_DWORD_POINTED_BY_REG, REG_DX, +2);
     ADD1s(OC_POP, "nicholas");
 
     // using https://defuse.ca/online-x86-assembler.htm
@@ -138,10 +137,10 @@ static void test_movs() {
     // 1f: 8b 01                   mov    eax,DWORD PTR [ecx]
     // 21: 8b 45 04                mov    eax,DWORD PTR [ebp+0x4]
     // 24: 8b 45 fe                mov    eax,DWORD PTR [ebp-0x2]
-    ADD2(OC_MOV, OT_REGISTER, REG_AX, OT_MEMORY_POINTED_BY_REG, REG_CX);
-    ADD2(OC_MOV, OT_REGISTER, REG_AX, OT_MEMORY_POINTED_BY_REG, REG_BP);
+    ADD2(OC_MOV, OT_REGISTER, REG_AX, OT_MEM_DWORD_POINTED_BY_REG, REG_CX);
+    ADD2(OC_MOV, OT_REGISTER, REG_AX, OT_MEM_DWORD_POINTED_BY_REG, REG_BP);
     list[list_len-1].op2.offset = +4;
-    ADD2(OC_MOV, OT_REGISTER, REG_AX, OT_MEMORY_POINTED_BY_REG, REG_BP);
+    ADD2(OC_MOV, OT_REGISTER, REG_AX, OT_MEM_DWORD_POINTED_BY_REG, REG_BP);
     list[list_len-1].op2.offset = -2;
 
     // MOV DWORD PTR [ECX], EAX
@@ -152,11 +151,11 @@ static void test_movs() {
     // 29: c7 01 01 00 00 00       mov    DWORD PTR [ecx],0x1
     // 2f: c7 45 04 01 00 00 00    mov    DWORD PTR [ebp+0x4],0x1
     // 36: c7 45 fe 01 00 00 00    mov    DWORD PTR [ebp-0x2],0x1
-    ADD2(OC_MOV, OT_MEMORY_POINTED_BY_REG, REG_CX, OT_REGISTER, REG_AX);
-    ADD2(OC_MOV, OT_MEMORY_POINTED_BY_REG, REG_CX, OT_IMMEDIATE, 1);
-    ADD2(OC_MOV, OT_MEMORY_POINTED_BY_REG, REG_BP, OT_IMMEDIATE, 1);
+    ADD2(OC_MOV, OT_MEM_DWORD_POINTED_BY_REG, REG_CX, OT_REGISTER, REG_AX);
+    ADD2(OC_MOV, OT_MEM_DWORD_POINTED_BY_REG, REG_CX, OT_IMMEDIATE, 1);
+    ADD2(OC_MOV, OT_MEM_DWORD_POINTED_BY_REG, REG_BP, OT_IMMEDIATE, 1);
     list[list_len-1].op1.offset = +4;
-    ADD2(OC_MOV, OT_MEMORY_POINTED_BY_REG, REG_BP, OT_IMMEDIATE, 1);
+    ADD2(OC_MOV, OT_MEM_DWORD_POINTED_BY_REG, REG_BP, OT_IMMEDIATE, 1);
     list[list_len-1].op2.offset = -2;
 
 
@@ -187,6 +186,14 @@ static void test_movs() {
     instr.op2.type = OT_NONE; \
     if (!verify_single_instruction(&instr, expect_bytes, expect_len)) return;
 
+#define VERIFY_INSTR1_MEMBYREG(code, reg_no, offs, expect_bytes, expect_len) \
+    instr.opcode = code; \
+    instr.op1.type = OT_MEM_DWORD_POINTED_BY_REG; \
+    instr.op1.value = reg_no; \
+    instr.op1.offset = offs; \
+    instr.op2.type = OT_NONE; \
+    if (!verify_single_instruction(&instr, expect_bytes, expect_len)) return;
+
 static void test_instructions() {
     struct instruction instr;
     printf("Verifying instructions ");
@@ -196,13 +203,13 @@ static void test_instructions() {
     VERIFY_INSTR0(OC_RET, "\xC3", 1);
 
     // one operand instructions: immediate, register, mem<-reg, mem<-symbol
-    VERIFY_INSTR1_IMMEDIATE(OC_INT, 0x21, "\xCD\x21", 2);
-    VERIFY_INSTR1_IMMEDIATE(OC_INT, 0x80, "\xCD\x80", 2);
-    VERIFY_INSTR1_IMMEDIATE(OC_PUSH, 0, "\x6A\x00", 2);
-    VERIFY_INSTR1_IMMEDIATE(OC_PUSH, 1, "\x6A\x01", 2);
-    VERIFY_INSTR1_IMMEDIATE(OC_PUSH, -1, "\x6A\xFF", 2);
+    VERIFY_INSTR1_IMMEDIATE(OC_INT,        0x21, "\xCD\x21", 2);
+    VERIFY_INSTR1_IMMEDIATE(OC_INT,        0x80, "\xCD\x80", 2);
+    VERIFY_INSTR1_IMMEDIATE(OC_PUSH,          0, "\x6A\x00", 2);
+    VERIFY_INSTR1_IMMEDIATE(OC_PUSH,          1, "\x6A\x01", 2);
+    VERIFY_INSTR1_IMMEDIATE(OC_PUSH,         -1, "\x6A\xFF", 2);
     VERIFY_INSTR1_IMMEDIATE(OC_PUSH, 0x12345678, "\x68\x78\x56\x34\x12", 5);
-    
+
     // one operand, with a register
     VERIFY_INSTR1_REGISTER(OC_PUSH, REG_AX, "\x50", 1);
     VERIFY_INSTR1_REGISTER(OC_PUSH, REG_DX, "\x52", 1);
@@ -216,7 +223,21 @@ static void test_instructions() {
     VERIFY_INSTR1_REGISTER(OC_NEG,  REG_DX, "\xf7\xda", 2);
     VERIFY_INSTR1_REGISTER(OC_CALL, REG_AX, "\xff\xd0", 2);
 
-    // VERIFY_INSTR1_MEMBYREG(opcode, regno, offset, expect_bytes, expect_len);
+    VERIFY_INSTR1_MEMBYREG(OC_PUSH, REG_AX,      0, "\xff\x30",     2);
+    VERIFY_INSTR1_MEMBYREG(OC_PUSH, REG_CX,      0, "\xff\x31",     2);
+    VERIFY_INSTR1_MEMBYREG(OC_PUSH, REG_CX,     -4, "\xff\x71\xfc", 3);
+    VERIFY_INSTR1_MEMBYREG(OC_PUSH, REG_CX,     +8, "\xff\x71\x08", 3);
+    VERIFY_INSTR1_MEMBYREG(OC_POP,  REG_DX,      0, "\x8f\x02",     2);
+    VERIFY_INSTR1_MEMBYREG(OC_POP,  REG_BX,      0, "\x8f\x03",     2);
+    VERIFY_INSTR1_MEMBYREG(OC_INC,  REG_AX,      0, "\xff\x00",     2);
+    VERIFY_INSTR1_MEMBYREG(OC_DEC,  REG_CX,      0, "\xff\x09",     2);
+    VERIFY_INSTR1_MEMBYREG(OC_DEC,  REG_CX,     -4, "\xff\x49\xfc", 3);
+    VERIFY_INSTR1_MEMBYREG(OC_DEC,  REG_CX,     +8, "\xff\x49\x08", 3);
+    VERIFY_INSTR1_MEMBYREG(OC_DEC,  REG_CX, +0x200, "\xff\x89\x00\x02\x00\x00", 6);
+    VERIFY_INSTR1_MEMBYREG(OC_NOT,  REG_DX,      0, "\xf7\x12",     2);
+    VERIFY_INSTR1_MEMBYREG(OC_NEG,  REG_BX,      0, "\xf7\x1b",     2);
+    VERIFY_INSTR1_MEMBYREG(OC_CALL, REG_DX,      0, "\xff\x12",     2);
+
     // VERIFY_INSTR1_MEMBYSYM(opcode, symbol_name, expect_bytes, expect_len);
 
     // // two operands operations, target is a register
@@ -227,7 +248,7 @@ static void test_instructions() {
 
     // // two operands operations, target is an address pointed by register +/- offset
     // VERIFY_INSTR2_MEMBYREG_REGISTER(opcode, mem_regno, mem_offset, source_regno, expect_bytes, expect_len);
-    // instr.opcode = opcode; 
+    // instr.opcode = opcode;
     // if (!verify_single_instruction(instr, expect_bytes, expect_len)) return;
 
     // VERIFY_INSTR2_MEMBYREG_IMMEDIATE(opcode, mem_regno, mem_offset, value, expect_bytes, expect_len);
@@ -240,21 +261,14 @@ static void test_instructions() {
     printf(" OK\n");
 }
 
-static void test_exiting_code() {
-    // equivalent to "main() { exit(8); }"
 
+static void test_full_io() {
+    // we should really do this one: https://www.tutorialspoint.com/assembly_programming/assembly_system_calls.htm
+    // equivalent to "main() { exit(8); }"
     // 401005:	b8 01 00 00 00       	mov    $0x1,%eax
     // 40100a:	bb 08 00 00 00       	mov    $0x8,%ebx
     // 40100f:	cd 80                	int    $0x80
 }
-
-static void test_full_io() {
-    // we should really do this one: https://www.tutorialspoint.com/assembly_programming/assembly_system_calls.htm
-}
-
-
-
-
 
 static bool verify_single_instruction(struct instruction *instr, char *expected_bytes, int expected_len) {
     char buff[128];
@@ -287,13 +301,12 @@ static bool verify_single_instruction(struct instruction *instr, char *expected_
     return true;
 }
 
-
 static void verify_listing(char *title, struct instruction *list, int instr_count, char *expected, int expected_len) {
     bool encoded;
     char buff[128];
 
     printf("Verify listing '%s'...", title);
-    
+
     struct x86_encoder *encoder = new_x86_encoder(CPU_MODE_PROTECTED);
     for (int i = 0; i < instr_count; i++) {
         encoded = encoder->encode(encoder, &list[i]);
@@ -332,7 +345,7 @@ static void verify_listing(char *title, struct instruction *list, int instr_coun
     for (int i = 0; i < expected_len; i++)
         printf(" %02x", (unsigned char)expected[i]);
     printf("\n");
-    
+
     printf("Produced: ");
     for (int i = 0; i < encoder->output->length; i++)
         printf(" %02x", (unsigned char)encoder->output->data[i]);

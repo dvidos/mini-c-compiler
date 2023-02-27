@@ -29,7 +29,7 @@ static void append_operand_instruction(struct operand *op, char *buffer) {
         sprintf(buffer + strlen(buffer), "0x%lx", op->value);
     } else if (op->type == OT_REGISTER) {
         sprintf(buffer + strlen(buffer), "%c%s", options.register_prefix, get_reg_str(op->value));
-    } else if (op->type == OT_MEMORY_POINTED_BY_REG) {
+    } else if (op->type == OT_MEM_DWORD_POINTED_BY_REG) {
         if (op->offset < 0) {
             sprintf(buffer + strlen(buffer), "[%c%s%ld]", options.register_prefix, get_reg_str(op->value), op->offset);
         } else if (op->offset > 0) {

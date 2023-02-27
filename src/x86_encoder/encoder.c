@@ -258,7 +258,7 @@ static bool x86_encoder_encode(struct x86_encoder *enc, struct instruction *inst
                 // this one cannot push segment registers, only general ones
                 return encode_single_byte_instruction_adding_reg_no(enc, 0x50, instr->op1.value);
 
-            } else if (instr->op1.type == OT_MEMORY_POINTED_BY_REG) {
+            } else if (instr->op1.type == OT_MEM_DWORD_POINTED_BY_REG) {
                 // Intel gives this as: "FF /6   ModRM:r/m (r)"
                 return encode_ext_instr_mem_by_register(enc, 0xFF, 6, instr->op1.value, instr->op1.offset);
 
@@ -285,7 +285,7 @@ static bool x86_encoder_encode(struct x86_encoder *enc, struct instruction *inst
                 // this one cannot push segment registers, only general ones
                 return encode_single_byte_instruction_adding_reg_no(enc, 0x58, instr->op1.value);
 
-            } else if (instr->op1.type == OT_MEMORY_POINTED_BY_REG) {
+            } else if (instr->op1.type == OT_MEM_DWORD_POINTED_BY_REG) {
                 // Intel gives this as: "8F /0"
                 return encode_ext_instr_mem_by_register(enc, 0x8F, 0, instr->op1.value, instr->op1.offset);
 
@@ -312,7 +312,7 @@ static bool x86_encoder_encode(struct x86_encoder *enc, struct instruction *inst
                 // which one has the offset???
                 enc->output->add_byte(enc->output, 0x89);
                 enc->output->add_byte(enc->output, modrm_byte(MODE_DIRECT_REGISTER, instr->op2.value, instr->op1.value));
-            } else if (instr->op1.type == OT_REGISTER && instr->op2.type == OT_MEMORY_POINTED_BY_REG) {
+            } else if (instr->op1.type == OT_REGISTER && instr->op2.type == OT_MEM_DWORD_POINTED_BY_REG) {
                 // "8B /r"  (mode , reg=src, r/m=dest)
                 return encode_ext_instr_mem_by_register(enc, 
                     0x8B, instr->op1.value, instr->op2.value, instr->op2.offset);
@@ -323,7 +323,7 @@ static bool x86_encoder_encode(struct x86_encoder *enc, struct instruction *inst
                 enc->output->add_dword(enc->output, 0x00000000);
                 return true;
                 
-            } else if (instr->op1.type == OT_MEMORY_POINTED_BY_REG && instr->op2.type == OT_REGISTER) {
+            } else if (instr->op1.type == OT_MEM_DWORD_POINTED_BY_REG && instr->op2.type == OT_REGISTER) {
 
             } else if (instr->op1.type == OT_SYMBOL_MEM_ADDRESS && instr->op2.type == OT_REGISTER) {
                 enc->output->add_byte(enc->output, 0xA3);
@@ -332,7 +332,7 @@ static bool x86_encoder_encode(struct x86_encoder *enc, struct instruction *inst
                 enc->output->add_byte(enc->output, modrm_byte(MODE_DIRECT_REGISTER, 0, instr->op2.value));
                 return true;
 
-            } else if (instr->op1.type == OT_MEMORY_POINTED_BY_REG && instr->op2.type == OT_IMMEDIATE) {
+            } else if (instr->op1.type == OT_MEM_DWORD_POINTED_BY_REG && instr->op2.type == OT_IMMEDIATE) {
             } else if (instr->op1.type == OT_SYMBOL_MEM_ADDRESS && instr->op2.type == OT_IMMEDIATE) {
             } else {
                 return false;
@@ -342,23 +342,29 @@ static bool x86_encoder_encode(struct x86_encoder *enc, struct instruction *inst
             // should be easy
             enc->output->add_byte(enc->output, 0xCD);
             enc->output->add_byte(enc->output, instr->op1.value);
+            return true;
             break;
 
         case OC_RET:
             // near ret assumes no change in CS
             enc->output->add_byte(enc->output, 0xC3);
+            return true;
             break;
 
         case OC_INC:
             if (instr->op1.type == OT_REGISTER) {
                 enc->output->add_byte(enc->output, 0x40 + (instr->op1.value & 0x7));
                 return true;
+            } else if (instr->op1.type == OT_MEM_DWORD_POINTED_BY_REG) {
+                return encode_ext_instr_mem_by_register(enc, 0xFF, 0, instr->op1.value, instr->op1.offset);
             }
             break;
         case OC_DEC:
             if (instr->op1.type == OT_REGISTER) {
                 enc->output->add_byte(enc->output, 0x48 + (instr->op1.value & 0x7));
                 return true;
+            } else if (instr->op1.type == OT_MEM_DWORD_POINTED_BY_REG) {
+                return encode_ext_instr_mem_by_register(enc, 0xFF, 1, instr->op1.value, instr->op1.offset);
             }
             break;
         case OC_NEG:
@@ -367,6 +373,9 @@ static bool x86_encoder_encode(struct x86_encoder *enc, struct instruction *inst
                 enc->output->add_byte(enc->output, 0xF7);
                 enc->output->add_byte(enc->output, modrm_byte(MODE_DIRECT_REGISTER, 3, instr->op1.value));
                 return true;
+            } else if (instr->op1.type == OT_MEM_DWORD_POINTED_BY_REG) {
+                // "F7/3"
+                return encode_ext_instr_mem_by_register(enc, 0xF7, 3, instr->op1.value, instr->op1.offset);
             }
             break;
         case OC_NOT:
@@ -375,6 +384,9 @@ static bool x86_encoder_encode(struct x86_encoder *enc, struct instruction *inst
                 enc->output->add_byte(enc->output, 0xF7);
                 enc->output->add_byte(enc->output, modrm_byte(MODE_DIRECT_REGISTER, 2, instr->op1.value));
                 return true;
+            } else if (instr->op1.type == OT_MEM_DWORD_POINTED_BY_REG) {
+                // "F7/2"
+                return encode_ext_instr_mem_by_register(enc, 0xF7, 2, instr->op1.value, instr->op1.offset);
             }
             break;
         case OC_CALL:
@@ -383,6 +395,9 @@ static bool x86_encoder_encode(struct x86_encoder *enc, struct instruction *inst
                 enc->output->add_byte(enc->output, 0xFF);
                 enc->output->add_byte(enc->output, modrm_byte(MODE_DIRECT_REGISTER, 2, instr->op1.value));
                 return true;
+            } else if (instr->op1.type == OT_MEM_DWORD_POINTED_BY_REG) {
+                // "FF/2"
+                return encode_ext_instr_mem_by_register(enc, 0xFF, 2, instr->op1.value, instr->op1.offset);
             }
         default:
             return false;

@@ -1,11 +1,16 @@
 #include <stdio.h>
 #include <string.h>
+#include <stdlib.h>
 #include "instruction.h"
 #include "encoder.h"
 #include "bin_buffer.h"
+#include "symbol_table.h"
+#include "../elf/elf.h"
 #include "../utils.h"
+#include "../options.h"
 
 
+static void test_create_executable();
 static void test_push_pops();
 static void test_movs();
 static void test_instructions();
@@ -69,7 +74,8 @@ static void verify_listing(char *title, struct instruction *list, int instr_coun
 void perform_asm_test() {
     // test_push_pops();
     // test_movs();
-    test_instructions();
+    //test_instructions();
+    test_create_executable();
 }
 
 
@@ -201,6 +207,22 @@ static void test_movs() {
     instr.op2.type = OT_NONE; \
     if (!verify_single_instruction(&instr, expect_bytes, expect_len)) return;
 
+#define VERIFY_INSTR2_REG_REG(code, target_regno, source_regno, expect_bytes, expect_len) \
+    instr.opcode = code; \
+    instr.op1.type = OT_REGISTER; \
+    instr.op1.value = target_regno; \
+    instr.op2.type = OT_REGISTER; \
+    instr.op2.value = source_regno; \
+    if (!verify_single_instruction(&instr, expect_bytes, expect_len)) return;
+
+#define VERIFY_INSTR2_REG_IMMEDIATE(code, regno, val, expect_bytes, expect_len) \
+    instr.opcode = code; \
+    instr.op1.type = OT_REGISTER; \
+    instr.op1.value = regno; \
+    instr.op2.type = OT_IMMEDIATE; \
+    instr.op2.value = val; \
+    if (!verify_single_instruction(&instr, expect_bytes, expect_len)) return;
+
 
 static void test_instructions() {
     struct instruction instr;
@@ -256,17 +278,36 @@ static void test_instructions() {
     VERIFY_INSTR1_MEMBYSYM(OC_NEG,  "var1", "\xf7\x1d\x00\x00\x00\x00", 6);
     VERIFY_INSTR1_MEMBYSYM(OC_CALL, "var1", "\x2e\xff\x15\x00\x00\x00\x00", 7);
 
-    // // two operands operations, target is a register
-    // VERIFY_INSTR2_REG_REGISTER(opcode, target_regno, source_regno, expect_bytes, expect_len);
-    // VERIFY_INSTR2_REG_IMMEDIATE(opcode, target_regno, value, expect_bytes, expect_len);
+    // // two operands operations, source & target is a register
+    VERIFY_INSTR2_REG_REG(OC_MOV, REG_AX, REG_SP, "\x89\xE0", 2);
+    VERIFY_INSTR2_REG_REG(OC_MOV, REG_AX, REG_BP, "\x89\xE8", 2);
+    VERIFY_INSTR2_REG_REG(OC_MOV, REG_AX, REG_SI, "\x89\xF0", 2);
+    VERIFY_INSTR2_REG_REG(OC_MOV, REG_AX, REG_DI, "\x89\xF8", 2);
+    VERIFY_INSTR2_REG_REG(OC_MOV, REG_CX, REG_DI, "\x89\xF9", 2);
+    VERIFY_INSTR2_REG_REG(OC_MOV, REG_DX, REG_DI, "\x89\xFA", 2);
+    VERIFY_INSTR2_REG_REG(OC_ADD, REG_AX, REG_DX, "\x01\xD0", 2);
+    VERIFY_INSTR2_REG_REG(OC_SUB, REG_AX, REG_DX, "\x29\xD0", 2);
+    VERIFY_INSTR2_REG_REG(OC_AND, REG_AX, REG_DX, "\x21\xD0", 2);
+    VERIFY_INSTR2_REG_REG(OC_OR,  REG_AX, REG_DX, "\x09\xD0", 2);
+    VERIFY_INSTR2_REG_REG(OC_XOR, REG_AX, REG_DX, "\x31\xD0", 2);
+
+    VERIFY_INSTR2_REG_IMMEDIATE(OC_MOV, REG_DX, 0x0,        "\xBA\x00\x00\x00\x00", 5);
+    VERIFY_INSTR2_REG_IMMEDIATE(OC_MOV, REG_DX, 0x1,        "\xBA\x01\x00\x00\x00", 5);
+    VERIFY_INSTR2_REG_IMMEDIATE(OC_MOV, REG_DX, 0x12345678, "\xBA\x78\x56\x34\x12", 5);
+    VERIFY_INSTR2_REG_IMMEDIATE(OC_ADD, REG_DX, 0x200,      "\x81\xC2\x00\x02\x00\x00", 6);
+    VERIFY_INSTR2_REG_IMMEDIATE(OC_SUB, REG_DX, 0x200,      "\x81\xEA\x00\x02\x00\x00", 6);
+    VERIFY_INSTR2_REG_IMMEDIATE(OC_SHR, REG_DX, 0x3,        "\xC1\xEA\x03", 3);
+    VERIFY_INSTR2_REG_IMMEDIATE(OC_SHL, REG_DX, 0x6,        "\xC1\xE2\x06", 3);
+    VERIFY_INSTR2_REG_IMMEDIATE(OC_AND, REG_DX, 0xFF00,     "\x81\xE2\x00\xFF\x00\x00", 6);
+    VERIFY_INSTR2_REG_IMMEDIATE(OC_OR,  REG_DX, 0xFF00,     "\x81\xCA\x00\xFF\x00\x00", 6);
+    VERIFY_INSTR2_REG_IMMEDIATE(OC_XOR, REG_DX, 0x5555,     "\x81\xF2\x55\x55\x00\x00", 6);
+    VERIFY_INSTR2_REG_IMMEDIATE(OC_CMP, REG_DX, 0x200,      "\x81\xFA\x00\x02\x00\x00", 6);
+
     // VERIFY_INSTR2_REG_MEMBYREG(opcode, target_regno, mem_regno, mem_offset, expect_bytes, expect_len);
     // VERIFY_INSTR2_REG_MEMBYSYM(opcode, target_regno, symbol_name, expect_bytes, expect_len);
 
     // // two operands operations, target is an address pointed by register +/- offset
     // VERIFY_INSTR2_MEMBYREG_REGISTER(opcode, mem_regno, mem_offset, source_regno, expect_bytes, expect_len);
-    // instr.opcode = opcode;
-    // if (!verify_single_instruction(instr, expect_bytes, expect_len)) return;
-
     // VERIFY_INSTR2_MEMBYREG_IMMEDIATE(opcode, mem_regno, mem_offset, value, expect_bytes, expect_len);
 
     // // two operands operations, target is an address pointed by a symbol
@@ -288,15 +329,17 @@ static void test_full_io() {
 
 static bool verify_single_instruction(struct instruction *instr, char *expected_bytes, int expected_len) {
     char buff[128];
-    instruction_to_string(instr, buff);
 
+    instruction_to_string(instr, buff);
     struct x86_encoder *enc = new_x86_encoder(CPU_MODE_PROTECTED);
+
     if (!enc->encode(enc, instr)) {
         printf("\n");
         printf("  Could not encode instruction '%s'\n", buff);
         enc->free(enc);
         return false;
     }
+
     if (memcmp(enc->output->data, expected_bytes, expected_len) != 0) {
         printf("\n");
         printf("  Bad instruction encoding '%s'\n", buff);
@@ -366,4 +409,104 @@ static void verify_listing(char *title, struct instruction *list, int instr_coun
     for (int i = 0; i < encoder->output->length; i++)
         printf(" %02x", (unsigned char)encoder->output->data[i]);
     printf("\n");
+}
+
+
+
+#define MOV_REG_IMM(reg, val) \
+    listing[count].opcode = OC_MOV;         \
+    listing[count].op1.type = OT_REGISTER;  \
+    listing[count].op1.value = reg;         \
+    listing[count].op2.type = OT_IMMEDIATE; \
+    listing[count].op2.value = val;         \
+    count++;
+
+#define MOV_REG_SYM(reg, sym) \
+    listing[count].opcode = OC_MOV;                   \
+    listing[count].op1.type = OT_REGISTER;            \
+    listing[count].op1.value = reg;                   \
+    listing[count].op2.type = OT_SYMBOL_MEM_ADDRESS;  \
+    listing[count].op2.symbol_name = sym;             \
+    count++;
+
+#define INT(no) \
+    listing[count].opcode = OC_INT;          \
+    listing[count].op1.type = OT_IMMEDIATE;  \
+    listing[count].op1.value = no;           \
+    count++;
+
+void test_create_executable() {
+    // based on this: https://www.tutorialspoint.com/assembly_programming/assembly_system_calls.htm
+
+    struct instruction listing[30];
+    int count = 0;
+
+    memset(&listing, 0, sizeof(listing));
+    // hello_msg,
+    // hello_msg_len,
+    
+    // prepare a data segment as well, keeping address of symbols
+    struct bin_buffer *data_seg = new_bin_buffer();
+    struct symbol_table *data_symbols = new_symbol_table();
+    char *msg = "Hello world!";
+    data_symbols->append_symbol(data_symbols, "hello_msg", data_seg->length);
+    data_seg->add_strz(data_seg, msg);
+    data_symbols->append_symbol(data_symbols, "hello_msg_len", data_seg->length);
+    data_seg->add_dword(data_seg, strlen(msg));
+
+    // syscall for write(), eax=4, ebx=handle, ecx=buffer, edx=length
+    MOV_REG_IMM(REG_AX, 4);
+    MOV_REG_IMM(REG_BX, 1);
+    MOV_REG_SYM(REG_CX, "hello_msg");
+    MOV_REG_SYM(REG_DX, "hello_msg_len");
+    INT(0x80);
+
+    // syscall for exit(), eax=1, ebx=exit_code
+    MOV_REG_IMM(REG_AX, 1);
+    MOV_REG_IMM(REG_BX, 0);
+    INT(0x80);
+
+    // encode this into intel machine code
+    struct x86_encoder *enc = new_x86_encoder(CPU_MODE_LONG);
+    for (int i = 0; i < count; i++) {
+        if (!enc->encode(enc, &listing[i])) {
+            char str[128];
+            instruction_to_string(&listing[i], str);
+            printf("Failed encoding instruction: '%s'\n", str);
+            return;
+        }
+    }
+    
+    // backfill symbol references
+    u64 code_seg_address = 0x8048000;
+    u64 data_seg_address = code_seg_address + round_up(enc->output->length, 4096);
+    enc->references->backfill_buffer(enc->references,
+        data_symbols, enc->output, data_seg_address, options.pointer_size);
+
+
+    // now we should be good. let's write this.
+    binary_program *prog = malloc(sizeof(binary_program));
+    memset(prog, 0, sizeof(binary_program));
+
+    // .text
+    prog->code_address = code_seg_address; // usual starting address
+    prog->code_contents = enc->output->data;
+    prog->code_size = enc->output->length;
+    prog->code_entry_point = code_seg_address; // address of _start, actually...
+    // .data
+    prog->init_data_address = data_seg_address;
+    prog->init_data_contents = data_seg->data;
+    prog->init_data_size = data_seg->length;
+    // .bss
+    prog->zero_data_address = round_up(prog->init_data_address + prog->init_data_size, 4096);
+    prog->zero_data_size = 0;
+    // flags
+    prog->flags.is_64_bits = false;
+    prog->flags.is_static_executable = true;
+
+    long elf_size = 0;
+    if (!write_elf_file(prog, "out.elf", &elf_size))
+        printf("Error writing output elf file!\n");
+    else
+        printf("Wrote %ld bytes to out.elf file\n", elf_size);
 }

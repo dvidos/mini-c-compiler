@@ -16,7 +16,7 @@ struct x86_encoder {
     enum x86_cpu_mode mode;
 
     struct bin_buffer *output;
-    struct ref_list *references;
+    struct ref_list *references; // symbol references to be backfilled
 
     bool (*encode)(struct x86_encoder *encoder, struct instruction *instr);
     void (*reset)(struct x86_encoder *encoder);

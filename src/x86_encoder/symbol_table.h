@@ -15,11 +15,12 @@ struct symbol {
 };
 
 struct symbol_table {
-    struct symbol **symbols;
+    struct symbol *symbols;
     int capacity;
     int count;
     void (*append_symbol)(struct symbol_table *table, char *name, u64 offset);
     bool (*find_symbol)(struct symbol_table *table, char *name, u64 *p_offset);
+    void (*free)(struct symbol_table *table);
 };
 
-struct symbol_table *new_symbol_table(int capacity);
+struct symbol_table *new_symbol_table();

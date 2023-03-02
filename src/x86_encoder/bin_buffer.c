@@ -15,6 +15,8 @@ static void bin_buff_add_repeat_bytes(struct bin_buffer *buff, u8 value, int tim
 static void bin_buff_add_repeat_words(struct bin_buffer *buff, u16 value, int times);
 static void bin_buff_add_repeat_dwords(struct bin_buffer *buff, u32 value, int times);
 static void bin_buff_add_repeat_quads(struct bin_buffer *buff, u64 value, int times);
+static void bin_buff_add_mem(struct bin_buffer *buff, void *mem, int len);
+static void bin_buff_add_strz(struct bin_buffer *buff, char *strz);
 static void bin_buff_free(struct bin_buffer *buff);
 
 
@@ -36,6 +38,7 @@ struct bin_buffer *new_bin_buffer() {
     p->add_repeat_words = bin_buff_add_repeat_words;
     p->add_repeat_dwords = bin_buff_add_repeat_dwords;
     p->add_repeat_quads = bin_buff_add_repeat_quads;
+    p->add_strz = bin_buff_add_strz;
     p->free = bin_buff_free;
 
     return p;
@@ -124,6 +127,22 @@ static void bin_buff_add_repeat_dwords(struct bin_buffer *buff, u32 value, int t
 static void bin_buff_add_repeat_quads(struct bin_buffer *buff, u64 value, int times) {
     while (times--)
         bin_buff_add_quad(buff, value);
+}
+
+static void bin_buff_add_mem(struct bin_buffer *buff, void *mem, int len) {
+    if (buff->length + len >= buff->capacity) {
+        while (buff->length + len < buff->capacity)
+            buff->capacity *= 2;
+        buff->data = realloc(buff->data, buff->capacity);
+    }
+
+    char *pos = &buff->data[buff->length];
+    memcpy(pos, mem, len);
+    buff->length += len;
+}
+
+static void bin_buff_add_strz(struct bin_buffer *buff, char *strz) {
+    bin_buff_add_mem(buff, strz, strlen(strz) + 1); // include null terminator
 }
 
 static void bin_buff_free(struct bin_buffer *buff) {

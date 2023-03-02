@@ -309,7 +309,6 @@ static bool x86_encoder_encode(struct x86_encoder *enc, struct instruction *inst
                 enc->output->add_dword(enc->output, instr->op2.value);
             } else if (instr->op1.type == OT_REGISTER && instr->op2.type == OT_REGISTER) {
                 // "89 /r"  (mode 11, reg=src, r/m=dest)
-                // which one has the offset???
                 enc->output->add_byte(enc->output, 0x89);
                 enc->output->add_byte(enc->output, modrm_byte(MODE_DIRECT_REGISTER, instr->op2.value, instr->op1.value));
             } else if (instr->op1.type == OT_REGISTER && instr->op2.type == OT_MEM_DWORD_POINTED_BY_REG) {
@@ -415,6 +414,79 @@ static bool x86_encoder_encode(struct x86_encoder *enc, struct instruction *inst
                 enc->output->add_byte(enc->output, 0x2E);
                 return encode_ext_instr_mem_by_symbol(enc, 0xFF, 2, instr->op1.symbol_name);
             }
+            break;
+        case OC_ADD:
+            if (instr->op1.type == OT_REGISTER && instr->op2.type == OT_REGISTER) {
+                enc->output->add_byte(enc->output, 0x01);
+                // for the "reg <- reg" cases, we put the destination in "reg" and source in "reg_mom"
+                enc->output->add_byte(enc->output, modrm_byte(MODE_DIRECT_REGISTER, instr->op2.value, instr->op1.value));
+                return true;
+            } else if (instr->op1.type == OT_REGISTER && instr->op2.type == OT_IMMEDIATE) {
+                enc->output->add_byte(enc->output, 0x81);
+                enc->output->add_byte(enc->output, modrm_byte(MODE_DIRECT_REGISTER, 0, instr->op1.value));
+                enc->output->add_dword(enc->output, instr->op2.value);
+                return true;
+            }
+            break;
+        case OC_SUB:
+            if (instr->op1.type == OT_REGISTER && instr->op2.type == OT_REGISTER) {
+                enc->output->add_byte(enc->output, 0x29);
+                // for the "reg <- reg" cases, we put the destination in "reg" and source in "reg_mom"
+                enc->output->add_byte(enc->output, modrm_byte(MODE_DIRECT_REGISTER, instr->op2.value, instr->op1.value));
+                return true;
+            } else if (instr->op1.type == OT_REGISTER && instr->op2.type == OT_IMMEDIATE) {
+                enc->output->add_byte(enc->output, 0x81);
+                enc->output->add_byte(enc->output, modrm_byte(MODE_DIRECT_REGISTER, 5, instr->op1.value));
+                enc->output->add_dword(enc->output, instr->op2.value);
+                return true;
+            }
+            break;
+        case OC_IMUL:
+            break;
+        case OC_IDIV:
+            break;
+        case OC_AND:
+            if (instr->op1.type == OT_REGISTER && instr->op2.type == OT_REGISTER) {
+                enc->output->add_byte(enc->output, 0x21);
+                // for the "reg <- reg" cases, we put the destination in "reg" and source in "reg_mom"
+                enc->output->add_byte(enc->output, modrm_byte(MODE_DIRECT_REGISTER, instr->op2.value, instr->op1.value));
+                return true;
+            }
+            break;
+        case OC_OR:
+            if (instr->op1.type == OT_REGISTER && instr->op2.type == OT_REGISTER) {
+                enc->output->add_byte(enc->output, 0x09);
+                // for the "reg <- reg" cases, we put the destination in "reg" and source in "reg_mom"
+                enc->output->add_byte(enc->output, modrm_byte(MODE_DIRECT_REGISTER, instr->op2.value, instr->op1.value));
+                return true;
+            }
+            break;
+        case OC_XOR:
+            if (instr->op1.type == OT_REGISTER && instr->op2.type == OT_REGISTER) {
+                enc->output->add_byte(enc->output, 0x31);
+                // for the "reg <- reg" cases, we put the destination in "reg" and source in "reg_mom"
+                enc->output->add_byte(enc->output, modrm_byte(MODE_DIRECT_REGISTER, instr->op2.value, instr->op1.value));
+                return true;
+            }
+            break;
+        case OC_SHR:
+            if (instr->op1.type == OT_REGISTER && instr->op2.type == OT_IMMEDIATE) {
+                // "C1/5 SHR r/m32, imm8"
+                enc->output->add_byte(enc->output, 0xC1);
+                enc->output->add_byte(enc->output, modrm_byte(MODE_DIRECT_REGISTER, 5, instr->op1.value));
+                enc->output->add_byte(enc->output, instr->op2.value);
+                return true;
+            }
+            break;
+        case OC_SHL:
+            if (instr->op1.type == OT_REGISTER && instr->op2.type == OT_IMMEDIATE) {
+                // "C1/4 SHL r/m32, imm8"
+                enc->output->add_byte(enc->output, 0xC1);
+                enc->output->add_byte(enc->output, modrm_byte(MODE_DIRECT_REGISTER, 4, instr->op1.value));
+                enc->output->add_byte(enc->output, instr->op2.value);
+                return true;
+            }
+            break;
         default:
             return false;
     }

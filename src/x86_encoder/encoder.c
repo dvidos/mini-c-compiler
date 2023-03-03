@@ -316,8 +316,7 @@ static bool x86_encoder_encode(struct x86_encoder *enc, struct instruction *inst
                 return encode_ext_instr_mem_by_register(enc, 
                     0x8B, instr->op1.value, instr->op2.value, instr->op2.offset);
             } else if (instr->op1.type == OT_REGISTER && instr->op2.type == OT_SYMBOL_MEM_ADDRESS) {
-                enc->output->add_byte(enc->output, 0xA1);
-                enc->output->add_byte(enc->output, modrm_byte(MODE_DIRECT_REGISTER, 0, instr->op1.value));
+                encode_single_byte_instruction_adding_reg_no(enc, 0xB8, instr->op1.value);
                 enc->relocations->add(enc->relocations, enc->output->length, instr->op2.symbol_name, RT_ABS_32);
                 enc->output->add_dword(enc->output, 0x00000000);
                 return true;

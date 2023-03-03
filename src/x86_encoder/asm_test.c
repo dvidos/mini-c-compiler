@@ -505,6 +505,24 @@ void test_create_executable() {
     prog->flags.is_64_bits = false;
     prog->flags.is_static_executable = true;
 
+    // seems to have been encoded correctly, despite the seg fault
+    /*
+        $ objdump -d out.elf
+
+        out.elf:     file format elf32-i386
+        Disassembly of section .text:
+        08048000 <.text>:
+
+        8048000:	b8 04 00 00 00       	mov    $0x4,%eax
+        8048005:	bb 01 00 00 00       	mov    $0x1,%ebx
+        804800a:	b9 00 90 04 08       	mov    $0x8049000,%ecx
+        804800f:	ba 0d 90 04 08       	mov    $0x804900d,%edx
+        8048014:	cd 80                	int    $0x80
+        8048016:	b8 01 00 00 00       	mov    $0x1,%eax
+        804801b:	bb 00 00 00 00       	mov    $0x0,%ebx
+        8048020:	cd 80                	int    $0x80
+    */
+   
     long elf_size = 0;
     if (!write_elf_file(prog, "out.elf", &elf_size))
         printf("Error writing output elf file!\n");

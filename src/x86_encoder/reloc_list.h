@@ -29,7 +29,7 @@ struct reloc_list {
     int length;
     void (*add)(struct reloc_list *list, u64 position, char *name, enum reloc_type type);
     void (*clear)(struct reloc_list *list);
-    bool (*backfill_buffer)(struct reloc_list *list, struct symbol_table *symbols, struct bin_buffer *buff, u64 base_address, int ref_size_bytes);
+    bool (*backfill_buffer)(struct reloc_list *list, struct symbol_table *symbols, struct bin_buffer *buff, u64 base_address);
     void (*free)(struct reloc_list *list);
 };
 

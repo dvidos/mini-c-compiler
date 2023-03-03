@@ -25,7 +25,7 @@ struct reloc_list *new_reloc_list() {
     return p;
 }
 
-static void _add(struct reloc_list *list, u64 position, char *name) {
+static void _add(struct reloc_list *list, u64 position, char *name, enum reloc_type type) {
     if (list->length + 1 >= list->capacity) {
         list->capacity *= 2;
         list->list = realloc(list->list, list->capacity * sizeof(struct reloc_list));
@@ -33,6 +33,7 @@ static void _add(struct reloc_list *list, u64 position, char *name) {
 
     list->list[list->length].position = position;
     list->list[list->length].name = strdup(name);
+    list->list[list->length].type = type;
     list->length++;
 }
 

@@ -395,8 +395,8 @@ static void verify_listing(char *title, struct instruction *list, int instr_coun
     printf("Unresolved references:\n");
     printf("  Position  Symbol name\n");
     //        12345678  abcdef
-    for (int i = 0; i < encoder->references->length; i++) {
-        struct reference *r = &encoder->references->references[i];
+    for (int i = 0; i < encoder->relocations->length; i++) {
+        struct relocation *r = &encoder->relocations->list[i];
         printf("  %8ld  %s\n", r->position, r->name);
     }
 
@@ -481,8 +481,8 @@ void test_create_executable() {
     // we should have at least three tables with three base addresses: .text, .data, .bss
     u64 code_seg_address = 0x8048000;
     u64 data_seg_address = code_seg_address + round_up(enc->output->length, 4096);
-    enc->references->backfill_buffer(enc->references,
-        data_symbols, enc->output, data_seg_address, options.pointer_size);
+    enc->relocations->backfill_buffer(enc->relocations,
+        data_symbols, enc->output, data_seg_address);
 
 
     // now we should be good. let's write this.

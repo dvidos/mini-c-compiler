@@ -3,7 +3,7 @@
 #include "encoder.h"
 #include "instruction.h"
 #include "bin_buffer.h"
-#include "ref_list.h"
+#include "reloc_list.h"
 
 
 enum x86_cpu_mode {
@@ -16,7 +16,7 @@ struct x86_encoder {
     enum x86_cpu_mode mode;
 
     struct bin_buffer *output;
-    struct ref_list *references; // symbol references to be backfilled
+    struct reloc_list *relocations; // symbol relocations to be backfilled
 
     bool (*encode)(struct x86_encoder *encoder, struct instruction *instr);
     void (*reset)(struct x86_encoder *encoder);

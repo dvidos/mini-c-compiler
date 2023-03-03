@@ -132,7 +132,7 @@ typedef uint64_t u64;
 
 // we'd need symbol tables and base addresses for code and data?
 // i mean the output is not only the binary data, but the symbol tables as well.
-// how shall we encode symbol references????
+// how shall we encode symbol relocations????
 // encoding should allow for referencing symbols, not only final binary code
 // we would need a table, that indicates how each instruction is encoded,
 // i.e. whether it needs a +r8, or a ModR/M or Immediate etc
@@ -149,7 +149,7 @@ struct x86_encoder *new_x86_encoder(enum x86_cpu_mode mode) {
     enc->mode = mode;
 
     enc->output = new_bin_buffer();
-    enc->references = new_ref_list();
+    enc->relocations = new_reloc_list();
 
     enc->encode = x86_encoder_encode;
     enc->reset = x86_encoder_reset;
@@ -318,7 +318,7 @@ static bool x86_encoder_encode(struct x86_encoder *enc, struct instruction *inst
             } else if (instr->op1.type == OT_REGISTER && instr->op2.type == OT_SYMBOL_MEM_ADDRESS) {
                 enc->output->add_byte(enc->output, 0xA1);
                 enc->output->add_byte(enc->output, modrm_byte(MODE_DIRECT_REGISTER, 0, instr->op1.value));
-                enc->references->add(enc->references, enc->output->length, instr->op2.symbol_name);
+                enc->relocations->add(enc->relocations, enc->output->length, instr->op2.symbol_name, RT_ABS_32);
                 enc->output->add_dword(enc->output, 0x00000000);
                 return true;
                 
@@ -326,7 +326,7 @@ static bool x86_encoder_encode(struct x86_encoder *enc, struct instruction *inst
 
             } else if (instr->op1.type == OT_SYMBOL_MEM_ADDRESS && instr->op2.type == OT_REGISTER) {
                 enc->output->add_byte(enc->output, 0xA3);
-                enc->references->add(enc->references, enc->output->length, instr->op1.symbol_name);
+                enc->relocations->add(enc->relocations, enc->output->length, instr->op1.symbol_name, RT_ABS_32);
                 enc->output->add_dword(enc->output, 0x00000000);
                 enc->output->add_byte(enc->output, modrm_byte(MODE_DIRECT_REGISTER, 0, instr->op2.value));
                 return true;
@@ -565,18 +565,18 @@ static bool encode_ext_instr_mem_by_symbol(struct x86_encoder *enc, u8 opcode, u
     enc->output->add_byte(enc->output, modrm_byte(MODE_INDIRECT_NO_DISPLACEMENT, ext_opcode, 0x5));
 
     // save reference to backfill four bytes
-    enc->references->add(enc->references, enc->output->length, symbol_name);
+    enc->relocations->add(enc->relocations, enc->output->length, symbol_name, RT_ABS_32);
     enc->output->add_dword(enc->output, 0x00000000);
     return true;
 }
 
 static void x86_encoder_reset(struct x86_encoder *enc) {
     enc->output->clear(enc->output);
-    enc->references->clear(enc->references);
+    enc->relocations->clear(enc->relocations);
 }
 
 static void x86_encoder_free(struct x86_encoder *enc) {
     enc->output->free(enc->output);
-    enc->references->free(enc->references);
+    enc->relocations->free(enc->relocations);
     free(enc);
 }

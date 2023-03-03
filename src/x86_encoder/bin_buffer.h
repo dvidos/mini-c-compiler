@@ -17,12 +17,9 @@ struct bin_buffer {
     void (*add_word)(struct bin_buffer *buff, u16 value);
     void (*add_dword)(struct bin_buffer *buff, u32 value);
     void (*add_quad)(struct bin_buffer *buff, u64 value);
-    void (*add_repeat_bytes)(struct bin_buffer *buff, u8 value, int times);
-    void (*add_repeat_words)(struct bin_buffer *buff, u16 value, int times);
-    void (*add_repeat_dwords)(struct bin_buffer *buff, u32 value, int times);
-    void (*add_repeat_quads)(struct bin_buffer *buff, u64 value, int times);
     void (*add_mem)(struct bin_buffer *buff, void *mem, int len);
     void (*add_strz)(struct bin_buffer *buff, char *strz);
+    void (*fill)(struct bin_buffer *buff, int target_length, u8 filler);
     void (*free)(struct bin_buffer *buff);
 };
 

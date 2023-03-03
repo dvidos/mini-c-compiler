@@ -9,10 +9,7 @@ static void _add_byte(struct bin_buffer *buff, u8 value);
 static void _add_word(struct bin_buffer *buff, u16 value);
 static void _add_dword(struct bin_buffer *buff, u32 value);
 static void _add_quad(struct bin_buffer *buff, u64 value);
-static void _add_repeat_bytes(struct bin_buffer *buff, u8 value, int times);
-static void _add_repeat_words(struct bin_buffer *buff, u16 value, int times);
-static void _add_repeat_dwords(struct bin_buffer *buff, u32 value, int times);
-static void _add_repeat_quads(struct bin_buffer *buff, u64 value, int times);
+static void _fill(struct bin_buffer *buff, int target_length, u8 filler);
 static void _add_mem(struct bin_buffer *buff, void *mem, int len);
 static void _add_strz(struct bin_buffer *buff, char *strz);
 static void _free(struct bin_buffer *buff);
@@ -30,11 +27,9 @@ struct bin_buffer *new_bin_buffer() {
     p->add_word = _add_word;
     p->add_dword = _add_dword;
     p->add_quad = _add_quad;
-    p->add_repeat_bytes = _add_repeat_bytes;
-    p->add_repeat_words = _add_repeat_words;
-    p->add_repeat_dwords = _add_repeat_dwords;
-    p->add_repeat_quads = _add_repeat_quads;
+    p->add_mem = _add_mem;
     p->add_strz = _add_strz;
+    p->fill = _fill;
     p->free = _free;
 
     return p;
@@ -46,81 +41,61 @@ static void _clear(struct bin_buffer *buff) {
     buff->length = 0;
 }
 
-static void _append(struct bin_buffer *buff, struct bin_buffer *source) {
-    if (buff->length + source->length >= buff->capacity) {
-        buff->capacity *= 2;
+static void _ensure_enough_capacity(struct bin_buffer *buff, int space_needed) {
+    if (buff->length + space_needed >= buff->capacity) {
+        while (buff->length + space_needed >= buff->capacity)
+            buff->capacity *= 2;
+
         buff->data = realloc(buff->data, buff->capacity);
     }
+}
+
+
+static void _append(struct bin_buffer *buff, struct bin_buffer *source) {
+    _ensure_enough_capacity(buff, source->length);
     memcpy(buff->data + buff->length, source->data, source->length);
     buff->length += source->length;
 }
 
 static void _add_byte(struct bin_buffer *buff, u8 value) {
-    if (buff->length + 1 >= buff->capacity) {
-        buff->capacity *= 2;
-        buff->data = realloc(buff->data, buff->capacity);
-    }
+    _ensure_enough_capacity(buff, 1);
     buff->data[buff->length] = value;
     buff->length++;
 }
 
 static void _add_word(struct bin_buffer *buff, u16 value) {
-    if (buff->length + sizeof(value) >= buff->capacity) {
-        buff->capacity *= 2;
-        buff->data = realloc(buff->data, buff->capacity);
-    }
+    _ensure_enough_capacity(buff, 2);
     u16 *p = (u16 *)(&buff->data[buff->length]);
     *p = value;
     buff->length += sizeof(value);
 }
 
 static void _add_dword(struct bin_buffer *buff, u32 value) {
-    if (buff->length + sizeof(value) >= buff->capacity) {
-        buff->capacity *= 2;
-        buff->data = realloc(buff->data, buff->capacity);
-    }
+    _ensure_enough_capacity(buff, 4);
     u32 *p = (u32 *)(&buff->data[buff->length]);
     *p = value;
     buff->length += sizeof(value);
 }
 
 static void _add_quad(struct bin_buffer *buff, u64 value) {
-    if (buff->length + sizeof(value) >= buff->capacity) {
-        buff->capacity *= 2;
-        buff->data = realloc(buff->data, buff->capacity);
-    }
+    _ensure_enough_capacity(buff, 4);
     u64 *p = (u64 *)(&buff->data[buff->length]);
     *p = value;
     buff->length += sizeof(value);
 }
 
-static void _add_repeat_bytes(struct bin_buffer *buff, u8 value, int times) {
-    while (times--)
-        _add_byte(buff, value);
-}
+static void _fill(struct bin_buffer *buff, int target_length, u8 filler) {
+    if (target_length <= buff->length)
+        return;
 
-static void _add_repeat_words(struct bin_buffer *buff, u16 value, int times) {
-    while (times--)
-        _add_word(buff, value);
-}
-
-static void _add_repeat_dwords(struct bin_buffer *buff, u32 value, int times) {
-    while (times--)
-        _add_dword(buff, value);
-}
-
-static void _add_repeat_quads(struct bin_buffer *buff, u64 value, int times) {
-    while (times--)
-        _add_quad(buff, value);
+    _ensure_enough_capacity(buff, target_length);
+    int expansion = target_length - buff->length;
+    memset(buff->data + buff->length, filler, expansion);
+    buff->length += expansion;
 }
 
 static void _add_mem(struct bin_buffer *buff, void *mem, int len) {
-    if (buff->length + len >= buff->capacity) {
-        while (buff->length + len < buff->capacity)
-            buff->capacity *= 2;
-        buff->data = realloc(buff->data, buff->capacity);
-    }
-
+    _ensure_enough_capacity(buff, len);
     char *pos = &buff->data[buff->length];
     memcpy(pos, mem, len);
     buff->length += len;

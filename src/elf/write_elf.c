@@ -348,10 +348,13 @@ bool write_elf_file(binary_program *prog, char *filename, long *bytes_written) {
     else
         write_elf32_file(prog, f);
 
+    fseek(f, 0, SEEK_END);
     long last_location = ftell(f);
     fclose(f);
 
     if (bytes_written != NULL)
         *bytes_written = last_location;
+
+    return true;
 }
 

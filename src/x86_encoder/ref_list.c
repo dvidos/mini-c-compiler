@@ -7,7 +7,7 @@
 
 static void ref_list_add(struct ref_list *list, u64 offset, char *name);
 static void ref_list_clear(struct ref_list *list);
-static bool backfill_buffer(struct ref_list *list, struct symbol_table *symbols, struct bin_buffer *buff, u64 sym_base_address, int ref_size_bytes);
+static bool ref_list_backfill_buffer(struct ref_list *list, struct symbol_table *symbols, struct bin_buffer *buff, u64 sym_base_address, int ref_size_bytes);
 static void ref_list_free(struct ref_list *list);
 
 
@@ -19,6 +19,7 @@ struct ref_list *new_ref_list() {
 
     p->add = ref_list_add;
     p->clear = ref_list_clear;
+    p->backfill_buffer = ref_list_backfill_buffer;
     p->free = ref_list_free;
 
     return p;
@@ -39,7 +40,7 @@ static void ref_list_clear(struct ref_list *list) {
     list->length = 0;
 }
 
-static bool backfill_buffer(struct ref_list *list, struct symbol_table *symbols, struct bin_buffer *buff, u64 sym_base_address, int ref_size_bytes) {
+static bool ref_list_backfill_buffer(struct ref_list *list, struct symbol_table *symbols, struct bin_buffer *buff, u64 sym_base_address, int ref_size_bytes) {
     for (int i = 0; i < list->length; i++) {
         struct reference *r = &list->references[i];
 

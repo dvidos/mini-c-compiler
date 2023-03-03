@@ -467,7 +467,7 @@ void test_create_executable() {
     INT(0x80);
 
     // encode this into intel machine code
-    struct x86_encoder *enc = new_x86_encoder(CPU_MODE_LONG);
+    struct x86_encoder *enc = new_x86_encoder(CPU_MODE_PROTECTED);
     for (int i = 0; i < count; i++) {
         if (!enc->encode(enc, &listing[i])) {
             char str[128];
@@ -478,6 +478,7 @@ void test_create_executable() {
     }
     
     // backfill symbol references
+    // we should have at least three tables with three base addresses: .text, .data, .bss
     u64 code_seg_address = 0x8048000;
     u64 data_seg_address = code_seg_address + round_up(enc->output->length, 4096);
     enc->references->backfill_buffer(enc->references,

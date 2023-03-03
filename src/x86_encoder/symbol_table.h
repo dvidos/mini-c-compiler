@@ -12,6 +12,10 @@ typedef uint64_t u64;
 struct symbol {
     char *name;  // would be smallish, but allocate for any size of name
     u64 offset;  // symbols always represent an offset in a segment/section.
+    // elf also has binding: internal, external, weak.
+    // elf also has visibility: default, internal, hidden, protected.
+    // elf also has type: data object, function, section, file, etc
+    // elf also has symbol size, so useful for 1,2,4,8 bytes for example, or more for buffers
 };
 
 struct symbol_table {

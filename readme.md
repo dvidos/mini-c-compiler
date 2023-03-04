@@ -323,4 +323,25 @@ So, I will try to also approach this from bottom-up perspective. Perhaps
 building an assembler and knowing what it can support, then we can build 
 the C compiler that will convert C to assembly.
 
+### Light at the end of the tunnel
+
+Taking the opposite route, from bottom up, i decided to make the smallest executable 
+that I could, so that I could build off of that. 
+
+I needed a way to represent instructions in a "parsed assembly" format, and an 
+encoder that targets i386 Intel specifically, to make this work. Lots of 
+investigation and back-and-forth, with online assemblers-deassemblers, and with
+creating a minimum assembly program and comparing the dissassembled code sections.
+
+Also needed to discover that the ELF file must store the sections in a way
+that the loader can map them to pages. Otherwise a mysterious segmentation fault occured.
+
+After a month or so, my first executable worked!
+
+```
+dimitris@mits-linux-laptop:~/code/mini-c-compiler (main *)$ ./mcc --asm-test && ./out.elf
+mini-c-compiler, v0.01
+Wrote 8393 bytes to out.elf file
+Hello world!
+```
 

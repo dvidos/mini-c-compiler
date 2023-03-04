@@ -442,13 +442,11 @@ void test_create_executable() {
     int count = 0;
 
     memset(&listing, 0, sizeof(listing));
-    // hello_msg,
-    // hello_msg_len,
     
     // prepare a data segment as well, keeping address of symbols
     struct bin_buffer *data_seg = new_bin_buffer();
     struct symbol_table *data_symbols = new_symbol_table();
-    char *msg = "Hello world!";
+    char *msg = "Hello world!\n";
     data_symbols->append_symbol(data_symbols, "hello_msg", data_seg->length);
     data_seg->add_strz(data_seg, msg);
     data_symbols->append_symbol(data_symbols, "hello_msg_len", data_seg->length);
@@ -458,7 +456,7 @@ void test_create_executable() {
     MOV_REG_IMM(REG_AX, 4);
     MOV_REG_IMM(REG_BX, 1);
     MOV_REG_SYM(REG_CX, "hello_msg");
-    MOV_REG_SYM(REG_DX, "hello_msg_len");
+    MOV_REG_IMM(REG_DX, 13);
     INT(0x80);
 
     // syscall for exit(), eax=1, ebx=exit_code
@@ -477,13 +475,12 @@ void test_create_executable() {
         }
     }
     
-    // backfill symbol references
-    // we should have at least three tables with three base addresses: .text, .data, .bss
-    u64 code_seg_address = 0x8048000;
+    u64 code_seg_address = 0x8049000; // 0x8048000;
     u64 data_seg_address = code_seg_address + round_up(enc->output->length, 4096);
+
+    // backfill relocations
     enc->relocations->backfill_buffer(enc->relocations,
         data_symbols, enc->output, data_seg_address);
-
 
     // now we should be good. let's write this.
     binary_program *prog = malloc(sizeof(binary_program));
@@ -522,10 +519,11 @@ void test_create_executable() {
         804801b:	bb 00 00 00 00       	mov    $0x0,%ebx
         8048020:	cd 80                	int    $0x80
     */
-   
+
     long elf_size = 0;
     if (!write_elf_file(prog, "out.elf", &elf_size))
         printf("Error writing output elf file!\n");
     else
         printf("Wrote %ld bytes to out.elf file\n", elf_size);
 }
+

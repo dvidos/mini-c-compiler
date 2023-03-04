@@ -3,8 +3,23 @@
 #include <stddef.h>
 #include <string.h>
 #include "../options.h"
+#include "../utils.h"
 #include "binary_program.h"
 #include "elf_format.h"
+
+
+
+/*
+    we need to treat sections in a unitform way, in a loop.
+    - elf header
+    - program headers
+    - contents
+    - section headers
+    prepare them all, then iterate.
+*/
+
+static void pad_file_to_size(FILE *f, long size);
+
 
 
 static void write_elf32_file(binary_program *prog, FILE *f) {
@@ -27,48 +42,67 @@ static void write_elf32_file(binary_program *prog, FILE *f) {
     fseek(f, 0, SEEK_SET);
     fwrite(header, 1, sizeof(elf32_header), f);
 
-    elf32_prog_header *prog_text = malloc(sizeof(elf32_prog_header));
-    elf32_prog_header *prog_data = malloc(sizeof(elf32_prog_header));
-    elf32_prog_header *prog_bss = malloc(sizeof(elf32_prog_header));
-    memset(prog_text, 0, sizeof(elf32_prog_header));
-    memset(prog_data, 0, sizeof(elf32_prog_header));
-    memset(prog_bss, 0, sizeof(elf32_prog_header));
+    elf32_prog_header *empty_ph = malloc(sizeof(elf32_prog_header));
+    elf32_prog_header *text_ph = malloc(sizeof(elf32_prog_header));
+    elf32_prog_header *data_ph = malloc(sizeof(elf32_prog_header));
+    elf32_prog_header *bss_ph = malloc(sizeof(elf32_prog_header));
+    memset(empty_ph, 0, sizeof(elf32_prog_header));
+    memset(text_ph, 0, sizeof(elf32_prog_header));
+    memset(data_ph, 0, sizeof(elf32_prog_header));
+    memset(bss_ph, 0, sizeof(elf32_prog_header));
     bool need_prog_headers = prog->flags.is_dynamic_executable || prog->flags.is_static_executable;
 
     if (need_prog_headers) {
         // write program headers
         header->prog_headers_offset = ftell(f);
         header->prog_headers_entry_size = sizeof(elf32_prog_header);
-        header->prog_headers_entries = 3;
+        header->prog_headers_entries = 3; // first, code, data
+        if (prog->zero_data_size > 0)
+            header->prog_headers_entries += 1; // bss is optional
 
-        prog_text->type = PROG_TYPE_LOAD;
-        prog_text->file_size = prog->code_size;
-        prog_text->memory_size = prog->code_size;
-        prog_text->align = 4;
-        prog_data->flags = PROG_FLAGS_READ | PROG_FLAGS_EXECUTE;
-        prog_text->virt_address = prog->code_address;
-        prog_text->phys_address = prog->code_address;
-        fwrite(prog_text, 1, sizeof(elf32_prog_header), f);
+        empty_ph->type = PROG_TYPE_LOAD;
+        empty_ph->file_offset = 0;
+        empty_ph->file_size = header->prog_headers_offset + header->prog_headers_entry_size * header->prog_headers_entries;
+        empty_ph->memory_size = empty_ph->file_size;
+        empty_ph->align = 4;
+        empty_ph->flags = PROG_FLAGS_READ;
+        empty_ph->virt_address = prog->code_address - 0x1000;
+        empty_ph->phys_address = prog->code_address - 0x1000;
+        fwrite(empty_ph, 1, sizeof(elf32_prog_header), f);
 
-        prog_data->type = PROG_TYPE_LOAD;
-        prog_data->file_size = prog->init_data_size;
-        prog_data->memory_size = prog->init_data_size;
-        prog_data->align = 4;
-        prog_data->flags = PROG_FLAGS_READ | PROG_FLAGS_WRITE;
-        prog_data->virt_address = prog->init_data_address;
-        prog_data->phys_address = prog->init_data_address;
-        fwrite(prog_data, 1, sizeof(elf32_prog_header), f);
+        text_ph->type = PROG_TYPE_LOAD;
+        text_ph->file_offset = 0; // we'll come back to fill this.
+        text_ph->file_size = prog->code_size;
+        text_ph->memory_size = prog->code_size;
+        text_ph->align = 16;
+        text_ph->flags = PROG_FLAGS_READ | PROG_FLAGS_EXECUTE;
+        text_ph->virt_address = prog->code_address;
+        text_ph->phys_address = prog->code_address;
+        fwrite(text_ph, 1, sizeof(elf32_prog_header), f);
 
-        prog_bss->type = PROG_TYPE_LOAD;
-        prog_bss->file_size = 0;
-        prog_bss->memory_size = prog->zero_data_size;
-        prog_bss->align = 4;
-        prog_bss->flags = PROG_FLAGS_READ | PROG_FLAGS_WRITE;
-        prog_bss->virt_address = prog->zero_data_address;
-        prog_bss->phys_address = prog->zero_data_address;
-        fwrite(prog_bss, 1, sizeof(elf32_prog_header), f);
+        data_ph->type = PROG_TYPE_LOAD;
+        data_ph->file_offset = 0; // we'll come back to fill this
+        data_ph->file_size = prog->init_data_size;
+        data_ph->memory_size = prog->init_data_size;
+        data_ph->align = 4;
+        data_ph->flags = PROG_FLAGS_READ | PROG_FLAGS_WRITE;
+        data_ph->virt_address = prog->init_data_address;
+        data_ph->phys_address = prog->init_data_address;
+        fwrite(data_ph, 1, sizeof(elf32_prog_header), f);
+
+        if (prog->zero_data_size > 0) {
+            bss_ph->type = PROG_TYPE_LOAD;
+            bss_ph->file_offset = 0; // we'll come back to fill this
+            bss_ph->file_size = 0;
+            bss_ph->memory_size = prog->zero_data_size;
+            bss_ph->align = 1;
+            bss_ph->flags = PROG_FLAGS_READ | PROG_FLAGS_WRITE;
+            bss_ph->virt_address = prog->zero_data_address;
+            bss_ph->phys_address = prog->zero_data_address;
+            fwrite(bss_ph, 1, sizeof(elf32_prog_header), f);
+        }
     }
-    
+
     // prepare to write the section contents
     elf32_section_header *empty_section = malloc(sizeof(elf32_section_header));
     elf32_section_header *text_section = malloc(sizeof(elf32_section_header));
@@ -95,9 +129,11 @@ static void write_elf32_file(binary_program *prog, FILE *f) {
     text_section->virt_address = prog->code_address;
     text_section->size = prog->code_size;
     text_section->name = strings_len;
+    text_section->address_alignment = 0x1000;
     strcat(strings + strings_len, ".text");
     strings_len += strlen(".text") + 1;
     header->entry_point = prog->code_entry_point;
+    pad_file_to_size(f, round_up(ftell(f), text_section->address_alignment));
     text_section->file_offset = ftell(f);
     fwrite(prog->code_contents, 1, prog->code_size, f);
     header->section_headers_entries++;
@@ -106,30 +142,35 @@ static void write_elf32_file(binary_program *prog, FILE *f) {
     data_section->flags = SECTION_FLAGS_ALLOC | SECTION_FLAGS_WRITE;
     data_section->virt_address = prog->init_data_address;
     data_section->size = prog->init_data_size;
-    data_section->file_offset = ftell(f);
     data_section->name = strings_len;
+    data_section->address_alignment = 0x1000;
     strcat(strings + strings_len, ".data");
     strings_len += strlen(".data") + 1;
+    pad_file_to_size(f, round_up(ftell(f), data_section->address_alignment));
+    data_section->file_offset = ftell(f);
     fwrite(prog->init_data_contents, 1, prog->init_data_size, f);
     header->section_headers_entries++;
 
-    bss_section->type = SECTION_TYPE_NOBITS;
-    bss_section->flags = SECTION_FLAGS_ALLOC | SECTION_FLAGS_WRITE;
-    bss_section->virt_address = prog->zero_data_address;
-    bss_section->size = prog->zero_data_size;
-    bss_section->name = strings_len;
-    strcat(strings + strings_len, ".bss");
-    strings_len += strlen(".bss") + 1;
-    // fwrite(NULL, 0, 0, f); // nothing actually
-    header->section_headers_entries++;
+    if (prog->zero_data_size > 0) {
+        bss_section->type = SECTION_TYPE_NOBITS;
+        bss_section->flags = SECTION_FLAGS_ALLOC | SECTION_FLAGS_WRITE;
+        bss_section->virt_address = prog->zero_data_address;
+        bss_section->size = prog->zero_data_size;
+        bss_section->name = strings_len;
+        strcat(strings + strings_len, ".bss");
+        strings_len += strlen(".bss") + 1;
+        // remember, we don't write anything actually
+        header->section_headers_entries++;
+    }
 
     // strings table (contents)
     strings_section->type = SECTION_TYPE_STRTAB;
     strings_section->name = strings_len;
-    strings_section->file_offset = ftell(f);
     strcat(strings + strings_len, ".shstrtab");
     strings_len += strlen(".shstrtab") + 1;
     strings_section->size = strings_len;
+    strings_section->address_alignment = 1;
+    strings_section->file_offset = ftell(f);
     fwrite(strings, 1, strings_len, f);
     header->section_headers_strings_entry = header->section_headers_entries;
     header->section_headers_entries++;
@@ -140,29 +181,32 @@ static void write_elf32_file(binary_program *prog, FILE *f) {
     fwrite(empty_section,   1, sizeof(elf32_section_header), f);
     fwrite(text_section,    1, sizeof(elf32_section_header), f);
     fwrite(data_section,    1, sizeof(elf32_section_header), f);
-    fwrite(bss_section,     1, sizeof(elf32_section_header), f);
+    if (prog->zero_data_size > 0)
+        fwrite(bss_section,     1, sizeof(elf32_section_header), f);
     fwrite(strings_section, 1, sizeof(elf32_section_header), f);
 
     if (need_prog_headers) {
-        prog_text->file_offset = text_section->file_offset;
-        prog_data->file_offset = data_section->file_offset;
-        prog_bss->file_offset = bss_section->file_offset;
+        empty_ph->file_offset = 0;
+        text_ph->file_offset = text_section->file_offset;
+        data_ph->file_offset = data_section->file_offset;
 
         // go back and write program headers, now with file offsets
         fseek(f, header->prog_headers_offset, SEEK_SET);
-        fwrite(prog_text, 1, sizeof(elf32_prog_header), f);
-        fwrite(prog_data, 1, sizeof(elf32_prog_header), f);
-        fwrite(prog_bss, 1, sizeof(elf32_prog_header), f);
+        fwrite(empty_ph, 1, sizeof(elf32_prog_header), f);
+        fwrite(text_ph, 1, sizeof(elf32_prog_header), f);
+        fwrite(data_ph, 1, sizeof(elf32_prog_header), f);
+        if (prog->zero_data_size > 0)
+            fwrite(bss_ph, 1, sizeof(elf32_prog_header), f);
     }
 
-    // go back and write the whole header, now that we have header table offsets
+    // go back and write the whole header, now that we have header table offset
     fseek(f, 0, SEEK_SET);
     fwrite(header, 1, sizeof(elf32_header), f);
 
     free(header);
-    free(prog_text);
-    free(prog_data);
-    free(prog_bss);
+    free(text_ph);
+    free(data_ph);
+    free(bss_ph);
     free(empty_section);
     free(text_section);
     free(data_section);
@@ -191,12 +235,12 @@ static void write_elf64_file(binary_program *prog, FILE *f) {
     fseek(f, 0, SEEK_SET);
     fwrite(header, 1, sizeof(elf64_header), f);
 
-    elf64_prog_header *prog_text = malloc(sizeof(elf64_prog_header));
-    elf64_prog_header *prog_data = malloc(sizeof(elf64_prog_header));
-    elf64_prog_header *prog_bss = malloc(sizeof(elf64_prog_header));
-    memset(prog_text, 0, sizeof(elf64_prog_header));
-    memset(prog_data, 0, sizeof(elf64_prog_header));
-    memset(prog_bss, 0, sizeof(elf64_prog_header));
+    elf64_prog_header *text_ph = malloc(sizeof(elf64_prog_header));
+    elf64_prog_header *data_ph = malloc(sizeof(elf64_prog_header));
+    elf64_prog_header *bss_ph = malloc(sizeof(elf64_prog_header));
+    memset(text_ph, 0, sizeof(elf64_prog_header));
+    memset(data_ph, 0, sizeof(elf64_prog_header));
+    memset(bss_ph, 0, sizeof(elf64_prog_header));
     bool need_prog_headers = prog->flags.is_dynamic_executable || prog->flags.is_static_executable;
 
     if (need_prog_headers) {
@@ -205,34 +249,34 @@ static void write_elf64_file(binary_program *prog, FILE *f) {
         header->prog_headers_entry_size = sizeof(elf64_prog_header);
         header->prog_headers_entries = 3;
 
-        prog_text->type = PROG_TYPE_LOAD;
-        prog_text->file_size = prog->code_size;
-        prog_text->memory_size = prog->code_size;
-        prog_text->align = 4;
-        prog_data->flags = PROG_FLAGS_READ | PROG_FLAGS_EXECUTE;
-        prog_text->virt_address = prog->code_address;
-        prog_text->phys_address = prog->code_address;
-        fwrite(prog_text, 1, sizeof(elf64_prog_header), f);
+        text_ph->type = PROG_TYPE_LOAD;
+        text_ph->file_size = prog->code_size;
+        text_ph->memory_size = prog->code_size;
+        text_ph->align = 4;
+        data_ph->flags = PROG_FLAGS_READ | PROG_FLAGS_EXECUTE;
+        text_ph->virt_address = prog->code_address;
+        text_ph->phys_address = prog->code_address;
+        fwrite(text_ph, 1, sizeof(elf64_prog_header), f);
 
-        prog_data->type = PROG_TYPE_LOAD;
-        prog_data->file_size = prog->init_data_size;
-        prog_data->memory_size = prog->init_data_size;
-        prog_data->align = 4;
-        prog_data->flags = PROG_FLAGS_READ | PROG_FLAGS_WRITE;
-        prog_data->virt_address = prog->init_data_address;
-        prog_data->phys_address = prog->init_data_address;
-        fwrite(prog_data, 1, sizeof(elf64_prog_header), f);
+        data_ph->type = PROG_TYPE_LOAD;
+        data_ph->file_size = prog->init_data_size;
+        data_ph->memory_size = prog->init_data_size;
+        data_ph->align = 4;
+        data_ph->flags = PROG_FLAGS_READ | PROG_FLAGS_WRITE;
+        data_ph->virt_address = prog->init_data_address;
+        data_ph->phys_address = prog->init_data_address;
+        fwrite(data_ph, 1, sizeof(elf64_prog_header), f);
 
-        prog_bss->type = PROG_TYPE_LOAD;
-        prog_bss->file_size = 0;
-        prog_bss->memory_size = prog->zero_data_size;
-        prog_bss->align = 4;
-        prog_bss->flags = PROG_FLAGS_READ | PROG_FLAGS_WRITE;
-        prog_bss->virt_address = prog->zero_data_address;
-        prog_bss->phys_address = prog->zero_data_address;
-        fwrite(prog_bss, 1, sizeof(elf64_prog_header), f);
+        bss_ph->type = PROG_TYPE_LOAD;
+        bss_ph->file_size = 0;
+        bss_ph->memory_size = prog->zero_data_size;
+        bss_ph->align = 4;
+        bss_ph->flags = PROG_FLAGS_READ | PROG_FLAGS_WRITE;
+        bss_ph->virt_address = prog->zero_data_address;
+        bss_ph->phys_address = prog->zero_data_address;
+        fwrite(bss_ph, 1, sizeof(elf64_prog_header), f);
     }
-    
+
     // prepare to write the section contents
     elf64_section_header *empty_section = malloc(sizeof(elf64_section_header));
     elf64_section_header *text_section = malloc(sizeof(elf64_section_header));
@@ -308,15 +352,15 @@ static void write_elf64_file(binary_program *prog, FILE *f) {
     fwrite(strings_section, 1, sizeof(elf64_section_header), f);
 
     if (need_prog_headers) {
-        prog_text->file_offset = text_section->file_offset;
-        prog_data->file_offset = data_section->file_offset;
-        prog_bss->file_offset = bss_section->file_offset;
+        text_ph->file_offset = text_section->file_offset;
+        data_ph->file_offset = data_section->file_offset;
+        bss_ph->file_offset = bss_section->file_offset;
 
         // go back and write program headers, now with file offsets
         fseek(f, header->prog_headers_offset, SEEK_SET);
-        fwrite(prog_text, 1, sizeof(elf64_prog_header), f);
-        fwrite(prog_data, 1, sizeof(elf64_prog_header), f);
-        fwrite(prog_bss, 1, sizeof(elf64_prog_header), f);
+        fwrite(text_ph, 1, sizeof(elf64_prog_header), f);
+        fwrite(data_ph, 1, sizeof(elf64_prog_header), f);
+        fwrite(bss_ph, 1, sizeof(elf64_prog_header), f);
     }
 
     // go back and write the whole header, now that we have header table offsets
@@ -324,9 +368,9 @@ static void write_elf64_file(binary_program *prog, FILE *f) {
     fwrite(header, 1, sizeof(elf64_header), f);
 
     free(header);
-    free(prog_text);
-    free(prog_data);
-    free(prog_bss);
+    free(text_ph);
+    free(data_ph);
+    free(bss_ph);
     free(empty_section);
     free(text_section);
     free(data_section);
@@ -358,3 +402,17 @@ bool write_elf_file(binary_program *prog, char *filename, long *bytes_written) {
     return true;
 }
 
+static void pad_file_to_size(FILE *f, long size) {
+    char padding[256];
+    memset(padding, 0, 256);
+
+    long pos = ftell(f);
+    long remaining = size - pos;
+
+    while (remaining > 256) {
+        fwrite(padding, 1, 256, f);
+        remaining -= 256;
+    }
+    if (remaining > 0)
+        fwrite(padding, 1, remaining, f);
+}

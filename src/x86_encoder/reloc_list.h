@@ -2,7 +2,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include "symbol_table.h"
-#include "bin_buffer.h"
+#include "buffer.h"
 
 typedef uint8_t u8;
 typedef uint16_t u16;
@@ -29,7 +29,7 @@ struct reloc_list {
     int length;
     void (*add)(struct reloc_list *list, u64 position, char *name, enum reloc_type type);
     void (*clear)(struct reloc_list *list);
-    bool (*backfill_buffer)(struct reloc_list *list, struct symbol_table *symbols, struct bin_buffer *buff, u64 base_address);
+    bool (*backfill_buffer)(struct reloc_list *list, symbol_table *symbols, buffer *buff, u64 base_address);
     void (*free)(struct reloc_list *list);
 };
 

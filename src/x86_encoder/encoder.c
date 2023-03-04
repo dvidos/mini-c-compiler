@@ -148,7 +148,7 @@ struct x86_encoder *new_x86_encoder(enum x86_cpu_mode mode) {
     struct x86_encoder *enc = malloc(sizeof(struct x86_encoder));
     enc->mode = mode;
 
-    enc->output = new_bin_buffer();
+    enc->output = new_buffer();
     enc->relocations = new_reloc_list();
 
     enc->encode = x86_encoder_encode;

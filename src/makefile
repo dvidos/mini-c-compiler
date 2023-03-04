@@ -32,7 +32,7 @@ SRC_FILES = \
 	binary/binary_gen.c \
 	binary/parse_asm.c \
 	binary/encode_asm.c \
-	x86_encoder/bin_buffer.c \
+	x86_encoder/buffer.c \
 	x86_encoder/symbol_table.c \
 	x86_encoder/reloc_list.c \
 	x86_encoder/instruction.c \

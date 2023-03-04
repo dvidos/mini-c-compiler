@@ -7,7 +7,7 @@
 
 static void _add(struct reloc_list *list, u64 offset, char *name, enum reloc_type type);
 static void _clear(struct reloc_list *list);
-static bool _backfill_buffer(struct reloc_list *list, struct symbol_table *symbols, struct bin_buffer *buff, u64 sym_base_address);
+static bool _backfill_buffer(struct reloc_list *list, symbol_table *symbols, buffer *buff, u64 sym_base_address);
 static void _free(struct reloc_list *list);
 
 
@@ -41,12 +41,12 @@ static void _clear(struct reloc_list *list) {
     list->length = 0;
 }
 
-static bool _backfill_buffer(struct reloc_list *list, struct symbol_table *symbols, struct bin_buffer *buff, u64 sym_base_address) {
+static bool _backfill_buffer(struct reloc_list *list, symbol_table *symbols, buffer *buff, u64 sym_base_address) {
     for (int i = 0; i < list->length; i++) {
         struct relocation *r = &list->list[i];
 
         u64 symbol_address = 0;
-        if (!symbols->find_symbol(symbols, r->name, &symbol_address)) {
+        if (!symbols->find(symbols, r->name, &symbol_address)) {
             printf("Symbol not found: \"%s\"\n", r->name);
             return false;
         }

@@ -1,22 +1,22 @@
-#include "bin_buffer.h"
+#include "buffer.h"
 #include <stdlib.h>
 #include <string.h>
 
 
-static void _clear(struct bin_buffer *buff);
-static void _append(struct bin_buffer *buff, struct bin_buffer *source);
-static void _add_byte(struct bin_buffer *buff, u8 value);
-static void _add_word(struct bin_buffer *buff, u16 value);
-static void _add_dword(struct bin_buffer *buff, u32 value);
-static void _add_quad(struct bin_buffer *buff, u64 value);
-static void _fill(struct bin_buffer *buff, int target_length, u8 filler);
-static void _add_mem(struct bin_buffer *buff, void *mem, int len);
-static void _add_strz(struct bin_buffer *buff, char *strz);
-static void _free(struct bin_buffer *buff);
+static void _clear(buffer *buff);
+static void _append(buffer *buff, buffer *source);
+static void _add_byte(buffer *buff, u8 value);
+static void _add_word(buffer *buff, u16 value);
+static void _add_dword(buffer *buff, u32 value);
+static void _add_quad(buffer *buff, u64 value);
+static void _fill(buffer *buff, int target_length, u8 filler);
+static void _add_mem(buffer *buff, void *mem, int len);
+static void _add_strz(buffer *buff, char *strz);
+static void _free(buffer *buff);
 
 
-struct bin_buffer *new_bin_buffer() {
-    struct bin_buffer *p = malloc(sizeof(struct bin_buffer));
+buffer *new_buffer() {
+    buffer *p = malloc(sizeof(buffer));
     p->capacity = 10;
     p->data = malloc(p->capacity);
     p->length = 0;
@@ -37,11 +37,11 @@ struct bin_buffer *new_bin_buffer() {
 
 
 
-static void _clear(struct bin_buffer *buff) {
+static void _clear(buffer *buff) {
     buff->length = 0;
 }
 
-static void _ensure_enough_capacity(struct bin_buffer *buff, int space_needed) {
+static void _ensure_enough_capacity(buffer *buff, int space_needed) {
     if (buff->length + space_needed >= buff->capacity) {
         while (buff->length + space_needed >= buff->capacity)
             buff->capacity *= 2;
@@ -51,40 +51,40 @@ static void _ensure_enough_capacity(struct bin_buffer *buff, int space_needed) {
 }
 
 
-static void _append(struct bin_buffer *buff, struct bin_buffer *source) {
+static void _append(buffer *buff, buffer *source) {
     _ensure_enough_capacity(buff, source->length);
     memcpy(buff->data + buff->length, source->data, source->length);
     buff->length += source->length;
 }
 
-static void _add_byte(struct bin_buffer *buff, u8 value) {
+static void _add_byte(buffer *buff, u8 value) {
     _ensure_enough_capacity(buff, 1);
     buff->data[buff->length] = value;
     buff->length++;
 }
 
-static void _add_word(struct bin_buffer *buff, u16 value) {
+static void _add_word(buffer *buff, u16 value) {
     _ensure_enough_capacity(buff, 2);
     u16 *p = (u16 *)(&buff->data[buff->length]);
     *p = value;
     buff->length += sizeof(value);
 }
 
-static void _add_dword(struct bin_buffer *buff, u32 value) {
+static void _add_dword(buffer *buff, u32 value) {
     _ensure_enough_capacity(buff, 4);
     u32 *p = (u32 *)(&buff->data[buff->length]);
     *p = value;
     buff->length += sizeof(value);
 }
 
-static void _add_quad(struct bin_buffer *buff, u64 value) {
+static void _add_quad(buffer *buff, u64 value) {
     _ensure_enough_capacity(buff, 4);
     u64 *p = (u64 *)(&buff->data[buff->length]);
     *p = value;
     buff->length += sizeof(value);
 }
 
-static void _fill(struct bin_buffer *buff, int target_length, u8 filler) {
+static void _fill(buffer *buff, int target_length, u8 filler) {
     if (target_length <= buff->length)
         return;
 
@@ -94,18 +94,18 @@ static void _fill(struct bin_buffer *buff, int target_length, u8 filler) {
     buff->length += expansion;
 }
 
-static void _add_mem(struct bin_buffer *buff, void *mem, int len) {
+static void _add_mem(buffer *buff, void *mem, int len) {
     _ensure_enough_capacity(buff, len);
     char *pos = &buff->data[buff->length];
     memcpy(pos, mem, len);
     buff->length += len;
 }
 
-static void _add_strz(struct bin_buffer *buff, char *strz) {
+static void _add_strz(buffer *buff, char *strz) {
     _add_mem(buff, strz, strlen(strz) + 1); // include null terminator
 }
 
-static void _free(struct bin_buffer *buff) {
+static void _free(buffer *buff) {
     free(buff->data);
     free(buff);
 }

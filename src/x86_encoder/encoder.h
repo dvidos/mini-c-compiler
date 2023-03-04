@@ -2,7 +2,7 @@
 #include <stdbool.h>
 #include "encoder.h"
 #include "instruction.h"
-#include "bin_buffer.h"
+#include "buffer.h"
 #include "reloc_list.h"
 
 
@@ -15,7 +15,7 @@ enum x86_cpu_mode {
 struct x86_encoder {
     enum x86_cpu_mode mode;
 
-    struct bin_buffer *output;
+    buffer *output;
     struct reloc_list *relocations; // symbol relocations to be backfilled
 
     bool (*encode)(struct x86_encoder *encoder, struct instruction *instr);

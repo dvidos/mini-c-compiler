@@ -64,7 +64,7 @@ static void write_elf32_file(binary_program *prog, FILE *f) {
         empty_ph->file_offset = 0;
         empty_ph->file_size = header->prog_headers_offset + header->prog_headers_entry_size * header->prog_headers_entries;
         empty_ph->memory_size = empty_ph->file_size;
-        empty_ph->align = 4;
+        empty_ph->align = 0x1000;
         empty_ph->flags = PROG_FLAGS_READ;
         empty_ph->virt_address = prog->code_address - 0x1000;
         empty_ph->phys_address = prog->code_address - 0x1000;
@@ -74,7 +74,7 @@ static void write_elf32_file(binary_program *prog, FILE *f) {
         text_ph->file_offset = 0; // we'll come back to fill this.
         text_ph->file_size = prog->code_size;
         text_ph->memory_size = prog->code_size;
-        text_ph->align = 16;
+        text_ph->align = 0x1000;
         text_ph->flags = PROG_FLAGS_READ | PROG_FLAGS_EXECUTE;
         text_ph->virt_address = prog->code_address;
         text_ph->phys_address = prog->code_address;
@@ -84,7 +84,7 @@ static void write_elf32_file(binary_program *prog, FILE *f) {
         data_ph->file_offset = 0; // we'll come back to fill this
         data_ph->file_size = prog->init_data_size;
         data_ph->memory_size = prog->init_data_size;
-        data_ph->align = 4;
+        data_ph->align = 0x1000;
         data_ph->flags = PROG_FLAGS_READ | PROG_FLAGS_WRITE;
         data_ph->virt_address = prog->init_data_address;
         data_ph->phys_address = prog->init_data_address;
@@ -129,11 +129,11 @@ static void write_elf32_file(binary_program *prog, FILE *f) {
     text_section->virt_address = prog->code_address;
     text_section->size = prog->code_size;
     text_section->name = strings_len;
-    text_section->address_alignment = 0x1000;
+    text_section->address_alignment = 16;
     strcat(strings + strings_len, ".text");
     strings_len += strlen(".text") + 1;
     header->entry_point = prog->code_entry_point;
-    pad_file_to_size(f, round_up(ftell(f), text_section->address_alignment));
+    pad_file_to_size(f, round_up(ftell(f), text_ph->align));
     text_section->file_offset = ftell(f);
     fwrite(prog->code_contents, 1, prog->code_size, f);
     header->section_headers_entries++;
@@ -143,10 +143,10 @@ static void write_elf32_file(binary_program *prog, FILE *f) {
     data_section->virt_address = prog->init_data_address;
     data_section->size = prog->init_data_size;
     data_section->name = strings_len;
-    data_section->address_alignment = 0x1000;
+    data_section->address_alignment = 4;
     strcat(strings + strings_len, ".data");
     strings_len += strlen(".data") + 1;
-    pad_file_to_size(f, round_up(ftell(f), data_section->address_alignment));
+    pad_file_to_size(f, round_up(ftell(f), data_ph->align));
     data_section->file_offset = ftell(f);
     fwrite(prog->init_data_contents, 1, prog->init_data_size, f);
     header->section_headers_entries++;
@@ -157,6 +157,7 @@ static void write_elf32_file(binary_program *prog, FILE *f) {
         bss_section->virt_address = prog->zero_data_address;
         bss_section->size = prog->zero_data_size;
         bss_section->name = strings_len;
+        bss_section->address_alignment = 4;
         strcat(strings + strings_len, ".bss");
         strings_len += strlen(".bss") + 1;
         // remember, we don't write anything actually

@@ -18,7 +18,7 @@
 #include "codegen/codegen.h"
 #include "codegen/interm_repr.h"
 #include "binary/binary_gen.h"
-#include "elf/binary_program.h"
+#include "elf/elf_contents.h"
 #include "elf/elf.h"
 
 
@@ -132,7 +132,7 @@ void produce_output_files() {
         }
     }
 
-    binary_program *program;
+    elf_contents *program;
     generate_binary_code(assembly_code, &program);
     if (errors_count)
         return;
@@ -162,8 +162,8 @@ void produce_output_files() {
         printf("  Segment    Address      Size\n");
         //                0x12345678 123456789
         printf("  .code   0x%08lx %9ld\n", program->code_address, program->code_size);
-        printf("  .data   0x%08lx %9ld\n", program->init_data_address, program->init_data_size);
-        printf("  .bss    0x%08lx %9ld\n", program->zero_data_address, program->zero_data_size);
+        printf("  .data   0x%08lx %9ld\n", program->data_address, program->data_size);
+        printf("  .bss    0x%08lx %9ld\n", program->bss_address, program->bss_size);
         printf("  code entry point at 0x%lx\n", program->code_entry_point);
     }
 }

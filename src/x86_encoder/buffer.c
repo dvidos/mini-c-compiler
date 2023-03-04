@@ -12,6 +12,7 @@ static void _add_quad(buffer *buff, u64 value);
 static void _fill(buffer *buff, int target_length, u8 filler);
 static void _add_mem(buffer *buff, void *mem, int len);
 static void _add_strz(buffer *buff, char *strz);
+static void _add_zeros(buffer *buff, int len);
 static void _free(buffer *buff);
 
 
@@ -29,6 +30,7 @@ buffer *new_buffer() {
     p->add_quad = _add_quad;
     p->add_mem = _add_mem;
     p->add_strz = _add_strz;
+    p->add_zeros = _add_zeros;
     p->fill = _fill;
     p->free = _free;
 
@@ -103,6 +105,13 @@ static void _add_mem(buffer *buff, void *mem, int len) {
 
 static void _add_strz(buffer *buff, char *strz) {
     _add_mem(buff, strz, strlen(strz) + 1); // include null terminator
+}
+
+static void _add_zeros(buffer *buff, int len) {
+    _ensure_enough_capacity(buff, len);
+    char *pos = &buff->data[buff->length];
+    memset(pos, 0, len);
+    buff->length += len;
 }
 
 static void _free(buffer *buff) {

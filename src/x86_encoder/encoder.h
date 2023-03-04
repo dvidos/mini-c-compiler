@@ -23,4 +23,4 @@ struct x86_encoder {
     void (*free)(struct x86_encoder *encoder);
 };
 
-struct x86_encoder *new_x86_encoder(enum x86_cpu_mode mode);
+struct x86_encoder *new_x86_encoder(enum x86_cpu_mode mode, buffer *code_out, reloc_list *relocations_out);

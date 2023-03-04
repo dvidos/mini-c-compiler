@@ -23,14 +23,17 @@ struct relocation {
     // what size relocation to affect (e.g. 4 bytes vs 1 byte)
 };
 
+typedef struct reloc_list reloc_list;
+
 struct reloc_list {
     struct relocation *list;
     int capacity;
     int length;
-    void (*add)(struct reloc_list *list, u64 position, char *name, enum reloc_type type);
-    void (*clear)(struct reloc_list *list);
-    bool (*backfill_buffer)(struct reloc_list *list, symbol_table *symbols, buffer *buff, u64 base_address);
-    void (*free)(struct reloc_list *list);
+
+    void (*add)(reloc_list *list, u64 position, char *name, enum reloc_type type);
+    void (*clear)(reloc_list *list);
+    bool (*backfill_buffer)(reloc_list *list, symbol_table *symbols, buffer *buff, u64 code_base_address, u64 data_base_address, u64 bss_base_address);
+    void (*free)(reloc_list *list);
 };
 
 struct reloc_list *new_reloc_list();

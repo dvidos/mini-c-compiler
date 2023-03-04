@@ -1,5 +1,5 @@
 #pragma once
-#include "../elf/binary_program.h"
+#include "../elf/elf_contents.h"
 
 /*
 
@@ -40,5 +40,5 @@ void parse_asm_line(char **stream, char *label, char *opcode, char *op1, char *o
 bool encode_asm(char *opcode, char *op1, char *op2, char *output, int *out_len);
 
 
-void generate_binary_code(char *assembly_code, binary_program **program);
+void generate_binary_code(char *assembly_code, elf_contents **program);
 

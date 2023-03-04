@@ -37,7 +37,9 @@ SRC_FILES = \
 	x86_encoder/reloc_list.c \
 	x86_encoder/instruction.c \
 	x86_encoder/encoder.c \
-	x86_encoder/asm_test.c
+	x86_encoder/asm_test.c \
+	x86_encoder/listing.c \
+	x86_encoder/module.c
 
 
 

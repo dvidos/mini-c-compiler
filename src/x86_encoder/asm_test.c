@@ -8,9 +8,11 @@
 #include "../elf/elf.h"
 #include "../utils.h"
 #include "../options.h"
-
+#include "module.h"
+#include "listing.h"
 
 static void test_create_executable();
+static void test_create_executable2();
 static void verify_instructions();
 static bool verify_single_instruction(struct instruction *instr, char *expected_bytes, int expected_len);
 static void verify_listing(char *title, struct instruction *list, int instr_count, char *expected, int expected_len);
@@ -21,6 +23,7 @@ static void verify_listing(char *title, struct instruction *list, int instr_coun
 void perform_asm_test() {
     verify_instructions();
     test_create_executable();
+    test_create_executable2();
 }
 
 
@@ -175,8 +178,8 @@ static void verify_instructions() {
 static bool verify_single_instruction(struct instruction *instr, char *expected_bytes, int expected_len) {
     char buff[128];
 
-    instruction_to_string(instr, buff);
-    struct x86_encoder *enc = new_x86_encoder(CPU_MODE_PROTECTED);
+    instruction_to_string(instr, buff, sizeof(buff));
+    struct x86_encoder *enc = new_x86_encoder(CPU_MODE_PROTECTED, new_buffer(), new_reloc_list());
 
     if (!enc->encode(enc, instr)) {
         printf("\n");
@@ -211,11 +214,11 @@ static void verify_listing(char *title, struct instruction *list, int instr_coun
 
     printf("Verify listing '%s'...", title);
 
-    struct x86_encoder *encoder = new_x86_encoder(CPU_MODE_PROTECTED);
+    struct x86_encoder *encoder = new_x86_encoder(CPU_MODE_PROTECTED, new_buffer(), new_reloc_list());
     for (int i = 0; i < instr_count; i++) {
         encoded = encoder->encode(encoder, &list[i]);
         if (!encoded) {
-            instruction_to_string(&list[i], buff);
+            instruction_to_string(&list[i], buff, sizeof(buff));
             printf("Cannot encode expression: \'%s\'\n", buff);
             return;
         }
@@ -230,7 +233,7 @@ static void verify_listing(char *title, struct instruction *list, int instr_coun
 
     printf("Assembly code listing:\n");
     for (int i = 0; i < instr_count; i++) {
-        instruction_to_string(&list[i], buff);
+        instruction_to_string(&list[i], buff, sizeof(buff));
         printf("\t%s\n", buff);
     }
 
@@ -292,9 +295,9 @@ void test_create_executable() {
     buffer *data_seg = new_buffer();
     symbol_table *data_symbols = new_symbol_table();
     char *msg = "Hello world!\n";
-    data_symbols->add(data_symbols, "hello_msg", data_seg->length);
+    data_symbols->add(data_symbols, "hello_msg", data_seg->length, SB_DATA);
     data_seg->add_strz(data_seg, msg);
-    data_symbols->add(data_symbols, "hello_msg_len", data_seg->length);
+    data_symbols->add(data_symbols, "hello_msg_len", data_seg->length, SB_DATA);
     data_seg->add_dword(data_seg, strlen(msg));
 
     // syscall for write(), eax=4, ebx=handle, ecx=buffer, edx=length
@@ -310,11 +313,11 @@ void test_create_executable() {
     INT(0x80);
 
     // encode this into intel machine code
-    struct x86_encoder *enc = new_x86_encoder(CPU_MODE_PROTECTED);
+    struct x86_encoder *enc = new_x86_encoder(CPU_MODE_PROTECTED, new_buffer(), new_reloc_list());
     for (int i = 0; i < count; i++) {
         if (!enc->encode(enc, &listing[i])) {
             char str[128];
-            instruction_to_string(&listing[i], str);
+            instruction_to_string(&listing[i], str, sizeof(str));
             printf("Failed encoding instruction: '%s'\n", str);
             return;
         }
@@ -325,11 +328,11 @@ void test_create_executable() {
 
     // backfill relocations
     enc->relocations->backfill_buffer(enc->relocations,
-        data_symbols, enc->output, data_seg_address);
+        data_symbols, enc->output, code_seg_address, data_seg_address, 0);
 
     // now we should be good. let's write this.
-    binary_program *prog = malloc(sizeof(binary_program));
-    memset(prog, 0, sizeof(binary_program));
+    elf_contents *prog = malloc(sizeof(elf_contents));
+    memset(prog, 0, sizeof(elf_contents));
 
     // .text
     prog->code_address = code_seg_address; // usual starting address
@@ -337,12 +340,12 @@ void test_create_executable() {
     prog->code_size = enc->output->length;
     prog->code_entry_point = code_seg_address; // address of _start, actually...
     // .data
-    prog->init_data_address = data_seg_address;
-    prog->init_data_contents = data_seg->data;
-    prog->init_data_size = data_seg->length;
+    prog->data_address = data_seg_address;
+    prog->data_contents = data_seg->data;
+    prog->data_size = data_seg->length;
     // .bss
-    prog->zero_data_address = round_up(prog->init_data_address + prog->init_data_size, 4096);
-    prog->zero_data_size = 0;
+    prog->bss_address = round_up(prog->data_address + prog->data_size, 4096);
+    prog->bss_size = 0;
     // flags
     prog->flags.is_64_bits = false;
     prog->flags.is_static_executable = true;
@@ -372,3 +375,112 @@ void test_create_executable() {
         printf("Wrote %ld bytes to out.elf file\n", elf_size);
 }
 
+
+static bool _encode_listing_code(listing *lst, module *mod, enum x86_cpu_mode mode);
+static bool _link_module(module *mod, u64 code_base_address, char *filename);
+
+void test_create_executable2() {
+    listing *lst = new_listing();
+    module *mod = new_module();
+    
+    mod->ops->declare_data(mod, "hello_msg", 13 + 1, "Hello World!\n");
+
+    lst->ops->set_next_label(lst, "_start");
+    lst->ops->add_instruction_with_register_and_immediate(lst, OC_MOV, REG_AX, 4);
+    lst->ops->add_instruction_with_register_and_immediate(lst, OC_MOV, REG_BX, 1);
+    lst->ops->add_instruction_with_register_and_symbol(lst, OC_MOV, REG_CX, "hello_msg");
+    lst->ops->add_instruction_with_register_and_immediate(lst, OC_MOV, REG_DX, 13);
+    lst->ops->add_instruction_with_immediate(lst, OC_INT, 0x80);
+
+    lst->ops->set_next_label(lst, "_exit");
+    lst->ops->add_instruction_with_register_and_immediate(lst, OC_MOV, REG_AX, 1);
+    lst->ops->add_instruction_with_register_and_immediate(lst, OC_MOV, REG_BX, 0);
+    lst->ops->add_instruction_with_immediate(lst, OC_INT, 0x80);
+
+    lst->ops->print(lst);
+
+    // now we need an assembler to convert the listing into a mod code + labels + relocs
+    if (!_encode_listing_code(lst, mod, CPU_MODE_PROTECTED))
+        return;
+
+    // now we need a linker to convert the module into an executable
+    if (!_link_module(mod, 0x8049000, "out2.elf"))
+        return;
+}
+
+static bool _encode_listing_code(listing *lst, module *mod, enum x86_cpu_mode mode) {
+    // encode this into intel machine code
+    struct x86_encoder *enc = new_x86_encoder(mode, mod->text, mod->relocations);
+    struct instruction *inst;
+
+    for (int i = 0; i < lst->length; i++) {
+        inst = &lst->instructions[i];
+
+        if (inst->label != NULL) {
+            // we don't know if this is exported for now
+            mod->symbols->add(mod->symbols, inst->label, mod->text->length, SB_CODE);
+        }
+
+        if (!enc->encode(enc, inst)) {
+            char str[128];
+            instruction_to_string(inst, str, sizeof(str));
+            printf("Failed encoding instruction: '%s'\n", str);
+            return false;
+        }
+    }
+
+    return true;
+}
+
+static bool _link_module(module *mod, u64 code_base_address, char *filename) {
+    // in theory many modules, merge them together, update references and symbol addresses
+    // map: code, then data, then bss
+    // decide base addresses, resolve references.
+    // find "_start" as entry point set it
+    // save executable
+
+    struct symbol *start = mod->symbols->find(mod->symbols, "_start");
+    if (start == NULL) {
+        printf("Entry point '_start' not found\n");
+        return false;
+    }
+    
+    u64 data_base_address;
+    u64 bss_base_address;
+
+    data_base_address = round_up(code_base_address + mod->text->length, 4096);
+    bss_base_address = round_up(data_base_address + mod->data->length, 4096);
+
+    if (!mod->relocations->backfill_buffer(
+        mod->relocations, 
+        mod->symbols,
+        mod->text,
+        // choose base, depending on the symbol type
+        code_base_address, data_base_address, bss_base_address))
+    {
+        printf("Error resolving references\n");
+        return false;
+    }
+
+    // let's save things
+    elf_contents elf;
+    elf.flags.is_static_executable = true;
+    elf.flags.is_64_bits = false;
+    elf.code_address = code_base_address; // usual starting address
+    elf.code_contents = mod->text->data;
+    elf.code_size = mod->text->length;
+    elf.code_entry_point = code_base_address + start->offset; // address of _start, actually...
+    elf.data_address = data_base_address;
+    elf.data_contents = mod->data->data;
+    elf.data_size = mod->data->length;
+    elf.bss_address = bss_base_address;
+    elf.bss_size = mod->bss->length;
+    
+    long elf_size = 0;
+    if (!write_elf_file(&elf, filename, &elf_size)) {
+        printf("Error writing output elf file!\n");
+        return false;
+    }
+
+    printf("Wrote %ld bytes to file '%s'\n", elf_size, filename);
+}

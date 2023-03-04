@@ -8,6 +8,12 @@ typedef uint16_t u16;
 typedef uint32_t u32;
 typedef uint64_t u64;
 
+enum symbol_base {
+    SB_CODE,
+    SB_DATA,
+    SB_ZERO_DATA,
+};
+
 struct symbol {
     char *name;  // would be smallish, but allocate for any size of name
     u64 offset;  // symbols always represent an offset in a segment/section.
@@ -15,9 +21,10 @@ struct symbol {
     // elf also has visibility: default, internal, hidden, protected.
     // elf also has type: data object, function, section, file, etc
     // elf also has symbol size
-    // 
+
     // a symbol should also have an indicator of the "section" it belongs to,
     // e.g. if the offset is for the data, text, rodata, or bss segments
+    enum symbol_base base;
 };
 
 typedef struct symbol_table symbol_table;
@@ -27,8 +34,9 @@ struct symbol_table {
     int capacity;
     int length;
 
-    void (*add)(symbol_table *table, char *name, u64 offset);
-    bool (*find)(symbol_table *table, char *name, u64 *p_offset);
+    void (*clear)(symbol_table *table);
+    void (*add)(symbol_table *table, char *name, u64 offset, enum symbol_base base);
+    struct symbol *(*find)(symbol_table *table, char *name);
     void (*free)(symbol_table *table);
 };
 

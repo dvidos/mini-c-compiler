@@ -5,10 +5,9 @@
 // stores the assembler's / linker's output, 
 // to be written to (or read from) an ELF file.
 
+typedef struct elf_contents elf_contents;
 
-typedef struct binary_program binary_program;
-
-struct binary_program {
+struct elf_contents {
     struct {
       int is_64_bits: 1;             // as opposed to 32 bits
       int is_object_code: 1;         // needs linking
@@ -25,12 +24,12 @@ struct binary_program {
     unsigned long code_entry_point;
 
     // segment for initialized data (stored in elf)
-    unsigned long init_data_address;
-    unsigned long init_data_size;
-    char *init_data_contents;
+    unsigned long data_address;
+    unsigned long data_size;
+    char *data_contents;
 
     // segment for uninitialized data (only mentioned)
-    unsigned long zero_data_address;
-    unsigned long zero_data_size;
+    unsigned long bss_address;
+    unsigned long bss_size;
 };
 

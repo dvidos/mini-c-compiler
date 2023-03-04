@@ -7,38 +7,41 @@
 
 static char *get_opcode_str(enum opcode code);
 static char *get_reg_str(enum reg r);
-static void append_operand_instruction(struct operand *op, char *buffer);
+static void append_operand_instruction(struct operand *op, char *buffer, int buff_size);
 
 
-void instruction_to_string(struct instruction *inst, char *buff) {
-    strcpy(buff, get_opcode_str(inst->opcode));
+void instruction_to_string(struct instruction *inst, char *buff, int buff_size) {
+    strncpy(buff, get_opcode_str(inst->opcode), buff_size);
     if (inst->op1.type != OT_NONE) {
-        strcat(buff, " ");
-        append_operand_instruction(&inst->op1, buff);
+        strncat(buff, " ", buff_size);
+        append_operand_instruction(&inst->op1, buff, buff_size);
         if (inst->op2.type != OT_NONE) {
-            strcat(buff, ", ");
-            append_operand_instruction(&inst->op2, buff);
+            strncat(buff, ", ", buff_size);
+            append_operand_instruction(&inst->op2, buff, buff_size);
         }
     }
 }
 
-static void append_operand_instruction(struct operand *op, char *buffer) {
+static void append_operand_instruction(struct operand *op, char *buffer, int buff_size) {
+    char *pos = buffer + strlen(buffer);
+    int len = buff_size - strlen(buffer);
+
     if (op->type == OT_NONE) {
         ; // nothing.
     } else if (op->type == OT_IMMEDIATE) {
-        sprintf(buffer + strlen(buffer), "0x%lx", op->value);
+        snprintf(pos, len, "0x%lx", op->value);
     } else if (op->type == OT_REGISTER) {
-        sprintf(buffer + strlen(buffer), "%c%s", options.register_prefix, get_reg_str(op->value));
+        snprintf(pos, len, "%c%s", options.register_prefix, get_reg_str(op->value));
     } else if (op->type == OT_MEM_DWORD_POINTED_BY_REG) {
         if (op->offset < 0) {
-            sprintf(buffer + strlen(buffer), "[%c%s%ld]", options.register_prefix, get_reg_str(op->value), op->offset);
+            snprintf(pos, len, "[%c%s%ld]", options.register_prefix, get_reg_str(op->value), op->offset);
         } else if (op->offset > 0) {
-            sprintf(buffer + strlen(buffer), "[%c%s+%ld]", options.register_prefix, get_reg_str(op->value), op->offset);
+            snprintf(pos, len, "[%c%s+%ld]", options.register_prefix, get_reg_str(op->value), op->offset);
         } else {
-            sprintf(buffer + strlen(buffer), "[%c%s]", options.register_prefix, get_reg_str(op->value));
+            snprintf(pos, len, "[%c%s]", options.register_prefix, get_reg_str(op->value));
         }
     } else if (op->type == OT_SYMBOL_MEM_ADDRESS) {
-        sprintf(buffer + strlen(buffer), "%s", op->symbol_name);
+        snprintf(pos, len, "%s", op->symbol_name);
     }
 }
 

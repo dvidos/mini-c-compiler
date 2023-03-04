@@ -5,14 +5,15 @@
 #include <stdio.h>
 
 
-static void _add(struct reloc_list *list, u64 offset, char *name, enum reloc_type type);
-static void _clear(struct reloc_list *list);
-static bool _backfill_buffer(struct reloc_list *list, symbol_table *symbols, buffer *buff, u64 sym_base_address);
-static void _free(struct reloc_list *list);
+static void _add(reloc_list *list, u64 offset, char *name, enum reloc_type type);
+static void _clear(reloc_list *list);
+static bool _backfill_buffer(reloc_list *list, symbol_table *symbols, buffer *buff, u64 code_base_address, u64 data_base_address, u64 bss_base_address);
+static void _print(reloc_list *list);
+static void _free(reloc_list *list);
 
 
-struct reloc_list *new_reloc_list() {
-    struct reloc_list *p = malloc(sizeof(struct reloc_list));
+reloc_list *new_reloc_list() {
+    reloc_list *p = malloc(sizeof(reloc_list));
     p->capacity = 10;
     p->list = malloc(p->capacity * sizeof(struct relocation));
     p->length = 0;
@@ -25,10 +26,10 @@ struct reloc_list *new_reloc_list() {
     return p;
 }
 
-static void _add(struct reloc_list *list, u64 position, char *name, enum reloc_type type) {
+static void _add(reloc_list *list, u64 position, char *name, enum reloc_type type) {
     if (list->length + 1 >= list->capacity) {
         list->capacity *= 2;
-        list->list = realloc(list->list, list->capacity * sizeof(struct reloc_list));
+        list->list = realloc(list->list, list->capacity * sizeof(reloc_list));
     }
 
     list->list[list->length].position = position;
@@ -37,29 +38,43 @@ static void _add(struct reloc_list *list, u64 position, char *name, enum reloc_t
     list->length++;
 }
 
-static void _clear(struct reloc_list *list) {
+static void _clear(reloc_list *list) {
     list->length = 0;
 }
 
-static bool _backfill_buffer(struct reloc_list *list, symbol_table *symbols, buffer *buff, u64 sym_base_address) {
+static bool _backfill_buffer(reloc_list *list, symbol_table *symbols, buffer *buff, u64 code_base_address, u64 data_base_address, u64 bss_base_address) {
     for (int i = 0; i < list->length; i++) {
         struct relocation *r = &list->list[i];
 
-        u64 symbol_address = 0;
-        if (!symbols->find(symbols, r->name, &symbol_address)) {
+        if (r->position >= buff->length) {
+            printf("Reference at byte %ld, but buffer length only %d\n", r->position, buff->length);
+            return false;
+        }
+
+        struct symbol *sym;
+        sym = symbols->find(symbols, r->name);
+        if (sym == NULL) {
             printf("Symbol not found: \"%s\"\n", r->name);
             return false;
         }
         
-        if (r->position >= buff->length) {
-            printf("Reference at byte %ld, but buffer length only %d\n", r->position, buff->length);
+        // decide what is our base address
+        u64 base_address;
+        if (sym->base == SB_CODE)
+            base_address = code_base_address;
+        else if (sym->base == SB_DATA)
+            base_address = data_base_address;
+        else if (sym->base == SB_ZERO_DATA)
+            base_address = bss_base_address;
+        else {
+            printf("Unknown base for symbol \"%s\"\n", r->name);
             return false;
         }
 
         // we are supposed to respect the relocation type.
         if (r->type == RT_ABS_32) {
             void *pos = &buff->data[r->position];
-            *(u32 *)pos = (u32)(symbol_address + sym_base_address);
+            *(u32 *)pos = (u32)(base_address + sym->offset);
         } else {
             printf("Not supported relocation type %d\n", r->type);
             return false;
@@ -67,7 +82,7 @@ static bool _backfill_buffer(struct reloc_list *list, symbol_table *symbols, buf
     }
 }
 
-static void _free(struct reloc_list *list) {
+static void _free(reloc_list *list) {
     free(list->list);
     free(list);
 }

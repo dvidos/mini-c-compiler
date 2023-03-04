@@ -68,11 +68,11 @@ enum opcode {
     OC_INT,
 };
 
-
 struct instruction {
+    char *label;
     enum opcode opcode;
     struct operand op1;
     struct operand op2;
 };
 
-void instruction_to_string(struct instruction *inst, char *buff);
+void instruction_to_string(struct instruction *inst, char *buff, int buff_size);

@@ -22,6 +22,7 @@ struct buffer {
     void (*add_quad)(buffer *buff, u64 value);
     void (*add_mem)(buffer *buff, void *mem, int len);
     void (*add_strz)(buffer *buff, char *strz);
+    void (*add_zeros)(buffer *buff, int len);
     void (*fill)(buffer *buff, int target_length, u8 filler);
     void (*free)(buffer *buff);
 };

@@ -4,7 +4,7 @@
 #include <string.h>
 #include "../options.h"
 #include "../err_handler.h"
-#include "../elf/binary_program.h"
+#include "../elf/elf_contents.h"
 #include "binary_gen.h"
 
 
@@ -158,7 +158,7 @@ static void pass_2_backfill_addresses(int address_size_in_bytes) {
     }
 }
 
-void generate_binary_code(char *assembly_code, binary_program **program) {
+void generate_binary_code(char *assembly_code, elf_contents **program) {
     // two passes, first generate assembly, marking jumps as open ended
     // then come back and fill in jumps final addresses
     init(0x800000);

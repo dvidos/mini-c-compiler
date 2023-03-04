@@ -144,12 +144,12 @@ static bool x86_encoder_encode(struct x86_encoder *enc, struct instruction *inst
 static void x86_encoder_reset(struct x86_encoder *enc);
 static void x86_encoder_free(struct x86_encoder *enc);
 
-struct x86_encoder *new_x86_encoder(enum x86_cpu_mode mode) {
+struct x86_encoder *new_x86_encoder(enum x86_cpu_mode mode, buffer *code_out, reloc_list *relocations_out) {
     struct x86_encoder *enc = malloc(sizeof(struct x86_encoder));
     enc->mode = mode;
 
-    enc->output = new_buffer();
-    enc->relocations = new_reloc_list();
+    enc->output = code_out;
+    enc->relocations = relocations_out;
 
     enc->encode = x86_encoder_encode;
     enc->reset = x86_encoder_reset;

@@ -3,8 +3,9 @@
 #include <stdlib.h>
 #include <string.h>
 
-static void _add(symbol_table *table, char *name, u64 offset);
-static bool _find(symbol_table *table, char *name, u64 *offset);
+static void _clear(symbol_table *table);
+static void _add(symbol_table *table, char *name, u64 offset, enum symbol_base base);
+static struct symbol *_find(symbol_table *table, char *name);
 static void _free(symbol_table *table);
 
 symbol_table *new_symbol_table() {
@@ -15,12 +16,13 @@ symbol_table *new_symbol_table() {
 
     p->add = _add;
     p->find = _find;
+    p->clear = _clear;
     p->free = _free;
 
     return p;
 }
 
-static void _add(symbol_table *table, char *name, u64 offset) {
+static void _add(symbol_table *table, char *name, u64 offset, enum symbol_base base) {
     if (table->length + 1 >= table->capacity) {
         table->capacity *= 2;
         table->symbols = realloc(table->symbols, table->capacity * sizeof(struct symbol));
@@ -29,18 +31,21 @@ static void _add(symbol_table *table, char *name, u64 offset) {
     struct symbol *sym = &table->symbols[table->length];
     sym->name = strdup(name);
     sym->offset = offset;
+    sym->base = base;
     table->length++;
 }
 
-static bool _find(symbol_table *table, char *name, u64 *offset) {
+static void _clear(symbol_table *table) {
+    table->length = 0;
+}
+
+static struct symbol *_find(symbol_table *table, char *name) {
     for (int i = 0; i < table->length; i++) {
         if (strcmp(table->symbols[i].name, name) == 0) {
-            if (offset != NULL)
-                *offset = table->symbols[i].offset;
-            return true;
+            return &table->symbols[i];
         }
     }
-    return false;
+    return NULL;
 }
 
 static void _free(symbol_table *table) {

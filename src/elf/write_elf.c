@@ -4,7 +4,7 @@
 #include <string.h>
 #include "../options.h"
 #include "../utils.h"
-#include "binary_program.h"
+#include "elf_contents.h"
 #include "elf_format.h"
 
 
@@ -22,7 +22,7 @@ static void pad_file_to_size(FILE *f, long size);
 
 
 
-static void write_elf32_file(binary_program *prog, FILE *f) {
+static void write_elf32_file(elf_contents *prog, FILE *f) {
 
     // write main header
     elf32_header *header = malloc(sizeof(elf32_header));
@@ -57,7 +57,7 @@ static void write_elf32_file(binary_program *prog, FILE *f) {
         header->prog_headers_offset = ftell(f);
         header->prog_headers_entry_size = sizeof(elf32_prog_header);
         header->prog_headers_entries = 3; // first, code, data
-        if (prog->zero_data_size > 0)
+        if (prog->bss_size > 0)
             header->prog_headers_entries += 1; // bss is optional
 
         empty_ph->type = PROG_TYPE_LOAD;
@@ -82,23 +82,23 @@ static void write_elf32_file(binary_program *prog, FILE *f) {
 
         data_ph->type = PROG_TYPE_LOAD;
         data_ph->file_offset = 0; // we'll come back to fill this
-        data_ph->file_size = prog->init_data_size;
-        data_ph->memory_size = prog->init_data_size;
+        data_ph->file_size = prog->data_size;
+        data_ph->memory_size = prog->data_size;
         data_ph->align = 0x1000;
         data_ph->flags = PROG_FLAGS_READ | PROG_FLAGS_WRITE;
-        data_ph->virt_address = prog->init_data_address;
-        data_ph->phys_address = prog->init_data_address;
+        data_ph->virt_address = prog->data_address;
+        data_ph->phys_address = prog->data_address;
         fwrite(data_ph, 1, sizeof(elf32_prog_header), f);
 
-        if (prog->zero_data_size > 0) {
+        if (prog->bss_size > 0) {
             bss_ph->type = PROG_TYPE_LOAD;
             bss_ph->file_offset = 0; // we'll come back to fill this
             bss_ph->file_size = 0;
-            bss_ph->memory_size = prog->zero_data_size;
+            bss_ph->memory_size = prog->bss_size;
             bss_ph->align = 1;
             bss_ph->flags = PROG_FLAGS_READ | PROG_FLAGS_WRITE;
-            bss_ph->virt_address = prog->zero_data_address;
-            bss_ph->phys_address = prog->zero_data_address;
+            bss_ph->virt_address = prog->bss_address;
+            bss_ph->phys_address = prog->bss_address;
             fwrite(bss_ph, 1, sizeof(elf32_prog_header), f);
         }
     }
@@ -140,22 +140,22 @@ static void write_elf32_file(binary_program *prog, FILE *f) {
 
     data_section->type = SECTION_TYPE_PROGBITS;
     data_section->flags = SECTION_FLAGS_ALLOC | SECTION_FLAGS_WRITE;
-    data_section->virt_address = prog->init_data_address;
-    data_section->size = prog->init_data_size;
+    data_section->virt_address = prog->data_address;
+    data_section->size = prog->data_size;
     data_section->name = strings_len;
     data_section->address_alignment = 4;
     strcat(strings + strings_len, ".data");
     strings_len += strlen(".data") + 1;
     pad_file_to_size(f, round_up(ftell(f), data_ph->align));
     data_section->file_offset = ftell(f);
-    fwrite(prog->init_data_contents, 1, prog->init_data_size, f);
+    fwrite(prog->data_contents, 1, prog->data_size, f);
     header->section_headers_entries++;
 
-    if (prog->zero_data_size > 0) {
+    if (prog->bss_size > 0) {
         bss_section->type = SECTION_TYPE_NOBITS;
         bss_section->flags = SECTION_FLAGS_ALLOC | SECTION_FLAGS_WRITE;
-        bss_section->virt_address = prog->zero_data_address;
-        bss_section->size = prog->zero_data_size;
+        bss_section->virt_address = prog->bss_address;
+        bss_section->size = prog->bss_size;
         bss_section->name = strings_len;
         bss_section->address_alignment = 4;
         strcat(strings + strings_len, ".bss");
@@ -182,7 +182,7 @@ static void write_elf32_file(binary_program *prog, FILE *f) {
     fwrite(empty_section,   1, sizeof(elf32_section_header), f);
     fwrite(text_section,    1, sizeof(elf32_section_header), f);
     fwrite(data_section,    1, sizeof(elf32_section_header), f);
-    if (prog->zero_data_size > 0)
+    if (prog->bss_size > 0)
         fwrite(bss_section,     1, sizeof(elf32_section_header), f);
     fwrite(strings_section, 1, sizeof(elf32_section_header), f);
 
@@ -196,7 +196,7 @@ static void write_elf32_file(binary_program *prog, FILE *f) {
         fwrite(empty_ph, 1, sizeof(elf32_prog_header), f);
         fwrite(text_ph, 1, sizeof(elf32_prog_header), f);
         fwrite(data_ph, 1, sizeof(elf32_prog_header), f);
-        if (prog->zero_data_size > 0)
+        if (prog->bss_size > 0)
             fwrite(bss_ph, 1, sizeof(elf32_prog_header), f);
     }
 
@@ -216,7 +216,7 @@ static void write_elf32_file(binary_program *prog, FILE *f) {
     free(strings);
 }
 
-static void write_elf64_file(binary_program *prog, FILE *f) {
+static void write_elf64_file(elf_contents *prog, FILE *f) {
 
     // write main header
     elf64_header *header = malloc(sizeof(elf64_header));
@@ -260,21 +260,21 @@ static void write_elf64_file(binary_program *prog, FILE *f) {
         fwrite(text_ph, 1, sizeof(elf64_prog_header), f);
 
         data_ph->type = PROG_TYPE_LOAD;
-        data_ph->file_size = prog->init_data_size;
-        data_ph->memory_size = prog->init_data_size;
+        data_ph->file_size = prog->data_size;
+        data_ph->memory_size = prog->data_size;
         data_ph->align = 4;
         data_ph->flags = PROG_FLAGS_READ | PROG_FLAGS_WRITE;
-        data_ph->virt_address = prog->init_data_address;
-        data_ph->phys_address = prog->init_data_address;
+        data_ph->virt_address = prog->data_address;
+        data_ph->phys_address = prog->data_address;
         fwrite(data_ph, 1, sizeof(elf64_prog_header), f);
 
         bss_ph->type = PROG_TYPE_LOAD;
         bss_ph->file_size = 0;
-        bss_ph->memory_size = prog->zero_data_size;
+        bss_ph->memory_size = prog->bss_size;
         bss_ph->align = 4;
         bss_ph->flags = PROG_FLAGS_READ | PROG_FLAGS_WRITE;
-        bss_ph->virt_address = prog->zero_data_address;
-        bss_ph->phys_address = prog->zero_data_address;
+        bss_ph->virt_address = prog->bss_address;
+        bss_ph->phys_address = prog->bss_address;
         fwrite(bss_ph, 1, sizeof(elf64_prog_header), f);
     }
 
@@ -313,19 +313,19 @@ static void write_elf64_file(binary_program *prog, FILE *f) {
 
     data_section->type = SECTION_TYPE_PROGBITS;
     data_section->flags = SECTION_FLAGS_ALLOC | SECTION_FLAGS_WRITE;
-    data_section->virt_address = prog->init_data_address;
-    data_section->size = prog->init_data_size;
+    data_section->virt_address = prog->data_address;
+    data_section->size = prog->data_size;
     data_section->file_offset = ftell(f);
     data_section->name = strings_len;
     strcat(strings + strings_len, ".data");
     strings_len += strlen(".data") + 1;
-    fwrite(prog->init_data_contents, 1, prog->init_data_size, f);
+    fwrite(prog->data_contents, 1, prog->data_size, f);
     header->section_headers_entries++;
 
     bss_section->type = SECTION_TYPE_NOBITS;
     bss_section->flags = SECTION_FLAGS_ALLOC | SECTION_FLAGS_WRITE;
-    bss_section->virt_address = prog->zero_data_address;
-    bss_section->size = prog->zero_data_size;
+    bss_section->virt_address = prog->bss_address;
+    bss_section->size = prog->bss_size;
     bss_section->name = strings_len;
     strcat(strings + strings_len, ".bss");
     strings_len += strlen(".bss") + 1;
@@ -381,7 +381,7 @@ static void write_elf64_file(binary_program *prog, FILE *f) {
 }
 
 
-bool write_elf_file(binary_program *prog, char *filename, long *bytes_written) {
+bool write_elf_file(elf_contents *prog, char *filename, long *bytes_written) {
     FILE *f = fopen(filename, "w+");
     if (f == NULL) {
         printf("Error opening file %s for writing\n", filename);

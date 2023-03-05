@@ -98,6 +98,17 @@ static expr_target *resolve_lvalue_target(expression *expr) {
     }
 }
 
+static void generate_code_for_assignment(expression *expr) {
+    // I've read somewhere that simple assignment in C
+    // usually yields three operations in assembly:
+    // load, modify, store.
+    // this may be slower, but paints a nice way out of the complexity.
+
+    // find lvalue target
+    expr_target *lvalue_target = resolve_lvalue_target(expr->arg1);
+    generate_expression_code(expr->arg2, lvalue_target);
+
+}
 static void generate_code_for_function_call(expression *expr) {
     // need to find the func reference?  e.g. "(devices[0]->write)(h, 10, buffer)"
     // remember that C pushes args from right to left (IR opcode PUSH)
@@ -221,9 +232,7 @@ void generate_expression_code(expression *expr, expr_target *target) {
             break;
             
         case OP_ASSIGNMENT:
-            // find lvalue target
-            expr_target *lvalue_target = resolve_lvalue_target(expr->arg1);
-            generate_expression_code(expr->arg2, lvalue_target);
+            generate_code_for_assignment(expr);
             break;
         case OP_FUNC_CALL:
             generate_code_for_function_call(expr);

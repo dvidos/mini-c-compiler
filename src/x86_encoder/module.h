@@ -28,6 +28,8 @@ struct module_ops {
     // runtime manipulation
     void (*reset)(module *mod);
     void (*declare_data)(module *mod, char *symbol_name, u64 bytes, void *init_value);
+    void (*print)(module *mod);
+    
     // void (*encode_listing)(module *mod, listing *list);
 
     // // object file operations    

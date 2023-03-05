@@ -126,13 +126,13 @@ static void verify_instructions() {
     VERIFY_INSTR1_MEMBYREG(OC_CALL, REG_DX,      0, "\xff\x12",     2);
 
     // modify dword pointed by symbol
-    VERIFY_INSTR1_MEMBYSYM(OC_PUSH, "var1", "\xff\x35\x00\x00\x00\x00", 6);
-    VERIFY_INSTR1_MEMBYSYM(OC_POP,  "var1", "\x8f\x05\x00\x00\x00\x00", 6);
-    VERIFY_INSTR1_MEMBYSYM(OC_INC,  "var1", "\xff\x05\x00\x00\x00\x00", 6);
-    VERIFY_INSTR1_MEMBYSYM(OC_DEC,  "var1", "\xff\x0d\x00\x00\x00\x00", 6);
-    VERIFY_INSTR1_MEMBYSYM(OC_NOT,  "var1", "\xf7\x15\x00\x00\x00\x00", 6);
-    VERIFY_INSTR1_MEMBYSYM(OC_NEG,  "var1", "\xf7\x1d\x00\x00\x00\x00", 6);
-    VERIFY_INSTR1_MEMBYSYM(OC_CALL, "var1", "\x2e\xff\x15\x00\x00\x00\x00", 7);
+    VERIFY_INSTR1_MEMBYSYM(OC_PUSH, "var1", "\xff\x35\xFF\xFF\xFF\xFF", 6);
+    VERIFY_INSTR1_MEMBYSYM(OC_POP,  "var1", "\x8f\x05\xFF\xFF\xFF\xFF", 6);
+    VERIFY_INSTR1_MEMBYSYM(OC_INC,  "var1", "\xff\x05\xFF\xFF\xFF\xFF", 6);
+    VERIFY_INSTR1_MEMBYSYM(OC_DEC,  "var1", "\xff\x0d\xFF\xFF\xFF\xFF", 6);
+    VERIFY_INSTR1_MEMBYSYM(OC_NOT,  "var1", "\xf7\x15\xFF\xFF\xFF\xFF", 6);
+    VERIFY_INSTR1_MEMBYSYM(OC_NEG,  "var1", "\xf7\x1d\xFF\xFF\xFF\xFF", 6);
+    VERIFY_INSTR1_MEMBYSYM(OC_CALL, "var1", "\x2e\xff\x15\xFF\xFF\xFF\xFF", 7);
 
     // // two operands operations, source & target is a register
     VERIFY_INSTR2_REG_REG(OC_MOV, REG_AX, REG_SP, "\x89\xE0", 2);
@@ -238,7 +238,7 @@ static void verify_listing(char *title, struct instruction *list, int instr_coun
     }
 
     printf("Encoded machine code: (%d bytes)\n", encoder->output->length);
-    print_16_hex(encoder->output->data, encoder->output->length);
+    print_16_hex(encoder->output->data, encoder->output->length, 2);
 
     printf("Unresolved references:\n");
     printf("  Position  Symbol name\n");
@@ -403,6 +403,9 @@ void test_create_executable2() {
     if (!_encode_listing_code(lst, mod, CPU_MODE_PROTECTED))
         return;
 
+    printf("Prepared module:\n");
+    mod->ops->print(mod);
+    
     // now we need a linker to convert the module into an executable
     if (!_link_module(mod, 0x8049000, "out2.elf"))
         return;

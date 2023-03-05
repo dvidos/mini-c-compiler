@@ -318,7 +318,7 @@ static bool x86_encoder_encode(struct x86_encoder *enc, struct instruction *inst
             } else if (instr->op1.type == OT_REGISTER && instr->op2.type == OT_SYMBOL_MEM_ADDRESS) {
                 encode_single_byte_instruction_adding_reg_no(enc, 0xB8, instr->op1.value);
                 enc->relocations->add(enc->relocations, enc->output->length, instr->op2.symbol_name, RT_ABS_32);
-                enc->output->add_dword(enc->output, 0x00000000);
+                enc->output->add_dword(enc->output, 0xFFFFFFFF);
                 return true;
                 
             } else if (instr->op1.type == OT_MEM_DWORD_POINTED_BY_REG && instr->op2.type == OT_REGISTER) {
@@ -326,7 +326,7 @@ static bool x86_encoder_encode(struct x86_encoder *enc, struct instruction *inst
             } else if (instr->op1.type == OT_SYMBOL_MEM_ADDRESS && instr->op2.type == OT_REGISTER) {
                 enc->output->add_byte(enc->output, 0xA3);
                 enc->relocations->add(enc->relocations, enc->output->length, instr->op1.symbol_name, RT_ABS_32);
-                enc->output->add_dword(enc->output, 0x00000000);
+                enc->output->add_dword(enc->output, 0xFFFFFFFF);
                 enc->output->add_byte(enc->output, modrm_byte(MODE_DIRECT_REGISTER, 0, instr->op2.value));
                 return true;
 
@@ -565,7 +565,7 @@ static bool encode_ext_instr_mem_by_symbol(struct x86_encoder *enc, u8 opcode, u
 
     // save reference to backfill four bytes
     enc->relocations->add(enc->relocations, enc->output->length, symbol_name, RT_ABS_32);
-    enc->output->add_dword(enc->output, 0x00000000);
+    enc->output->add_dword(enc->output, 0xFFFFFFFF);
     return true;
 }
 

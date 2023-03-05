@@ -1,11 +1,13 @@
-#include "symbol_table.h"
 #include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdio.h>
+#include "symbol_table.h"
 
 static void _clear(symbol_table *table);
 static void _add(symbol_table *table, char *name, u64 offset, enum symbol_base base);
 static struct symbol *_find(symbol_table *table, char *name);
+static void _print(symbol_table *table);
 static void _free(symbol_table *table);
 
 symbol_table *new_symbol_table() {
@@ -17,6 +19,7 @@ symbol_table *new_symbol_table() {
     p->add = _add;
     p->find = _find;
     p->clear = _clear;
+    p->print = _print;
     p->free = _free;
 
     return p;
@@ -46,6 +49,23 @@ static struct symbol *_find(symbol_table *table, char *name) {
         }
     }
     return NULL;
+}
+
+static void _print(symbol_table *table) {
+    printf("  Name                    Base    Offset\n");
+    //     "  12345678901234567890    1234    12345678"
+    for (int i = 0; i < table->length; i++) {
+        struct symbol *s = &table->symbols[i];
+        printf("  %-20s    %4s    %08lx\n",
+            s->name, 
+            s->base == SB_CODE ? "code" : (
+                s->base == SB_DATA ? "data" : (
+                    s->base == SB_ZERO_DATA ? "bss" : "???"
+                )
+            ),
+            s->offset
+        );
+    }
 }
 
 static void _free(symbol_table *table) {

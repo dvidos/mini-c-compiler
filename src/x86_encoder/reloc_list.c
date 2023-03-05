@@ -21,6 +21,7 @@ reloc_list *new_reloc_list() {
     p->add = _add;
     p->clear = _clear;
     p->backfill_buffer = _backfill_buffer;
+    p->print = _print;
     p->free = _free;
 
     return p;
@@ -79,6 +80,21 @@ static bool _backfill_buffer(reloc_list *list, symbol_table *symbols, buffer *bu
             printf("Not supported relocation type %d\n", r->type);
             return false;
         }
+    }
+}
+
+static void _print(reloc_list *list) {
+    printf("  Position    Type      Name\n");
+    //     "  00000000    XXXXXX    XCZXCVzxcvxvxcv....
+    for (int i = 0; i < list->length; i++) {
+        struct relocation *r = &list->list[i];
+        printf("  %08lx    %-6s    %s\n",
+            r->position, 
+            r->type == RT_ABS_32 ? "ABS_32" : (
+                r->type == RT_REL_32 ? "REL_32" : "???"
+            ),
+            r->name
+        );
     }
 }
 

@@ -1,17 +1,21 @@
 #include <stdlib.h>
+#include <stdio.h>
 #include "buffer.h"
 #include "symbol_table.h"
 #include "reloc_list.h"
 #include "module.h"
+#include "../utils.h"
 
 
 static void _free(module *mod);
 static void _reset(module *mod);
 static void _declare_data(module *mod, char *symbol_name, u64 bytes, void *init_value);
+static void _print(module *mod);
 
 struct module_ops ops = {
     .reset = _reset,
     .declare_data = _declare_data,
+    .print = _print,
     .free = _free,
 };
 
@@ -46,6 +50,29 @@ static void _reset(module *mod) {
     mod->bss->clear(mod->bss);
     mod->relocations->clear(mod->relocations);
     mod->symbols->clear(mod->symbols);
+}
+
+static void _print(module *mod) {
+    if (mod->text->length > 0) {
+        printf("Code (%d bytes)\n", mod->text->length);
+        print_16_hex(mod->text->data, mod->text->length, 2);
+    }
+    if (mod->relocations->length > 0) {
+        printf("Relocations (%d entries)\n", mod->relocations->length);
+        mod->relocations->print(mod->relocations);
+    }
+    if (mod->data->length > 0) {
+        printf("Data (%d bytes):\n", mod->data->length);
+        print_16_hex(mod->data->data, mod->data->length, 2);
+    }
+    if (mod->bss->length > 0) {
+        printf("Bss (%d bytes):\n", mod->bss->length);
+        print_16_hex(mod->bss->data, mod->bss->length, 2);
+    }
+    if (mod->relocations->length > 0) {
+        printf("Symbols (%d entries)\n", mod->relocations->length);
+        mod->symbols->print(mod->symbols);
+    }
 }
 
 static void _free(module *mod) {

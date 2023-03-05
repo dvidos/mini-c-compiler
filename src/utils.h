@@ -1,7 +1,7 @@
 #include <stdbool.h>
 
 
-void print_16_hex(void *address, int size);
+void print_16_hex(void *buffer, int size, int indent);
 void print_pretty(char *str);
 
 

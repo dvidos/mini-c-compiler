@@ -7,30 +7,45 @@
 #define printable(c)    (((c) > 32 && (c) < 127) ? (c) : '.')
 
 
-void print_16_hex(void *address, int size) {
-    unsigned char *p = address;
+void print_16_hex(void *buffer, int size, int indent) {
+    unsigned long offset;
+    unsigned char *p = buffer;
+    char indentation[64];
+    char prep[64];
+
+    memset(indentation, ' ', sizeof(indentation));
+    if (indent > sizeof(indentation) - 1)
+        indent = sizeof(indentation) - 1;
+    indentation[indent] = '\0';
+
+    offset = 0;
     while (size > 0) {
-        printf("    %02x %02x %02x %02x %02x %02x %02x %02x   %02x %02x %02x %02x %02x %02x %02x %02x  %c%c%c%c%c%c%c%c %c%c%c%c%c%c%c%c\n",
-            p[0], p[1], p[2], p[3], p[4], p[5], p[6], p[7], p[8], p[9], p[10], p[11], p[12], p[13], p[14], p[15],
-            printable(p[0]),
-            printable(p[1]),
-            printable(p[2]),
-            printable(p[3]),
-            printable(p[4]),
-            printable(p[5]),
-            printable(p[6]),
-            printable(p[7]),
-            printable(p[8]),
-            printable(p[9]),
-            printable(p[10]),
-            printable(p[11]),
-            printable(p[12]),
-            printable(p[13]),
-            printable(p[14]),
-            printable(p[15])
+        for (int i = 0; i < 16; i++) {
+            if (i < size) {
+                int c = (int)p[i];
+                sprintf(&prep[i * 4], "%02x", c);
+                prep[i*4  + 3] = (c >= ' ' && c <= '~') ? c : '.';
+            } else {
+                strcpy(&prep[i * 4], "  ");
+                prep[i*4  + 3] = ' ';
+            }
+        }
+
+        printf("%s%08lx   %2s %2s %2s %2s %2s %2s %2s %2s  %2s %2s %2s %2s %2s %2s %2s %2s   %c%c%c%c%c%c%c%c %c%c%c%c%c%c%c%c\n",
+            indentation, offset,
+            prep +  0, prep +  4, prep +  8, prep + 12, 
+            prep + 16, prep + 20, prep + 24, prep + 28, 
+            prep + 32, prep + 36, prep + 40, prep + 44, 
+            prep + 48, prep + 52, prep + 56, prep + 60, 
+            prep[ 3], prep[ 7], prep[11], prep[15], 
+            prep[19], prep[23], prep[27], prep[31], 
+            prep[35], prep[39], prep[43], prep[47], 
+            prep[51], prep[55], prep[59], prep[63]
         );
+
         p += 16;
         size -= 16;
+        offset += 16;
     }
 }
 

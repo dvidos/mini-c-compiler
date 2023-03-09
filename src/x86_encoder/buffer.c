@@ -9,10 +9,10 @@ static void _add_byte(buffer *buff, u8 value);
 static void _add_word(buffer *buff, u16 value);
 static void _add_dword(buffer *buff, u32 value);
 static void _add_quad(buffer *buff, u64 value);
-static void _fill(buffer *buff, int target_length, u8 filler);
-static void _add_mem(buffer *buff, void *mem, int len);
 static void _add_strz(buffer *buff, char *strz);
+static void _add_mem(buffer *buff, void *mem, int len);
 static void _add_zeros(buffer *buff, int len);
+static void _fill(buffer *buff, int target_length, u8 filler);
 static void _free(buffer *buff);
 
 
@@ -28,8 +28,8 @@ buffer *new_buffer() {
     p->add_word = _add_word;
     p->add_dword = _add_dword;
     p->add_quad = _add_quad;
-    p->add_mem = _add_mem;
     p->add_strz = _add_strz;
+    p->add_mem = _add_mem;
     p->add_zeros = _add_zeros;
     p->fill = _fill;
     p->free = _free;

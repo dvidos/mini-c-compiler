@@ -139,6 +139,36 @@ typedef uint64_t u64;
 // then encoding would be really simple, just branching with
 // the different ways to encode instructions.
 
+/*
+    Having implemented the first executable, I think we can now take a better look at the 
+    instruction encoding, especially since we have not taken into account the memory sizes.
+    Meaning, we hardcoded the memory loading and storing to be done with dwords only.
+    I think we must take this into account and any instruction must understand (or have hint)
+    at the size of the operation (e.g. 8, 16, 32 or 64 bits)
+    Then we shall have different encoding for each of these widths.
+
+    Cases (each of the cases has 4 encodings, due to size of 8/16/32/64 bits)
+    Also, memory can be accessed via register +/- offset or by direct address (symbols)
+
+    PUSH    REG
+    PUSH    IMM  ; size may be needed, i.e. push how many bytes???
+    PUSH    MEM
+    MOV     REG     REG
+    MOV     REG     MEM
+    MOV     MEM     REG
+    MOV     MEM     IMM   ; size hint needed
+    MOV     REG     IMM
+
+    By looking at the source code of nasm I understand that my 'listing'
+    is a type of contract of what we can encode. For nasm, this is the user,
+    for us, it seems I want to offer a type of generalization on top of the opcodes.
+    e.g. in my approach, there's no way to load CS, SS or LGTR
+    
+    Nasm does it by an instruction table, out of which, code is generated.
+    https://github.com/netwide-assembler/nasm/blob/master/x86/insns.dat
+
+*/
+
 
 static bool x86_encoder_encode(struct x86_encoder *enc, struct instruction *instr);
 static void x86_encoder_reset(struct x86_encoder *enc);

@@ -19,7 +19,7 @@ typedef struct var_declaration {
     struct var_declaration *next; // for function arguments lists
 } var_declaration;
 
-var_declaration *create_var_declaration(data_type *data_type, char* var_name, token *token);
+var_declaration *new_var_declaration(data_type *data_type, char* var_name, token *token);
 
 
 
@@ -45,7 +45,7 @@ typedef struct func_declaration {
     struct func_declaration_ops *ops;
 } func_declaration;
 
-func_declaration *create_func_declaration(data_type *return_type, char *func_name, var_declaration *args_list, statement *body, token *token);
+func_declaration *new_func_declaration(data_type *return_type, char *func_name, var_declaration *args_list, statement *body, token *token);
 
 struct func_declaration_ops {
     int (*count_required_arguments)(func_declaration *func);

@@ -130,16 +130,16 @@ static data_type *accept_data_type_description() {
 
     consume(); // a keyword such as "int" or "char"
     type_family family = data_type_family_for_token(accepted()->type);
-    data_type *t = create_data_type(family, NULL);
+    data_type *t = new_data_type(family, NULL);
 
     if (accept(TOK_STAR)) {
         // we are a pointer, nest the data type
-        t = create_data_type(TF_POINTER, t);
+        t = new_data_type(TF_POINTER, t);
     }
 
     if (accept(TOK_STAR)) {
         // we are a pointer to pointer, nest the data type too
-        t = create_data_type(TF_POINTER, t);
+        t = new_data_type(TF_POINTER, t);
     }
 
     return t;
@@ -157,21 +157,21 @@ static statement *accept_variable_declaration() {
 
     if (accept(TOK_LBRACKET)) {
         // it's an array
-        dt = create_data_type(TF_ARRAY, dt);
+        dt = new_data_type(TF_ARRAY, dt);
         if (!expect(TOK_NUMERIC_LITERAL)) return NULL;
         dt->array_size = strtol(accepted()->value, NULL, 10);
         if (!expect(TOK_RBRACKET)) return NULL;
 
         if (accept(TOK_LBRACKET)) {
             // it's a two-dimensions array
-            dt = create_data_type(TF_ARRAY, dt);
+            dt = new_data_type(TF_ARRAY, dt);
             if (!expect(TOK_NUMERIC_LITERAL)) return NULL;
             dt->array_size = strtol(accepted()->value, NULL, 10);
             if (!expect(TOK_RBRACKET)) return NULL;
         }
     }
 
-    var_declaration *vd = create_var_declaration(dt, name, identifier_token);
+    var_declaration *vd = new_var_declaration(dt, name, identifier_token);
     expression *initialization = NULL;
     if (accept(TOK_EQUAL_SIGN)) {
         initialization = parse_expression_using_shunting_yard();
@@ -179,7 +179,7 @@ static statement *accept_variable_declaration() {
 
     if (!expect(TOK_SEMICOLON))
         return NULL;
-    return create_var_decl_statement(vd, initialization, identifier_token);
+    return new_var_decl_statement(vd, initialization, identifier_token);
 }
 
 static func_declaration *accept_function_declaration() {
@@ -212,7 +212,7 @@ static func_declaration *accept_function_declaration() {
             "expecting either ';' or '{' for function %s", name);
     }
 
-    return create_func_declaration(ret_type, name, args, body, identifier_token);
+    return new_func_declaration(ret_type, name, args, body, identifier_token);
 }
 
 // cannot parse a function, but can parse a block and anything in it.
@@ -223,7 +223,7 @@ static statement *parse_statement() {
         // we need to parse the nested block, blocks have their own scope
         token *opening_token = accepted();
         statement *stmt_list = parse_statements_list_in_block();
-        statement *bl = create_statements_block(stmt_list, opening_token);
+        statement *bl = new_statements_block(stmt_list, opening_token);
         if (!expect(TOK_BLOCK_END)) return NULL;
         return bl;
     }
@@ -244,7 +244,7 @@ static statement *parse_statement() {
             else_body = parse_statement();
             if (else_body == NULL) return NULL;
         }
-        return create_if_statement(cond, if_body, else_body, start_token);
+        return new_if_statement(cond, if_body, else_body, start_token);
     }
 
     if (accept(TOK_WHILE)) {
@@ -254,7 +254,7 @@ static statement *parse_statement() {
         if (!expect(TOK_RPAREN)) return NULL;
         statement *body = parse_statement();
         if (body == NULL) return NULL;
-        return create_while_statement(cond, body, start_token);
+        return new_while_statement(cond, body, start_token);
     }
 
     if (accept(TOK_CONTINUE)) {
@@ -266,7 +266,7 @@ static statement *parse_statement() {
     if (accept(TOK_BREAK)) {
         start_token = accepted();
         if (!expect(TOK_SEMICOLON)) return NULL;
-        return create_break_statement(start_token);
+        return new_break_statement(start_token);
     }
 
     if (accept(TOK_RETURN)) {
@@ -276,14 +276,14 @@ static statement *parse_statement() {
             value = parse_expression_using_shunting_yard();
             if (!expect(TOK_SEMICOLON)) return NULL;
         }
-        return create_return_statement(value, start_token);
+        return new_return_statement(value, start_token);
     }
     
     // what is left? treat the rest as expressions
     start_token = next();
     expression *expr = parse_expression_using_shunting_yard();
     if (!expect(TOK_SEMICOLON)) return NULL;
-    return create_expr_statement(expr, start_token);
+    return new_expr_statement(expr, start_token);
 }
 
 static statement *parse_statements_list_in_block() {
@@ -311,21 +311,21 @@ static var_declaration *parse_function_arguments_list() {
 
         // it's an array
         if (accept(TOK_LBRACKET)) {
-            dt = create_data_type(TF_ARRAY, dt);
+            dt = new_data_type(TF_ARRAY, dt);
             if (!expect(TOK_NUMERIC_LITERAL)) return NULL;
             dt->array_size = strtol(accepted()->value, NULL, 10);
             if (!expect(TOK_RBRACKET)) return NULL;
 
             if (accept(TOK_LBRACKET)) {
                 // it's a two-dimensions array
-                dt = create_data_type(TF_ARRAY, dt);
+                dt = new_data_type(TF_ARRAY, dt);
                 if (!expect(TOK_NUMERIC_LITERAL)) return NULL;
                 dt->array_size = strtol(accepted()->value, NULL, 10);
                 if (!expect(TOK_RBRACKET)) return NULL;
             }
         }
 
-        var_declaration *n = create_var_declaration(dt, name, identifier_token);
+        var_declaration *n = new_var_declaration(dt, name, identifier_token);
         list_append(n);
 
         if (!accept(TOK_COMMA))

@@ -94,6 +94,8 @@ struct token {
 
 token *create_token(token_type type, char *value, char *filename, int line_no);
 
+
+// TODO: convert all these to a token_list class
 void init_tokens();
 void add_token(token *token);
 void print_token(token *token, char *prefix, bool unknown_only);
@@ -102,3 +104,4 @@ void print_tokens(char *prefix, bool unknown_only);
 int count_tokens();
 bool unknown_tokens_exist();
 token *get_first_token();
+

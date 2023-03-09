@@ -34,7 +34,7 @@ struct data_type_ops {
 
 
 type_family data_type_family_for_token(token_type type);
-data_type *create_data_type(type_family family, data_type *nested);
+data_type *new_data_type(type_family family, data_type *nested);
 
 
 

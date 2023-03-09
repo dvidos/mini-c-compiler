@@ -104,3 +104,4 @@ bool save_text(char *filename, char *buffer) {
 unsigned long round_up(unsigned long value, unsigned threshold) {
     return (((value + threshold - 1) / threshold) * threshold);
 }
+

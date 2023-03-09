@@ -14,7 +14,7 @@ static struct func_declaration_ops func_ops = {
 
 
 
-var_declaration *create_var_declaration(data_type *data_type, char* var_name, token *token) {
+var_declaration *new_var_declaration(data_type *data_type, char* var_name, token *token) {
     var_declaration *n = malloc(sizeof(var_declaration));
     n->data_type = data_type;
     n->var_name = var_name;
@@ -23,7 +23,7 @@ var_declaration *create_var_declaration(data_type *data_type, char* var_name, to
     return n;
 }
 
-func_declaration *create_func_declaration(data_type *return_type, char* func_name, var_declaration *args_list, statement *body, token *token) {
+func_declaration *new_func_declaration(data_type *return_type, char* func_name, var_declaration *args_list, statement *body, token *token) {
     func_declaration *n = malloc(sizeof(func_declaration));
     n->func_name = func_name;
     n->return_type = return_type;

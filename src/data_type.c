@@ -4,20 +4,20 @@
 #include "options.h"
 #include "data_type.h"
 
-static int data_type_size_of(data_type *type);
-static data_type *clone_data_type(data_type *type);
-static void free_data_type(data_type *type);
-static bool data_types_equal(data_type *a, data_type *b);
-static char *data_type_to_string(data_type *type);
+static int _size_of(data_type *type);
+static data_type *_clone(data_type *type);
+static void _free(data_type *type);
+static bool _equals(data_type *a, data_type *b);
+static char *_to_string(data_type *type);
 
 
 
 static struct data_type_ops ops = {
-    .size_of = data_type_size_of,
-    .equals = data_types_equal,
-    .to_string = data_type_to_string,
-    .clone = clone_data_type,
-    .free = free_data_type,
+    .size_of = _size_of,
+    .equals = _equals,
+    .to_string = _to_string,
+    .clone = _clone,
+    .free = _free,
 };
 
 type_family data_type_family_for_token(token_type type) {
@@ -33,7 +33,7 @@ type_family data_type_family_for_token(token_type type) {
     return TF_INT;
 }
 
-data_type *create_data_type(type_family family, data_type *nested) {
+data_type *new_data_type(type_family family, data_type *nested) {
     data_type *n = malloc(sizeof(data_type));
     n->family = family;
     n->nested = nested;
@@ -43,7 +43,7 @@ data_type *create_data_type(type_family family, data_type *nested) {
     return n;
 }
 
-static int data_type_size_of(data_type *type) {
+static int _size_of(data_type *type) {
     switch (type->family) {
         case TF_INT:
             return options.is_32_bits ? 4 : 8;
@@ -58,7 +58,7 @@ static int data_type_size_of(data_type *type) {
         case TF_POINTER:
             return options.is_32_bits ? 4 : 8;
         case TF_ARRAY:
-            return type->array_size * data_type_size_of(type->nested);
+            return type->array_size * _size_of(type->nested);
     }
     
     return 0;
@@ -66,28 +66,28 @@ static int data_type_size_of(data_type *type) {
 
 
 
-static data_type *clone_data_type(data_type *type) {
+static data_type *_clone(data_type *type) {
     if (type == NULL)
         return NULL;
     
     data_type *clone = malloc(sizeof(data_type));
     clone->family = type->family;
-    clone->nested = clone_data_type(type->nested);
+    clone->nested = _clone(type->nested);
     clone->array_size = type->array_size;
     clone->string_repr = type->string_repr;
     clone->ops = &ops;
     return clone;
 }
 
-static void free_data_type(data_type *type) {
+static void _free(data_type *type) {
     if (type->nested != NULL)
-        free_data_type(type);
+        _free(type);
     if (type->string_repr != NULL)
         free(type->string_repr);
     free(type);
 }
 
-static bool data_types_equal(data_type *a, data_type *b) {
+static bool _equals(data_type *a, data_type *b) {
     if ((a == b))
         return true;
     
@@ -101,13 +101,13 @@ static bool data_types_equal(data_type *a, data_type *b) {
     if (a->nested == NULL && b->nested == NULL)
         return true;
     else if (a->nested != NULL && b->nested != NULL)
-        return data_types_equal(a->nested, b->nested);
+        return _equals(a->nested, b->nested);
     else
         return false; // only one is null
 }
 
 
-static char *data_type_to_string(data_type *type) {
+static char *_to_string(data_type *type) {
     if (type->string_repr != NULL)
         return type->string_repr;
     
@@ -123,13 +123,13 @@ static char *data_type_to_string(data_type *type) {
 
         case TF_POINTER:
             if (type->nested != NULL)
-                strcat(p, data_type_to_string(type->nested));
+                strcat(p, _to_string(type->nested));
             strcat(p, "*");
             break;
 
         case TF_ARRAY:
             if (type->nested != NULL)
-                strcpy(p, data_type_to_string(type->nested));
+                strcpy(p, _to_string(type->nested));
             sprintf(p + strlen(p), "[%d]", type->array_size);
             break;
         

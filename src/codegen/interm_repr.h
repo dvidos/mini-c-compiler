@@ -16,7 +16,7 @@ typedef struct intermediate_representation_ops {
     // we would need SET, PUSH, POP, CALL, RET, SET, JUMPIF with operands etc
 
     
-    int (*reserve_data)(int bytes, void *init_data);
+    int (*reserve_data)(int length, void *init_data);
     int (*reserve_strz)(char *str);
     void (*add_symbol)(char *name, bool is_func, int offset);
 

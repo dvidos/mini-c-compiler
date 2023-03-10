@@ -17,9 +17,11 @@
 #include "analysis/analysis.h"
 #include "codegen/codegen.h"
 #include "codegen/interm_repr.h"
+#include "codegen/ir_listing.h"
 #include "binary/binary_gen.h"
 #include "elf/elf_contents.h"
 #include "elf/elf.h"
+
 
 
 void load_source_code(char **source_code) {
@@ -98,15 +100,12 @@ void perform_semantic_analysis() {
 }
 
 void generate_intermediate_code() {
-    // for now a.out or something simple
-    ir.init();
-    generate_module_code(get_ast_root_node());
-
+    ir_listing *listing = generate_module_ir_code(get_ast_root_node());
+    if (listing == NULL)
+        return;
     if (options.verbose) {
         printf("--------- Generated Intermediate Representation ---------\n");
-        ir.dump_symbols();
-        ir.dump_data_segment();
-        ir.dump_code_segment();
+        listing->ops->print(listing);
     }
 }
 

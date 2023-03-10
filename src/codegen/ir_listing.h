@@ -6,7 +6,7 @@
 struct ir_listing_ops;
 
 typedef struct ir_listing {
-    ir_entry **entries_arr;
+    ir_entry **entries_arr; // array of pointers
     int capacity;
     int length;
 

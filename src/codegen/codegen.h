@@ -1,4 +1,5 @@
 #pragma once
+#include "ir_listing.h"
 #include "../declaration.h"
 #include "../ast.h"
 
@@ -41,7 +42,7 @@ extern struct curr_func_info *cg_curr_func;
 
 
 // codegen.c
-void generate_module_code(ast_module_node *module);
+ir_listing *generate_module_ir_code(ast_module_node *module);
 
 // codegen_func.c
 void generate_function_code(func_declaration *func);

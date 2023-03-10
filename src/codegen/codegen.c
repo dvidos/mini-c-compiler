@@ -12,6 +12,7 @@
 #include "../declaration.h"
 #include "codegen.h"
 #include "interm_repr.h"
+#include "ir_listing.h"
 
 
 /*
@@ -233,19 +234,19 @@ static void generate_global_variable_code(var_declaration *decl, expression *ini
 }
 
 
-void generate_module_code(ast_module_node *module) {
+ir_listing *generate_module_ir_code(ast_module_node *module) {
+    ir_listing *listing = new_ir_listing();
 
     statement *stmt = module->statements_list;
     while (stmt != NULL) {
         if (stmt->stmt_type != ST_VAR_DECL) {
             error(stmt->token->filename, stmt->token->line_no, "only var declarations are supported in code generation");
-            return;
+            return NULL;
         } else {
             generate_global_variable_code(stmt->decl, stmt->expr);
         }
         stmt = stmt->next;
     }
-
 
     func_declaration *func = module->funcs_list;
     while (func != NULL) {
@@ -259,5 +260,7 @@ void generate_module_code(ast_module_node *module) {
 
         func = func->next;
     }
+
+    return listing;
 }
 

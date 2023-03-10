@@ -12,6 +12,10 @@ void show_syntax() {
     printf("\t-v           verbose\n");
     printf("\t-m32         generate 32 bits code\n");
     printf("\t-m64         generate 64 bits code\n");
+    printf("\t--gen-ast    generate abstract syntax tree file (.ast)\n");
+    printf("\t--gen-ir     generate intermediate representation file (.ir)\n");
+    printf("\t--gen-asm    generate assembly file (.asm)\n");
+    printf("\t--gen-obj    generate object file (.o)\n");
     printf("\t--elf-test   run elf test\n");
     printf("\t--asm-test   run asm test\n");
 }
@@ -45,6 +49,14 @@ void parse_options(int argc, char *argv[]) {
             options.elf_test = true;
         } else if (strcmp(p, "--asm-test") == 0) {
             options.asm_test = true;
+        } else if (strcmp(p, "--gen-ast") == 0) {
+            options.generate_ast = true;
+        } else if (strcmp(p, "--gen-ir") == 0) {
+            options.generate_ir = true;
+        } else if (strcmp(p, "--gen-asm") == 0) {
+            options.generate_asm = true;
+        } else if (strcmp(p, "--gen-obj") == 0) {
+            options.generate_obj = true;
         }
     }
 

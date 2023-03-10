@@ -6,8 +6,15 @@ struct options {
     bool verbose;
     bool is_32_bits;
     bool is_64_bits;
+
     bool elf_test;
     bool asm_test;
+
+    bool generate_ast;
+    bool generate_ir;
+    bool generate_asm;
+    bool generate_obj;
+
     char *filename;
     
     // derived values to aid execution

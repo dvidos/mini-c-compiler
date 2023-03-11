@@ -132,8 +132,8 @@ ir_entry *new_ir_unconditional_jump(char *label_fmt, ...) {
 }
 
 static char *ir_operation_name(ir_operation op) {
-    char *names[] = { "none", "add",  "sub",  "mul",  "div",  "neg", 
-        "and", "or", "xor", "not", "lsh", "rsh", "addr_of", "value_at", };
+    char *names[] = { "none", "+",  "-",  "*",  "/",  "neg", 
+        "&", "|", "^", "~", "<<", ">>", "addr_of", "value_at", };
     if (op >= 0 && op < sizeof(names) / sizeof(names[0]))
         return names[op];
     return "(unknown)";

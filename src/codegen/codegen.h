@@ -25,7 +25,8 @@ struct code_gen_ops {
     void (*generate_for_function)(code_gen *cg, func_declaration *func);
     void (*generate_for_expression)(code_gen *cg, ir_value *lvalue, expression *expr);
     void (*generate_for_statement)(code_gen *cg, statement *stmt);
-
+    
+    ir_value *(*create_ir_value)(code_gen *cg, expression *expr);
     void (*set_curr_func_name)(code_gen *cg, char *func_name);
     char *(*get_curr_func_name)(code_gen *cg);
     int (*next_reg_num)(code_gen *cg);

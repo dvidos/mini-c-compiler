@@ -30,16 +30,13 @@ static void gen_false_cond_jump(code_gen *cg, expression *expr, char *label_fmt,
             case OP_LT: cmp = IR_GE; break;
             case OP_LE: cmp = IR_GT; break;
         }
-        v1 = new_ir_value_register(cg->ops->next_reg_num(cg));
-        v2 = new_ir_value_register(cg->ops->next_reg_num(cg));
-        cg->ops->generate_for_expression(cg, v1, expr->arg1);
-        cg->ops->generate_for_expression(cg, v2, expr->arg2);
+        v1 = cg->ops->create_ir_value(cg, expr->arg1);
+        v2 = cg->ops->create_ir_value(cg, expr->arg2);
     } else {
         // evaluate expression in a boolean (non-zero) context
-        v1 = new_ir_value_register(cg->ops->next_reg_num(cg));
-        cg->ops->generate_for_expression(cg, v1, expr);
-        cmp = IR_EQ;
+        v1 = cg->ops->create_ir_value(cg, expr);
         v2 = new_ir_value_immediate(0);
+        cmp = IR_EQ;
     }
 
     cg->ir->ops->add(cg->ir, new_ir_conditional_jump(v1, cmp, v2, label_fmt, label_num));
@@ -92,10 +89,10 @@ void code_gen_generate_for_statement(code_gen *cg, statement *stmt) {
         case ST_WHILE:
             cg->ops->begin_loop_generation(cg);
             num = cg->ops->curr_loop_num(cg);
-            cg->ir->ops->add(cg->ir, new_ir_label("while_%d_start", num));
+            cg->ir->ops->add(cg->ir, new_ir_label("while_%d_begin", num));
             gen_false_cond_jump(cg, stmt->expr, "while_%d_end", num);
             cg->ops->generate_for_statement(cg, stmt->body);
-            cg->ir->ops->add(cg->ir, new_ir_unconditional_jump("while_%d_start", num));
+            cg->ir->ops->add(cg->ir, new_ir_unconditional_jump("while_%d_begin", num));
             cg->ir->ops->add(cg->ir, new_ir_label("while_%d_end", num));
             cg->ops->end_loop_generation(cg);
             break;
@@ -106,7 +103,7 @@ void code_gen_generate_for_statement(code_gen *cg, statement *stmt) {
                 error(stmt->token->filename, stmt->token->line_no, "break without while");
                 return;
             }
-            cg->ir->ops->add(cg->ir, new_ir_unconditional_jump("while_%d_start", num));
+            cg->ir->ops->add(cg->ir, new_ir_unconditional_jump("while_%d_begin", num));
             break;
 
         case ST_BREAK:
@@ -134,5 +131,4 @@ void code_gen_generate_for_statement(code_gen *cg, statement *stmt) {
             break;    
     }
 }
-
 

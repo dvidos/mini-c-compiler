@@ -10,6 +10,7 @@
 #include "../statement.h"
 #include "../symbol.h"
 #include "../declaration.h"
+#include "../expression.h"
 #include "codegen.h"
 #include "ir_listing.h"
 
@@ -21,6 +22,7 @@
     http://ref.x86asm.net/coder32.html
 */
 
+static ir_value *_create_ir_value(code_gen *cg, expression *expr);
 static void _set_curr_func_name(code_gen *cg, char *func_name);
 static char *_get_curr_func_name(code_gen *cg);
 static int _next_reg_num(code_gen *cg);
@@ -34,6 +36,8 @@ static struct code_gen_ops ops = {
     .generate_for_function = code_gen_generate_for_function,
     .generate_for_statement = code_gen_generate_for_statement,
     .generate_for_expression = code_gen_generate_for_expression,
+
+    .create_ir_value = _create_ir_value,
     .set_curr_func_name = _set_curr_func_name,
     .get_curr_func_name = _get_curr_func_name,
     .next_reg_num = _next_reg_num,
@@ -43,6 +47,35 @@ static struct code_gen_ops ops = {
     .end_loop_generation = _end_loop_generation,
 };
 
+static ir_value *_create_ir_value(code_gen *cg, expression *expr) {
+    switch (expr->op) {
+        case OP_NUM_LITERAL:
+            return new_ir_value_immediate(expr->value.num);
+
+        case OP_CHR_LITERAL:
+            return new_ir_value_immediate(expr->value.chr);
+
+        case OP_STR_LITERAL:
+            char sym_name[16];
+            sprintf(sym_name, "_str%d", cg->ops->next_label_num(cg));
+            cg->ir->ops->add(cg->ir, new_ir_data_declaration(strlen(expr->value.str) + 1, expr->value.str, sym_name, IR_GLOBAL_RO, 0));
+            return new_ir_value_symbol(sym_name);
+
+        case OP_BOOL_LITERAL:
+            return new_ir_value_immediate(expr->value.bln ? 1 : 0);
+            break;
+
+        case OP_SYMBOL_NAME:
+            return new_ir_value_symbol(expr->value.str);
+            break;
+
+        default:
+            // otherwise we need to calculate the expression and store it in a register
+            ir_value *result = new_ir_value_register(cg->ops->next_reg_num(cg));
+            cg->ops->generate_for_expression(cg, result, expr);
+            return result;
+    }
+}
 
 static void _set_curr_func_name(code_gen *cg, char *func_name) {
     cg->curr_func_name = func_name;

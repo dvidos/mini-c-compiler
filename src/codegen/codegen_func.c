@@ -28,12 +28,8 @@ static void traverse_and_generate_vars(code_gen *cg, statement *stmt) {
             break;
 
         case ST_BLOCK:
-            statement *s = stmt->body;
-            while (s != NULL) {
-                cg->ops->generate_for_statement(cg, s);
+            for (statement *s = stmt->body; s != NULL; s = s->next) 
                 traverse_and_generate_vars(cg, s);
-                s = s->next;
-            }
             break;
 
         case ST_IF:

@@ -33,7 +33,7 @@ static void gen_false_cond_jump(code_gen *cg, expression *expr, char *label_fmt,
         v1 = new_ir_value_register(cg->ops->next_reg_num(cg));
         v2 = new_ir_value_register(cg->ops->next_reg_num(cg));
         cg->ops->generate_for_expression(cg, v1, expr->arg1);
-        cg->ops->generate_for_expression(cg, v2, expr->arg1);
+        cg->ops->generate_for_expression(cg, v2, expr->arg2);
     } else {
         // evaluate expression in a boolean (non-zero) context
         v1 = new_ir_value_register(cg->ops->next_reg_num(cg));

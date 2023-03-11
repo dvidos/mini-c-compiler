@@ -155,7 +155,10 @@ static char *ir_comparison_name(ir_comparison cmp) {
 static void _print(ir_entry *e) {
     switch (e->type) {
         case IR_COMMENT:
-            printf("# %s", e->t.comment.str);
+            if (strlen(e->t.comment.str) > 0)
+                printf("# %s", e->t.comment.str);
+            else
+                printf("%s", ""); // empty line
             break;
 
         case IR_LABEL:
@@ -163,8 +166,9 @@ static void _print(ir_entry *e) {
             break;
 
         case IR_DATA_DECLARATION:
-            printf("data \"%s\" %s, %d bytes", e->t.data.symbol_name, 
+            printf("\tdata %s \"%s\", %d bytes", 
                 ir_data_storage_name(e->t.data.storage), 
+                e->t.data.symbol_name, 
                 e->t.data.length);
             if (e->t.data.initial_data != NULL) {
                 if (e->t.data.length == 1)
@@ -180,6 +184,7 @@ static void _print(ir_entry *e) {
 
         case IR_THREE_ADDR_CODE:
             // can be a=c, a=!c, a=b+c
+            printf("\t");
             print_ir_value(e->t.three_address_code.lvalue);
             printf(" = ");
             if (e->t.three_address_code.op1 != NULL) {
@@ -192,6 +197,7 @@ static void _print(ir_entry *e) {
             break;
 
         case IR_FUNCTION_CALL:
+            printf("\t");
             if (e->t.function_call.lvalue != NULL) {
                 print_ir_value(e->t.function_call.lvalue);
                 printf(" = ");
@@ -208,7 +214,8 @@ static void _print(ir_entry *e) {
             break;
 
         case IR_CONDITIONAL_JUMP:
-            printf(" if ");
+            printf("\t");
+            printf("if ");
             print_ir_value(e->t.conditional_jump.v1);
             printf(" %s ", ir_comparison_name(e->t.conditional_jump.cmp));
             print_ir_value(e->t.conditional_jump.v2);
@@ -216,6 +223,7 @@ static void _print(ir_entry *e) {
             break;
 
         case IR_UNCONDITIONAL_JUMP:
+            printf("\t");
             printf("goto %s", e->t.unconditional_jump.target_label);
             break;
     }

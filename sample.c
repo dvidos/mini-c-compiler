@@ -1,5 +1,3 @@
-/*
-
 // if we do not have this declaration, we get a "symbol not defined"
 void printf(char *fmt, int a, int b);
 
@@ -53,12 +51,6 @@ void math_demo() {
     }
 }
 
-int main(int argc, char **argv) {
-    math_demo();
-    return 0;
-}
-*/
-
 void main(int argc, char **argv) {
     int a = 1;
     int b;
@@ -67,4 +59,5 @@ void main(int argc, char **argv) {
     char buffer[16];
 
     b = a + 2;
+    math_demo();
 }

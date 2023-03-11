@@ -95,7 +95,7 @@ static void generate_ir_code_for_function_call(ir_listing *listing, ir_value *lv
     #define MAX_FUNC_ARGS  16
     expression *arg_expressions[MAX_FUNC_ARGS];
     int argc = 0;
-    expr->ops->flatten_func_call_args_to_array(expr, arg_expressions, 32, &argc);
+    expr->ops->flatten_func_call_args_to_array(expr, arg_expressions, MAX_FUNC_ARGS, &argc);
     if (argc >= MAX_FUNC_ARGS) {
         error(expr->token->filename, expr->token->line_no, "only %d function arguments are supported, found %d", MAX_FUNC_ARGS, argc);
         return;

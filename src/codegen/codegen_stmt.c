@@ -119,7 +119,7 @@ void generate_statement_ir_code(ir_listing *listing, statement *stmt) {
         case ST_RETURN:
             // generate to the "return_value" local symbol
             generate_expression_ir_code(listing, new_ir_value_symbol("ret_val"), stmt->expr);
-            listing->ops->add(listing, new_ir_unconditional_jump("%s_exit", cg.curr_func_name));
+            listing->ops->add(listing, new_ir_unconditional_jump("%s_exit", cg.curr_func_name()));
             break;
 
         case ST_EXPRESSION:

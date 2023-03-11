@@ -60,6 +60,7 @@ void generate_function_ir_code(ir_listing *listing, func_declaration *func) {
 
     cg.assign_curr_func(func);
 
+    listing->ops->add(listing, new_ir_comment("function %s", func->func_name));
     listing->ops->add(listing, new_ir_label(func->func_name));
 
     // register arguments as local variables
@@ -97,5 +98,7 @@ void generate_function_ir_code(ir_listing *listing, func_declaration *func) {
         stmt = stmt->next;
     }
 
+    listing->ops->add(listing, new_ir_label("%s_end", func->func_name));
     listing->ops->add(listing, new_ir_comment("end of function"));
+    listing->ops->add(listing, new_ir_comment(""));
 }

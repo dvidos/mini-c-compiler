@@ -1,5 +1,6 @@
 #include <stdbool.h>
 #include <stdlib.h>
+#include <stdio.h>
 #include "ir_listing.h"
 
 
@@ -36,6 +37,7 @@ static void _print(ir_listing *l) {
     for (int i = 0; i < l->length; i++) {
         ir_entry *e = l->entries_arr[i];
         e->ops->print(e);
+        printf("\n");
     }
 }
 

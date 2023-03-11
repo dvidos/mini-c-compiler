@@ -12,9 +12,10 @@
 #include "../declaration.h"
 #include "codegen.h"
 #include "interm_repr.h"
+#include "ir_listing.h"
 
 
-static void gather_local_var_declarations(statement *stmt) {
+static void generate_local_var_declarations(ir_listing *l, statement *stmt) {
     if (stmt == NULL)
         return;
     
@@ -22,96 +23,79 @@ static void gather_local_var_declarations(statement *stmt) {
         case ST_VAR_DECL:
             // bingo!
             cg.register_local_var(stmt->decl, false, 0);
+            l->ops->add(l, new_ir_data_declaration(
+                stmt->decl->data_type->ops->size_of(stmt->decl->data_type),
+                NULL, // maybe compile time initial data? stmt->expr
+                stmt->decl->var_name,
+                IR_LOCAL));
             break;
 
         case ST_BLOCK:
             statement *inner = stmt->body;
             while (inner != NULL) {
-                gather_local_var_declarations(inner);
+                generate_local_var_declarations(l, inner);
                 inner = inner->next;
             }
             break;
 
         case ST_IF:
-            gather_local_var_declarations(stmt->body);
-            gather_local_var_declarations(stmt->else_body);
+            generate_local_var_declarations(l, stmt->body);
+            generate_local_var_declarations(l, stmt->else_body);
             break;
 
         case ST_WHILE:
-            gather_local_var_declarations(stmt->body);
+            generate_local_var_declarations(l, stmt->body);
             break;
 
         case ST_CONTINUE: // fallthrough
         case ST_BREAK:
         case ST_RETURN:
         case ST_EXPRESSION:
+            // nothing here
             break;    
     }
 }
 
-static void generate_local_vars_code() {
-    if (cg_curr_func == NULL || cg_curr_func->vars_count == 0)
-        return;
-
-    for (int i = 0; i < cg_curr_func->vars_count; i++) {
-        struct local_var_info *var = &cg_curr_func->vars[i];
-        if (var->is_arg) {
-            ir.add_comment("\t; arg #%d, %s %s, located at %cBP+%d", 
-                var->arg_no,
-                var->decl->data_type->ops->to_string(var->decl->data_type), 
-                var->decl->var_name, 
-                options.register_prefix,
-                var->bp_offset);
-        } else {
-            ir.add_str("SUB %cSP, %d   ; %s %s, at %cBP%d", 
-                options.register_prefix, 
-                var->size_bytes,
-                var->decl->data_type->ops->to_string(var->decl->data_type), 
-                var->decl->var_name,
-                options.register_prefix,
-                var->bp_offset
-            );
-        }
-    }
-}
-
-void generate_function_code(func_declaration *func) {
+void generate_function_ir_code(ir_listing *listing, func_declaration *func) {
 
     cg.assign_curr_func(func);
+
+    listing->ops->add(listing, new_ir_label(func->func_name));
 
     // register arguments as local variables
     int arg_no = 0;
     var_declaration *arg = func->args_list;
     while (arg != NULL) {
         cg.register_local_var(arg, true, arg_no++);
+        listing->ops->add(listing, new_ir_data_declaration(
+            arg->data_type->ops->size_of(arg->data_type),
+            NULL,
+            arg->var_name,
+            IR_FUNC_ARG));
         arg = arg->next;
     }
 
     // traverse function tree to find local variables.
     statement *stmt = func->stmts_list;
     while (stmt != NULL) {
-        gather_local_var_declarations(stmt);
+        generate_local_var_declarations(listing, stmt);
         stmt = stmt->next;
     }
 
-    // establish stack frame
-    ir.set_next_label("%s", func->func_name);
-    ir.add_str("PUSH %cBP", options.register_prefix);
-    ir.add_str("MOV %cBP, %cSP", options.register_prefix, options.register_prefix);
-
-    // generate code for stack allocation
-    generate_local_vars_code();
+    if (func->return_type != NULL && func->return_type->family != TF_VOID) {
+        listing->ops->add(listing, new_ir_data_declaration(
+            func->return_type->ops->size_of(func->return_type),
+            NULL,
+            "ret_val",
+            IR_RET_VAL));
+    }
 
     // generate code for function statements tree
     stmt = func->stmts_list;
      while (stmt != NULL) {
-        generate_statement_code(stmt);
+        generate_statement_ir_code(listing, stmt);
         stmt = stmt->next;
     }
 
-    // preparng to exit
-    ir.set_next_label("%s_exit", func->func_name);
-    ir.add_str("MOV %cSP, %cBP", options.register_prefix, options.register_prefix);
-    ir.add_str("POP %cBP", options.register_prefix);
-    ir.add_str("RET");
+    listing->ops->add(listing, new_ir_comment("end of function"));
 }

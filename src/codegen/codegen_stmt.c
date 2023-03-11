@@ -14,87 +14,77 @@
 #include "codegen.h"
 
 
-static void generate_failing_condition_jump(expression *condition, char *label, int label_num) {
-    int r1, r2;
-    oper op = condition->op;
-    char *cmp_operation;
+static void generate_conditional_jump_for_false(ir_listing *listing, expression *expr, char *label_fmt, int label_num) {
 
-    // if exmpression op is comparison, generate appropriate code
-    // if it is a symbol or boolean literal etc.
-    
-    if (op == OP_GE || op == OP_GT || 
-        op == OP_LE || op == OP_LT || 
-        op == OP_EQ || op == OP_NE)
-    {
-        expr_target *t1 = expr_target_temp_reg(cg.next_reg_num());
-        expr_target *t2 = expr_target_temp_reg(cg.next_reg_num());
-        generate_expression_code(condition->arg1, t1);
-        generate_expression_code(condition->arg2, t2);
-        ir.add_str("CMP t%d, t%d", r1, r2);
-        switch (op) {
-            case OP_GE: cmp_operation = "JLT"; break;
-            case OP_GT: cmp_operation = "JLE"; break;
-            case OP_LE: cmp_operation = "JGT"; break;
-            case OP_LT: cmp_operation = "JGE"; break;
-            case OP_EQ: cmp_operation = "JNE"; break;
-            case OP_NE: cmp_operation = "JEQ"; break;
+    ir_value *v1;
+    ir_comparison cmp = IR_NONE;
+    ir_value *v2;
+    oper op = expr->op;
+
+    if (op == OP_GE || op == OP_GT || op == OP_LE || op == OP_LT || op == OP_EQ || op == OP_NE) {
+        switch (expr->op) {
+            case OP_EQ: cmp = IR_NE; break;
+            case OP_NE: cmp = IR_EQ; break;
+            case OP_GT: cmp = IR_LE; break;
+            case OP_GE: cmp = IR_LT; break;
+            case OP_LT: cmp = IR_GE; break;
+            case OP_LE: cmp = IR_GT; break;
         }
+        v1 = new_ir_value_register(cg.next_reg_num());
+        generate_expression_ir_code(listing, v1, expr->arg1);
+        v2 = new_ir_value_register(cg.next_reg_num());
+        generate_expression_ir_code(listing, v2, expr->arg1);
     } else {
-        expr_target *t1 = expr_target_temp_reg(cg.next_reg_num());
-        generate_expression_code(condition, t1);
-        ir.add_str("CMP t%d, 0", r1, r2);
-        cmp_operation = "JEQ"; // jump if EQ to zero, i.e. to false.
+        cmp = IR_EQ;
+        v1 = new_ir_value_register(cg.next_reg_num());
+        v2 = new_ir_value_immediate(0);
+        generate_expression_ir_code(listing, v1, expr);
     }
-    
-    char formatted_label[32];
-    sprintf(formatted_label, label, label_num);
-    ir.add_str("%s %s", cmp_operation, formatted_label); 
+
+    listing->ops->add(listing, new_ir_conditional_jump(v1, cmp, v2, label_fmt, label_num));
 }
 
-void generate_statement_code(statement *stmt) {
+void generate_statement_ir_code(ir_listing *listing, statement *stmt) {
+    ir_value *lv;
 
     // blocks of statements and expressions, together with jumps
     switch (stmt->stmt_type) {
         case ST_BLOCK:
             // don't we need to push scope? in order
             // to make sure inner names resolve to correct target?
-            statement *entry = stmt->body;
-            while (entry != NULL) {
-                generate_statement_code(entry);
-                entry = entry->next;
+            statement *s = stmt->body;
+            while (s != NULL) {
+                generate_statement_ir_code(listing, s);
+                s = s->next;
             }
             break;
 
         case ST_VAR_DECL:
-            if (cg.curr_func_name() == NULL) {
-                // allocate space in data segment
-                ir.add_str(".data \"%s\" %d bytes", stmt->decl->var_name, stmt->decl->data_type->ops->size_of(stmt->decl->data_type));
-            } else {
-                // stack allocation has already happened, set initial value
-                if (stmt->expr != NULL) {
-                    int offset = cg.get_local_var_bp_offset(stmt->decl->var_name);
-                    expr_target *target = expr_target_stack_location(offset);
-                    generate_expression_code(stmt->expr, target);
-                }
+            // global vars are done, we only care about init value of locals
+            // ideally, we should have one variable for each scope but...
+            if (cg.curr_func_name() != NULL && stmt->expr != NULL) {
+                generate_expression_ir_code(listing, new_ir_value_symbol(stmt->decl->var_name), stmt->expr);
             }
             break;
 
         case ST_IF:
             // generate condition and jumps in the true and false bodies
-            int ifno = cg.next_if_num();
+            int num_if = cg.next_if_num();
+            // we need to generate the code of the expression.
+            // no matter if in comparative format, or in boolean format.
             if (stmt->else_body == NULL) {
-                // simple if
-                generate_failing_condition_jump(stmt->expr, "if%d_end", ifno);
-                generate_statement_code(stmt->body);
-                ir.set_next_label("if%d_end", ifno);
+                // simple if, one jump at end
+                generate_conditional_jump_for_false(listing, stmt->expr, "if%d_end", num_if);
+                generate_statement_ir_code(listing, stmt->body);
+                listing->ops->add(listing, new_ir_label("if%d_end", num_if));
             } else {
-                // if & else
-                generate_failing_condition_jump(stmt->expr, "if%d_false", ifno);
-                generate_statement_code(stmt->body);
-                ir.jmp("if%d_end", ifno);
-                ir.set_next_label("if%d_false", ifno);
-                generate_statement_code(stmt->else_body);
-                ir.set_next_label("if%d_end", ifno);
+                // if & else bodies
+                generate_conditional_jump_for_false(listing, stmt->expr, "if%d_false", num_if);
+                generate_statement_ir_code(listing, stmt->body);
+                listing->ops->add(listing, new_ir_unconditional_jump("if%d_end", num_if));
+                listing->ops->add(listing, new_ir_label("if%d_false", num_if));
+                generate_statement_ir_code(listing, stmt->else_body);
+                listing->ops->add(listing, new_ir_label("if%d_end", num_if));
             }
             break;
 
@@ -102,37 +92,39 @@ void generate_statement_code(statement *stmt) {
             // generate condition and jumps in the end of the loop
             // we need a stack of whiles
             cg.push_while();
-            ir.set_next_label("wh%d", cg.curr_while_num());
-            generate_failing_condition_jump(stmt->expr, "wh%d_end", cg.curr_while_num());
-            generate_statement_code(stmt->body);
-            ir.jmp("wh%d", cg.curr_while_num());
-            ir.set_next_label("wh%d_end", cg.curr_while_num());
+            listing->ops->add(listing, new_ir_label("while%d_start", cg.curr_while_num()));
+            generate_conditional_jump_for_false(listing, stmt->expr, "while%d_end", num_if);
+            generate_statement_ir_code(listing, stmt->body);
+            listing->ops->add(listing, new_ir_unconditional_jump("while%d_start", cg.curr_while_num()));
+            listing->ops->add(listing, new_ir_label("while%d_end", cg.curr_while_num()));
             cg.pop_while();
             break;
 
         case ST_CONTINUE:
-            if (cg.curr_while_num() == 0)
+            if (cg.curr_while_num() == 0) {
                 error(stmt->token->filename, stmt->token->line_no, "continue without while");
-            else
-                ir.add_str("JMP wh%d", cg.curr_while_num());
+                return;
+            }
+            listing->ops->add(listing, new_ir_unconditional_jump("while%d_start", cg.curr_while_num()));
             break;
 
         case ST_BREAK:
-            if (cg.curr_while_num() == 0)
+            if (cg.curr_while_num() == 0) {
                 error(stmt->token->filename, stmt->token->line_no, "break without while");
-            else
-                ir.add_str("JMP wh%d_end", cg.curr_while_num());
+                return;
+            }
+            listing->ops->add(listing, new_ir_unconditional_jump("while%d_end", cg.curr_while_num()));
             break;
 
         case ST_RETURN:
-            if (stmt->expr != NULL)
-                generate_expression_code(stmt->expr, expr_target_return_register());
-            ir.jmp("%s_exit", cg.curr_func_name());
+            // generate to the "return_value" local symbol
+            generate_expression_ir_code(listing, new_ir_value_symbol("ret_val"), stmt->expr);
+            listing->ops->add(listing, new_ir_unconditional_jump("%s_exit", cg.curr_func_name));
             break;
 
         case ST_EXPRESSION:
             // there may be expressions that don't return anything, e.g. calling void functions.
-            generate_expression_code(stmt->expr, expr_target_return_register());
+            generate_expression_ir_code(listing, new_ir_value_symbol("/dev/null"), stmt->expr);
             break;    
     }
 }

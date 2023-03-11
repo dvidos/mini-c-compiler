@@ -12,6 +12,14 @@ enum ir_entry_type {
     IR_UNCONDITIONAL_JUMP,
 };
 
+typedef enum ir_data_storage {
+    IR_GLOBAL,
+    IR_GLOBAL_RO,
+    IR_LOCAL,
+    IR_FUNC_ARG,
+    IR_RET_VAL,
+} ir_data_storage;
+
 typedef enum ir_comparison { 
     IR_EQ,
     IR_NE,
@@ -22,20 +30,20 @@ typedef enum ir_comparison {
 } ir_comparison;
 
 typedef enum ir_operation {
-        IR_NONE = 0,
-        IR_ADD, 
-        IR_SUB, 
-        IR_MUL, 
-        IR_DIV, 
-        IR_NEG, 
-        IR_AND, 
-        IR_OR, 
-        IR_XOR, 
-        IR_NOT,  // all bitwise
-        IR_LSH, 
-        IR_RSH, 
-        IR_ADDR_OF,  // address-of operator
-        IR_VALUE_AT, // pointer dereference (size?)
+    IR_NONE = 0,
+    IR_ADD, 
+    IR_SUB, 
+    IR_MUL, 
+    IR_DIV, 
+    IR_NEG, 
+    IR_AND, 
+    IR_OR, 
+    IR_XOR, 
+    IR_NOT,  // all bitwise
+    IR_LSH, 
+    IR_RSH, 
+    IR_ADDR_OF,  // address-of operator
+    IR_VALUE_AT, // pointer dereference (size?)
 } ir_operation;
 
 struct ir_entry_ops;
@@ -53,6 +61,7 @@ typedef struct ir_entry {
             int length;
             void *initial_data; // null for uninitialized
             char *symbol_name;
+            ir_data_storage storage;
         } data;
         struct {
             ir_value *lvalue;
@@ -80,15 +89,15 @@ typedef struct ir_entry {
     struct ir_entry_ops *ops;
 } ir_entry;
 
-ir_entry *new_ir_comment(char *comment);
-ir_entry *new_ir_label(char *label);
-ir_entry *new_ir_data_declaration(int length, void *initial_data, char *symbol_name);
+ir_entry *new_ir_comment(char *fmt, ...);
+ir_entry *new_ir_label(char *label_fmt, ...);
+ir_entry *new_ir_data_declaration(int length, void *initial_data, char *symbol_name, ir_data_storage storage);
 ir_entry *new_ir_assignment(ir_value *lvalue, ir_value *rvalue);
 ir_entry *new_ir_unary_address_code(ir_value *lvalue, ir_operation op, ir_value *rvalue);
 ir_entry *new_ir_three_address_code(ir_value *lvalue, ir_value *op1, ir_operation op, ir_value *op2);
 ir_entry *new_ir_function_call(ir_value *lvalue, ir_value *func_addr, int args_count, ir_value **args_arr);
-ir_entry *new_ir_conditional_jump(ir_value *v1, ir_comparison cmp, ir_value *v2, char *target_label);
-ir_entry *new_ir_unconditional_jump(char *target_label);
+ir_entry *new_ir_conditional_jump(ir_value *v1, ir_comparison cmp, ir_value *v2, char *label_fmt, ...);
+ir_entry *new_ir_unconditional_jump(char *label_fmt, ...);
 
 struct ir_entry_ops {
     void (*print)(ir_entry *e);

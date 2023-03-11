@@ -5,6 +5,7 @@
 
 
 typedef struct code_gen {
+    int (*next_str_num)();
     int (*next_reg_num)();
     int (*next_var_num)();
     int (*next_if_num)();
@@ -45,10 +46,10 @@ extern struct curr_func_info *cg_curr_func;
 ir_listing *generate_module_ir_code(ast_module_node *module);
 
 // codegen_func.c
-void generate_function_code(func_declaration *func);
+void generate_function_ir_code(ir_listing *listing, func_declaration *func);
 
 // codegen_stmt.c
-void generate_statement_code(statement *stmt);
+void generate_statement_ir_code(ir_listing *listing, statement *stmt);
 
 // codegen_expr.c
 typedef struct expr_target expr_target;
@@ -56,6 +57,7 @@ expr_target *expr_target_temp_reg(int reg_no);
 expr_target *expr_target_return_register();
 expr_target *expr_target_stack_location(int frame_offset);
 expr_target *expr_target_named_symbol(char *symbol_name);
-void generate_expression_code(expression *expr, expr_target *target);
+
+void generate_expression_ir_code(ir_listing *listing, ir_value *lvalue, expression *expr);
 
 

@@ -13,7 +13,6 @@
 #include "interm_repr.h"
 #include "codegen.h"
 
-
 /*
     dragon book, 6.2.1: An address can be one of the following:
     * A name. For convenience, we allow source-program names to appear as
@@ -27,7 +26,6 @@
       pilers, to create a distinct name each time a temporary is needed. These
       temporaries can be combined, if possible, when registers are allocated to
       variables.
-
 
     Running environment in IA-32:
         - access to 4 GB of memory
@@ -54,41 +52,24 @@
         Status registers (CR0 - CR3)
         Memory managmeent registers (GDTR, IDTR, LDTR etc)
         Debug registers (DR0 - DR7)
-
-    
-
-
-    
 */
 
 
-
-
-
-static expr_target *resolve_lvalue_target(expression *expr) {
-    // e.g. we can have "a = 1", but also "a[offsets[slot].bytes] = 1"
-    // ideally we want to get to a Three-Address-Code of
-    // essentially we shall end up with a memory location,
-    // either by direct symbol name ("a"), or after a calculation.
-
-    // this C fragment     : "int y = points[i].ycoord;"
-    // can be translated as: "MOV EDX, [EBX + 8*EAX + 4]" to get the attribute's address
-    //                       if EBX holds the base of the array, EAX the i and ycoord offset is 4 bytes.
-    //                       therefore EDX gets the value as 'y'
+static ir_value *resolve_lvalue_expression(ir_listing *listing, expression *expr) {
+    // e.g. we can have "a = 1", but also "a[entries[idx].a_offset] = 1"
     
     if (expr->op == OP_SYMBOL_NAME) {
-        return expr_target_named_symbol(expr->value.str);
+        return new_ir_value_symbol(expr->value.str);
 
     } else if (expr->op == OP_POINTED_VALUE 
             || expr->op == OP_ARRAY_SUBSCRIPT
             || expr->op == OP_STRUCT_MEMBER_PTR
             || expr->op == OP_STRUCT_MEMBER_REF) {
-        // generate expression, store result in temp reg
-        expr_target *address_target = expr_target_temp_reg(cg.next_reg_num());
-        generate_expression_code(expr, address_target);
 
-        // use result as pointer
-        return expr_target_pointed_by_temp_reg(address_target->u.value);
+        // generate expression, store result in temp reg
+        ir_value *lvalue = new_ir_value_register(cg.next_reg_num());
+        generate_expression_ir_code(listing, lvalue, expr);
+        return lvalue;
 
     } else {
         error(expr->token->filename, expr->token->line_no, 
@@ -98,18 +79,8 @@ static expr_target *resolve_lvalue_target(expression *expr) {
     }
 }
 
-static void generate_code_for_assignment(expression *expr) {
-    // I've read somewhere that simple assignment in C
-    // usually yields three operations in assembly:
-    // load, modify, store.
-    // this may be slower, but paints a nice way out of the complexity.
+static void generate_ir_code_for_function_call(ir_listing *listing, ir_value *lvalue, expression *expr) {
 
-    // find lvalue target
-    expr_target *lvalue_target = resolve_lvalue_target(expr->arg1);
-    generate_expression_code(expr->arg2, lvalue_target);
-
-}
-static void generate_code_for_function_call(expression *expr) {
     // need to find the func reference?  e.g. "(devices[0]->write)(h, 10, buffer)"
     // remember that C pushes args from right to left (IR opcode PUSH)
     // we can use "scall" IR code for direct symbol call,
@@ -117,70 +88,47 @@ static void generate_code_for_function_call(expression *expr) {
     // don't forget to pop things after the call, using the IR code "POP <bytes>"
     // see http://web.archive.org/web/20151010192637/http://www.dound.com/courses/cs143/handouts/17-TAC-Examples.pdf
 
-    // now we need to push the results of all the expressions of arguments...
-    expression *args[32];
-    int args_count = 0;
-    expr->ops->flatten_func_call_args_to_array(expr, args, 32, &args_count);
+    // calculate function address
+    ir_value *func_addr = resolve_lvalue_expression(listing, expr->arg1);
 
-    // in a parallel array, calculate things if needed
-    int calculated_regs[32];
-    for (int i = 0; i < args_count; i++) {
-        if (args[i]->op == OP_SYMBOL_NAME || args[i]->op == OP_NUM_LITERAL) {
-            calculated_regs[i] = 0;
-        } else {
-            expr_target *target = expr_target_temp_reg(cg.next_reg_num());
-            generate_expression_code(args[i], target);
-            calculated_regs[i] = target->u.value;
-        }
+    // flatten arguments to be used
+    #define MAX_FUNC_ARGS  16
+    expression *arg_expressions[MAX_FUNC_ARGS];
+    int argc = 0;
+    expr->ops->flatten_func_call_args_to_array(expr, arg_expressions, 32, &argc);
+    if (argc >= MAX_FUNC_ARGS) {
+        error(expr->token->filename, expr->token->line_no, "only %d function arguments are supported, found %d", MAX_FUNC_ARGS, argc);
+        return;
     }
 
-    // also, precalculate lvalue if needed
-    bool lvalue_is_symbol;
-    int lvalue_reg_no;
-    expr_target *target = resolve_lvalue_target(expr->arg1);
-
-    // push what's needed in reverse order (right-to-left)
-    for (int i = args_count - 1; i >= 0; i--) {
-        if (args[i]->op == OP_SYMBOL_NAME)
-            ir.add_str("PUSH %s", args[i]->value.str);
-        else if (args[i]->op == OP_NUM_LITERAL)
-            ir.add_str("PUSH %d", args[i]->value.num);
-        else
-            ir.add_str("PUSH t%d", calculated_regs[i]);
+    // prepare the ir_values array
+    ir_value **ir_values_arr = malloc(sizeof(ir_value) * argc);
+    for (int i = 0; i < argc; i++) {
+        ir_values_arr[i] = new_ir_value_register(cg.next_reg_num());
+        generate_expression_ir_code(listing, ir_values_arr[i], arg_expressions[i]);
     }
 
-    // call, direct or indirect
-    if (lvalue_is_symbol)
-        ir.add_str("CALL %s", expr->arg1->value.str);
-    else
-        ir.add_str("CALL [t%d]", lvalue_reg_no);
-
-    // clean up stack as needed
-    if (args_count > 0)
-        ir.add_str("POP %d items", args_count);
+    listing->ops->add(listing, new_ir_function_call(lvalue, func_addr, argc, ir_values_arr));
 }
 
-static void generate_code_for_binary_operation(expression *expr, expr_target *target) {
-    expr_target *t1;
-    expr_target *t2;
+static void generate_ir_code_for_binary_operation(ir_listing *listing, ir_value *lvalue, expression *expr) {
 
-    t1 = expr_target_temp_reg(cg.next_reg_num());
-    t2 = expr_target_temp_reg(cg.next_reg_num());
+    ir_value *r1 = new_ir_value_register(cg.next_reg_num());
+    generate_expression_ir_code(listing, r1, expr->arg1);
 
-    generate_expression_code(expr->arg1, t1);
-    generate_expression_code(expr->arg2, t2);
+    ir_value *r2 = new_ir_value_register(cg.next_reg_num());
+    generate_expression_ir_code(listing, r2, expr->arg2);
     
-    char o = ' ';
+    ir_operation op = IR_NONE;
     switch (expr->op) {
-        case OP_ADD: o = '+'; break;
-        case OP_SUB: o = '+'; break;
-        case OP_MUL: o = '*'; break;
-        case OP_DIV: o = '/'; break;
-        case OP_BITWISE_AND: o = '&'; break;
-        case OP_BITWISE_OR: o = '|'; break;
-        case OP_BITWISE_XOR: o = '^'; break;
-        case OP_BITWISE_NOT: o = '~'; break;
-
+        case OP_ADD: op = IR_ADD; break;
+        case OP_SUB: op = IR_SUB; break;
+        case OP_MUL: op = IR_MUL; break;
+        case OP_DIV: op = IR_DIV; break;
+        case OP_BITWISE_AND: op = IR_AND; break;
+        case OP_BITWISE_OR: op = IR_OR; break;
+        case OP_BITWISE_XOR: op = IR_XOR; break;
+        case OP_BITWISE_NOT: op = IR_NOT; break;
         default:
             error(expr->token->filename, expr->token->line_no,
                 "internal error, not a binary operation (%d, %s)", 
@@ -188,31 +136,34 @@ static void generate_code_for_binary_operation(expression *expr, expr_target *ta
             break;
     }
 
-    // we have operation in o
-    ir.add_tac(target, "t%d %c t%d", t1->u.value, o, t2->u.value);
-    // ir.add_str("%s = t%d + t%d", dest_name, t1->u.value, t2->u.value);
+    listing->ops->add(listing, new_ir_three_address_code(lvalue, r1, op, r2));
 }
 
-void generate_expression_code(expression *expr, expr_target *target) {
-    expr_target *t1;
-    expr_target *t2;
+void generate_expression_ir_code(ir_listing *listing, ir_value *lvalue, expression *expr) {
 
     switch (expr->op) {
         case OP_NUM_LITERAL:
-            ir.add_tac(target, " = %d", expr->value.num);
+            listing->ops->add(listing, new_ir_assignment(lvalue, new_ir_value_immediate(expr->value.num)));
             break;
+
         case OP_CHR_LITERAL:
-            ir.add_tac(target, " = %d", (int)expr->value.chr);
+            listing->ops->add(listing, new_ir_assignment(lvalue, new_ir_value_immediate(expr->value.chr)));
             break;
+
         case OP_STR_LITERAL:
-            int offset = ir.reserve_strz(expr->value.str);
-            ir.add_tac(target, " = .data + %d", offset);
+            char sym_name[16];
+            sprintf(sym_name, "_str%d", cg.next_str_num());
+            listing->ops->add(listing, new_ir_data_declaration(strlen(expr->value.str) + 1, expr->value.str, sym_name, IR_GLOBAL_RO));
+            listing->ops->add(listing, new_ir_assignment(lvalue, new_ir_value_symbol(sym_name)));
             break;
+
         case OP_BOOL_LITERAL:
-            ir.add_tac(target, " = %d", expr->value.bln ? 1 : 0);
+            listing->ops->add(listing, new_ir_assignment(lvalue, new_ir_value_immediate(expr->value.bln ? 1 : 0)));
             break;
+
         case OP_SYMBOL_NAME:
-            ir.add_tac(target, " = %s", expr->value.str);
+            // maybe the expectation is the contents of the variable and not the address????
+            listing->ops->add(listing, new_ir_assignment(lvalue, new_ir_value_symbol(expr->value.str)));
             break;
 
         case OP_ADD: // fallthrough
@@ -222,28 +173,31 @@ void generate_expression_code(expression *expr, expr_target *target) {
         case OP_BITWISE_AND:
         case OP_BITWISE_OR:
         case OP_BITWISE_XOR:
-            generate_code_for_binary_operation(expr, target);
+            generate_ir_code_for_binary_operation(listing, lvalue, expr);
             break;
 
         case OP_BITWISE_NOT:
-            expr_target *t1 = expr_target_temp_reg(cg.next_reg_num());
-            generate_expression_code(expr->arg2, t1);
-            ir.add_tac(target, " = t%d XOR 0xFFFFFFFF");
+            ir_value *rvalue = new_ir_value_register(cg.next_reg_num());
+            generate_expression_ir_code(listing, rvalue, expr->arg2);
+            listing->ops->add(listing, new_ir_unary_address_code(lvalue, IR_NOT, rvalue));
             break;
-            
-        case OP_ASSIGNMENT:
-            generate_code_for_assignment(expr);
-            break;
+
         case OP_FUNC_CALL:
-            generate_code_for_function_call(expr);
+            generate_ir_code_for_function_call(listing, lvalue, expr);
+            break;
+
+        case OP_ASSIGNMENT:
+            // the provided lvale is ditched (e.g. a in "a = (b = c);")
+            ir_value *lvalue_target = resolve_lvalue_expression(listing, expr->arg1);
+            generate_expression_ir_code(listing, lvalue_target, expr->arg2);
             break;
 
         default:
-            ir.add_comment("\t(unhandled expr op %d (%s) follows)", expr->op, oper_debug_name(expr->op));
-            t1 = expr_target_temp_reg(cg.next_reg_num());
-            t2 = expr_target_temp_reg(cg.next_reg_num());
-            if (expr->arg1) generate_expression_code(expr->arg1, t1);
-            if (expr->arg2) generate_expression_code(expr->arg2, t2);
+            listing->ops->add(listing, new_ir_comment("(unhandled expresion (%s) follows)", oper_debug_name(expr->op)));
+            ir_value *r1 = new_ir_value_register(cg.next_reg_num());
+            ir_value *r2 = new_ir_value_register(cg.next_reg_num());
+            if (expr->arg1) generate_expression_ir_code(listing, r1, expr->arg1);
+            if (expr->arg2) generate_expression_ir_code(listing, r2, expr->arg2);
             break;
     }
 }

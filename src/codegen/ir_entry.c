@@ -1,4 +1,5 @@
 #include <ctype.h>
+#include <stdarg.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -14,25 +15,41 @@ static struct ir_entry_ops ops = {
     .free = _free,
 };
 
-ir_entry *new_ir_comment(char *comment) {
+ir_entry *new_ir_comment(char *fmt, ...) {
+    char buffer[128];
+
+    va_list args;
+    va_start(args, fmt);
+    vsnprintf(buffer, sizeof(buffer) - 1, fmt, args);
+    buffer[sizeof(buffer) - 1] = '\0';
+    va_end(args);
+
     ir_entry *e = malloc(sizeof(ir_entry));
     e->type = IR_COMMENT;
-    e->t.comment.str = strdup(comment);
+    e->t.comment.str = strdup(buffer);
     e->ops = &ops;
     return e;
 }
 
-ir_entry *new_ir_label(char *label) {
+ir_entry *new_ir_label(char *fmt, ...) {
+    char buffer[128];
+    
+    va_list args;
+    va_start(args, fmt);
+    vsnprintf(buffer, sizeof(buffer) - 1, fmt, args);
+    buffer[sizeof(buffer) - 1] = '\0';
+    va_end(args);
+
     ir_entry *e = malloc(sizeof(ir_entry));
     e->type = IR_LABEL;
-    e->t.label.str = strdup(label);
+    e->t.label.str = strdup(buffer);
     e->ops = &ops;
     return e;
 }
 
-ir_entry *new_ir_data_declaration(int length, void *initial_data, char *symbol_name) {
+ir_entry *new_ir_data_declaration(int length, void *initial_data, char *symbol_name, ir_data_storage storage) {
     ir_entry *e = malloc(sizeof(ir_entry));
-    e->type = IR_LABEL;
+    e->type = IR_DATA_DECLARATION;
     e->t.data.length = length;
     if (initial_data == NULL) {
         e->t.data.initial_data = NULL;
@@ -41,6 +58,7 @@ ir_entry *new_ir_data_declaration(int length, void *initial_data, char *symbol_n
         memcpy(e->t.data.initial_data, initial_data, length);
     }
     e->t.data.symbol_name = symbol_name == NULL ? NULL : strdup(symbol_name);
+    e->t.data.storage = storage;
     e->ops = &ops;
     return e;
 }
@@ -76,22 +94,38 @@ ir_entry *new_ir_function_call(ir_value *lvalue, ir_value *func_addr, int args_l
     return e;
 }
 
-ir_entry *new_ir_conditional_jump(ir_value *v1, ir_comparison cmp, ir_value *v2, char *target_label) {
+ir_entry *new_ir_conditional_jump(ir_value *v1, ir_comparison cmp, ir_value *v2, char *label_fmt, ...) {
+    char buffer[128];
+    
+    va_list args;
+    va_start(args, label_fmt);
+    vsnprintf(buffer, sizeof(buffer) - 1, label_fmt, args);
+    buffer[sizeof(buffer) - 1] = '\0';
+    va_end(args);
+
     ir_entry *e = malloc(sizeof(ir_entry));
     e->type = IR_CONDITIONAL_JUMP;
     // not memcpy() we assume they were created by new_ir_value()
     e->t.conditional_jump.v1 = v1;
     e->t.conditional_jump.cmp = cmp;
     e->t.conditional_jump.v2 = v2;
-    e->t.conditional_jump.target_label = strdup(target_label);
+    e->t.conditional_jump.target_label = strdup(buffer);
     e->ops = &ops;
     return e;
 }
 
-ir_entry *new_ir_unconditional_jump(char *target_label) {
+ir_entry *new_ir_unconditional_jump(char *label_fmt, ...) {
+    char buffer[128];
+    
+    va_list args;
+    va_start(args, label_fmt);
+    vsnprintf(buffer, sizeof(buffer) - 1, label_fmt, args);
+    buffer[sizeof(buffer) - 1] = '\0';
+    va_end(args);
+
     ir_entry *e = malloc(sizeof(ir_entry));
     e->type = IR_UNCONDITIONAL_JUMP;
-    e->t.unconditional_jump.target_label = strdup(target_label);
+    e->t.unconditional_jump.target_label = strdup(buffer);
     e->ops = &ops;
     return e;
 }
@@ -101,6 +135,13 @@ static char *ir_operation_name(ir_operation op) {
         "and", "or", "xor", "not", "lsh", "rsh", "addr_of", "value_at", };
     if (op >= 0 && op < sizeof(names) / sizeof(names[0]))
         return names[op];
+    return "(unknown)";
+}
+
+static char *ir_data_storage_name(ir_data_storage s) {
+    char *names[] = { "global", "global_ro", "local", "arg", "ret_val", };
+    if (s >= 0 && s < sizeof(names) / sizeof(names[0]))
+        return names[s];
     return "(unknown)";
 }
 
@@ -118,18 +159,20 @@ static void _print(ir_entry *e) {
             break;
 
         case IR_LABEL:
-            printf("%s:", e->t.comment.str);
+            printf("%s:", e->t.label.str);
             break;
 
         case IR_DATA_DECLARATION:
-            printf("data \"%s\", %d length", e->t.data.symbol_name, e->t.data.length);
+            printf("data \"%s\" %s, %d bytes", e->t.data.symbol_name, 
+                ir_data_storage_name(e->t.data.storage), 
+                e->t.data.length);
             if (e->t.data.initial_data != NULL) {
                 if (e->t.data.length == 1)
-                    printf(" 0x%02x", *(unsigned char *)e->t.data.initial_data);
+                    printf(" = 0x%02x", *(unsigned char *)e->t.data.initial_data);
                 else if (e->t.data.length == 2)
-                    printf(" 0x%04x", *(unsigned short *)e->t.data.initial_data);
+                    printf(" = 0x%04x", *(unsigned short *)e->t.data.initial_data);
                 else if (e->t.data.length == 4)
-                    printf(" 0x%08x", *(unsigned short *)e->t.data.initial_data);
+                    printf(" = 0x%08x", *(unsigned short *)e->t.data.initial_data);
                 else
                     printf(" ...");
             }
@@ -139,10 +182,12 @@ static void _print(ir_entry *e) {
             // can be a=c, a=!c, a=b+c
             print_ir_value(e->t.three_address_code.lvalue);
             printf(" = ");
-            if (e->t.three_address_code.op1 != NULL)
+            if (e->t.three_address_code.op1 != NULL) {
                 print_ir_value(e->t.three_address_code.op1);
+                printf(" ");
+            }
             if (e->t.three_address_code.op != IR_NONE)
-                printf("%s", ir_operation_name(e->t.three_address_code.op));
+                printf("%s ", ir_operation_name(e->t.three_address_code.op));
             print_ir_value(e->t.three_address_code.op2);
             break;
 

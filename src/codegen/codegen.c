@@ -26,6 +26,7 @@
 */
 
 
+static int next_str_num();
 static int next_reg_num();
 static int next_var_num();
 static int next_if_num();
@@ -40,6 +41,7 @@ static int get_local_var_bp_offset(char *name);
 
 
 code_gen cg = {
+    .next_str_num = next_str_num,
     .next_reg_num = next_reg_num,
     .next_var_num = next_var_num,
     .next_if_num = next_if_num,
@@ -57,12 +59,17 @@ code_gen cg = {
 
 #define WHILES_STACK_SIZE  16
 
-static int regs_counter = 1; 
+static int strings_counter = 0; 
+static int regs_counter = 0; 
 static int vars_counter = 0; 
 static int ifs_counter = 0;
 static int whiles_counter = 0;
 static int whiles_stack_len;
 static int whiles_stack[WHILES_STACK_SIZE];
+
+static int next_str_num() {
+    return ++strings_counter;
+}
 
 static int next_reg_num() {
     return ++regs_counter;
@@ -198,39 +205,28 @@ static int get_local_var_bp_offset(char *name) {
 
 // ----------------------------------------------
 
-static void generate_global_variable_code(var_declaration *decl, expression *init_expr) {
-    // the initial value, has to be on data segment or where?
+static void generate_global_vars_code(ir_listing *listing, var_declaration *decl, expression *init_expr) {
+    int length = length = decl->data_type->ops->size_of(decl->data_type);
     void *init_value = NULL;
+
     if (init_expr != NULL) {
         if (init_expr->op == OP_STR_LITERAL) {
-            // init_value = ir.get_strz_offset(init_expr->value.str, init_expr->token);
+            length = strlen(init_expr->value.str) + 1;
             init_value = init_expr->value.str;
-        }
-        else if (init_expr->op == OP_NUM_LITERAL) {
-            // must make sure of the size here...
+        } else if (init_expr->op == OP_NUM_LITERAL) {
             init_value = &init_expr->value.num;
-        }
-        else if (init_expr->op == OP_CHR_LITERAL) {
-            // must make sure of the size here...
+        } else if (init_expr->op == OP_CHR_LITERAL) {
             init_value = &init_expr->value.chr;
-        }
-        else if (init_expr->op == OP_BOOL_LITERAL) {
-            // must make sure of the size here...
+        } else if (init_expr->op == OP_BOOL_LITERAL) {
             init_value = &init_expr->value.bln;
-        }
-        else {
+        } else {
             error(init_expr->token->filename, init_expr->token->line_no,
                 "sorry, only literal initial values supported for now");
             return;
         }
     }
 
-    // allocate memory, give size, get address
-    int offset = ir.reserve_data(
-        decl->data_type->ops->size_of(decl->data_type),
-        init_value
-    );
-    ir.add_symbol(decl->var_name, false, offset);
+    listing->ops->add(listing, new_ir_data_declaration(length, init_value, decl->var_name, IR_GLOBAL));
 }
 
 
@@ -242,9 +238,9 @@ ir_listing *generate_module_ir_code(ast_module_node *module) {
         if (stmt->stmt_type != ST_VAR_DECL) {
             error(stmt->token->filename, stmt->token->line_no, "only var declarations are supported in code generation");
             return NULL;
-        } else {
-            generate_global_variable_code(stmt->decl, stmt->expr);
         }
+
+        generate_global_vars_code(listing, stmt->decl, stmt->expr);
         stmt = stmt->next;
     }
 
@@ -255,9 +251,7 @@ ir_listing *generate_module_ir_code(ast_module_node *module) {
             continue;
         }
 
-        generate_function_code(func);
-        ir.add_comment("");
-
+        generate_function_ir_code(listing, func);
         func = func->next;
     }
 

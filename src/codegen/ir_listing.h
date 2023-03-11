@@ -21,5 +21,6 @@ struct ir_listing_ops {
     void (*free)(ir_listing *l);
     // optimize()
     // produce_asm_listing()
+    // also see https://courses.cs.washington.edu/courses/cse401/06sp/codegen.pdf
 };
 

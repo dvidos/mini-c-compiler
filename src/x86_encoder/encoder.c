@@ -117,13 +117,6 @@ typedef uint64_t u64;
 // <cond> = [EQ, NE, GT, GE, LT, LE, T, F]
 // <op> = ADD, SUB, MUL, DIV, AND, OR, XOR, NOT, NEG, SHL, SHR
 
-// if we extend our "expr_target" structure, it could be used as operand for asm expressions.
-// i.e. "MOV EDX, [EBX + 16*EAX + 4]" to do "y = arr[i].next"
-// so maybe we could build things up instead of down.
-// see what MOV takes as arguments: https://www.felixcloutier.com/x86/mov
-// operands: temp register, actual register, memory location or symbol, offset, immediate
-// operand data size may be: byte, word, dword, quad (8, 16, 32 or 64 bits)
-
 // Disassembly of section .text:  00000000 <.text>:  0:	b8 34 12 00 00       	mov    $0x1234,%eax
 // Disassembly of section .text:  00000000 <.text>:  0:	b9 34 12 00 00       	mov    $0x1234,%ecx
 // MOV for 32 bits, B8+, meaning B8+ number of processor, similarly to PUSH

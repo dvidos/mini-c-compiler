@@ -47,7 +47,7 @@ ir_entry *new_ir_label(char *fmt, ...) {
     return e;
 }
 
-ir_entry *new_ir_data_declaration(int length, void *initial_data, char *symbol_name, ir_data_storage storage) {
+ir_entry *new_ir_data_declaration(int length, void *initial_data, char *symbol_name, ir_data_storage storage, int arg_no) {
     ir_entry *e = malloc(sizeof(ir_entry));
     e->type = IR_DATA_DECLARATION;
     e->t.data.length = length;
@@ -59,6 +59,7 @@ ir_entry *new_ir_data_declaration(int length, void *initial_data, char *symbol_n
     }
     e->t.data.symbol_name = symbol_name == NULL ? NULL : strdup(symbol_name);
     e->t.data.storage = storage;
+    e->t.data.arg_no = arg_no;
     e->ops = &ops;
     return e;
 }
@@ -183,16 +184,19 @@ static void _print(ir_entry *e) {
             break;
 
         case IR_THREE_ADDR_CODE:
-            // can be a=c, a=!c, a=b+c
+            // can be a=c, a=!c, a=b+c, or even just c (func call)
             printf("\t");
-            print_ir_value(e->t.three_address_code.lvalue);
-            printf(" = ");
+            if (e->t.three_address_code.lvalue != NULL) {
+                print_ir_value(e->t.three_address_code.lvalue);
+                printf(" = ");
+            }
             if (e->t.three_address_code.op1 != NULL) {
                 print_ir_value(e->t.three_address_code.op1);
                 printf(" ");
             }
-            if (e->t.three_address_code.op != IR_NONE)
+            if (e->t.three_address_code.op != IR_NONE) {
                 printf("%s ", ir_operation_name(e->t.three_address_code.op));
+            }
             print_ir_value(e->t.three_address_code.op2);
             break;
 

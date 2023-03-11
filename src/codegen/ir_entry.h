@@ -62,6 +62,7 @@ typedef struct ir_entry {
             void *initial_data; // null for uninitialized
             char *symbol_name;
             ir_data_storage storage;
+            int arg_no; // for local arguments
         } data;
         struct {
             ir_value *lvalue;
@@ -91,7 +92,7 @@ typedef struct ir_entry {
 
 ir_entry *new_ir_comment(char *fmt, ...);
 ir_entry *new_ir_label(char *label_fmt, ...);
-ir_entry *new_ir_data_declaration(int length, void *initial_data, char *symbol_name, ir_data_storage storage);
+ir_entry *new_ir_data_declaration(int length, void *initial_data, char *symbol_name, ir_data_storage storage, int arg_no);
 ir_entry *new_ir_assignment(ir_value *lvalue, ir_value *rvalue);
 ir_entry *new_ir_unary_address_code(ir_value *lvalue, ir_operation op, ir_value *rvalue);
 ir_entry *new_ir_three_address_code(ir_value *lvalue, ir_value *op1, ir_operation op, ir_value *op2);

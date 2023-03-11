@@ -16,7 +16,6 @@
 #include "parser/shunting_yard.h"
 #include "analysis/analysis.h"
 #include "codegen/codegen.h"
-#include "codegen/interm_repr.h"
 #include "codegen/ir_listing.h"
 #include "binary/binary_gen.h"
 #include "elf/elf_contents.h"
@@ -100,9 +99,11 @@ void perform_semantic_analysis() {
 }
 
 void generate_intermediate_code() {
-    ir_listing *listing = generate_module_ir_code(get_ast_root_node());
-    if (listing == NULL)
-        return;
+    ir_listing *listing = new_ir_listing();
+    code_gen *gen = new_code_generator2(listing);
+    
+    gen->ops->generate_for_module(gen, get_ast_root_node());
+
     if (options.verbose) {
         printf("--------- Generated Intermediate Representation ---------\n");
         listing->ops->print(listing);
@@ -114,57 +115,57 @@ void produce_output_files() {
     // generate intel compatible binary output
     // write the elf file
 
-    char *assembly_code;
-    // we could write this to file *.asm for fun
-    ir.generate_assembly_listing(&assembly_code);
-    if (errors_count)
-        return;
+    // char *assembly_code;
+    // // we could write this to file *.asm for fun
+    // ir.generate_assembly_listing(&assembly_code);
+    // if (errors_count)
+    //     return;
     
-    char *asm_filename = "out.asm";
-    if (!save_text("out.asm", assembly_code)) {
-        printf("Warning: could not write assembly file %s\n", asm_filename);
-    } else {
-        printf("Wrote %ld bytes of assembly to file \"%s\"\n", strlen(assembly_code), asm_filename);
-        if (options.verbose) {
-            printf("----- Assembly code -----\n");
-            printf("%s\n", assembly_code);
-        }
-    }
+    // char *asm_filename = "out.asm";
+    // if (!save_text("out.asm", assembly_code)) {
+    //     printf("Warning: could not write assembly file %s\n", asm_filename);
+    // } else {
+    //     printf("Wrote %ld bytes of assembly to file \"%s\"\n", strlen(assembly_code), asm_filename);
+    //     if (options.verbose) {
+    //         printf("----- Assembly code -----\n");
+    //         printf("%s\n", assembly_code);
+    //     }
+    // }
 
-    elf_contents *program;
-    generate_binary_code(assembly_code, &program);
-    if (errors_count)
-        return;
+    // elf_contents *program;
+    // generate_binary_code(assembly_code, &program);
+    // if (errors_count)
+    //     return;
 
-    free(assembly_code);
+    // free(assembly_code);
     
-    // "Wrote 1234 bytes to file a.out"
-    char *out_filename = "a.out";
-    long bytes_written;
-    if (!write_elf_file(program, out_filename, &bytes_written)) {
-        error(out_filename, 0, "Failed writing file \"%s\"", out_filename);
-        return;
-    }
+    // // "Wrote 1234 bytes to file a.out"
+    // char *out_filename = "a.out";
+    // long bytes_written;
+    // if (!write_elf_file(program, out_filename, &bytes_written)) {
+    //     error(out_filename, 0, "Failed writing file \"%s\"", out_filename);
+    //     return;
+    // }
 
-    printf("Wrote %ld bytes to final file \"%s\"\n", bytes_written, out_filename);
-    if (options.verbose) {
-        printf("------- ELF information ---------\n");
-        printf("  File type %s\n", 
-                (program->flags.is_dynamic_executable) ? "DYN_EXEC" : (
-                    program->flags.is_static_executable ? "STAT_EXEC" : (
-                        program->flags.is_object_code ? "RELOC_OBJ_CODE" : "(unkowkn)"
-                    )
-                ));
-        printf("  Architecture %d bits\n", 
-                    program->flags.is_64_bits ? 64 : 32);
-        printf("\n");
-        printf("  Segment    Address      Size\n");
-        //                0x12345678 123456789
-        printf("  .code   0x%08lx %9ld\n", program->code_address, program->code_size);
-        printf("  .data   0x%08lx %9ld\n", program->data_address, program->data_size);
-        printf("  .bss    0x%08lx %9ld\n", program->bss_address, program->bss_size);
-        printf("  code entry point at 0x%lx\n", program->code_entry_point);
-    }
+    // printf("Wrote %ld bytes to final file \"%s\"\n", bytes_written, out_filename);
+    // if (options.verbose) {
+    //     printf("------- ELF information ---------\n");
+    //     printf("  File type %s\n", 
+    //             (program->flags.is_dynamic_executable) ? "DYN_EXEC" : (
+    //                 program->flags.is_static_executable ? "STAT_EXEC" : (
+    //                     program->flags.is_object_code ? "RELOC_OBJ_CODE" : "(unkowkn)"
+    //                 )
+    //             ));
+    //     printf("  Architecture %d bits\n", 
+    //                 program->flags.is_64_bits ? 64 : 32);
+    //     printf("\n");
+    //     printf("  Segment    Address      Size\n");
+    //     //                0x12345678 123456789
+    //     printf("  .code   0x%08lx %9ld\n", program->code_address, program->code_size);
+    //     printf("  .data   0x%08lx %9ld\n", program->data_address, program->data_size);
+    //     printf("  .bss    0x%08lx %9ld\n", program->bss_address, program->bss_size);
+    //     printf("  code entry point at 0x%lx\n", program->code_entry_point);
+    // }
 }
 
 int main(int argc, char *argv[]) {

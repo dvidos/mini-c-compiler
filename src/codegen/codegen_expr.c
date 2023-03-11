@@ -10,52 +10,11 @@
 #include "../statement.h"
 #include "../symbol.h"
 #include "../declaration.h"
-#include "interm_repr.h"
 #include "codegen.h"
 
-/*
-    dragon book, 6.2.1: An address can be one of the following:
-    * A name. For convenience, we allow source-program names to appear as
-      addresses in three-address code. In an implementation, a source name
-      is replaced by a pointer to its symbol-table entry, where all information
-      about the name is kept.
-    * A constant. In practice, a compiler must deal with many different types
-      of constants and variables. Type conversions within expressions are con­
-      sidered in Section 6.5.2.
-    * A compiler-generated temporary. It is useful, especially in optimizing com­
-      pilers, to create a distinct name each time a temporary is needed. These
-      temporaries can be combined, if possible, when registers are allocated to
-      variables.
-
-    Running environment in IA-32:
-        - access to 4 GB of memory
-        Program execution registers:
-        - eight general purpose registers (EAX, EBX, ECX, EDX, ESI, EDI, EBP, ESP)
-        - six segment registers (16bits) (CS, DS, SS, ES, FS, GS)
-        - 32-bit instruction pointer EIP, 32-bit EFLAGS register
-        These do integer arithmetic, string manipulation, flow control etc.
-        Extra registers: FPU, MMX, XMM, YMM, BND etc for floating, boudaries etc
-        I/O ports
-        Status registers (CR0 - CR3)
-        Memory managmeent registers (GDTR, IDTR, LDTR etc)
-        Debug registers (DR0 - DR7)
-
-    Running environment in IA-64:
-        - access to 17179869183 GB of memory...
-        Program execution registers:
-        - eight general purpose registers (RAX, RBX, RCX, RDX, RSI, RDI, RBP, RSP)
-        - six segment registers (CS, DS, SS, ES, FS, GS)
-        - 64-bit instruction pointer RIP, 64-bit RFLAGS register
-        These do integer arithmetic, string manipulation, flow control etc.
-        Extra registers: FPU, MMX, XMM, YMM, BND etc for floating, boudaries etc
-        I/O ports
-        Status registers (CR0 - CR3)
-        Memory managmeent registers (GDTR, IDTR, LDTR etc)
-        Debug registers (DR0 - DR7)
-*/
 
 
-static ir_value *resolve_lvalue_expression(ir_listing *listing, expression *expr) {
+static ir_value *resolve_addr(code_gen *cg, expression *expr) {
     // e.g. we can have "a = 1", but also "a[entries[idx].a_offset] = 1"
     
     if (expr->op == OP_SYMBOL_NAME) {
@@ -66,9 +25,8 @@ static ir_value *resolve_lvalue_expression(ir_listing *listing, expression *expr
             || expr->op == OP_STRUCT_MEMBER_PTR
             || expr->op == OP_STRUCT_MEMBER_REF) {
 
-        // generate expression, store result in temp reg
-        ir_value *lvalue = new_ir_value_register(cg.next_reg_num());
-        generate_expression_ir_code(listing, lvalue, expr);
+        ir_value *lvalue = new_ir_value_register(cg->ops->next_reg_num(cg));
+        cg->ops->generate_for_expression(cg, lvalue, expr);
         return lvalue;
 
     } else {
@@ -79,7 +37,7 @@ static ir_value *resolve_lvalue_expression(ir_listing *listing, expression *expr
     }
 }
 
-static void generate_ir_code_for_function_call(ir_listing *listing, ir_value *lvalue, expression *expr) {
+static void gen_func_call(code_gen *cg, ir_value *lvalue, expression *expr) {
 
     // need to find the func reference?  e.g. "(devices[0]->write)(h, 10, buffer)"
     // remember that C pushes args from right to left (IR opcode PUSH)
@@ -89,7 +47,7 @@ static void generate_ir_code_for_function_call(ir_listing *listing, ir_value *lv
     // see http://web.archive.org/web/20151010192637/http://www.dound.com/courses/cs143/handouts/17-TAC-Examples.pdf
 
     // calculate function address
-    ir_value *func_addr = resolve_lvalue_expression(listing, expr->arg1);
+    ir_value *func_addr = resolve_addr(cg, expr->arg1);
 
     // flatten arguments to be used
     #define MAX_FUNC_ARGS  16
@@ -104,20 +62,20 @@ static void generate_ir_code_for_function_call(ir_listing *listing, ir_value *lv
     // prepare the ir_values array
     ir_value **ir_values_arr = malloc(sizeof(ir_value) * argc);
     for (int i = 0; i < argc; i++) {
-        ir_values_arr[i] = new_ir_value_register(cg.next_reg_num());
-        generate_expression_ir_code(listing, ir_values_arr[i], arg_expressions[i]);
+        ir_values_arr[i] = new_ir_value_register(cg->ops->next_reg_num(cg));
+        cg->ops->generate_for_expression(cg, ir_values_arr[i], arg_expressions[i]);
     }
 
-    listing->ops->add(listing, new_ir_function_call(lvalue, func_addr, argc, ir_values_arr));
+    cg->ir->ops->add(cg->ir, new_ir_function_call(lvalue, func_addr, argc, ir_values_arr));
 }
 
-static void generate_ir_code_for_binary_operation(ir_listing *listing, ir_value *lvalue, expression *expr) {
+static void gen_binary_op(code_gen *cg, ir_value *lvalue, expression *expr) {
 
-    ir_value *r1 = new_ir_value_register(cg.next_reg_num());
-    generate_expression_ir_code(listing, r1, expr->arg1);
+    ir_value *r1 = new_ir_value_register(cg->ops->next_reg_num(cg));
+    cg->ops->generate_for_expression(cg, r1, expr->arg1);
 
-    ir_value *r2 = new_ir_value_register(cg.next_reg_num());
-    generate_expression_ir_code(listing, r2, expr->arg2);
+    ir_value *r2 = new_ir_value_register(cg->ops->next_reg_num(cg));
+    cg->ops->generate_for_expression(cg, r2, expr->arg2);
     
     ir_operation op = IR_NONE;
     switch (expr->op) {
@@ -136,34 +94,34 @@ static void generate_ir_code_for_binary_operation(ir_listing *listing, ir_value 
             break;
     }
 
-    listing->ops->add(listing, new_ir_three_address_code(lvalue, r1, op, r2));
+    cg->ir->ops->add(cg->ir, new_ir_three_address_code(lvalue, r1, op, r2));
 }
 
-void generate_expression_ir_code(ir_listing *listing, ir_value *lvalue, expression *expr) {
+void code_gen_generate_for_expression(code_gen *cg, ir_value *lvalue, expression *expr) {
 
     switch (expr->op) {
         case OP_NUM_LITERAL:
-            listing->ops->add(listing, new_ir_assignment(lvalue, new_ir_value_immediate(expr->value.num)));
+            cg->ir->ops->add(cg->ir, new_ir_assignment(lvalue, new_ir_value_immediate(expr->value.num)));
             break;
 
         case OP_CHR_LITERAL:
-            listing->ops->add(listing, new_ir_assignment(lvalue, new_ir_value_immediate(expr->value.chr)));
+            cg->ir->ops->add(cg->ir, new_ir_assignment(lvalue, new_ir_value_immediate(expr->value.chr)));
             break;
 
         case OP_STR_LITERAL:
             char sym_name[16];
-            sprintf(sym_name, "_str%d", cg.next_str_num());
-            listing->ops->add(listing, new_ir_data_declaration(strlen(expr->value.str) + 1, expr->value.str, sym_name, IR_GLOBAL_RO));
-            listing->ops->add(listing, new_ir_assignment(lvalue, new_ir_value_symbol(sym_name)));
+            sprintf(sym_name, "_str%d", cg->ops->next_label_num(cg));
+            cg->ir->ops->add(cg->ir, new_ir_data_declaration(strlen(expr->value.str) + 1, expr->value.str, sym_name, IR_GLOBAL_RO, 0));
+            cg->ir->ops->add(cg->ir, new_ir_assignment(lvalue, new_ir_value_symbol(sym_name)));
             break;
 
         case OP_BOOL_LITERAL:
-            listing->ops->add(listing, new_ir_assignment(lvalue, new_ir_value_immediate(expr->value.bln ? 1 : 0)));
+            cg->ir->ops->add(cg->ir, new_ir_assignment(lvalue, new_ir_value_immediate(expr->value.bln ? 1 : 0)));
             break;
 
         case OP_SYMBOL_NAME:
             // maybe the expectation is the contents of the variable and not the address????
-            listing->ops->add(listing, new_ir_assignment(lvalue, new_ir_value_symbol(expr->value.str)));
+            cg->ir->ops->add(cg->ir, new_ir_assignment(lvalue, new_ir_value_symbol(expr->value.str)));
             break;
 
         case OP_ADD: // fallthrough
@@ -173,31 +131,31 @@ void generate_expression_ir_code(ir_listing *listing, ir_value *lvalue, expressi
         case OP_BITWISE_AND:
         case OP_BITWISE_OR:
         case OP_BITWISE_XOR:
-            generate_ir_code_for_binary_operation(listing, lvalue, expr);
+            gen_binary_op(cg, lvalue, expr);
             break;
 
         case OP_BITWISE_NOT:
-            ir_value *rvalue = new_ir_value_register(cg.next_reg_num());
-            generate_expression_ir_code(listing, rvalue, expr->arg2);
-            listing->ops->add(listing, new_ir_unary_address_code(lvalue, IR_NOT, rvalue));
+            ir_value *rvalue = new_ir_value_register(cg->ops->next_reg_num(cg));
+            cg->ops->generate_for_expression(cg, rvalue, expr->arg2);
+            cg->ir->ops->add(cg->ir, new_ir_unary_address_code(lvalue, IR_NOT, rvalue));
             break;
 
         case OP_FUNC_CALL:
-            generate_ir_code_for_function_call(listing, lvalue, expr);
+            gen_func_call(cg, lvalue, expr);
             break;
 
         case OP_ASSIGNMENT:
             // the provided lvale is ditched (e.g. a in "a = (b = c);")
-            ir_value *lvalue_target = resolve_lvalue_expression(listing, expr->arg1);
-            generate_expression_ir_code(listing, lvalue_target, expr->arg2);
+            ir_value *lvalue = resolve_addr(cg, expr->arg1);
+            cg->ops->generate_for_expression(cg, lvalue, expr->arg2);
             break;
 
         default:
-            listing->ops->add(listing, new_ir_comment("(unhandled expresion (%s) follows)", oper_debug_name(expr->op)));
-            ir_value *r1 = new_ir_value_register(cg.next_reg_num());
-            ir_value *r2 = new_ir_value_register(cg.next_reg_num());
-            if (expr->arg1) generate_expression_ir_code(listing, r1, expr->arg1);
-            if (expr->arg2) generate_expression_ir_code(listing, r2, expr->arg2);
+            cg->ir->ops->add(cg->ir, new_ir_comment("(unhandled expresion (%s) follows)", oper_debug_name(expr->op)));
+            ir_value *r1 = new_ir_value_register(cg->ops->next_reg_num(cg));
+            ir_value *r2 = new_ir_value_register(cg->ops->next_reg_num(cg));
+            if (expr->arg1) code_gen_generate_for_expression(cg, r1, expr->arg1);
+            if (expr->arg2) code_gen_generate_for_expression(cg, r2, expr->arg2);
             break;
     }
 }

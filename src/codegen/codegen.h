@@ -4,60 +4,47 @@
 #include "../ast.h"
 
 
-typedef struct code_gen {
-    int (*next_str_num)();
-    int (*next_reg_num)();
-    int (*next_var_num)();
-    int (*next_if_num)();
-    int (*curr_while_num)();
-    void (*push_while)();
-    void (*pop_while)();
+struct code_gen_ops;
+#define CODE_GEN_MAX_NESTED_LOOPS 6
 
-    void  (*assign_curr_func)(func_declaration *func);
-    char *(*curr_func_name)();
-    void  (*register_local_var)(var_declaration *decl, bool is_arg, int arg_no);
-    int   (*get_local_var_bp_offset)(char *name);
+typedef struct code_gen {
+    ir_listing *ir;
+    char *curr_func_name;
+    int reg_num;
+    int label_num; // for symbols, labels, ifs etc.
+    int loops_stack[CODE_GEN_MAX_NESTED_LOOPS];
+    int loops_stack_len;
+
+    struct code_gen_ops *ops;
 } code_gen;
 
-extern code_gen cg;
+code_gen *new_code_generator2(ir_listing *listing);
 
+struct code_gen_ops {
+    void (*generate_for_module)(code_gen *cg, ast_module_node *mod);
+    void (*generate_for_function)(code_gen *cg, func_declaration *func);
+    void (*generate_for_expression)(code_gen *cg, ir_value *lvalue, expression *expr);
+    void (*generate_for_statement)(code_gen *cg, statement *stmt);
 
-struct local_var_info {
-    var_declaration *decl;
-    bool is_arg;
-    int arg_no;
-    int bp_offset;
-    int size_bytes;
+    void (*set_curr_func_name)(code_gen *cg, char *func_name);
+    char *(*get_curr_func_name)(code_gen *cg);
+    int (*next_reg_num)(code_gen *cg);
+    int (*next_label_num)(code_gen *cg);
+    int (*curr_loop_num)(code_gen *cg);
+    void (*begin_loop_generation)(code_gen *cg);
+    void (*end_loop_generation)(code_gen *cg);
 };
-
-struct curr_func_info {
-    func_declaration *decl;
-
-    struct local_var_info *vars;
-    int vars_count;
-    int vars_capacity;
-};
-
-extern struct curr_func_info *cg_curr_func;
-
-
 
 // codegen.c
-ir_listing *generate_module_ir_code(ast_module_node *module);
+void code_gen_generate_for_module(code_gen *cg, ast_module_node *module);
 
 // codegen_func.c
-void generate_function_ir_code(ir_listing *listing, func_declaration *func);
+void code_gen_generate_for_function(code_gen *cg, func_declaration *func);
 
 // codegen_stmt.c
-void generate_statement_ir_code(ir_listing *listing, statement *stmt);
+void code_gen_generate_for_statement(code_gen *cg, statement *stmt);
 
 // codegen_expr.c
-typedef struct expr_target expr_target;
-expr_target *expr_target_temp_reg(int reg_no);
-expr_target *expr_target_return_register();
-expr_target *expr_target_stack_location(int frame_offset);
-expr_target *expr_target_named_symbol(char *symbol_name);
-
-void generate_expression_ir_code(ir_listing *listing, ir_value *lvalue, expression *expr);
+void code_gen_generate_for_expression(code_gen *cg, ir_value *lvalue, expression *expr);
 
 

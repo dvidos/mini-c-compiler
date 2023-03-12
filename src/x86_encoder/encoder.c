@@ -1,6 +1,9 @@
 #include <stdlib.h>
 #include <stdint.h>
+#include "../err_handler.h"
 #include "encoder.h"
+#include "asm_listing.h"
+#include "module.h"
 
 typedef uint8_t u8;
 typedef uint16_t u16;
@@ -602,3 +605,10 @@ static void x86_encoder_free(struct x86_encoder *enc) {
     enc->relocations->free(enc->relocations);
     free(enc);
 }
+
+
+void x86_encode_asm_module(asm_listing *asm_list, enum x86_cpu_mode mode, module *mod) {
+    error(NULL, 0, "not ready yet");
+}
+
+

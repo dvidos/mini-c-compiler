@@ -23,6 +23,9 @@
 #include "elf/elf.h"
 #include "x86_encoder/asm_listing.h"
 #include "x86_encoder/module.h"
+#include "x86_encoder/assembler.h"
+#include "x86_encoder/linker.h"
+#include "x86_encoder/encoder.h"
 
 
 
@@ -114,19 +117,29 @@ void generate_intermediate_code(ir_listing *listing) {
     // we could run IR optimizations here
 }
 
-void generate_machine_code(ir_listing *listing) {
-    // the last gap to cross.
+void generate_machine_code(ir_listing *ir_list) {
+    // we need something that, given ir_listing       generates asm_listing. (.asm file)
+    // then an encoder that,   given the asm_listing, generates machine code (.o file)
+    // then a linker that,     given the machine code generates the executable (executable file)
 
-    // we need something that
-    // - given ir_listing 
-    // - generates asm_listing. (.asm file)
-    // then an encoder,
-    // - given the asm_listing,
-    // - generate machine code (.o file)
-    // then a linker
-    // - given the machine code
-    // - generate the executable (executable file)
+    asm_listing *asm_list = new_asm_listing();
+    x86_assemble(ir_list, asm_list);
+    if (errors_count)
+        return;
 
+    module *mod = new_module();
+    x86_encode_asm_module(asm_list, CPU_MODE_PROTECTED, mod);
+    if (errors_count)
+        return;
+
+    char *executable = set_extension(options.filename, "");
+    if (strcmp(executable, options.filename)) {
+        error(NULL, 0, "output filename same as input, will not overwrite");
+        return;
+    }
+
+    module *modules[1] = { mod };
+    x86_link(modules, 1, 0x12345678, executable);
 }
 
 int main(int argc, char *argv[]) {

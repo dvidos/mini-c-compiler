@@ -43,7 +43,9 @@ SRC_FILES = \
 	x86_encoder/encoder.c \
 	x86_encoder/asm_test.c \
 	x86_encoder/asm_listing.c \
-	x86_encoder/module.c
+	x86_encoder/module.c \
+	x86_encoder/assembler.c \
+	x86_encoder/linker.c
 
 
 

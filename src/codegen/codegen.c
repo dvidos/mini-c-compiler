@@ -8,7 +8,7 @@
 #include "../expression.h"
 #include "../lexer/token.h"
 #include "../statement.h"
-#include "../symbol.h"
+#include "../src_symbol.h"
 #include "../declaration.h"
 #include "../expression.h"
 #include "codegen.h"

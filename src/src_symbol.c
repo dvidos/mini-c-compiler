@@ -1,9 +1,9 @@
 #include <stdlib.h>
-#include "symbol.h"
+#include "src_symbol.h"
 
 
-symbol *create_symbol(char *name, data_type *data_type, symbol_type definition, char *file_name, int line_no) {
-    symbol *s = malloc(sizeof(symbol));
+src_symbol *create_symbol(char *name, data_type *data_type, symbol_type definition, char *file_name, int line_no) {
+    src_symbol *s = malloc(sizeof(src_symbol));
 
     s->name = name;
     s->data_type = data_type;
@@ -17,8 +17,8 @@ symbol *create_symbol(char *name, data_type *data_type, symbol_type definition, 
     return s;
 }
 
-symbol *create_func_arg_symbol(char *name, data_type *data_type, int arg_no, char *file_name, int line_no) {
-    symbol *s = malloc(sizeof(symbol));
+src_symbol *create_func_arg_symbol(char *name, data_type *data_type, int arg_no, char *file_name, int line_no) {
+    src_symbol *s = malloc(sizeof(src_symbol));
 
     s->name = name;
     s->data_type = data_type;
@@ -32,8 +32,8 @@ symbol *create_func_arg_symbol(char *name, data_type *data_type, int arg_no, cha
     return s;
 }
 
-symbol *create_func_symbol(char *name, func_declaration *func, char *file_name, int line_no) {
-    symbol *s = malloc(sizeof(symbol));
+src_symbol *create_func_symbol(char *name, func_declaration *func, char *file_name, int line_no) {
+    src_symbol *s = malloc(sizeof(src_symbol));
 
     s->name = name;
     s->data_type = func->return_type;

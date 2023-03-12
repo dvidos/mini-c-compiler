@@ -4,7 +4,7 @@
 #include "../declaration.h"
 #include "../statement.h"
 #include "../scope.h"
-#include "../symbol.h"
+#include "../src_symbol.h"
 #include "../ast.h"
 #include "analysis.h"
 
@@ -28,7 +28,7 @@ void perform_declaration_analysis(var_declaration *decl, int arg_no) {
         return;
     }
 
-    symbol *sym;
+    src_symbol *sym;
     if (arg_no >= 0)
         sym = create_func_arg_symbol(decl->var_name, decl->data_type, arg_no, decl->token->filename, decl->token->line_no);
     else
@@ -46,7 +46,7 @@ void perform_function_analysis(func_declaration *func) {
             "function \"%s\" already defined", 
             func->func_name);
     } else {
-        symbol *sym = create_func_symbol(func->func_name, func, func->token->filename, func->token->line_no);
+        src_symbol *sym = create_func_symbol(func->func_name, func, func->token->filename, func->token->line_no);
         scope_declare_symbol(sym);
     }
 

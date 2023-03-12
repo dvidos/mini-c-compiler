@@ -4,7 +4,7 @@
 #include "../declaration.h"
 #include "../statement.h"
 #include "../scope.h"
-#include "../symbol.h"
+#include "../src_symbol.h"
 #include "analysis.h"
 
 

@@ -1,5 +1,5 @@
 #pragma once
-#include "buffer.h"
+#include "../utils/buffer.h"
 #include "symbol_table.h"
 #include "reloc_list.h"
 
@@ -12,8 +12,10 @@ struct module {
     buffer *text;
     buffer *data;
     buffer *bss;
+    buffer *ro_data;
 
     // some symbols are exported, some are not
+    // a symbol refers to a segment (section) and has an offset from it.
     symbol_table *symbols;
 
     // references in the code segment that need to be resolved at link time

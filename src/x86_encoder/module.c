@@ -1,6 +1,6 @@
 #include <stdlib.h>
 #include <stdio.h>
-#include "buffer.h"
+#include "../utils/buffer.h"
 #include "symbol_table.h"
 #include "reloc_list.h"
 #include "module.h"

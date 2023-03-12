@@ -3,13 +3,13 @@
 #include <stdlib.h>
 #include "instruction.h"
 #include "encoder.h"
-#include "buffer.h"
+#include "../utils/buffer.h"
 #include "symbol_table.h"
 #include "../elf/elf.h"
 #include "../utils.h"
 #include "../options.h"
 #include "module.h"
-#include "listing.h"
+#include "asm_listing.h"
 
 static void test_create_executable();
 static void test_create_executable2();
@@ -212,7 +212,7 @@ static void verify_listing(char *title, struct instruction *list, int instr_coun
     bool encoded;
     char buff[128];
 
-    printf("Verify listing '%s'...", title);
+    printf("Verify asm_listing '%s'...", title);
 
     struct x86_encoder *encoder = new_x86_encoder(CPU_MODE_PROTECTED, new_buffer(), new_reloc_list());
     for (int i = 0; i < instr_count; i++) {
@@ -231,7 +231,7 @@ static void verify_listing(char *title, struct instruction *list, int instr_coun
 
     printf(" [FAILED]\n");
 
-    printf("Assembly code listing:\n");
+    printf("Assembly code asm_listing:\n");
     for (int i = 0; i < instr_count; i++) {
         instruction_to_string(&list[i], buff, sizeof(buff));
         printf("\t%s\n", buff);
@@ -262,34 +262,34 @@ static void verify_listing(char *title, struct instruction *list, int instr_coun
 
 
 #define MOV_REG_IMM(reg, val) \
-    listing[count].opcode = OC_MOV;         \
-    listing[count].op1.type = OT_REGISTER;  \
-    listing[count].op1.value = reg;         \
-    listing[count].op2.type = OT_IMMEDIATE; \
-    listing[count].op2.value = val;         \
+    asm_listing[count].opcode = OC_MOV;         \
+    asm_listing[count].op1.type = OT_REGISTER;  \
+    asm_listing[count].op1.value = reg;         \
+    asm_listing[count].op2.type = OT_IMMEDIATE; \
+    asm_listing[count].op2.value = val;         \
     count++;
 
 #define MOV_REG_SYM(reg, sym) \
-    listing[count].opcode = OC_MOV;                   \
-    listing[count].op1.type = OT_REGISTER;            \
-    listing[count].op1.value = reg;                   \
-    listing[count].op2.type = OT_SYMBOL_MEM_ADDRESS;  \
-    listing[count].op2.symbol_name = sym;             \
+    asm_listing[count].opcode = OC_MOV;                   \
+    asm_listing[count].op1.type = OT_REGISTER;            \
+    asm_listing[count].op1.value = reg;                   \
+    asm_listing[count].op2.type = OT_SYMBOL_MEM_ADDRESS;  \
+    asm_listing[count].op2.symbol_name = sym;             \
     count++;
 
 #define INT(no) \
-    listing[count].opcode = OC_INT;          \
-    listing[count].op1.type = OT_IMMEDIATE;  \
-    listing[count].op1.value = no;           \
+    asm_listing[count].opcode = OC_INT;          \
+    asm_listing[count].op1.type = OT_IMMEDIATE;  \
+    asm_listing[count].op1.value = no;           \
     count++;
 
 void test_create_executable() {
     // based on this: https://www.tutorialspoint.com/assembly_programming/assembly_system_calls.htm
 
-    struct instruction listing[30];
+    struct instruction asm_listing[30];
     int count = 0;
 
-    memset(&listing, 0, sizeof(listing));
+    memset(&asm_listing, 0, sizeof(asm_listing));
     
     // prepare a data segment as well, keeping address of symbols
     buffer *data_seg = new_buffer();
@@ -315,9 +315,9 @@ void test_create_executable() {
     // encode this into intel machine code
     struct x86_encoder *enc = new_x86_encoder(CPU_MODE_PROTECTED, new_buffer(), new_reloc_list());
     for (int i = 0; i < count; i++) {
-        if (!enc->encode(enc, &listing[i])) {
+        if (!enc->encode(enc, &asm_listing[i])) {
             char str[128];
-            instruction_to_string(&listing[i], str, sizeof(str));
+            instruction_to_string(&asm_listing[i], str, sizeof(str));
             printf("Failed encoding instruction: '%s'\n", str);
             return;
         }
@@ -376,11 +376,11 @@ void test_create_executable() {
 }
 
 
-static bool _encode_listing_code(listing *lst, module *mod, enum x86_cpu_mode mode);
+static bool _encode_listing_code(asm_listing *lst, module *mod, enum x86_cpu_mode mode);
 static bool _link_module(module *mod, u64 code_base_address, char *filename);
 
 void test_create_executable2() {
-    listing *lst = new_listing();
+    asm_listing *lst = new_asm_listing();
     module *mod = new_module();
     
     mod->ops->declare_data(mod, "hello_msg", 13 + 1, "Hello World!\n");
@@ -399,7 +399,7 @@ void test_create_executable2() {
 
     lst->ops->print(lst);
 
-    // now we need an assembler to convert the listing into a mod code + labels + relocs
+    // now we need an assembler to convert the asm_listing into a mod code + labels + relocs
     if (!_encode_listing_code(lst, mod, CPU_MODE_PROTECTED))
         return;
 
@@ -411,7 +411,7 @@ void test_create_executable2() {
         return;
 }
 
-static bool _encode_listing_code(listing *lst, module *mod, enum x86_cpu_mode mode) {
+static bool _encode_listing_code(asm_listing *lst, module *mod, enum x86_cpu_mode mode) {
     // encode this into intel machine code
     struct x86_encoder *enc = new_x86_encoder(mode, mod->text, mod->relocations);
     struct instruction *inst;
@@ -442,7 +442,7 @@ static bool _link_module(module *mod, u64 code_base_address, char *filename) {
     // find "_start" as entry point set it
     // save executable
 
-    struct symbol *start = mod->symbols->find(mod->symbols, "_start");
+    struct symbol_entry *start = mod->symbols->find(mod->symbols, "_start");
     if (start == NULL) {
         printf("Entry point '_start' not found\n");
         return false;

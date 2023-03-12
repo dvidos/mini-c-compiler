@@ -52,7 +52,7 @@ static bool _backfill_buffer(reloc_list *list, symbol_table *symbols, buffer *bu
             return false;
         }
 
-        struct symbol *sym;
+        struct symbol_entry *sym;
         sym = symbols->find(symbols, r->name);
         if (sym == NULL) {
             printf("Symbol not found: \"%s\"\n", r->name);

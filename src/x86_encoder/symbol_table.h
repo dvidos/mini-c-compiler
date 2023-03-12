@@ -14,7 +14,7 @@ enum symbol_base {
     SB_ZERO_DATA,
 };
 
-struct symbol {
+struct symbol_entry {
     char *name;  // would be smallish, but allocate for any size of name
     u64 offset;  // symbols always represent an offset in a segment/section.
     // elf also has binding: internal, external, weak.
@@ -30,13 +30,13 @@ struct symbol {
 typedef struct symbol_table symbol_table;
 
 struct symbol_table {
-    struct symbol *symbols;
+    struct symbol_entry *symbols;
     int capacity;
     int length;
 
     void (*clear)(symbol_table *table);
     void (*add)(symbol_table *table, char *name, u64 offset, enum symbol_base base);
-    struct symbol *(*find)(symbol_table *table, char *name);
+    struct symbol_entry *(*find)(symbol_table *table, char *name);
     void (*print)(symbol_table *table);
     void (*free)(symbol_table *table);
 };

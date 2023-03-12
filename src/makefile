@@ -5,6 +5,7 @@ SRC_FILES = \
 	err_handler.c \
 	options.c \
 	utils.c \
+	utils/buffer.c \
 	lexer/token.c \
 	lexer/token_list.c \
 	lexer/lexer.c \
@@ -12,7 +13,7 @@ SRC_FILES = \
 	data_type.c \
 	expression.c \
 	operators.c \
-	symbol.c \
+	src_symbol.c \
 	scope.c \
 	declaration.c \
 	ast.c \
@@ -36,13 +37,12 @@ SRC_FILES = \
 	binary/binary_gen.c \
 	binary/parse_asm.c \
 	binary/encode_asm.c \
-	x86_encoder/buffer.c \
 	x86_encoder/symbol_table.c \
 	x86_encoder/reloc_list.c \
 	x86_encoder/instruction.c \
 	x86_encoder/encoder.c \
 	x86_encoder/asm_test.c \
-	x86_encoder/listing.c \
+	x86_encoder/asm_listing.c \
 	x86_encoder/module.c
 
 

@@ -2,7 +2,7 @@
 #include <stdbool.h>
 #include "encoder.h"
 #include "instruction.h"
-#include "buffer.h"
+#include "../utils/buffer.h"
 #include "reloc_list.h"
 
 

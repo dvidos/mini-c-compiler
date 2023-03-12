@@ -4,7 +4,7 @@
 #include "../declaration.h"
 #include "../statement.h"
 #include "../scope.h"
-#include "../symbol.h"
+#include "../src_symbol.h"
 #include "analysis.h"
 
 
@@ -35,7 +35,7 @@ void perform_function_call_analysis(expression *call_expr) {
             "call expression arg1 expected symbol, got %s", oper_debug_name(call_expr->arg1->op));
         return;
     }
-    symbol *sym = scope_lookup(call_expr->arg1->value.str);
+    src_symbol *sym = scope_lookup(call_expr->arg1->value.str);
     if (sym == NULL) {
         error(call_expr->token->filename, call_expr->token->line_no,
             "called function '%s' not found", call_expr->arg1->value.str);
@@ -80,7 +80,7 @@ void perform_expression_analysis(expression *expr) {
     // see if the data types match what the operator expects or provides
     switch (op) {
         case OP_SYMBOL_NAME:
-            symbol *s = scope_lookup(expr->value.str);
+            src_symbol *s = scope_lookup(expr->value.str);
             if (s == NULL) {
                 error(expr->token->filename, expr->token->line_no,
                     "symbol \"%s\" not declared", expr->value.str);

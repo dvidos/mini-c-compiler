@@ -1,9 +1,7 @@
 #pragma once
 #include <stdint.h>
 
-
 typedef uint64_t u64;
-
 
 enum operand_type {
     OT_NONE = 0,              // this operand is not to be used

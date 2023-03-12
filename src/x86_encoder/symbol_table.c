@@ -6,14 +6,14 @@
 
 static void _clear(symbol_table *table);
 static void _add(symbol_table *table, char *name, u64 offset, enum symbol_base base);
-static struct symbol *_find(symbol_table *table, char *name);
+static struct symbol_entry *_find(symbol_table *table, char *name);
 static void _print(symbol_table *table);
 static void _free(symbol_table *table);
 
 symbol_table *new_symbol_table() {
     symbol_table *p = malloc(sizeof(symbol_table));
     p->capacity = 10;
-    p->symbols = malloc(p->capacity * sizeof(struct symbol));
+    p->symbols = malloc(p->capacity * sizeof(struct symbol_entry));
     p->length = 0;
 
     p->add = _add;
@@ -28,10 +28,10 @@ symbol_table *new_symbol_table() {
 static void _add(symbol_table *table, char *name, u64 offset, enum symbol_base base) {
     if (table->length + 1 >= table->capacity) {
         table->capacity *= 2;
-        table->symbols = realloc(table->symbols, table->capacity * sizeof(struct symbol));
+        table->symbols = realloc(table->symbols, table->capacity * sizeof(struct symbol_entry));
     }
 
-    struct symbol *sym = &table->symbols[table->length];
+    struct symbol_entry *sym = &table->symbols[table->length];
     sym->name = strdup(name);
     sym->offset = offset;
     sym->base = base;
@@ -42,7 +42,7 @@ static void _clear(symbol_table *table) {
     table->length = 0;
 }
 
-static struct symbol *_find(symbol_table *table, char *name) {
+static struct symbol_entry *_find(symbol_table *table, char *name) {
     for (int i = 0; i < table->length; i++) {
         if (strcmp(table->symbols[i].name, name) == 0) {
             return &table->symbols[i];
@@ -55,7 +55,7 @@ static void _print(symbol_table *table) {
     printf("  Name                    Base    Offset\n");
     //     "  12345678901234567890    1234    12345678"
     for (int i = 0; i < table->length; i++) {
-        struct symbol *s = &table->symbols[i];
+        struct symbol_entry *s = &table->symbols[i];
         printf("  %-20s    %4s    %08lx\n",
             s->name, 
             s->base == SB_CODE ? "code" : (

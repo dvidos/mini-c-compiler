@@ -3,7 +3,7 @@
 #include "expression.h"
 #include "operators.h"
 #include "data_type.h"
-#include "symbol.h"
+#include "src_symbol.h"
 #include "scope.h"
 #include "err_handler.h"
 #include "lexer/token.h"
@@ -90,7 +90,7 @@ static data_type *get_data_type(expression *expr) {
         expr->result_type = new_data_type(TF_BOOL, NULL);
     } else if (op == OP_SYMBOL_NAME) {
         // result will be whatever type the symbol is
-        symbol *sym = scope_lookup(expr->value.str);
+        src_symbol *sym = scope_lookup(expr->value.str);
         if (sym == NULL)
             error(expr->token->filename, expr->token->line_no, "symbol \"%s\" not defined in current scope", expr->arg1);
         else
@@ -101,7 +101,7 @@ static data_type *get_data_type(expression *expr) {
             // for now we support symbols, lvalues (pointers) later
             error(expr->token->filename, expr->token->line_no, "func call expression did not have the symbol as arg1");
         } else {
-            symbol *sym = scope_lookup(expr->arg1->value.str);
+            src_symbol *sym = scope_lookup(expr->arg1->value.str);
             if (sym == NULL) {
                 error(expr->token->filename, expr->token->line_no, "symbol \"%s\" not defined in current scope", expr->arg1->value.str);
             } else {

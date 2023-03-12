@@ -6,6 +6,6 @@ typedef bool filter_func(void *item);
 typedef bool matcher_func(void *item, void *criteria);
 typedef void *mapper_func(void *item);
 typedef void *reducer_func(void *item, void *prev_value);
-typedef char *to_string_func(void *item); // caller to free() the strinig
+typedef char *to_string_func(void *item); // caller to free() the string
 typedef long hasher_func(void *item);
 

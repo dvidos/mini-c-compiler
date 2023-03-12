@@ -100,7 +100,7 @@ void perform_semantic_analysis() {
 
 void generate_intermediate_code() {
     ir_listing *listing = new_ir_listing();
-    code_gen *gen = new_code_generator2(listing);
+    code_gen *gen = new_code_generator(listing);
     
     gen->ops->generate_for_module(gen, get_ast_root_node());
 

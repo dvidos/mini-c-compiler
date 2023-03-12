@@ -121,13 +121,13 @@ static void _end_loop_generation(code_gen *cg) {
     cg->loops_stack_len -= 1;
 }
 
-code_gen *new_code_generator2(ir_listing *listing) {
+code_gen *new_code_generator(ir_listing *listing) {
     code_gen *g = malloc(sizeof(code_gen));
 
     g->curr_func_name = NULL;
     g->ir = listing;
-    g->label_num = 1; // zero is reserved for failure
-    g->reg_num = 1;
+    g->label_num = 0;
+    g->reg_num = 0;
     g->loops_stack_len = 0;
 
     g->ops = &ops;

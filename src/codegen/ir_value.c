@@ -27,11 +27,20 @@ ir_value *new_ir_value_immediate(int value) {
 }
 
 void print_ir_value(ir_value *v) {
-    if      (v == NULL)         printf("(null)");
-    else if (v->type == IR_REG) printf("reg%d", v->val.reg_no);
-    else if (v->type == IR_SYM) printf("%s", v->val.symbol_name);
-    else if (v->type == IR_IMM) printf("0x%x", v->val.immediate);
-    else                        printf("(unknown)");
+    if (v == NULL)
+        printf("(null)");
+    else if (v->type == IR_REG)
+        printf("r%d", v->val.reg_no);
+    else if (v->type == IR_SYM)
+        printf("%s", v->val.symbol_name);
+    else if (v->type == IR_IMM) {
+        if (v->val.immediate >= 0 && v->val.immediate <= 9)
+            printf("%d", v->val.immediate);
+        else
+            printf("0x%x", v->val.immediate);
+    }
+    else
+        printf("(unknown)");
 }
 
 void free_ir_value(ir_value *v) {

@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include "../utils.h"
 #include "ir_entry.h"
 #include "ir_value.h"
 
@@ -167,19 +168,29 @@ static void _print(ir_entry *e) {
             break;
 
         case IR_DATA_DECLARATION:
-            printf("\tdata %s \"%s\", %d bytes", 
+            printf("\t.%s data \"%s\", %d bytes", 
                 ir_data_storage_name(e->t.data.storage), 
                 e->t.data.symbol_name, 
                 e->t.data.length);
+
             if (e->t.data.initial_data != NULL) {
-                if (e->t.data.length == 1)
-                    printf(" = 0x%02x", *(unsigned char *)e->t.data.initial_data);
-                else if (e->t.data.length == 2)
-                    printf(" = 0x%04x", *(unsigned short *)e->t.data.initial_data);
-                else if (e->t.data.length == 4)
-                    printf(" = 0x%08x", *(unsigned short *)e->t.data.initial_data);
-                else
-                    printf(" ...");
+                int len = e->t.data.length;
+                char *ptr = e->t.data.initial_data;
+
+                if (len == 1)
+                    printf(" = 0x%02x", *(unsigned char *)ptr);
+                else if (len == 2)
+                    printf(" = 0x%04x", *(unsigned short *)ptr);
+                else if (len == 4)
+                    printf(" = 0x%08x", *(unsigned short *)ptr);
+                else {
+                    // if all but the last are not zeros, it's a string
+                    if (strchr(ptr, 0) == ptr + len - 1) {
+                        printf(" = \"");
+                        print_pretty(ptr);
+                        printf("\"");
+                    }
+                }
             }
             break;
 

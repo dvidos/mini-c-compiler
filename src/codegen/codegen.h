@@ -18,7 +18,7 @@ typedef struct code_gen {
     struct code_gen_ops *ops;
 } code_gen;
 
-code_gen *new_code_generator2(ir_listing *listing);
+code_gen *new_code_generator(ir_listing *listing);
 
 struct code_gen_ops {
     void (*generate_for_module)(code_gen *cg, ast_module_node *mod);

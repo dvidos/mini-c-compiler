@@ -6,6 +6,7 @@ SRC_FILES = \
 	options.c \
 	utils.c \
 	lexer/token.c \
+	lexer/token_list.c \
 	lexer/lexer.c \
 	statement.c \
 	data_type.c \

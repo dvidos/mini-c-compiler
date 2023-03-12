@@ -3,7 +3,7 @@
 #include "stdarg.h"
 #include "../err_handler.h"
 #include "../options.h"
-#include "../lexer/token.h"
+#include "../lexer/token_list.h"
 
 // iteration for our parser
 // to be used from both parsers:
@@ -11,30 +11,32 @@
 // - shunting yard for expressions
 
 
-static token *current_token;
-static token *accepted_token;
+static token_list *list;
+static int current_index;
+static int accepted_index;
 
-void init_token_iterator(token *first_token) {
-    current_token = first_token;
-    accepted_token = NULL;
+void init_token_iterator(token_list *l) {
+    list = l;
+    current_index = 0;
+    accepted_index = -1;
 }
 
 token *next() {
-    return current_token;
+    return list->tokens[current_index];
 }
 
 token *lookahead(int times) {
-    token *ahead = current_token;
-    while (times-- > 0 && ahead != NULL && ahead->type != TOK_EOF)
-        ahead = ahead->next;
-    return ahead;
+    int i = current_index;
+    while (times-- > 0 && i < list->length && list->tokens[i]->type != TOK_EOF)
+        i++;
+    return list->tokens[i];
 }
 
 // returns the type of the next token, without advancing
 bool next_is(token_type type) {
-    if (current_token == NULL)
+    if (current_index >= list->length)
         return type == TOK_EOF;
-    return current_token->type == type;
+    return list->tokens[current_index]->type == type;
 }
 
 bool lookahead_is(int times, token_type type) {
@@ -46,16 +48,15 @@ bool lookahead_is(int times, token_type type) {
 
 // advances to the next token
 void consume() {
-
-    if (current_token != NULL && current_token->type != TOK_EOF) {
+    if (current_index < list->length && list->tokens[current_index]->type != TOK_EOF) {
         if (options.verbose) {
-            if (current_token->value == NULL)
-                printf("  Parsing AST, at line %d, consumed %s\n", current_token->line_no, token_type_name(current_token->type));
+            if (list->tokens[current_index]->value == NULL)
+                printf("  Parsing AST, at line %d, consumed %s\n", list->tokens[current_index]->line_no, token_type_name(list->tokens[current_index]->type));
             else 
-                printf("  Parsing AST, at line %d, consumed %s: %s\n", current_token->line_no, token_type_name(current_token->type), current_token->value);
+                printf("  Parsing AST, at line %d, consumed %s: %s\n", list->tokens[current_index]->line_no, token_type_name(list->tokens[current_index]->type), list->tokens[current_index]->value);
         }
-        accepted_token = current_token;
-        current_token = current_token->next;
+        accepted_index = current_index;
+        current_index++;
     }
 }
 
@@ -70,18 +71,18 @@ bool accept(token_type type) {
 
 // returns the last consumed token
 token *accepted() {
-    return accepted_token;
+    return list->tokens[accepted_index];
 }
 
 // verifies next token is of specified type, otherwise fail
 bool expect(token_type type) {
     if (!next_is(type)) {
         error(
-            current_token->filename,
-            current_token->line_no,
+            list->tokens[current_index]->filename,
+            list->tokens[current_index]->line_no,
             "was expecting \"%s\", but got \"%s\"", 
             token_type_name(type), 
-            token_type_name(current_token->type)
+            token_type_name(list->tokens[current_index]->type)
         );
         return false;
     }

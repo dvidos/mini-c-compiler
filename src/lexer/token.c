@@ -49,22 +49,6 @@ token *create_token(token_type type, char *value, char *filename, int line_no) {
     return t;
 }
 
-void init_tokens() {
-    tokens_head = NULL;
-    tokens_tail = NULL;
-}
-
-void add_token(token *token) {
-    if (tokens_head == NULL) {
-        tokens_head = token;
-        tokens_tail = token;
-    } else {
-        tokens_tail->next = token;
-        tokens_tail = token;
-    }
-    token->next = NULL;
-}
-
 char *token_type_name(enum token_type type) {
     switch (type) {
         case TOK_COMMENT: return "comment";
@@ -123,52 +107,5 @@ char *token_type_name(enum token_type type) {
         case TOK_UNKNOWN: return "*** unknown ***";
         default: return "*** UN-NAMED ***";
     }
-}
-
-void print_token(token *token, char *prefix, bool unknown_only) {
-    char *name = token_type_name(token->type);
-
-    if (unknown_only) {
-      if ((strcmp(name, "*** unknown ***") != 0))
-        return;
-    } 
-    
-    if (token->value == NULL) {
-        printf("%sline %d: %s\n", prefix, token->line_no, name);
-    } else {
-        printf("%sline %d: %s \"%s\"\n", prefix, token->line_no, name, token->value);
-    }
-}
-
-void print_tokens(char *prefix, bool unknown_only) {
-    token *p = tokens_head;
-    while (p != NULL) {
-        print_token(p, prefix, unknown_only);
-        p = p->next;
-    }
-}
-
-int count_tokens() {
-    int i = 0;
-    token *p = tokens_head;
-    while (p != NULL) {
-        i++;
-        p = p->next;
-    }
-    return i;
-}
-
-bool unknown_tokens_exist() {
-    token *p = tokens_head;
-    while (p != NULL) {
-        if (p->type == TOK_UNKNOWN)
-            return true;
-        p = p->next;
-    }
-    return false;
-}
-
-token *get_first_token() {
-    return tokens_head;
 }
 

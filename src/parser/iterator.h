@@ -3,9 +3,9 @@
 #include "stddef.h"
 #include "stdio.h"
 #include "stdarg.h"
-#include "../lexer/token.h"
+#include "../lexer/token_list.h"
 
-void init_token_iterator(token *first_token);
+void init_token_iterator(token_list *list);
 
 // returns the next (aka current) token, as opposed to accepted()
 token *next();

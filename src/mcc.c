@@ -4,6 +4,7 @@
 #include "err_handler.h"
 #include "utils.h"
 #include "options.h"
+#include "lexer/token_list.h"
 #include "lexer/token.h"
 #include "lexer/lexer.h"
 #include "declaration.h"
@@ -40,13 +41,12 @@ void load_source_code(char **source_code) {
     (*source_code) = p;
 }
 
-void parse_file_into_lexer_tokens(char *file_buffer, char *filename, token **first_token) {
+void parse_file_into_lexer_tokens(char *file_buffer, char *filename, token_list *list) {
     char *p = file_buffer;
     token *token = NULL;
     int err;
     int line_no = 1;
 
-    *first_token = NULL;
     while (*p != '\0') {
         parse_lexer_token_at_pointer(&p, filename, &line_no, &token);
         if (errors_count)
@@ -56,39 +56,38 @@ void parse_file_into_lexer_tokens(char *file_buffer, char *filename, token **fir
             break;
         if (token->type == TOK_COMMENT)
             continue;
-        add_token(token);
+        
+        list->add(list, token);
     }
 
     // one final token, to allow us to always peek at the subsequent token
-    add_token(create_token(TOK_EOF, NULL, filename, 999999));
-    *first_token = get_first_token();
-
-    if (unknown_tokens_exist()) {
+    list->add(list, create_token(TOK_EOF, NULL, filename, 999999));
+    if (list->unknown_tokens_exist(list)) {
         error(filename, 0, "Unknown tokens detected, cannot continue...\n");
-        print_tokens("  ", true);
+        list->print(list, "  ", true);
         return;
     }
 
-    printf("Broke file contents into %d tokens\n", count_tokens());
-    if (options.verbose)
-        print_tokens("  ", false);
+    if (options.verbose) {
+        printf("---- File tokens ----\n");
+        list->print(list, "  ", false);
+    }
 }
 
-void parse_abstract_syntax_tree(token *first) {
-    init_token_iterator(first);
+void parse_abstract_syntax_tree(token_list *list) {
+    init_token_iterator(list);
     init_ast();
 
-    parse_file_using_recursive_descend(first);
+    parse_file_using_recursive_descend(list->tokens[0]);
     if (errors_count)
         return;
 
     // should say "parsed x nodes in AST"
-    int functions;
-    int statements;
-    int expressions;
-    ast_count_nodes(&functions, &statements, &expressions);
-    printf("Parsed tokens into %d functions, %d statements, %d expression nodes\n",
-        functions, statements, expressions);
+    // int functions;
+    // int statements;
+    // int expressions;
+    // ast_count_nodes(&functions, &statements, &expressions);
+    // printf("Parsed tokens into %d functions, %d statements, %d expression nodes\n", functions, statements, expressions);
 
     if (options.verbose)
         print_ast();
@@ -189,20 +188,20 @@ int main(int argc, char *argv[]) {
 
     init_operators();
     init_lexer();
-    init_tokens();
 
     char *source_code;
     load_source_code(&source_code);
     if (errors_count)
         return 1;
 
-    token *first_token;
-    parse_file_into_lexer_tokens(source_code, options.filename, &first_token);
+
+    token_list *token_list = new_token_list();
+    parse_file_into_lexer_tokens(source_code, options.filename, token_list);
     free(source_code);
     if (errors_count)
         return 1;
 
-    parse_abstract_syntax_tree(first_token);
+    parse_abstract_syntax_tree(token_list);
     if (errors_count)
         return 1;
 

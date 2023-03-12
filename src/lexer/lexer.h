@@ -1,5 +1,4 @@
 #pragma once
-
 #include "token.h"
 
 void init_lexer();

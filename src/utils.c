@@ -105,3 +105,19 @@ unsigned long round_up(unsigned long value, unsigned threshold) {
     return (((value + threshold - 1) / threshold) * threshold);
 }
 
+char *set_extension(char *path, char *extension) {
+
+    char *last_dot = strrchr(path, '.');
+    int len = (last_dot == NULL) ? strlen(path) : (last_dot - path);
+
+    char *str = malloc(len + 1 + strlen(extension) + 1);
+    memcpy(str, path, len);
+    str[len] = '\0';
+
+    if (strlen(extension) > 0) {
+        strcat(str, ".");
+        strcat(str, extension);
+    }
+
+    return str;
+}

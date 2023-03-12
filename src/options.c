@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <string.h>
 #include "options.h"
+#include "utils.h"
 
 // global read-only variable
 struct options options;

@@ -74,7 +74,7 @@ static bool _backfill_buffer(reloc_list *list, symbol_table *symbols, buffer *bu
 
         // we are supposed to respect the relocation type.
         if (r->type == RT_ABS_32) {
-            void *pos = &buff->data[r->position];
+            void *pos = &buff->buffer[r->position];
             *(u32 *)pos = (u32)(base_address + sym->offset);
         } else {
             printf("Not supported relocation type %d\n", r->type);

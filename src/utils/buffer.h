@@ -11,7 +11,7 @@ typedef uint64_t u64;
 typedef struct buffer buffer;
 
 struct buffer {
-    char *data;
+    char *buffer;
     int capacity;
     int length;
     void (*clear)(buffer *buff);

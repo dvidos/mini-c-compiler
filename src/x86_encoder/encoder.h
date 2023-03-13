@@ -5,7 +5,7 @@
 #include "../utils/buffer.h"
 #include "reloc_list.h"
 #include "asm_listing.h"
-#include "module.h"
+#include "obj_code.h"
 
 
 enum x86_cpu_mode {
@@ -27,5 +27,3 @@ struct x86_encoder {
 
 struct x86_encoder *new_x86_encoder(enum x86_cpu_mode mode, buffer *code_out, reloc_list *relocations_out);
 
-
-void x86_encode_asm_module(asm_listing *asm_list, enum x86_cpu_mode mode, module *mod);

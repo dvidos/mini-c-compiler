@@ -127,7 +127,7 @@ void code_gen_generate_for_statement(code_gen *cg, statement *stmt) {
 
         case ST_EXPRESSION:
             // there may be expressions that don't return anything, e.g. calling void functions.
-            cg->ops->generate_for_expression(cg, new_ir_value_symbol("(ignored)"), stmt->expr);
+            cg->ops->generate_for_expression(cg, NULL, stmt->expr);
             break;    
     }
 }

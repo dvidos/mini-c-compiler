@@ -1,5 +1,6 @@
 #pragma once
 #include <stdbool.h>
+#include <stdio.h>
 #include "ir_value.h"
 
 enum ir_entry_type {
@@ -101,6 +102,6 @@ ir_entry *new_ir_conditional_jump(ir_value *v1, ir_comparison cmp, ir_value *v2,
 ir_entry *new_ir_unconditional_jump(char *label_fmt, ...);
 
 struct ir_entry_ops {
-    void (*print)(ir_entry *e);
+    void (*print)(ir_entry *e, FILE *stream);
     void (*free)(ir_entry *e);
 };

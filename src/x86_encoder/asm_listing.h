@@ -1,4 +1,5 @@
 #pragma once
+#include <stdio.h>
 #include "instruction.h"
 
 typedef struct asm_listing asm_listing;
@@ -14,7 +15,7 @@ typedef struct asm_listing {
 } asm_listing;
 
 struct asm_listing_ops {
-    void (*print)(asm_listing *lst);
+    void (*print)(asm_listing *lst, FILE *stream);
     void (*set_next_label)(asm_listing *lst, char *label);
     void (*add_single_instruction)(asm_listing *lst, enum opcode code); // e.g. NOP
     void (*add_instruction_with_immediate)(asm_listing *lst, enum opcode code, u64 value); // e.g. PUSH 1

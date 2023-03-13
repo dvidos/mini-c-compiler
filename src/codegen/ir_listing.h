@@ -1,5 +1,6 @@
 #pragma once
 #include <stdbool.h>
+#include <stdio.h>
 #include "ir_entry.h"
 
 
@@ -17,10 +18,7 @@ ir_listing *new_ir_listing();
 
 struct ir_listing_ops {
     void (*add)(ir_listing *l, ir_entry *entry);
-    void (*print)(ir_listing *l);
+    void (*print)(ir_listing *l, FILE *stream);
     void (*free)(ir_listing *l);
-    // optimize()
-    // produce_asm_listing()
-    // also see https://courses.cs.washington.edu/courses/cse401/06sp/codegen.pdf
 };
 

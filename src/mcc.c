@@ -22,7 +22,7 @@
 #include "elf/elf_contents.h"
 #include "elf/elf.h"
 #include "x86_encoder/asm_listing.h"
-#include "x86_encoder/module.h"
+#include "x86_encoder/obj_code.h"
 #include "x86_encoder/assembler.h"
 #include "x86_encoder/linker.h"
 #include "x86_encoder/encoder.h"
@@ -104,17 +104,29 @@ void perform_semantic_analysis() {
 
 void generate_intermediate_code(ir_listing *listing) {
     code_gen *gen = new_code_generator(listing);
-    if (errors_count)
-        return;
+    if (errors_count) return;
     
     gen->ops->generate_for_module(gen, get_ast_root_node());
+    if (errors_count) return;
 
     if (options.verbose) {
         printf("--------- Generated Intermediate Representation ---------\n");
-        listing->ops->print(listing);
+        listing->ops->print(listing, stdout);
     }
 
     // we could run IR optimizations here
+
+    // save result, if required
+    if (options.generate_ir) {
+        char *ir_filename = set_extension(options.filename, "ir");
+        FILE *f = fopen(ir_filename, "w");
+        if (f == NULL) {
+            error(NULL, 0, "cannot open file \"%s\" for writing", ir_filename);
+        }
+        listing->ops->print(listing, f);
+        fclose(f);
+        free(ir_filename);
+    }
 }
 
 void generate_machine_code(ir_listing *ir_list) {
@@ -123,23 +135,35 @@ void generate_machine_code(ir_listing *ir_list) {
     // then a linker that,     given the machine code generates the executable (executable file)
 
     asm_listing *asm_list = new_asm_listing();
-    x86_assemble(ir_list, asm_list);
+    x86_assemble_ir_listing(ir_list, asm_list);
     if (errors_count)
         return;
 
-    module *mod = new_module();
-    x86_encode_asm_module(asm_list, CPU_MODE_PROTECTED, mod);
-    if (errors_count)
-        return;
-
-    char *executable = set_extension(options.filename, "");
-    if (strcmp(executable, options.filename)) {
-        error(NULL, 0, "output filename same as input, will not overwrite");
-        return;
+    if (options.generate_asm) {
+        char *asm_filename = set_extension(options.filename, "asm");
+        FILE *f = fopen(asm_filename, "w");
+        if (f == NULL) {
+            error(NULL, 0, "cannot open file \"%s\" for writing", asm_filename);
+        }
+        asm_list->ops->print(asm_list, f);
+        fclose(f);
+        free(asm_filename);
     }
 
-    module *modules[1] = { mod };
-    x86_link(modules, 1, 0x12345678, executable);
+    obj_code *mod = new_obj_code_module();
+    x86_encode_asm_into_machine_code(asm_list, CPU_MODE_PROTECTED, mod);
+    if (errors_count)
+        return;
+
+    if (options.generate_obj) {
+        // save the obj_code as relocatable object code
+    }
+
+    // link into executable
+    obj_code *modules[1] = { mod };
+    char *executable_name = set_extension(options.filename, "");
+    x86_link(modules, 1, 0x8048000, executable_name);
+    free(executable_name);
 }
 
 int main(int argc, char *argv[]) {

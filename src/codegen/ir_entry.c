@@ -8,7 +8,7 @@
 #include "ir_value.h"
 
 
-static void _print(ir_entry *e);
+static void _print(ir_entry *e, FILE *stream);
 static void _free(ir_entry *e);
 
 static struct ir_entry_ops ops = {
@@ -154,21 +154,21 @@ static char *ir_comparison_name(ir_comparison cmp) {
     return "(unknown)";
 }
 
-static void _print(ir_entry *e) {
+static void _print(ir_entry *e, FILE *stream) {
     switch (e->type) {
         case IR_COMMENT:
             if (strlen(e->t.comment.str) > 0)
-                printf("# %s", e->t.comment.str);
+                fprintf(stream, "# %s", e->t.comment.str);
             else
-                printf("%s", ""); // empty line
+                fprintf(stream, "%s", ""); // empty line
             break;
 
         case IR_LABEL:
-            printf("%s:", e->t.label.str);
+            fprintf(stream, "%s:", e->t.label.str);
             break;
 
         case IR_DATA_DECLARATION:
-            printf("\t.%s data \"%s\", %d bytes", 
+            fprintf(stream, "\t.%s data \"%s\", %d bytes", 
                 ir_data_storage_name(e->t.data.storage), 
                 e->t.data.symbol_name, 
                 e->t.data.length);
@@ -178,17 +178,17 @@ static void _print(ir_entry *e) {
                 char *ptr = e->t.data.initial_data;
 
                 if (len == 1)
-                    printf(" = 0x%02x", *(unsigned char *)ptr);
+                    fprintf(stream, " = 0x%02x", *(unsigned char *)ptr);
                 else if (len == 2)
-                    printf(" = 0x%04x", *(unsigned short *)ptr);
+                    fprintf(stream, " = 0x%04x", *(unsigned short *)ptr);
                 else if (len == 4)
-                    printf(" = 0x%08x", *(unsigned short *)ptr);
+                    fprintf(stream, " = 0x%08x", *(unsigned short *)ptr);
                 else {
                     // if all but the last are not zeros, it's a string
                     if (strchr(ptr, 0) == ptr + len - 1) {
-                        printf(" = \"");
-                        print_pretty(ptr);
-                        printf("\"");
+                        fprintf(stream, " = \"");
+                        print_pretty(ptr, stream);
+                        fprintf(stream, "\"");
                     }
                 }
             }
@@ -196,50 +196,50 @@ static void _print(ir_entry *e) {
 
         case IR_THREE_ADDR_CODE:
             // can be a=c, a=!c, a=b+c, or even just c (func call)
-            printf("\t");
+            fprintf(stream, "\t");
             if (e->t.three_address_code.lvalue != NULL) {
-                print_ir_value(e->t.three_address_code.lvalue);
-                printf(" = ");
+                print_ir_value(e->t.three_address_code.lvalue, stream);
+                fprintf(stream, " = ");
             }
             if (e->t.three_address_code.op1 != NULL) {
-                print_ir_value(e->t.three_address_code.op1);
-                printf(" ");
+                print_ir_value(e->t.three_address_code.op1, stream);
+                fprintf(stream, " ");
             }
             if (e->t.three_address_code.op != IR_NONE) {
-                printf("%s ", ir_operation_name(e->t.three_address_code.op));
+                fprintf(stream, "%s ", ir_operation_name(e->t.three_address_code.op));
             }
-            print_ir_value(e->t.three_address_code.op2);
+            print_ir_value(e->t.three_address_code.op2, stream);
             break;
 
         case IR_FUNCTION_CALL:
-            printf("\t");
+            fprintf(stream, "\t");
             if (e->t.function_call.lvalue != NULL) {
-                print_ir_value(e->t.function_call.lvalue);
-                printf(" = ");
+                print_ir_value(e->t.function_call.lvalue, stream);
+                fprintf(stream, " = ");
             }
-            printf("call ");
-            print_ir_value(e->t.function_call.func_addr);
+            fprintf(stream, "call ");
+            print_ir_value(e->t.function_call.func_addr, stream);
             if (e->t.function_call.args_len > 0) {
-                printf(" passing ");
+                fprintf(stream, " passing ");
                 for (int i = 0; i < e->t.function_call.args_len; i++) {
-                    if (i > 0) printf(", ");
-                    print_ir_value(e->t.function_call.args_arr[i]);
+                    if (i > 0) fprintf(stream, ", ");
+                    print_ir_value(e->t.function_call.args_arr[i], stream);
                 }
             }
             break;
 
         case IR_CONDITIONAL_JUMP:
-            printf("\t");
-            printf("if ");
-            print_ir_value(e->t.conditional_jump.v1);
-            printf(" %s ", ir_comparison_name(e->t.conditional_jump.cmp));
-            print_ir_value(e->t.conditional_jump.v2);
-            printf(" goto %s", e->t.conditional_jump.target_label);
+            fprintf(stream, "\t");
+            fprintf(stream, "if ");
+            print_ir_value(e->t.conditional_jump.v1, stream);
+            fprintf(stream, " %s ", ir_comparison_name(e->t.conditional_jump.cmp));
+            print_ir_value(e->t.conditional_jump.v2, stream);
+            fprintf(stream, " goto %s", e->t.conditional_jump.target_label);
             break;
 
         case IR_UNCONDITIONAL_JUMP:
-            printf("\t");
-            printf("goto %s", e->t.unconditional_jump.target_label);
+            fprintf(stream, "\t");
+            fprintf(stream, "goto %s", e->t.unconditional_jump.target_label);
             break;
     }
 }

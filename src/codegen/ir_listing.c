@@ -5,7 +5,7 @@
 
 
 static void _add(ir_listing *l, ir_entry *entry);
-static void _print(ir_listing *l);
+static void _print(ir_listing *l, FILE *stream);
 static void _free(ir_listing *l);
 
 static struct ir_listing_ops ops = {
@@ -33,11 +33,11 @@ static void _add(ir_listing *l, ir_entry *entry) {
     l->length++;
 }
 
-static void _print(ir_listing *l) {
+static void _print(ir_listing *l ,FILE *stream) {
     for (int i = 0; i < l->length; i++) {
         ir_entry *e = l->entries_arr[i];
-        e->ops->print(e);
-        printf("\n");
+        e->ops->print(e, stream);
+        fprintf(stream, "\n");
     }
 }
 

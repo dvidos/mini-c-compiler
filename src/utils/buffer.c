@@ -19,7 +19,7 @@ static void _free(buffer *buff);
 buffer *new_buffer() {
     buffer *p = malloc(sizeof(buffer));
     p->capacity = 10;
-    p->data = malloc(p->capacity);
+    p->buffer = malloc(p->capacity);
     p->length = 0;
 
     p->clear = _clear;
@@ -48,40 +48,40 @@ static void _ensure_enough_capacity(buffer *buff, int space_needed) {
         while (buff->length + space_needed >= buff->capacity)
             buff->capacity *= 2;
 
-        buff->data = realloc(buff->data, buff->capacity);
+        buff->buffer = realloc(buff->buffer, buff->capacity);
     }
 }
 
 
 static void _append(buffer *buff, buffer *source) {
     _ensure_enough_capacity(buff, source->length);
-    memcpy(buff->data + buff->length, source->data, source->length);
+    memcpy(buff->buffer + buff->length, source->buffer, source->length);
     buff->length += source->length;
 }
 
 static void _add_byte(buffer *buff, u8 value) {
     _ensure_enough_capacity(buff, 1);
-    buff->data[buff->length] = value;
+    buff->buffer[buff->length] = value;
     buff->length++;
 }
 
 static void _add_word(buffer *buff, u16 value) {
     _ensure_enough_capacity(buff, 2);
-    u16 *p = (u16 *)(&buff->data[buff->length]);
+    u16 *p = (u16 *)(&buff->buffer[buff->length]);
     *p = value;
     buff->length += sizeof(value);
 }
 
 static void _add_dword(buffer *buff, u32 value) {
     _ensure_enough_capacity(buff, 4);
-    u32 *p = (u32 *)(&buff->data[buff->length]);
+    u32 *p = (u32 *)(&buff->buffer[buff->length]);
     *p = value;
     buff->length += sizeof(value);
 }
 
 static void _add_quad(buffer *buff, u64 value) {
     _ensure_enough_capacity(buff, 4);
-    u64 *p = (u64 *)(&buff->data[buff->length]);
+    u64 *p = (u64 *)(&buff->buffer[buff->length]);
     *p = value;
     buff->length += sizeof(value);
 }
@@ -92,13 +92,13 @@ static void _fill(buffer *buff, int target_length, u8 filler) {
 
     _ensure_enough_capacity(buff, target_length);
     int expansion = target_length - buff->length;
-    memset(buff->data + buff->length, filler, expansion);
+    memset(buff->buffer + buff->length, filler, expansion);
     buff->length += expansion;
 }
 
 static void _add_mem(buffer *buff, void *mem, int len) {
     _ensure_enough_capacity(buff, len);
-    char *pos = &buff->data[buff->length];
+    char *pos = &buff->buffer[buff->length];
     memcpy(pos, mem, len);
     buff->length += len;
 }
@@ -109,13 +109,13 @@ static void _add_strz(buffer *buff, char *strz) {
 
 static void _add_zeros(buffer *buff, int len) {
     _ensure_enough_capacity(buff, len);
-    char *pos = &buff->data[buff->length];
+    char *pos = &buff->buffer[buff->length];
     memset(pos, 0, len);
     buff->length += len;
 }
 
 static void _free(buffer *buff) {
-    free(buff->data);
+    free(buff->buffer);
     free(buff);
 }
 

@@ -2,8 +2,8 @@
 void printf(char *fmt, int a, int b);
 
 int counter = 65534;
-char *message = "Hello world!";
 int numbers[10];
+char *message = "Hello world!";
 
 
 int get_next_counter_value() {

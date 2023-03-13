@@ -26,21 +26,21 @@ ir_value *new_ir_value_immediate(int value) {
     return v;
 }
 
-void print_ir_value(ir_value *v) {
+void print_ir_value(ir_value *v, FILE *stream) {
     if (v == NULL)
-        printf("(null)");
+        fprintf(stream, "(null)");
     else if (v->type == IR_REG)
-        printf("r%d", v->val.reg_no);
+        fprintf(stream, "r%d", v->val.reg_no);
     else if (v->type == IR_SYM)
-        printf("%s", v->val.symbol_name);
+        fprintf(stream, "%s", v->val.symbol_name);
     else if (v->type == IR_IMM) {
         if (v->val.immediate >= 0 && v->val.immediate <= 9)
-            printf("%d", v->val.immediate);
+            fprintf(stream, "%d", v->val.immediate);
         else
-            printf("0x%x", v->val.immediate);
+            fprintf(stream, "0x%x", v->val.immediate);
     }
     else
-        printf("(unknown)");
+        fprintf(stream, "(unknown)");
 }
 
 void free_ir_value(ir_value *v) {

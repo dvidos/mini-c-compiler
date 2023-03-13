@@ -1,8 +1,9 @@
 #include <stdbool.h>
+#include <stdio.h>
 
 
 void print_16_hex(void *buffer, int size, int indent);
-void print_pretty(char *str);
+void print_pretty(char *str, FILE *stream);
 
 
 bool load_text(char *filemame, char **buffer);

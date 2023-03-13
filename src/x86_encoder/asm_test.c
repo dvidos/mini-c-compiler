@@ -8,7 +8,7 @@
 #include "../elf/elf.h"
 #include "../utils.h"
 #include "../options.h"
-#include "module.h"
+#include "obj_code.h"
 #include "asm_listing.h"
 
 static void test_create_executable();
@@ -188,7 +188,7 @@ static bool verify_single_instruction(struct instruction *instr, char *expected_
         return false;
     }
 
-    if (memcmp(enc->output->data, expected_bytes, expected_len) != 0) {
+    if (memcmp(enc->output->buffer, expected_bytes, expected_len) != 0) {
         printf("\n");
         printf("  Bad instruction encoding '%s'\n", buff);
         printf("  Expected:");
@@ -197,7 +197,7 @@ static bool verify_single_instruction(struct instruction *instr, char *expected_
         printf("\n");
         printf("  Produced:");
         for (int i = 0; i < enc->output->length; i++)
-            printf(" %02x", (u8)enc->output->data[i]);
+            printf(" %02x", (u8)enc->output->buffer[i]);
         printf("\n");
         enc->free(enc);
         return false;
@@ -224,7 +224,7 @@ static void verify_listing(char *title, struct instruction *list, int instr_coun
         }
     }
 
-    if (memcmp(encoder->output->data, expected, expected_len) == 0) {
+    if (memcmp(encoder->output->buffer, expected, expected_len) == 0) {
         printf(" [OK]\n");
         return;
     }
@@ -238,7 +238,7 @@ static void verify_listing(char *title, struct instruction *list, int instr_coun
     }
 
     printf("Encoded machine code: (%d bytes)\n", encoder->output->length);
-    print_16_hex(encoder->output->data, encoder->output->length, 2);
+    print_16_hex(encoder->output->buffer, encoder->output->length, 2);
 
     printf("Unresolved references:\n");
     printf("  Position  Symbol name\n");
@@ -255,7 +255,7 @@ static void verify_listing(char *title, struct instruction *list, int instr_coun
 
     printf("Produced: ");
     for (int i = 0; i < encoder->output->length; i++)
-        printf(" %02x", (unsigned char)encoder->output->data[i]);
+        printf(" %02x", (unsigned char)encoder->output->buffer[i]);
     printf("\n");
 }
 
@@ -336,12 +336,12 @@ void test_create_executable() {
 
     // .text
     prog->code_address = code_seg_address; // usual starting address
-    prog->code_contents = enc->output->data;
+    prog->code_contents = enc->output->buffer;
     prog->code_size = enc->output->length;
     prog->code_entry_point = code_seg_address; // address of _start, actually...
     // .data
     prog->data_address = data_seg_address;
-    prog->data_contents = data_seg->data;
+    prog->data_contents = data_seg->buffer;
     prog->data_size = data_seg->length;
     // .bss
     prog->bss_address = round_up(prog->data_address + prog->data_size, 4096);
@@ -376,12 +376,12 @@ void test_create_executable() {
 }
 
 
-static bool _encode_listing_code(asm_listing *lst, module *mod, enum x86_cpu_mode mode);
-static bool _link_module(module *mod, u64 code_base_address, char *filename);
+static bool _encode_listing_code(asm_listing *lst, obj_code *mod, enum x86_cpu_mode mode);
+static bool _link_module(obj_code *mod, u64 code_base_address, char *filename);
 
 void test_create_executable2() {
     asm_listing *lst = new_asm_listing();
-    module *mod = new_module();
+    obj_code *mod = new_obj_code_module();
     
     mod->ops->declare_data(mod, "hello_msg", 13 + 1, "Hello World!\n");
 
@@ -397,23 +397,23 @@ void test_create_executable2() {
     lst->ops->add_instruction_with_register_and_immediate(lst, OC_MOV, REG_BX, 0);
     lst->ops->add_instruction_with_immediate(lst, OC_INT, 0x80);
 
-    lst->ops->print(lst);
+    lst->ops->print(lst, stdout);
 
     // now we need an assembler to convert the asm_listing into a mod code + labels + relocs
     if (!_encode_listing_code(lst, mod, CPU_MODE_PROTECTED))
         return;
 
-    printf("Prepared module:\n");
+    printf("Prepared obj_code:\n");
     mod->ops->print(mod);
     
-    // now we need a linker to convert the module into an executable
+    // now we need a linker to convert the obj_code into an executable
     if (!_link_module(mod, 0x8049000, "out2.elf"))
         return;
 }
 
-static bool _encode_listing_code(asm_listing *lst, module *mod, enum x86_cpu_mode mode) {
+static bool _encode_listing_code(asm_listing *lst, obj_code *mod, enum x86_cpu_mode mode) {
     // encode this into intel machine code
-    struct x86_encoder *enc = new_x86_encoder(mode, mod->text, mod->relocations);
+    struct x86_encoder *enc = new_x86_encoder(mode, mod->text_seg, mod->relocations);
     struct instruction *inst;
 
     for (int i = 0; i < lst->length; i++) {
@@ -421,7 +421,7 @@ static bool _encode_listing_code(asm_listing *lst, module *mod, enum x86_cpu_mod
 
         if (inst->label != NULL) {
             // we don't know if this is exported for now
-            mod->symbols->add(mod->symbols, inst->label, mod->text->length, SB_CODE);
+            mod->symbols->add(mod->symbols, inst->label, mod->text_seg->length, SB_CODE);
         }
 
         if (!enc->encode(enc, inst)) {
@@ -435,7 +435,7 @@ static bool _encode_listing_code(asm_listing *lst, module *mod, enum x86_cpu_mod
     return true;
 }
 
-static bool _link_module(module *mod, u64 code_base_address, char *filename) {
+static bool _link_module(obj_code *mod, u64 code_base_address, char *filename) {
     // in theory many modules, merge them together, update references and symbol addresses
     // map: code, then data, then bss
     // decide base addresses, resolve references.
@@ -451,13 +451,13 @@ static bool _link_module(module *mod, u64 code_base_address, char *filename) {
     u64 data_base_address;
     u64 bss_base_address;
 
-    data_base_address = round_up(code_base_address + mod->text->length, 4096);
-    bss_base_address = round_up(data_base_address + mod->data->length, 4096);
+    data_base_address = round_up(code_base_address + mod->text_seg->length, 4096);
+    bss_base_address = round_up(data_base_address + mod->data_seg->length, 4096);
 
     if (!mod->relocations->backfill_buffer(
         mod->relocations, 
         mod->symbols,
-        mod->text,
+        mod->text_seg,
         // choose base, depending on the symbol type
         code_base_address, data_base_address, bss_base_address))
     {
@@ -470,14 +470,14 @@ static bool _link_module(module *mod, u64 code_base_address, char *filename) {
     elf.flags.is_static_executable = true;
     elf.flags.is_64_bits = false;
     elf.code_address = code_base_address; // usual starting address
-    elf.code_contents = mod->text->data;
-    elf.code_size = mod->text->length;
+    elf.code_contents = mod->text_seg->buffer;
+    elf.code_size = mod->text_seg->length;
     elf.code_entry_point = code_base_address + start->offset; // address of _start, actually...
     elf.data_address = data_base_address;
-    elf.data_contents = mod->data->data;
-    elf.data_size = mod->data->length;
+    elf.data_contents = mod->data_seg->buffer;
+    elf.data_size = mod->data_seg->length;
     elf.bss_address = bss_base_address;
-    elf.bss_size = mod->bss->length;
+    elf.bss_size = mod->bss_seg->length;
     
     long elf_size = 0;
     if (!write_elf_file(&elf, filename, &elf_size)) {

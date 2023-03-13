@@ -5,7 +5,7 @@
 #include "asm_listing.h"
 
 
-static void _print(asm_listing *lst);
+static void _print(asm_listing *lst, FILE *stream);
 static void _ensure_capacity(asm_listing *lst, int extra);
 static void _set_next_label(asm_listing *lst, char *label);
 static void _add_single_instruction(asm_listing *lst, enum opcode code); // e.g. NOP
@@ -36,17 +36,17 @@ asm_listing *new_asm_listing() {
     return p;
 }
 
-static void _print(asm_listing *lst) {
+static void _print(asm_listing *lst, FILE *stream) {
     struct instruction *inst;
     char buff[128];
 
     for (int i = 0; i < lst->length; i++) {
         inst = &lst->instructions[i];
         if (inst->label != NULL)
-            printf("%s:\n", inst->label);
+            fprintf(stream, "%s:\n", inst->label);
         
         instruction_to_string(inst, buff, sizeof(buff));
-        printf("\t%s\n", buff);
+        fprintf(stream, "\t%s\n", buff);
     }
 }
 

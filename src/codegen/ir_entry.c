@@ -16,6 +16,14 @@ static struct ir_entry_ops ops = {
     .free = _free,
 };
 
+ir_entry *new_ir_function_definition(char *func_name) {
+    ir_entry *e = malloc(sizeof(ir_entry));
+    e->type = IR_FUNCTION_DEF;
+    e->t.function_def.func_name = strdup(func_name);
+    e->ops = &ops;
+    return e;
+}
+
 ir_entry *new_ir_comment(char *fmt, ...) {
     char buffer[128];
 
@@ -156,11 +164,13 @@ static char *ir_comparison_name(ir_comparison cmp) {
 
 static void _print(ir_entry *e, FILE *stream) {
     switch (e->type) {
+        case IR_FUNCTION_DEF:
+            fprintf(stream, "\n"); // empty line
+            fprintf(stream, "function \"%s\"", e->t.function_def.func_name);
+            break;
+
         case IR_COMMENT:
-            if (strlen(e->t.comment.str) > 0)
-                fprintf(stream, "# %s", e->t.comment.str);
-            else
-                fprintf(stream, "%s", ""); // empty line
+            fprintf(stream, "# %s", e->t.comment.str);
             break;
 
         case IR_LABEL:

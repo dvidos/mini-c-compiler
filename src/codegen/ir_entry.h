@@ -4,6 +4,7 @@
 #include "ir_value.h"
 
 enum ir_entry_type {
+    IR_FUNCTION_DEF,
     IR_COMMENT,
     IR_LABEL,
     IR_DATA_DECLARATION,
@@ -53,6 +54,9 @@ typedef struct ir_entry {
     enum ir_entry_type type;
     union entry_union {
         struct {
+            char *func_name;
+        } function_def;
+        struct {
             char *str;
         } comment;
         struct {
@@ -91,6 +95,7 @@ typedef struct ir_entry {
     struct ir_entry_ops *ops;
 } ir_entry;
 
+ir_entry *new_ir_function_definition(char *func_name);
 ir_entry *new_ir_comment(char *fmt, ...);
 ir_entry *new_ir_label(char *label_fmt, ...);
 ir_entry *new_ir_data_declaration(int length, void *initial_data, char *symbol_name, ir_data_storage storage, int arg_no);

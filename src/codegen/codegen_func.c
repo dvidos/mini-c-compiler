@@ -52,9 +52,8 @@ static void traverse_and_generate_vars(code_gen *cg, statement *stmt) {
 
 void code_gen_generate_for_function(code_gen *cg, func_declaration *func) {
 
+    cg->ir->ops->add(cg->ir, new_ir_function_definition(func->func_name));
     cg->ops->set_curr_func_name(cg, func->func_name);
-    cg->ir->ops->add(cg->ir, new_ir_comment("function %s", func->func_name));
-    cg->ir->ops->add(cg->ir, new_ir_label(func->func_name));
 
     // register arguments as local variables
     int arg_no = 0;
@@ -88,6 +87,4 @@ void code_gen_generate_for_function(code_gen *cg, func_declaration *func) {
     }
 
     cg->ir->ops->add(cg->ir, new_ir_label("%s_end", func->func_name));
-    cg->ir->ops->add(cg->ir, new_ir_comment("end of function"));
-    cg->ir->ops->add(cg->ir, new_ir_comment(""));
 }

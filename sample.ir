@@ -3,8 +3,8 @@
 	.global_ro data "message", 13 bytes = "Hello world!"
 	.global_ro data "__str_1", 23 bytes = "fibonacci of %d is %d\n"
 	.global_ro data "__str_2", 23 bytes = "factorial of %d is %d\n"
-# function get_next_counter_value
-get_next_counter_value:
+
+function "get_next_counter_value"
 	.ret_val data "ret_val", 4 bytes
 	r1 = counter
 	r2 = 1
@@ -12,10 +12,8 @@ get_next_counter_value:
 	ret_val = counter
 	goto get_next_counter_value_end
 get_next_counter_value_end:
-# end of function
 
-# function rect_area
-rect_area:
+function "rect_area"
 	.arg data "width", 4 bytes
 	.arg data "height", 4 bytes
 	.ret_val data "ret_val", 4 bytes
@@ -24,10 +22,8 @@ rect_area:
 	ret_val = r3 * r4
 	goto rect_area_end
 rect_area_end:
-# end of function
 
-# function triangle_area
-triangle_area:
+function "triangle_area"
 	.arg data "width", 4 bytes
 	.arg data "height", 4 bytes
 	.ret_val data "ret_val", 4 bytes
@@ -38,10 +34,8 @@ triangle_area:
 	ret_val = r5 * r6
 	goto triangle_area_end
 triangle_area_end:
-# end of function
 
-# function circle_area
-circle_area:
+function "circle_area"
 	.arg data "radius", 4 bytes
 	.ret_val data "ret_val", 4 bytes
 	r9 = 3
@@ -51,10 +45,8 @@ circle_area:
 	ret_val = r9 * r10
 	goto circle_area_end
 circle_area_end:
-# end of function
 
-# function fibonacci
-fibonacci:
+function "fibonacci"
 	.arg data "n", 4 bytes
 	.ret_val data "ret_val", 4 bytes
 	if n > 2 goto if_3_end
@@ -72,10 +64,8 @@ if_3_end:
 	ret_val = r13 + r17
 	goto fibonacci_end
 fibonacci_end:
-# end of function
 
-# function factorial
-factorial:
+function "factorial"
 	.arg data "n", 4 bytes
 	.ret_val data "ret_val", 4 bytes
 	if n > 1 goto if_4_end
@@ -90,10 +80,8 @@ if_4_end:
 	ret_val = r21 * r22
 	goto factorial_end
 factorial_end:
-# end of function
 
-# function math_demo
-math_demo:
+function "math_demo"
 	.local data "i", 4 bytes
 	i = 0
 while_5_begin:
@@ -120,10 +108,8 @@ while_6_begin:
 	goto while_6_begin
 while_6_end:
 math_demo_end:
-# end of function
 
-# function nested_loops_test
-nested_loops_test:
+function "nested_loops_test"
 	.local data "outer", 4 bytes
 	.local data "inner", 4 bytes
 	outer = 0xa
@@ -141,10 +127,8 @@ while_8_end:
 	goto while_7_begin
 while_7_end:
 nested_loops_test_end:
-# end of function
 
-# function main
-main:
+function "main"
 	.arg data "argc", 4 bytes
 	.arg data "argv", 4 bytes
 	.local data "a", 4 bytes
@@ -158,5 +142,3 @@ main:
 	b = r36 + r37
 	call math_demo
 main_end:
-# end of function
-

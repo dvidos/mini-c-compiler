@@ -386,16 +386,16 @@ void test_create_executable2() {
     mod->ops->declare_data(mod, "hello_msg", 13 + 1, "Hello World!\n");
 
     lst->ops->set_next_label(lst, "_start");
-    lst->ops->add_instruction_with_register_and_immediate(lst, OC_MOV, REG_AX, 4);
-    lst->ops->add_instruction_with_register_and_immediate(lst, OC_MOV, REG_BX, 1);
-    lst->ops->add_instruction_with_register_and_symbol(lst, OC_MOV, REG_CX, "hello_msg");
-    lst->ops->add_instruction_with_register_and_immediate(lst, OC_MOV, REG_DX, 13);
-    lst->ops->add_instruction_with_immediate(lst, OC_INT, 0x80);
+    lst->ops->add_instr_reg_imm(lst, OC_MOV, REG_AX, 4);
+    lst->ops->add_instr_reg_imm(lst, OC_MOV, REG_BX, 1);
+    lst->ops->add_instr_reg_sym(lst, OC_MOV, REG_CX, "hello_msg");
+    lst->ops->add_instr_reg_imm(lst, OC_MOV, REG_DX, 13);
+    lst->ops->add_instr_imm(lst, OC_INT, 0x80);
 
     lst->ops->set_next_label(lst, "_exit");
-    lst->ops->add_instruction_with_register_and_immediate(lst, OC_MOV, REG_AX, 1);
-    lst->ops->add_instruction_with_register_and_immediate(lst, OC_MOV, REG_BX, 0);
-    lst->ops->add_instruction_with_immediate(lst, OC_INT, 0x80);
+    lst->ops->add_instr_reg_imm(lst, OC_MOV, REG_AX, 1);
+    lst->ops->add_instr_reg_imm(lst, OC_MOV, REG_BX, 0);
+    lst->ops->add_instr_imm(lst, OC_INT, 0x80);
 
     lst->ops->print(lst, stdout);
 

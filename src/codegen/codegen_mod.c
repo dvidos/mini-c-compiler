@@ -38,7 +38,7 @@ static void gen_global_var(code_gen *cg, var_declaration *decl, expression *init
         }
     }
 
-    ir_entry *declaration = new_ir_data_declaration(length, init_value, decl->var_name, storage, 0);
+    ir_entry *declaration = new_ir_data_declaration(length, init_value, decl->var_name, storage);
     cg->ir->ops->add(cg->ir, declaration);
 }
 
@@ -53,7 +53,7 @@ static void declare_expr_strings(code_gen *cg, expression *expr) {
         
         cg->ir->ops->add(cg->ir, new_ir_data_declaration(
             strlen(expr->value.str) + 1, expr->value.str, 
-            sym_name, IR_GLOBAL_RO, 0));
+            sym_name, IR_GLOBAL_RO));
 
         // convert expression into symbol. will it work?
         expr->op = OP_SYMBOL_NAME;
@@ -76,7 +76,7 @@ static void declare_stmt_strings(code_gen *cg, statement *stmt) {
         // a variable initialized to a string
         cg->ir->ops->add(cg->ir, new_ir_data_declaration(
             strlen(stmt->expr->value.str) + 1, stmt->expr->value.str, 
-            stmt->decl->var_name, IR_GLOBAL_RO, 0));
+            stmt->decl->var_name, IR_GLOBAL_RO));
 
         // maybe no further need for initalization?
         stmt->expr = NULL;

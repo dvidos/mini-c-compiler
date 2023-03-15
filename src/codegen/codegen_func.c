@@ -24,7 +24,7 @@ static void traverse_and_generate_vars(code_gen *cg, statement *stmt) {
             // we should have a stack of blocks and then have a way to resolve, same as with parser.
             cg->ir->ops->add(cg->ir, new_ir_data_declaration(
                 stmt->decl->data_type->ops->size_of(stmt->decl->data_type),
-                NULL, stmt->decl->var_name, IR_LOCAL, 0));
+                NULL, stmt->decl->var_name, IR_LOCAL));
             break;
 
         case ST_BLOCK:
@@ -52,31 +52,42 @@ static void traverse_and_generate_vars(code_gen *cg, statement *stmt) {
 
 void code_gen_generate_for_function(code_gen *cg, func_declaration *func) {
 
-    cg->ir->ops->add(cg->ir, new_ir_function_definition(func->func_name));
     cg->ops->set_curr_func_name(cg, func->func_name);
 
-    // register arguments as local variables
-    int arg_no = 0;
-    var_declaration *arg = func->args_list;
-    while (arg != NULL) {
-        cg->ir->ops->add(cg->ir, new_ir_data_declaration(
-            arg->data_type->ops->size_of(arg->data_type),
-            NULL, arg->var_name, IR_FUNC_ARG, arg_no++));
-        arg = arg->next;
+    // prepare IR function definition arguments
+    int args_len = 0;
+    struct ir_entry_func_arg_info *args_arr = NULL;
+    for (var_declaration *arg = func->args_list; arg != NULL; arg = arg->next)
+        args_len++;
+    if (args_len > 0) {
+        args_arr = malloc(args_len * sizeof(struct ir_entry_func_arg_info));
+        int i = 0;
+        for (var_declaration *arg = func->args_list; arg != NULL; arg = arg->next) {
+            args_arr[i].name = arg->var_name;
+            args_arr[i].size = arg->data_type->ops->size_of(arg->data_type);
+            i++;
+        }
     }
+
+    // prepare IR function return size
+    int ret_val_size = 0;
+    if (func->return_type != NULL && func->return_type->family != TF_VOID)
+        ret_val_size = func->return_type->ops->size_of(func->return_type);
+
+    // declare function (and return value pseudo-var)
+    cg->ir->ops->add(cg->ir, new_ir_function_definition(func->func_name, args_arr, args_len, ret_val_size));
+    if (func->return_type != NULL && func->return_type->family != TF_VOID) {
+        cg->ir->ops->add(cg->ir, new_ir_data_declaration(
+            func->return_type->ops->size_of(func->return_type),
+            NULL, "ret_val", IR_RET_VAL));
+    }
+
 
     // traverse function tree to find local variables.
     statement *stmt = func->stmts_list;
     while (stmt != NULL) {
         traverse_and_generate_vars(cg, stmt);
         stmt = stmt->next;
-    }
-
-    // create a return-value symbol if needed
-    if (func->return_type != NULL && func->return_type->family != TF_VOID) {
-        cg->ir->ops->add(cg->ir, new_ir_data_declaration(
-            func->return_type->ops->size_of(func->return_type),
-            NULL, "ret_val", IR_RET_VAL, 0));
     }
 
     // generate code for function statements tree
@@ -87,4 +98,5 @@ void code_gen_generate_for_function(code_gen *cg, func_declaration *func) {
     }
 
     cg->ir->ops->add(cg->ir, new_ir_label("%s_end", func->func_name));
+    cg->ir->ops->add(cg->ir, new_ir_function_end());
 }

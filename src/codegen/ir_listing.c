@@ -6,11 +6,13 @@
 
 static void _add(ir_listing *l, ir_entry *entry);
 static void _print(ir_listing *l, FILE *stream);
+static int _find_next_function_def(ir_listing *l, int start);
 static void _free(ir_listing *l);
 
 static struct ir_listing_ops ops = {
     .add = _add,
     .print = _print,
+    .find_next_function_def = _find_next_function_def,
     .free = _free
 };
 
@@ -41,6 +43,15 @@ static void _print(ir_listing *l ,FILE *stream) {
     }
 }
 
+static int _find_next_function_def(ir_listing *l, int start) {
+    for (int i = start; i < l->length; i++) {
+        if (l->entries_arr[i]->type == IR_FUNCTION_DEFINITION)
+            return i;
+    }
+
+    return -1;
+}
+
 static void _free(ir_listing *l) {
     for (int i = 0; i < l->length; i++) {
         ir_entry *e = l->entries_arr[i];
@@ -48,35 +59,4 @@ static void _free(ir_listing *l) {
     }
     free(l->entries_arr);
     free(l);
-}
-
-/*
-    Running environment in IA-32:
-        - access to 4 GB of memory
-        Program execution registers:
-        - eight general purpose registers (EAX, EBX, ECX, EDX, ESI, EDI, EBP, ESP)
-        - six segment registers (16bits) (CS, DS, SS, ES, FS, GS)
-        - 32-bit instruction pointer EIP, 32-bit EFLAGS register
-        These do integer arithmetic, string manipulation, flow control etc.
-        Extra registers: FPU, MMX, XMM, YMM, BND etc for floating, boudaries etc
-        I/O ports
-        Status registers (CR0 - CR3)
-        Memory managmeent registers (GDTR, IDTR, LDTR etc)
-        Debug registers (DR0 - DR7)
-
-    Running environment in IA-64:
-        - access to 17179869183 GB of memory...
-        Program execution registers:
-        - eight general purpose registers (RAX, RBX, RCX, RDX, RSI, RDI, RBP, RSP)
-        - six segment registers (CS, DS, SS, ES, FS, GS)
-        - 64-bit instruction pointer RIP, 64-bit RFLAGS register
-        These do integer arithmetic, string manipulation, flow control etc.
-        Extra registers: FPU, MMX, XMM, YMM, BND etc for floating, boudaries etc
-        I/O ports
-        Status registers (CR0 - CR3)
-        Memory managmeent registers (GDTR, IDTR, LDTR etc)
-        Debug registers (DR0 - DR7)
-*/
-static void _generate_assembly(ir_listing *l) {
-
 }

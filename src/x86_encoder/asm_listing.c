@@ -8,20 +8,29 @@
 static void _print(asm_listing *lst, FILE *stream);
 static void _ensure_capacity(asm_listing *lst, int extra);
 static void _set_next_label(asm_listing *lst, char *label);
-static void _add_single_instruction(asm_listing *lst, enum opcode code); // e.g. NOP
-static void _add_instruction_with_immediate(asm_listing *lst, enum opcode code, u64 value); // e.g. PUSH 1
-static void _add_instruction_with_register(asm_listing *lst, enum opcode code, enum reg reg); // e.g. PUSH EAX
-static void _add_instruction_with_register_and_immediate(asm_listing *lst, enum opcode code, enum reg reg, u64 value);
-static void _add_instruction_with_register_and_symbol(asm_listing *lst, enum opcode code, enum reg reg, char *symbol_name);
+static void _add_instr(asm_listing *lst, enum opcode code); // e.g. NOP
+static void _add_instr_imm(asm_listing *lst, enum opcode code, u64 value); // e.g. PUSH 1
+static void _add_instr_reg(asm_listing *lst, enum opcode code, enum reg reg); // e.g. PUSH EAX
+static void _add_instr_sym(asm_listing *lst, enum opcode code, char *symbol); // e.g. CALL func1
+static void _add_instr_reg_reg(asm_listing *lst, enum opcode code, enum reg reg1, enum reg reg2);
+static void _add_instr_reg_imm(asm_listing *lst, enum opcode code, enum reg reg, u64 value);
+static void _add_instr_reg_sym(asm_listing *lst, enum opcode code, enum reg reg, char *symbol_name);
+static void _add_instr_imm_reg(asm_listing *lst, enum opcode code, u64 value, enum reg reg);
+static void _add_instr_sym_reg(asm_listing *lst, enum opcode code, char *symbol_name, enum reg reg);
+
 
 static struct asm_listing_ops ops = {
     .print = _print,
     .set_next_label = _set_next_label,
-    .add_single_instruction = _add_single_instruction,
-    .add_instruction_with_immediate = _add_instruction_with_immediate,
-    .add_instruction_with_register = _add_instruction_with_register,
-    .add_instruction_with_register_and_immediate = _add_instruction_with_register_and_immediate,
-    .add_instruction_with_register_and_symbol = _add_instruction_with_register_and_symbol,
+    .add_instr = _add_instr,
+    .add_instr_imm = _add_instr_imm,
+    .add_instr_reg = _add_instr_reg,
+    .add_instr_sym = _add_instr_sym,
+    .add_instr_reg_reg = _add_instr_reg_reg,
+    .add_instr_reg_imm = _add_instr_reg_imm,
+    .add_instr_reg_sym = _add_instr_reg_sym,
+    .add_instr_imm_reg = _add_instr_imm_reg,
+    .add_instr_sym_reg = _add_instr_sym_reg,
 };
 
 asm_listing *new_asm_listing() {
@@ -63,7 +72,7 @@ static void _set_next_label(asm_listing *lst, char *label) {
     lst->next_label = strdup(label); // we must free it later on.
 }
 
-static void _add_single_instruction(asm_listing *lst, enum opcode code) {
+static void _add_instr(asm_listing *lst, enum opcode code) {
     _ensure_capacity(lst, 1);
     struct instruction *inst = &lst->instructions[lst->length];
 
@@ -76,7 +85,7 @@ static void _add_single_instruction(asm_listing *lst, enum opcode code) {
     lst->length++;
 }
 
-static void _add_instruction_with_immediate(asm_listing *lst, enum opcode code, u64 value) {
+static void _add_instr_imm(asm_listing *lst, enum opcode code, u64 value) {
     _ensure_capacity(lst, 1);
     struct instruction *inst = &lst->instructions[lst->length];
 
@@ -90,7 +99,7 @@ static void _add_instruction_with_immediate(asm_listing *lst, enum opcode code, 
     lst->length++;
 }
 
-static void _add_instruction_with_register(asm_listing *lst, enum opcode code, enum reg reg) {
+static void _add_instr_reg(asm_listing *lst, enum opcode code, enum reg reg) {
     _ensure_capacity(lst, 1);
     struct instruction *inst = &lst->instructions[lst->length];
 
@@ -104,7 +113,36 @@ static void _add_instruction_with_register(asm_listing *lst, enum opcode code, e
     lst->length++;
 }
 
-static void _add_instruction_with_register_and_immediate(asm_listing *lst, enum opcode code, enum reg reg, u64 value) {
+static void _add_instr_sym(asm_listing *lst, enum opcode code, char *symbol) {
+    _ensure_capacity(lst, 1);
+    struct instruction *inst = &lst->instructions[lst->length];
+
+    inst->label = lst->next_label; // either null or not
+    inst->opcode = code;
+    inst->op1.type = OT_SYMBOL_MEM_ADDRESS;
+    inst->op1.symbol_name = symbol;
+    inst->op2.type = OT_NONE;
+
+    lst->next_label = NULL;
+    lst->length++;
+}
+
+static void _add_instr_reg_reg(asm_listing *lst, enum opcode code, enum reg reg1, enum reg reg2) {
+    _ensure_capacity(lst, 1);
+    struct instruction *inst = &lst->instructions[lst->length];
+
+    inst->label = lst->next_label; // either null or not
+    inst->opcode = code;
+    inst->op1.type = OT_REGISTER;
+    inst->op1.value = reg1;
+    inst->op2.type = OT_REGISTER;
+    inst->op2.value = reg2;
+
+    lst->next_label = NULL;
+    lst->length++;
+}
+
+static void _add_instr_reg_imm(asm_listing *lst, enum opcode code, enum reg reg, u64 value) {
     _ensure_capacity(lst, 1);
     struct instruction *inst = &lst->instructions[lst->length];
 
@@ -119,7 +157,7 @@ static void _add_instruction_with_register_and_immediate(asm_listing *lst, enum 
     lst->length++;
 }
 
-static void _add_instruction_with_register_and_symbol(asm_listing *lst, enum opcode code, enum reg reg, char *symbol_name) {
+static void _add_instr_reg_sym(asm_listing *lst, enum opcode code, enum reg reg, char *symbol_name) {
     _ensure_capacity(lst, 1);
     struct instruction *inst = &lst->instructions[lst->length];
 
@@ -134,3 +172,32 @@ static void _add_instruction_with_register_and_symbol(asm_listing *lst, enum opc
     lst->length++;
 }
 
+static void _add_instr_imm_reg(asm_listing *lst, enum opcode code, u64 value, enum reg reg) {
+    _ensure_capacity(lst, 1);
+    struct instruction *inst = &lst->instructions[lst->length];
+
+    inst->label = lst->next_label; // either null or not
+    inst->opcode = code;
+    inst->op1.type = OT_IMMEDIATE;
+    inst->op1.value = value;
+    inst->op2.type = OT_REGISTER;
+    inst->op2.value = reg;
+
+    lst->next_label = NULL;
+    lst->length++;
+}
+
+static void _add_instr_sym_reg(asm_listing *lst, enum opcode code, char *symbol_name, enum reg reg) {
+    _ensure_capacity(lst, 1);
+    struct instruction *inst = &lst->instructions[lst->length];
+
+    inst->label = lst->next_label; // either null or not
+    inst->opcode = code;
+    inst->op1.type = OT_SYMBOL_MEM_ADDRESS;
+    inst->op1.symbol_name = symbol_name;
+    inst->op2.type = OT_REGISTER;
+    inst->op2.value = reg;
+
+    lst->next_label = NULL;
+    lst->length++;
+}

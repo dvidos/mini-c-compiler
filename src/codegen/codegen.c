@@ -58,7 +58,7 @@ static ir_value *_create_ir_value(code_gen *cg, expression *expr) {
         case OP_STR_LITERAL:
             char sym_name[16];
             sprintf(sym_name, "_str%d", cg->ops->next_label_num(cg));
-            cg->ir->ops->add(cg->ir, new_ir_data_declaration(strlen(expr->value.str) + 1, expr->value.str, sym_name, IR_GLOBAL_RO, 0));
+            cg->ir->ops->add(cg->ir, new_ir_data_declaration(strlen(expr->value.str) + 1, expr->value.str, sym_name, IR_GLOBAL_RO));
             return new_ir_value_symbol(sym_name);
 
         case OP_BOOL_LITERAL:

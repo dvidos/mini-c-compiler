@@ -4,7 +4,7 @@
 #include "ir_value.h"
 
 enum ir_entry_type {
-    IR_FUNCTION_DEF,
+    IR_FUNCTION_DEFINITION,
     IR_COMMENT,
     IR_LABEL,
     IR_DATA_DECLARATION,
@@ -12,13 +12,13 @@ enum ir_entry_type {
     IR_FUNCTION_CALL,
     IR_CONDITIONAL_JUMP,
     IR_UNCONDITIONAL_JUMP,
+    IR_FUNCTION_END,
 };
 
 typedef enum ir_data_storage {
     IR_GLOBAL,
     IR_GLOBAL_RO,
     IR_LOCAL,
-    IR_FUNC_ARG,
     IR_RET_VAL,
 } ir_data_storage;
 
@@ -50,61 +50,80 @@ typedef enum ir_operation {
 
 struct ir_entry_ops;
 
+
+struct ir_entry_str_info {
+    char *str;
+};
+
+struct ir_entry_func_def_info {
+    char *func_name;
+    struct ir_entry_func_arg_info *args_arr; // array of structs, left to right
+    int args_len; // number of args
+    int ret_val_size; // 0=void
+};
+
+struct ir_entry_func_arg_info {
+    char *name; // e.g. "x"
+    int size;   // e.g. 8
+};
+
+struct ir_entry_data_decl_info {
+    int length;
+    void *initial_data; // null for uninitialized
+    char *symbol_name;
+    ir_data_storage storage;
+};
+
+struct ir_entry_three_addr_code_info {
+    ir_value *lvalue;
+    ir_value *op1; // null for unary operators (not, neg, etc)
+    ir_operation op;
+    ir_value *op2;
+};
+
+struct ir_entry_function_call_info {
+    ir_value *lvalue; // to store returned value
+    ir_value *func_addr; // symbol or register or address etc.
+    int args_len;
+    ir_value **args_arr; // malloc()'d array of pointers
+};
+
+struct ir_entry_cond_jump_info {
+    ir_value *v1;
+    ir_comparison cmp;
+    ir_value *v2;
+    char *target_label;
+};
+
+
 typedef struct ir_entry {
     enum ir_entry_type type;
     union entry_union {
-        struct {
-            char *func_name;
-        } function_def;
-        struct {
-            char *str;
-        } comment;
-        struct {
-            char *str;
-        } label;
-        struct {
-            int length;
-            void *initial_data; // null for uninitialized
-            char *symbol_name;
-            ir_data_storage storage;
-            int arg_no; // for local arguments
-        } data;
-        struct {
-            ir_value *lvalue;
-            ir_value *op1; // null for unary operators (not, neg, etc)
-            ir_operation op;
-            ir_value *op2;
-        } three_address_code;
-        struct {
-            ir_value *lvalue; // to store returned value
-            ir_value *func_addr; // symbol or register or address etc.
-            int args_len;
-            ir_value **args_arr; // malloc()'d array of pointers
-        } function_call;
-        struct {
-            ir_value *v1;
-            ir_comparison cmp;
-            ir_value *v2;
-            char *target_label;
-        } conditional_jump;
-        struct {
-            char *target_label;
-        } unconditional_jump;
+        struct ir_entry_func_def_info        function_def;
+        struct ir_entry_str_info             comment;
+        struct ir_entry_str_info             label;
+        struct ir_entry_data_decl_info       data_decl;
+        struct ir_entry_three_addr_code_info three_address_code;
+        struct ir_entry_function_call_info   function_call;
+        struct ir_entry_cond_jump_info       conditional_jump;
+        struct ir_entry_str_info             unconditional_jump;
+        struct {}                            function_end;
     } t;
-
     struct ir_entry_ops *ops;
 } ir_entry;
 
-ir_entry *new_ir_function_definition(char *func_name);
+
+ir_entry *new_ir_function_definition(char *func_name, struct ir_entry_func_arg_info *args_arr, int args_len, int ret_val_size);
 ir_entry *new_ir_comment(char *fmt, ...);
 ir_entry *new_ir_label(char *label_fmt, ...);
-ir_entry *new_ir_data_declaration(int length, void *initial_data, char *symbol_name, ir_data_storage storage, int arg_no);
+ir_entry *new_ir_data_declaration(int length, void *initial_data, char *symbol_name, ir_data_storage storage);
 ir_entry *new_ir_assignment(ir_value *lvalue, ir_value *rvalue);
 ir_entry *new_ir_unary_address_code(ir_value *lvalue, ir_operation op, ir_value *rvalue);
 ir_entry *new_ir_three_address_code(ir_value *lvalue, ir_value *op1, ir_operation op, ir_value *op2);
 ir_entry *new_ir_function_call(ir_value *lvalue, ir_value *func_addr, int args_count, ir_value **args_arr);
 ir_entry *new_ir_conditional_jump(ir_value *v1, ir_comparison cmp, ir_value *v2, char *label_fmt, ...);
 ir_entry *new_ir_unconditional_jump(char *label_fmt, ...);
+ir_entry *new_ir_function_end();
 
 struct ir_entry_ops {
     void (*print)(ir_entry *e, FILE *stream);

@@ -112,7 +112,7 @@ void code_gen_generate_for_expression(code_gen *cg, ir_value *lvalue, expression
         case OP_STR_LITERAL:
             char sym_name[16];
             sprintf(sym_name, "_str%d", cg->ops->next_label_num(cg));
-            cg->ir->ops->add(cg->ir, new_ir_data_declaration(strlen(expr->value.str) + 1, expr->value.str, sym_name, IR_GLOBAL_RO, 0));
+            cg->ir->ops->add(cg->ir, new_ir_data_declaration(strlen(expr->value.str) + 1, expr->value.str, sym_name, IR_GLOBAL_RO));
             cg->ir->ops->add(cg->ir, new_ir_assignment(lvalue, new_ir_value_symbol(sym_name)));
             break;
 

@@ -16,7 +16,7 @@
 
 
 static void gen_global_var(code_gen *cg, var_declaration *decl, expression *init_expr) {
-    int length = length = decl->data_type->ops->size_of(decl->data_type);
+    int length = decl->data_type->ops->size_of(decl->data_type);
     void *init_value = NULL;
     ir_data_storage storage = IR_GLOBAL;
     

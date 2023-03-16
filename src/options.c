@@ -62,7 +62,7 @@ void parse_options(int argc, char *argv[]) {
     }
 
     // derived values that help execution
-    options.pointer_size = options.is_32_bits ? 4 : 8;
+    options.pointer_size_bytes = options.is_32_bits ? 4 : 8;
     options.register_prefix = options.is_32_bits ? 'E' : 'R';
 }
 

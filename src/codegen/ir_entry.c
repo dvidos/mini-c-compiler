@@ -62,7 +62,7 @@ ir_entry *new_ir_label(char *fmt, ...) {
 ir_entry *new_ir_data_declaration(int length, void *initial_data, char *symbol_name, ir_data_storage storage) {
     ir_entry *e = malloc(sizeof(ir_entry));
     e->type = IR_DATA_DECLARATION;
-    e->t.data_decl.length = length;
+    e->t.data_decl.size = length;
     if (initial_data == NULL) {
         e->t.data_decl.initial_data = NULL;
     } else {
@@ -197,10 +197,10 @@ static void _print(ir_entry *e, FILE *stream) {
             fprintf(stream, "    %s data \"%s\", %d bytes", 
             ir_data_storage_name(e->t.data_decl.storage), 
             e->t.data_decl.symbol_name, 
-            e->t.data_decl.length);
+            e->t.data_decl.size);
 
             if (e->t.data_decl.initial_data != NULL) {
-                int len = e->t.data_decl.length;
+                int len = e->t.data_decl.size;
                 char *ptr = e->t.data_decl.initial_data;
 
                 if (len == 1)

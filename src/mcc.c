@@ -139,6 +139,11 @@ void generate_machine_code(ir_listing *ir_list) {
     if (errors_count)
         return;
 
+    if (options.verbose) {
+        printf("--------- Generated Assembly Code ---------\n");
+        asm_list->ops->print(asm_list, stdout);
+    }
+
     if (options.generate_asm) {
         char *asm_filename = set_extension(options.filename, "asm");
         FILE *f = fopen(asm_filename, "w");

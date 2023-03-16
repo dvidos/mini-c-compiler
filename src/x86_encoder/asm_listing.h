@@ -1,5 +1,6 @@
 #pragma once
 #include <stdio.h>
+#include <stdbool.h>
 #include "instruction.h"
 
 typedef struct asm_listing asm_listing;
@@ -7,6 +8,7 @@ struct asm_listing_ops;
 
 typedef struct asm_listing {
     char *next_label;
+    char *next_comment;
     struct instruction *instructions;
     int capacity;
     int length;
@@ -17,6 +19,7 @@ typedef struct asm_listing {
 struct asm_listing_ops {
     void (*print)(asm_listing *lst, FILE *stream);
     void (*set_next_label)(asm_listing *lst, char *label);
+    void (*add_comment)(asm_listing *lst, char *comment, bool for_next_instruction);
     void (*add_instr)(asm_listing *lst, enum opcode code); // e.g. NOP
     void (*add_instr_imm)(asm_listing *lst, enum opcode code, u64 value); // e.g. PUSH 1
     void (*add_instr_reg)(asm_listing *lst, enum opcode code, enum reg reg); // e.g. PUSH EAX

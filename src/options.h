@@ -18,7 +18,7 @@ struct options {
     char *filename;
     
     // derived values to aid execution
-    int pointer_size;   
+    int pointer_size_bytes;   
     char register_prefix;
 };
 

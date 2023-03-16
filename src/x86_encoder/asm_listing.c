@@ -1,3 +1,4 @@
+#include <stdbool.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -8,6 +9,7 @@
 static void _print(asm_listing *lst, FILE *stream);
 static void _ensure_capacity(asm_listing *lst, int extra);
 static void _set_next_label(asm_listing *lst, char *label);
+static void _add_comment(asm_listing *lst, char *comment, bool for_next_instruction);
 static void _add_instr(asm_listing *lst, enum opcode code); // e.g. NOP
 static void _add_instr_imm(asm_listing *lst, enum opcode code, u64 value); // e.g. PUSH 1
 static void _add_instr_reg(asm_listing *lst, enum opcode code, enum reg reg); // e.g. PUSH EAX
@@ -22,6 +24,7 @@ static void _add_instr_sym_reg(asm_listing *lst, enum opcode code, char *symbol_
 static struct asm_listing_ops ops = {
     .print = _print,
     .set_next_label = _set_next_label,
+    .add_comment = _add_comment,
     .add_instr = _add_instr,
     .add_instr_imm = _add_instr_imm,
     .add_instr_reg = _add_instr_reg,
@@ -40,6 +43,7 @@ asm_listing *new_asm_listing() {
     p->instructions = malloc(sizeof(struct instruction) * p->capacity);
     p->length = 0;
     p->next_label = NULL;
+    p->next_comment = NULL;
     p->ops = &ops;
 
     return p;
@@ -54,8 +58,16 @@ static void _print(asm_listing *lst, FILE *stream) {
         if (inst->label != NULL)
             fprintf(stream, "%s:\n", inst->label);
         
-        instruction_to_string(inst, buff, sizeof(buff));
-        fprintf(stream, "\t%s\n", buff);
+        if (inst->comment != NULL && inst->opcode == OC_NONE) {
+            fprintf(stream, "; %s\n", inst->comment);
+        } else {
+            instruction_to_string(inst, buff, sizeof(buff));
+            if (inst->comment == NULL) {
+                fprintf(stream, "    %s\n", buff);
+            } else {
+                fprintf(stream, "    %-30s ; %s\n", buff, inst->comment);
+            }
+        }
     }
 }
 
@@ -72,6 +84,26 @@ static void _set_next_label(asm_listing *lst, char *label) {
     lst->next_label = strdup(label); // we must free it later on.
 }
 
+static void _add_comment(asm_listing *lst, char *comment, bool for_next_instruction) {
+    if (for_next_instruction) {
+        // keep aside for next instruction, same as label
+        lst->next_comment = strdup(comment); // we shall free it later on.
+    } else {
+        // add it as a standalone thing
+        _ensure_capacity(lst, 1);
+        struct instruction *inst = &lst->instructions[lst->length];
+
+        inst->label = lst->next_label; // either null or not
+        inst->opcode = OC_NONE;
+        inst->op1.type = OT_NONE;
+        inst->op2.type = OT_NONE;
+        inst->comment = strdup(comment);
+
+        lst->next_label = NULL;
+        lst->length++;
+    }
+}
+
 static void _add_instr(asm_listing *lst, enum opcode code) {
     _ensure_capacity(lst, 1);
     struct instruction *inst = &lst->instructions[lst->length];
@@ -80,8 +112,10 @@ static void _add_instr(asm_listing *lst, enum opcode code) {
     inst->opcode = code;
     inst->op1.type = OT_NONE;
     inst->op2.type = OT_NONE;
+    inst->comment = lst->next_comment; // null or not
 
     lst->next_label = NULL;
+    lst->next_comment = NULL;
     lst->length++;
 }
 
@@ -94,8 +128,10 @@ static void _add_instr_imm(asm_listing *lst, enum opcode code, u64 value) {
     inst->op1.type = OT_IMMEDIATE;
     inst->op1.value = value;
     inst->op2.type = OT_NONE;
+    inst->comment = lst->next_comment; // null or not
 
     lst->next_label = NULL;
+    lst->next_comment = NULL;
     lst->length++;
 }
 
@@ -108,8 +144,10 @@ static void _add_instr_reg(asm_listing *lst, enum opcode code, enum reg reg) {
     inst->op1.type = OT_REGISTER;
     inst->op1.value = reg;
     inst->op2.type = OT_NONE;
+    inst->comment = lst->next_comment; // null or not
 
     lst->next_label = NULL;
+    lst->next_comment = NULL;
     lst->length++;
 }
 
@@ -122,8 +160,10 @@ static void _add_instr_sym(asm_listing *lst, enum opcode code, char *symbol) {
     inst->op1.type = OT_SYMBOL_MEM_ADDRESS;
     inst->op1.symbol_name = symbol;
     inst->op2.type = OT_NONE;
+    inst->comment = lst->next_comment; // null or not
 
     lst->next_label = NULL;
+    lst->next_comment = NULL;
     lst->length++;
 }
 
@@ -137,8 +177,10 @@ static void _add_instr_reg_reg(asm_listing *lst, enum opcode code, enum reg reg1
     inst->op1.value = reg1;
     inst->op2.type = OT_REGISTER;
     inst->op2.value = reg2;
+    inst->comment = lst->next_comment; // null or not
 
     lst->next_label = NULL;
+    lst->next_comment = NULL;
     lst->length++;
 }
 
@@ -152,8 +194,10 @@ static void _add_instr_reg_imm(asm_listing *lst, enum opcode code, enum reg reg,
     inst->op1.value = reg;
     inst->op2.type = OT_IMMEDIATE;
     inst->op2.value = value;
+    inst->comment = lst->next_comment; // null or not
 
     lst->next_label = NULL;
+    lst->next_comment = NULL;
     lst->length++;
 }
 
@@ -167,8 +211,10 @@ static void _add_instr_reg_sym(asm_listing *lst, enum opcode code, enum reg reg,
     inst->op1.value = reg;
     inst->op2.type = OT_SYMBOL_MEM_ADDRESS;
     inst->op2.symbol_name = symbol_name;
+    inst->comment = lst->next_comment; // null or not
 
     lst->next_label = NULL;
+    lst->next_comment = NULL;
     lst->length++;
 }
 
@@ -182,8 +228,10 @@ static void _add_instr_imm_reg(asm_listing *lst, enum opcode code, u64 value, en
     inst->op1.value = value;
     inst->op2.type = OT_REGISTER;
     inst->op2.value = reg;
+    inst->comment = lst->next_comment; // null or not
 
     lst->next_label = NULL;
+    lst->next_comment = NULL;
     lst->length++;
 }
 
@@ -197,7 +245,9 @@ static void _add_instr_sym_reg(asm_listing *lst, enum opcode code, char *symbol_
     inst->op1.symbol_name = symbol_name;
     inst->op2.type = OT_REGISTER;
     inst->op2.value = reg;
+    inst->comment = lst->next_comment; // null or not
 
     lst->next_label = NULL;
+    lst->next_comment = NULL;
     lst->length++;
 }

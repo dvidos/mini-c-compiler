@@ -68,7 +68,7 @@ struct ir_entry_func_arg_info {
 };
 
 struct ir_entry_data_decl_info {
-    int length;
+    int size;
     void *initial_data; // null for uninitialized
     char *symbol_name;
     ir_data_storage storage;

@@ -1,28 +1,30 @@
-	.global data "counter", 4 bytes = 0x0000fffe
-	.global data "numbers", 40 bytes
-	.global_ro data "message", 13 bytes = "Hello world!"
-	.global_ro data "__str_1", 23 bytes = "fibonacci of %d is %d\n"
-	.global_ro data "__str_2", 23 bytes = "factorial of %d is %d\n"
+    global data "counter", 4 bytes = 0x0000fffe
+    global data "numbers", 40 bytes
+    global_ro data "message", 13 bytes = "Hello world!"
+    global_ro data "__str_1", 23 bytes = "fibonacci of %d is %d\n"
+    global_ro data "__str_2", 23 bytes = "factorial of %d is %d\n"
 
-function "get_next_counter_value" () -> 1
-	.arg data "ret_val", 4 bytes
+function "get_next_counter_value" () -> 4
+    arg data "ret_val", 4 bytes
     r1 = counter
     r2 = 1
     counter = r1 + r2
     ret_val = counter
     goto get_next_counter_value_end
 get_next_counter_value_end:
+    function end
 
-function "rect_area" (width:4, height:4) -> 1
-	.arg data "ret_val", 4 bytes
+function "rect_area" (width:4, height:4) -> 4
+    arg data "ret_val", 4 bytes
     r3 = width
     r4 = height
     ret_val = r3 * r4
     goto rect_area_end
 rect_area_end:
+    function end
 
-function "triangle_area" (width:4, height:4) -> 1
-	.arg data "ret_val", 4 bytes
+function "triangle_area" (width:4, height:4) -> 4
+    arg data "ret_val", 4 bytes
     r5 = width
     r7 = height
     r8 = 2
@@ -30,9 +32,10 @@ function "triangle_area" (width:4, height:4) -> 1
     ret_val = r5 * r6
     goto triangle_area_end
 triangle_area_end:
+    function end
 
-function "circle_area" (radius:4) -> 1
-	.arg data "ret_val", 4 bytes
+function "circle_area" (radius:4) -> 4
+    arg data "ret_val", 4 bytes
     r9 = 3
     r11 = radius
     r12 = radius
@@ -40,9 +43,10 @@ function "circle_area" (radius:4) -> 1
     ret_val = r9 * r10
     goto circle_area_end
 circle_area_end:
+    function end
 
-function "fibonacci" (n:4) -> 1
-	.arg data "ret_val", 4 bytes
+function "fibonacci" (n:4) -> 4
+    arg data "ret_val", 4 bytes
     if n > 2 goto if_3_end
     ret_val = n
     goto fibonacci_end
@@ -58,9 +62,10 @@ if_3_end:
     ret_val = r13 + r17
     goto fibonacci_end
 fibonacci_end:
+    function end
 
-function "factorial" (n:4) -> 1
-	.arg data "ret_val", 4 bytes
+function "factorial" (n:4) -> 4
+    arg data "ret_val", 4 bytes
     if n > 1 goto if_4_end
     ret_val = n
     goto factorial_end
@@ -73,9 +78,10 @@ if_4_end:
     ret_val = r21 * r22
     goto factorial_end
 factorial_end:
+    function end
 
 function "math_demo" () -> 0
-	.local data "i", 4 bytes
+    local data "i", 4 bytes
     i = 0
 while_5_begin:
     r26 = i
@@ -101,35 +107,38 @@ while_6_begin:
     goto while_6_begin
 while_6_end:
 math_demo_end:
+    function end
 
 function "nested_loops_test" () -> 0
-	.local data "outer", 4 bytes
-	.local data "inner", 4 bytes
+    local data "outer", 4 bytes
+    local data "inner", 4 bytes
     outer = 0xa
 while_7_begin:
     if outer <= 0 goto while_7_end
     inner = 0xf
 while_8_begin:
     if inner <= 0 goto while_8_end
-    inner
+    (null) = inner
     inner = inner - 1
     goto while_8_begin
 while_8_end:
-    outer
+    (null) = outer
     outer = outer - 1
     goto while_7_begin
 while_7_end:
 nested_loops_test_end:
+    function end
 
 function "main" (argc:4, argv:4) -> 0
-	.local data "a", 4 bytes
-	.local data "b", 4 bytes
-	.local data "c", 1 bytes
-	.local data "d", 4 bytes
-	.local data "buffer", 16 bytes
+    local data "a", 4 bytes
+    local data "b", 4 bytes
+    local data "c", 1 bytes
+    local data "d", 4 bytes
+    local data "buffer", 16 bytes
     a = 1
     r36 = a
     r37 = 2
     b = r36 + r37
     call math_demo
 main_end:
+    function end

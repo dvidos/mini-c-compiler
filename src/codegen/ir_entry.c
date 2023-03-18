@@ -9,10 +9,12 @@
 
 
 static void _print(ir_entry *e, FILE *stream);
+static void _visit_ir_values(ir_entry *e, ir_value_visitor visitor, void *data);
 static void _free(ir_entry *e);
 
 static struct ir_entry_ops ops = {
     .print = _print,
+    .visit_ir_values = _visit_ir_values,
     .free = _free,
 };
 
@@ -272,10 +274,38 @@ static void _print(ir_entry *e, FILE *stream) {
     }
 }
 
-static inline void free_nullable(void *p) {
-    if (p != NULL) free(p);
+static void _visit_ir_values(ir_entry *e, ir_value_visitor visitor, void *data) {
+    int curr = 0;
+    switch (e->type) {
+        case IR_FUNCTION_DEFINITION: // fallthrough
+        case IR_COMMENT:
+        case IR_LABEL:
+        case IR_DATA_DECLARATION:
+        case IR_UNCONDITIONAL_JUMP:
+        case IR_FUNCTION_END:
+            break;
+        case IR_FUNCTION_CALL:
+            struct ir_entry_function_call_info *f = &e->t.function_call;
+            visitor(f->lvalue, data);
+            visitor(f->func_addr, data);
+            for (int i = 0; i < f->args_len; i++)
+                visitor(f->args_arr[i], data);
+            break;
+        case IR_THREE_ADDR_CODE:
+            struct ir_entry_three_addr_code_info *t = &e->t.three_address_code;
+            visitor(t->lvalue, data);
+            visitor(t->op1, data);
+            visitor(t->op2, data);
+            break;
+        case IR_CONDITIONAL_JUMP:
+            struct ir_entry_cond_jump_info *j = &e->t.conditional_jump;
+            visitor(j->v1, data);
+            visitor(j->v2, data);
+            break;
+    }
 }
 
+static inline void free_nullable(void *p) { if (p != NULL) free(p); }
 static void _free(ir_entry *e) {
     switch (e->type) {
         case IR_FUNCTION_DEFINITION:

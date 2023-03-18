@@ -1,161 +1,193 @@
 #include <stdlib.h>
 #include <stddef.h>
+#include <string.h>
 #include "../err_handler.h"
 #include "../options.h"
 #include "../codegen/ir_listing.h"
 #include "obj_code.h"
 #include "asm_listing.h"
 #include "encoder.h"
-
-
-// AX...DI, each has a flag.
-// ability to allocate and deallocate a register.
-static int gen_register_state = 0; 
-static int grab_reg() { // return an allocated register (0-7) or -1
-    for (int i = 0; i < 8; i++) {
-        if (i == REG_SP || i == REG_BP) // these two are special
-            continue;
-        if ((gen_register_state & (1 << i)) == 0) {
-            gen_register_state |= (1 << i);
-            return i;
-        }
-    }
-    return -1;
-}
-static void release_reg(int reg_no) {
-    gen_register_state &= ~(1 << reg_no);
-}
+#include "asm_allocator.h"
 
 
 
-// we need to track and allocate registers, local vars and arguments etc.
-struct data_info {
-    // can be global data,code label = leave as symbol
-    // can be argument, return BP offset + size
-    // can be local variable, return BP offset + size
-    // can be temp register, either GP register, or stack space + size
-};
-struct stack_var {
-    int bp_offset; // from -1K to +1K
-    char *name;    // argument, or local var
-    int reg_no;    // if name == NULL, this is a register
-    int size;      // 1, 2, 4, 8 bytes
-};
-struct function_assembling_information {
-    // register allocation information,
-    // stack allocation information
-    // all variables location and addressing information
-    asm_listing *al;
 
-    struct stack_var *stack_vars;
-    int stack_vars_capacity;
-    int stack_vars_length;
-};
+static struct function_assembling_information {
+    asm_listing *lst;
 
-static struct function_assembling_information ai;
+    // as we assemble each function
+    struct ir_entry_func_def_info *func_def;
+    int stack_space_for_local_vars;
+} f;
 
-static void add_stack_var(int bp_offset, char *name, int reg_no, int size) {
-    if (ai.stack_vars_length + 1 >= ai.stack_vars_capacity) {
-        ai.stack_vars_capacity *= 2;
-        ai.stack_vars = realloc(ai.stack_vars, sizeof(struct stack_var) * ai.stack_vars_capacity);
-    }
-    struct stack_var *v = &ai.stack_vars[ai.stack_vars_length];
-    v->bp_offset = bp_offset;
-    v->name = name;
-    v->reg_no = reg_no;
-    v->size = size;
-    ai.stack_vars_length++;
-}
+
 
 static void analyze_function(ir_listing *ir, int start, int end) {
-    char buffer[64];
-
-    // analyze function, maybe for each temp register, 
-    // decide if a register will be used (and which)
-    // or if stack space will be used (and which)
-    // allocate all that will be allocated on stack
-    // and prepare a stack map, essentially.
-    // a technique is to measure the life time of a temp register,
-    // and after it is not needed, one can use the allocated storage for another temp register
-    // essentially, measure the amount of temporary storages we need, and map each temp reg to one.
-
-    ai.stack_vars_capacity = 16;
-    ai.stack_vars_length = 0;
-    ai.stack_vars = malloc(sizeof(struct stack_var) * ai.stack_vars_capacity);
+    if (ir->entries_arr[start]->type != IR_FUNCTION_DEFINITION) {
+        error(NULL, 0, "internal bug, function declaration IR was expected");
+        return;
+    }
+    f.func_def = &ir->entries_arr[start]->t.function_def;
+    asm_allocator.reset();
     
-    // stack frame:
+    // declare stack variables and their offsets from BP:
     //   BP + n = last argument (that was pushed first, right-to-left)
     //   BP + 8 = first argument (that was pushed last of the arguments)
     //   BP + 4 = return address (that was pushed last)
     //   BP + 0 = previous BP
     //   BP - 4 = first local variable
     //   BP - n = local variable
-    struct ir_entry_func_def_info *func_def = &ir->entries_arr[start]->t.function_def;
-    int bp_offset = options.pointer_size_bytes * 2;
-    for (int i = 0; i < func_def->args_len; i++) {
-        add_stack_var(bp_offset, func_def->args_arr[i].name, 0, func_def->args_arr[i].size);
-        bp_offset += func_def->args_arr[i].size;
+    // this allows the allocator to grab more stack space as needed
+
+    int bp_offset = options.pointer_size_bytes * 2; // skip pushed EBP and return address
+    for (int i = 0; i < f.func_def->args_len; i++) {
+        asm_allocator.declare_local_symbol(
+            f.func_def->args_arr[i].name, f.func_def->args_arr[i].size,
+            bp_offset);
+        bp_offset += f.func_def->args_arr[i].size;
     }
-    bp_offset = 0; // to subtract the size of the local variable, not of BP
+
+    bp_offset = 0; // to subtract the size of the first local variable, not of BP
+    f.stack_space_for_local_vars = 0;
     for (int i = start; i < end; i++) {
         ir_entry *e = ir->entries_arr[i];
         if (e->type == IR_DATA_DECLARATION && e->t.data_decl.storage == IR_LOCAL) {
-            bp_offset -= e->t.data_decl.size;
-            add_stack_var(bp_offset, e->t.data_decl.symbol_name, 0, e->t.data_decl.size);
+            bp_offset -= e->t.data_decl.size; // note we subtract before
+            asm_allocator.declare_local_symbol(
+                e->t.data_decl.symbol_name, e->t.data_decl.size,
+                bp_offset);
+            f.stack_space_for_local_vars += e->t.data_decl.size;
         }
     }
-
-    // add the stack frame to assembly listing
-    ai.al->ops->add_comment(ai.al, buffer, "Stack Frame");
-    for (int i = 0; i < ai.stack_vars_length; i++) {
-        sprintf(buffer, "    [%cBP %s%d] %s \"%s\" (%d bytes)",
-            options.register_prefix,
-            ai.stack_vars[i].bp_offset < 0 ? "" : "+",
-            ai.stack_vars[i].bp_offset,
-            ai.stack_vars[i].bp_offset < 0 ? "local" : "arg",
-            ai.stack_vars[i].name,
-            ai.stack_vars[i].size);
-        ai.al->ops->add_comment(ai.al, buffer, false);
-    }
-
-}
-
-static void clean_up_function_analysis() {
-    ai.stack_vars_capacity = 0;
-    free(ai.stack_vars);
 }
 
 static void code_prologue() {
-    ai.al->ops->add_instr_reg(ai.al, OC_PUSH, REG_BP);
-    ai.al->ops->add_instr_reg_reg(ai.al, OC_MOV, REG_BP, REG_SP);
+    f.lst->ops->set_next_label(f.lst, f.func_def->func_name);
+    f.lst->ops->add_instr_reg(f.lst, OC_PUSH, REG_BP);
+    f.lst->ops->add_instr_reg_reg(f.lst, OC_MOV, REG_BP, REG_SP);
+    if (f.stack_space_for_local_vars > 0) {
+        f.lst->ops->add_comment(f.lst, "space for local vars", true);
+        f.lst->ops->add_instr_reg_imm(f.lst, OC_SUB, REG_SP, f.stack_space_for_local_vars);
+    }
+
+    asm_allocator.generate_stack_info_comments();
+
     // then allocate local variables (and temp regs as well)
     // callee saved registers
+    // CX and AX are clobbered during a call
 }
 
 static void code_epilogue() {
-    ai.al->ops->add_instr_reg_reg(ai.al, OC_MOV, REG_SP, REG_BP);
-    ai.al->ops->add_instr_reg(ai.al, OC_POP, REG_BP);
-    // what other clean up
+    f.lst->ops->add_instr_reg_reg(f.lst, OC_MOV, REG_SP, REG_BP);
+    f.lst->ops->add_instr_reg(f.lst, OC_POP, REG_BP);
     // callee restored registers
+    // must move ret_val to EAX
+    f.lst->ops->add_instr(f.lst, OC_RET);
 }
 
 static void code_function_call(struct ir_entry_function_call_info *c) {
-    // caller saved registers
-    // push arguments from right to left
-    // it depends in the type of address, it may be a symbolname or a reg with the address
-    // ai.al->ops->add_instr_sym(ai.al, OC_CALL, NULL);
-    // clean up pushed arguments (e.g. ADD SP, 8)
-    // caller restore registers
+    // storage s;
+    // int bytes_pushed = 0;
+
+    // // caller saved registers
+    // // push arguments from right to left
+    // // clean up pushed arguments (e.g. ADD SP, 8)
+    // // caller restore registers
+
+    // for (int i = c->args_len - 1; i >= 0; i--) {
+    //     ir_value *v = c->args_arr[i];
+    //     if (v->type == IR_IMM) {
+    //         f.lst->ops->add_instr_imm(f.lst, OC_PUSH, v->val.immediate);
+    //     } else if (v->type == IR_SYM) {
+    //         // resolve possible local variables
+    //         if (asm_allocator.get_named_storage(v->val.symbol_name, &s)) {
+    //             if (s.is_gp_reg)
+    //                 f.lst->ops->add_instr_reg(f.lst, OC_PUSH, s.gp_reg);
+    //             else if (s.is_stack_var)
+    //                 f.lst->ops->add_instr_reg(f.lst, OC_PUSH, REG_BP); // bp_offset??????
+    //         } else {
+    //             // it should be a global variable, let linker resolve this
+    //             f.lst->ops->add_instr_sym(f.lst, OC_PUSH, v->val.symbol_name);
+    //         }
+    //     } else if (v->type == IR_REG) {
+    //         asm_allocator.get_temp_reg_storage(v->val.reg_no, &s);
+    //         if (s.is_gp_reg)
+    //             f.lst->ops->add_instr_reg(f.lst, OC_PUSH, s.gp_reg);
+    //         else if (s.is_stack_var)
+    //             f.lst->ops->add_instr_reg(f.lst, OC_PUSH, REG_BP); // bp_offset??????
+    //     }
+    //     bytes_pushed += options.pointer_size_bytes; // how can we be sure?
+    // }
+
+    // // then call the address
+    // if (c->func_addr->type == IR_IMM) {
+    //     f.lst->ops->add_instr_imm(f.lst, OC_CALL, v->val.immediate);
+    // } else if (c->func_addr->type == IR_SYM) {
+    //     // can this be a local symbol? a variable where we assign a function address
+    //     if (asm_allocator.get_named_storage(c->func_addr->val.symbol_name, &storage)) {
+    //         if (s.is_gp_reg)
+    //             f.lst->ops->add_instr_reg(f.lst, OC_CALL, s.gp_reg);
+    //         else if (s.is_stack_var)
+    //             f.lst->ops->add_instr_reg(f.lst, OC_CALL, REG_BP); // bp_offset??????
+    //     } else {
+    //         // not local, let linker figure this out
+    //         f.lst->ops->add_instr_sym(f.lst, OC_CALL, c->func_addr->val.symbol_name);
+    //     }
+    // } else if (c->func_addr->type == IR_REG) {
+    //     // i guess temp reg holds the target address?
+    //     asm_allocator.get_temp_reg_storage(c->func_addr->val.reg_no, &s);
+    //     if (s.is_gp_reg)
+    //         f.lst->ops->add_instr_reg(f.lst, OC_PUSH, s.gp_reg);
+    //     else if (s.is_stack_var)
+    //         f.lst->ops->add_instr_reg(f.lst, OC_PUSH, REG_BP); // bp_offset??????
+    // }
+
+    // // then grab return value
+    // if (c->lvalue != NULL) {
+    //     if (c->lvalue->type == IR_SYM) {
+    //         // resolve possible local variables
+    //         if (asm_allocator.get_named_storage(c->lvalue->val.symbol_name, &s)) {
+    //             if (s.is_gp_reg)
+    //                 f.lst->ops->add_instr_reg_reg(f.lst, OC_MOV, s.gp_reg, REG_AX);
+    //             else if (s.is_stack_var)
+    //                 f.lst->ops->add_instr_reg(f.lst, OC_MOV, REG_BP, REG_AX); // bp_offset??????
+    //         } else {
+    //             // it should be a global variable, let linker resolve this
+    //             f.lst->ops->add_instr_sym(f.lst, OC_MOV, v->val.symbol_name, REG_AX);
+    //         }
+    //     } else if (v->type == IR_REG) {
+    //         asm_allocator.get_temp_reg_storage(v->val.reg_no, &s);
+    //         if (s.is_gp_reg)
+    //             f.lst->ops->add_instr_reg(f.lst, OC_PUSH, s.gp_reg, REG_AX);
+    //         else if (s.is_stack_var)
+    //             f.lst->ops->add_instr_reg(f.lst, OC_PUSH, REG_BP, REG_AX); // bp_offset??????
+    //     }
+
+    // }
+
+    // // clean up pushed values
+    // f.lst->ops->add_instr_reg_imm(f.lst, OC_ADD, REG_SP, bytes_pushed);
 }
 
 static void code_conditional_jump(struct ir_entry_cond_jump_info *j) {
     // emit two things: compare, then appropriate jump.
     // we also need to clobber at least one register for CMP
     // the second _may_ be an immediate
+    f.lst->ops->add_instr_reg_reg(f.lst, OC_CMP, REG_AX, REG_DX);
+    enum opcode op;
+    switch (j->cmp) {
+        case IR_EQ: op = OC_JEQ; break;
+        case IR_NE: op = OC_JNE; break;
+        case IR_GT: op = OC_JGT; break;
+        case IR_GE: op = OC_JGE; break;
+        case IR_LT: op = OC_JLT; break;
+        case IR_LE: op = OC_JLE; break;
+    }
+    f.lst->ops->add_instr_sym(f.lst, op, j->target_label);
 }
 
 static void code_unconditional_jump(char *label) {
-    ai.al->ops->add_instr_sym(ai.al, OC_JMP, label);  // if everything was as simple!
+    f.lst->ops->add_instr_sym(f.lst, OC_JMP, label);  // if everything was as simple!
 }
 
 static void code_three_address_code(struct ir_entry_three_addr_code_info *c) {
@@ -165,20 +197,9 @@ static void code_three_address_code(struct ir_entry_three_addr_code_info *c) {
 
 static void assemble_function(ir_listing *ir, int start, int end) {
     // also see https://courses.cs.washington.edu/courses/cse401/06sp/codegen.pdf
-    // this function owns stack usage, register usage and function calling contract
-    // analyze usage of registers, return patterns etc.
-    // for each temp register, select register or stack location to use.
-    // reuse registers as much as possible
-    // compute stack layout for all variables, args, locals and extra ones
+    // we use asm_allocator to allocate storage space for temp registers
+    // this storage space can be either CPU registers or stack space.
     // for each IR instruction, find appropriate assembly instruction(s)
-    // some registers are dedicated: BP, SP.
-    // keep a couple of registers for temp use, i.e. load from memory to work on
-    // must decide what registers are caller saved vs callee saved, 
-    //     as maybe nested function calls may clobber them.
-    // ax, bx, cx, dx = allocatable.
-    // si, di = scratch registers (temp usage)
-    // sp = stack, bp = stack frame.
-    // some operations (e.g. ADD X, Y) can immediately deallocate the Y register
 
     analyze_function(ir, start, end);
     code_prologue();
@@ -191,10 +212,10 @@ static void assemble_function(ir_listing *ir, int start, int end) {
                 // ignore
                 break;
             case IR_LABEL:
-                ai.al->ops->set_next_label(ai.al, e->t.label.str);
+                f.lst->ops->set_next_label(f.lst, e->t.label.str);
                 break;
             case IR_DATA_DECLARATION:
-                // grab more stack space?
+                // how about initial data?
                 break;
             case IR_THREE_ADDR_CODE:
                 code_three_address_code(&e->t.three_address_code);
@@ -212,14 +233,18 @@ static void assemble_function(ir_listing *ir, int start, int end) {
     }
 
     code_epilogue();
-    clean_up_function_analysis();
 }
 
 
 // given an Intemediate Representation listing, generate an assembly listing.
 void x86_assemble_ir_listing(ir_listing *ir_list, asm_listing *asm_list) {
 
-    ai.al = asm_list;
+    // set reference to asm listing, to allow our functions to use it
+    f.lst = asm_list;
+    asm_allocator.set_asm_listing(asm_list);
+
+    // calculate temp register usage and last mention
+    ir_list->ops->run_statistics(ir_list);
 
     // emit assembly code to reserve .data, .bss and .rodata
     // db, dw, dd, dq etc.

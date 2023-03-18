@@ -7,12 +7,16 @@
 static void _add(ir_listing *l, ir_entry *entry);
 static void _print(ir_listing *l, FILE *stream);
 static int _find_next_function_def(ir_listing *l, int start);
+static void _run_statistics(ir_listing *l);
+static int _get_register_last_usage(ir_listing *l, int reg_no);
 static void _free(ir_listing *l);
 
 static struct ir_listing_ops ops = {
     .add = _add,
     .print = _print,
     .find_next_function_def = _find_next_function_def,
+    .run_statistics = _run_statistics,
+    .get_register_last_usage = _get_register_last_usage,
     .free = _free
 };
 
@@ -52,11 +56,65 @@ static int _find_next_function_def(ir_listing *l, int start) {
     return -1;
 }
 
+static void _statistics_find_min_max_register_number(ir_value *v, void *data) {
+    ir_listing *l = (ir_listing *)data;
+    if (v != NULL && v->type == IR_REG) {
+        int reg_no = v->val.reg_no;
+        if (l->statistics.min_reg_no == 0 || reg_no < l->statistics.min_reg_no)
+            l->statistics.min_reg_no = reg_no;
+        
+        if (l->statistics.max_reg_no == 0 || reg_no > l->statistics.max_reg_no)
+            l->statistics.max_reg_no = reg_no;
+    }
+}
+
+static void _statistics_find_each_register_last_index(ir_value *v, void *data) {
+    ir_listing *l = (ir_listing *)data;
+    if (v != NULL && v->type == IR_REG) {
+        int reg_no = v->val.reg_no;
+        if (l->statistics.list_index > l->statistics.reg_last_usage_arr[reg_no])
+            l->statistics.reg_last_usage_arr[reg_no] = l->statistics.list_index;
+    }
+}
+
+static void _run_statistics(ir_listing *l) {
+    // find min/max registers, as well as last time each is mentioned
+    l->statistics.min_reg_no = 0;
+    l->statistics.max_reg_no = 0;
+    l->statistics.regs_count = 0;
+    if (l->statistics.reg_last_usage_arr != NULL)
+        free(l->statistics.reg_last_usage_arr);
+    l->statistics.reg_last_usage_arr = NULL;
+
+    // first find how many registers
+    for (int i = 0; i < l->length; i++) {
+        ir_entry *e = l->entries_arr[i];
+        e->ops->visit_ir_values(e, _statistics_find_min_max_register_number, l);
+    }
+
+    // now make the array and run again to find last index
+    l->statistics.regs_count = l->statistics.max_reg_no - l->statistics.min_reg_no + 1;
+    l->statistics.reg_last_usage_arr = malloc(sizeof(int) * l->statistics.regs_count);
+    for (int i = 0; i < l->length; i++) {
+        ir_entry *e = l->entries_arr[i];
+        l->statistics.list_index = i;
+        e->ops->visit_ir_values(e, _statistics_find_each_register_last_index, l);
+    }
+}
+
+static int _get_register_last_usage(ir_listing *l, int reg_no) {
+    if (reg_no < l->statistics.min_reg_no || reg_no > l->statistics.max_reg_no)
+        return 0;
+    return l->statistics.reg_last_usage_arr[reg_no];
+}
+
 static void _free(ir_listing *l) {
     for (int i = 0; i < l->length; i++) {
         ir_entry *e = l->entries_arr[i];
         e->ops->free(e);
     }
+    if (l->statistics.reg_last_usage_arr != NULL)
+        free(l->statistics.reg_last_usage_arr);
     free(l->entries_arr);
     free(l);
 }

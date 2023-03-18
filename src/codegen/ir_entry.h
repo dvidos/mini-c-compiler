@@ -125,7 +125,10 @@ ir_entry *new_ir_conditional_jump(ir_value *v1, ir_comparison cmp, ir_value *v2,
 ir_entry *new_ir_unconditional_jump(char *label_fmt, ...);
 ir_entry *new_ir_function_end();
 
+typedef void (*ir_value_visitor)(ir_value *value, void *data);
+
 struct ir_entry_ops {
     void (*print)(ir_entry *e, FILE *stream);
+    void (*visit_ir_values)(ir_entry *e, ir_value_visitor visitor, void *data);
     void (*free)(ir_entry *e);
 };

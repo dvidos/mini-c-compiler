@@ -59,15 +59,19 @@ static void _print(asm_listing *lst, FILE *stream) {
             fprintf(stream, "%s:\n", inst->label);
         
         if (inst->comment != NULL && inst->opcode == OC_NONE) {
-            fprintf(stream, "; %s\n", inst->comment);
+            fprintf(stream, "    ; %s\n", inst->comment);
         } else {
             instruction_to_string(inst, buff, sizeof(buff));
             if (inst->comment == NULL) {
                 fprintf(stream, "    %s\n", buff);
             } else {
-                fprintf(stream, "    %-30s ; %s\n", buff, inst->comment);
+                fprintf(stream, "    %-20s ; %s\n", buff, inst->comment);
             }
         }
+
+        // perhaps allow some space between functions?
+        if (inst->opcode == OC_RET)
+            fprintf(stream, "\n");
     }
 }
 
@@ -100,6 +104,7 @@ static void _add_comment(asm_listing *lst, char *comment, bool for_next_instruct
         inst->comment = strdup(comment);
 
         lst->next_label = NULL;
+        lst->next_comment = NULL;
         lst->length++;
     }
 }

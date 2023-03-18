@@ -149,6 +149,7 @@ void generate_machine_code(ir_listing *ir_list) {
         FILE *f = fopen(asm_filename, "w");
         if (f == NULL) {
             error(NULL, 0, "cannot open file \"%s\" for writing", asm_filename);
+            return;
         }
         asm_list->ops->print(asm_list, f);
         fclose(f);

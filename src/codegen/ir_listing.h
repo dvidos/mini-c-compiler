@@ -14,7 +14,6 @@ typedef struct ir_listing {
         int min_reg_no;
         int max_reg_no;
         int regs_count;
-        int list_index; // runtime variable
         int *reg_last_usage_arr; // array of max_index per reg_no
     } statistics;
 

@@ -50,8 +50,9 @@ static void _reset() {
     // SP and BP are excluded, as they ar eneeded for functions to work.
     // BX, CX, DX, SI, DI can be allocated.
 
-    data.temp_storage_arr = malloc(5 * sizeof(struct temp_storage_slot));
     data.temp_storage_arr_len = 5;
+    data.temp_storage_arr = malloc(data.temp_storage_arr_len * sizeof(struct temp_storage_slot));
+    memset(data.temp_storage_arr, 0, data.temp_storage_arr_len * sizeof(struct temp_storage_slot));
     for (int i = 0; i < 5; i++)
         data.temp_storage_arr[i].value.is_gp_reg = 1;
     
@@ -85,13 +86,12 @@ static void _generate_stack_info_comments() {
     char buffer[64];
 
     for (int i = 0; i < data.named_storage_arr_len; i++) {
-        sprintf(buffer, "[%cBP%+3d] %s \"%s\", %d bytes",
+        data.listing->ops->add_comment(data.listing, false, "[%cBP%+3d] %s \"%s\", %d bytes",
             options.register_prefix,
             data.named_storage_arr[i].value.bp_offset,
             data.named_storage_arr[i].value.bp_offset < 0 ? "local var" : "argument",
             data.named_storage_arr[i].symbol_name,
             data.named_storage_arr[i].value.size);
-        data.listing->ops->add_comment(data.listing, buffer, false);
     }
 }
 
@@ -126,7 +126,7 @@ static void _get_temp_reg_storage(int reg_no, storage *target) {
     // temp registers have the size of the architecture (32 or 64 bits)
     int size = options.pointer_size_bytes;
     data.lowest_bp_offset -= size;
-    data.listing->ops->add_comment(data.listing, "grab some space for temp register", true);
+    data.listing->ops->add_comment(data.listing, true, "grab some space for temp register");
     data.listing->ops->add_instr2(data.listing, OC_SUB, new_reg_asm_operand(REG_SP), new_imm_asm_operand(size));
     data.temp_storage_arr_len += 1;
     data.temp_storage_arr = realloc(data.temp_storage_arr, data.temp_storage_arr_len * sizeof(struct temp_storage_slot));

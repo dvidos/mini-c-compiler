@@ -9,7 +9,7 @@
 
 
 static void _print(ir_entry *e, FILE *stream);
-static void _visit_ir_values(ir_entry *e, ir_value_visitor visitor, void *data);
+static void _visit_ir_values(ir_entry *e, ir_value_visitor visitor, void *pdata, int idata);
 static void _free(ir_entry *e);
 
 static struct ir_entry_ops ops = {
@@ -274,7 +274,7 @@ static void _print(ir_entry *e, FILE *stream) {
     }
 }
 
-static void _visit_ir_values(ir_entry *e, ir_value_visitor visitor, void *data) {
+static void _visit_ir_values(ir_entry *e, ir_value_visitor visitor, void *pdata, int idata) {
     int curr = 0;
     switch (e->type) {
         case IR_FUNCTION_DEFINITION: // fallthrough
@@ -286,21 +286,21 @@ static void _visit_ir_values(ir_entry *e, ir_value_visitor visitor, void *data) 
             break;
         case IR_FUNCTION_CALL:
             struct ir_entry_function_call_info *f = &e->t.function_call;
-            visitor(f->lvalue, data);
-            visitor(f->func_addr, data);
+            visitor(f->lvalue, pdata, idata);
+            visitor(f->func_addr, pdata, idata);
             for (int i = 0; i < f->args_len; i++)
-                visitor(f->args_arr[i], data);
+                visitor(f->args_arr[i], pdata, idata);
             break;
         case IR_THREE_ADDR_CODE:
             struct ir_entry_three_addr_code_info *t = &e->t.three_address_code;
-            visitor(t->lvalue, data);
-            visitor(t->op1, data);
-            visitor(t->op2, data);
+            visitor(t->lvalue, pdata, idata);
+            visitor(t->op1, pdata, idata);
+            visitor(t->op2, pdata, idata);
             break;
         case IR_CONDITIONAL_JUMP:
             struct ir_entry_cond_jump_info *j = &e->t.conditional_jump;
-            visitor(j->v1, data);
-            visitor(j->v2, data);
+            visitor(j->v1, pdata, idata);
+            visitor(j->v2, pdata, idata);
             break;
     }
 }

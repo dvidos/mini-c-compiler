@@ -3,13 +3,13 @@
 #include <stdio.h>
 
 
-enum ir_value_type { IR_REG, IR_SYM, IR_IMM };
+enum ir_value_type { IR_TREG, IR_SYM, IR_IMM };
 
 typedef struct ir_value {
     enum ir_value_type type;
     union {
         char *symbol_name;
-        int reg_no;
+        int temp_reg_no;
         int immediate;
     } val;
 } ir_value;

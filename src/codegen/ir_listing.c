@@ -56,10 +56,10 @@ static int _find_next_function_def(ir_listing *l, int start) {
     return -1;
 }
 
-static void _statistics_find_min_max_register_number(ir_value *v, void *data) {
-    ir_listing *l = (ir_listing *)data;
-    if (v != NULL && v->type == IR_REG) {
-        int reg_no = v->val.reg_no;
+static void _statistics_find_min_max_register_number(ir_value *v, void *pdata, int idata) {
+    ir_listing *l = (ir_listing *)pdata;
+    if (v != NULL && v->type == IR_TREG) {
+        int reg_no = v->val.temp_reg_no;
         if (l->statistics.min_reg_no == 0 || reg_no < l->statistics.min_reg_no)
             l->statistics.min_reg_no = reg_no;
         
@@ -68,12 +68,13 @@ static void _statistics_find_min_max_register_number(ir_value *v, void *data) {
     }
 }
 
-static void _statistics_find_each_register_last_index(ir_value *v, void *data) {
-    ir_listing *l = (ir_listing *)data;
-    if (v != NULL && v->type == IR_REG) {
-        int reg_no = v->val.reg_no;
-        if (l->statistics.list_index > l->statistics.reg_last_usage_arr[reg_no])
-            l->statistics.reg_last_usage_arr[reg_no] = l->statistics.list_index;
+static void _statistics_find_each_register_last_index(ir_value *v, void *pdata, int idata) {
+    ir_listing *l = (ir_listing *)pdata;
+    int index = idata;
+    if (v != NULL && v->type == IR_TREG) {
+        int reg_no = v->val.temp_reg_no;
+        if (index > l->statistics.reg_last_usage_arr[reg_no])
+            l->statistics.reg_last_usage_arr[reg_no] = index;
     }
 }
 
@@ -89,7 +90,7 @@ static void _run_statistics(ir_listing *l) {
     // first find how many registers
     for (int i = 0; i < l->length; i++) {
         ir_entry *e = l->entries_arr[i];
-        e->ops->visit_ir_values(e, _statistics_find_min_max_register_number, l);
+        e->ops->visit_ir_values(e, _statistics_find_min_max_register_number, l, i);
     }
 
     // now make the array and run again to find last index
@@ -97,8 +98,7 @@ static void _run_statistics(ir_listing *l) {
     l->statistics.reg_last_usage_arr = malloc(sizeof(int) * l->statistics.regs_count);
     for (int i = 0; i < l->length; i++) {
         ir_entry *e = l->entries_arr[i];
-        l->statistics.list_index = i;
-        e->ops->visit_ir_values(e, _statistics_find_each_register_last_index, l);
+        e->ops->visit_ir_values(e, _statistics_find_each_register_last_index, l, i);
     }
 }
 

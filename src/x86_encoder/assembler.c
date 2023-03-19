@@ -11,10 +11,8 @@
 #include "asm_instruction.h"
 
 
-
-
 // for converting temp registers and local symbols to assembly operands
-struct asm_operand *create_asm_operand(ir_value *v) {
+struct asm_operand *ir_value_to_asm_operand(ir_value *v) {
     // consult temp register allocation, to resolve temp reg numbers
     // consult local symbols table, to resolve local symbols (e.g. func arguments)
     // immediates stay as they are
@@ -22,11 +20,11 @@ struct asm_operand *create_asm_operand(ir_value *v) {
     storage s;
     struct asm_operand *o = malloc(sizeof(struct asm_operand));
 
-    if (v->type == IR_REG) {
-        asm_allocator.get_temp_reg_storage(v->val.reg_no, &s);
+    if (v->type == IR_TREG) {
+        asm_allocator.get_temp_reg_storage(v->val.temp_reg_no, &s);
         if (s.is_gp_reg) {
             o->type = OT_REGISTER;
-            o->immediate = v->val.reg_no;
+            o->reg = s.gp_reg;
         } else if (s.is_stack_var) {
             o->type = OT_MEM_POINTED_BY_REG;
             o->reg = REG_BP;
@@ -112,10 +110,11 @@ static void analyze_function(ir_listing *ir, int start, int end) {
 
 static void code_prologue() {
     f.lst->ops->set_next_label(f.lst, f.func_def->func_name);
+    f.lst->ops->add_comment(f.lst, true, "establish stak frame");
     f.lst->ops->add_instr1(f.lst, OC_PUSH, new_reg_asm_operand(REG_BP));
     f.lst->ops->add_instr2(f.lst, OC_MOV, new_reg_asm_operand(REG_BP), new_reg_asm_operand(REG_SP));
     if (f.stack_space_for_local_vars > 0) {
-        f.lst->ops->add_comment(f.lst, "space for local vars", true);
+        f.lst->ops->add_comment(f.lst, true, "space for local vars");
         f.lst->ops->add_instr2(f.lst, OC_SUB, new_reg_asm_operand(REG_SP), new_imm_asm_operand(f.stack_space_for_local_vars));
     }
 
@@ -127,6 +126,7 @@ static void code_prologue() {
 }
 
 static void code_epilogue() {
+    f.lst->ops->add_comment(f.lst, true, "tear down stak frame");
     f.lst->ops->add_instr2(f.lst, OC_MOV, new_reg_asm_operand(REG_SP), new_reg_asm_operand(REG_BP));
     f.lst->ops->add_instr1(f.lst, OC_POP, new_reg_asm_operand(REG_BP));
     // callee restored registers
@@ -140,16 +140,19 @@ static void code_function_call(struct ir_entry_function_call_info *c) {
     // caller saved registers
 
     // push arguments from right to left
+    if (c->args_len > 0) 
+        f.lst->ops->add_comment(f.lst, true, "push %d args for function call", c->args_len);
+    
     for (int i = c->args_len - 1; i >= 0; i--) {
         ir_value *v = c->args_arr[i];
-        f.lst->ops->add_instr1(f.lst, OC_PUSH, create_asm_operand(v));
+        f.lst->ops->add_instr1(f.lst, OC_PUSH, ir_value_to_asm_operand(v));
         bytes_pushed += options.pointer_size_bytes; // how can we be sure?
     }
-    f.lst->ops->add_instr1(f.lst, OC_CALL, create_asm_operand(c->func_addr));
+    f.lst->ops->add_instr1(f.lst, OC_CALL, ir_value_to_asm_operand(c->func_addr));
 
     // grab returned value, if any is expected
     if (c->lvalue != NULL) {
-        f.lst->ops->add_instr2(f.lst, OC_MOV, create_asm_operand(c->lvalue), new_reg_asm_operand(REG_AX));
+        f.lst->ops->add_instr2(f.lst, OC_MOV, ir_value_to_asm_operand(c->lvalue), new_reg_asm_operand(REG_AX));
     }
     // clean up pushed arguments
     f.lst->ops->add_instr2(f.lst, OC_ADD, new_reg_asm_operand(REG_SP), new_imm_asm_operand(bytes_pushed));
@@ -161,7 +164,7 @@ static void code_conditional_jump(struct ir_entry_cond_jump_info *j) {
     // emit two things: compare, then appropriate jump.
     // we also need to clobber at least one register for CMP
     // the second _may_ be an immediate
-    f.lst->ops->add_instr2(f.lst, OC_CMP, create_asm_operand(j->v1), create_asm_operand(j->v2));
+    f.lst->ops->add_instr2(f.lst, OC_CMP, ir_value_to_asm_operand(j->v1), ir_value_to_asm_operand(j->v2));
     enum opcode op;
     switch (j->cmp) {
         case IR_EQ: op = OC_JEQ; break;
@@ -184,18 +187,18 @@ static void code_three_address_code(struct ir_entry_three_addr_code_info *c) {
         // we have a case of "lv = r2" or "lv = <unary> r2"
         switch (c->op) {
             case IR_NONE:
-                f.lst->ops->add_instr2(f.lst, OC_MOV, create_asm_operand(c->lvalue), create_asm_operand(c->op2));
+                f.lst->ops->add_instr2(f.lst, OC_MOV, ir_value_to_asm_operand(c->lvalue), ir_value_to_asm_operand(c->op2));
                 break;
             case IR_NOT:
                 // we can do this directly, using modRM byte
-                f.lst->ops->add_instr1(f.lst, OC_NOT, create_asm_operand(c->op2));
+                f.lst->ops->add_instr1(f.lst, OC_NOT, ir_value_to_asm_operand(c->op2));
                 break;
             case IR_NEG:
                 // we can do this directly, using modRM byte
-                f.lst->ops->add_instr1(f.lst, OC_NEG, create_asm_operand(c->op2));
+                f.lst->ops->add_instr1(f.lst, OC_NEG, ir_value_to_asm_operand(c->op2));
                 break;
             case IR_ADDR_OF:
-                f.lst->ops->add_instr1(f.lst, OC_LEA, create_asm_operand(c->op2));
+                f.lst->ops->add_instr1(f.lst, OC_LEA, ir_value_to_asm_operand(c->op2));
                 break;
             case IR_VALUE_AT: // fallthrough, for I don't know how to do this.
             default:
@@ -205,51 +208,64 @@ static void code_three_address_code(struct ir_entry_three_addr_code_info *c) {
     } else if (c->lvalue != NULL && c->op1 != NULL && c->op2 != NULL) {
         // lv = r1 + r2
         // thinking of doing: MOV AX, r1 / ADD AX, r2 / MOV lv, AX
-        f.lst->ops->add_instr2(f.lst, OC_MOV, new_reg_asm_operand(REG_AX), create_asm_operand(c->op1));
+        f.lst->ops->add_instr2(f.lst, OC_MOV, new_reg_asm_operand(REG_AX), ir_value_to_asm_operand(c->op1));
         switch (c->op) {
             case IR_ADD:
-                f.lst->ops->add_instr2(f.lst, OC_ADD, new_reg_asm_operand(REG_AX), create_asm_operand(c->op1));
+                f.lst->ops->add_instr2(f.lst, OC_ADD, new_reg_asm_operand(REG_AX), ir_value_to_asm_operand(c->op1));
                 break;
             case IR_SUB:
-                f.lst->ops->add_instr2(f.lst, OC_SUB, new_reg_asm_operand(REG_AX), create_asm_operand(c->op1));
+                f.lst->ops->add_instr2(f.lst, OC_SUB, new_reg_asm_operand(REG_AX), ir_value_to_asm_operand(c->op1));
                 break;
             case IR_MUL:
-                f.lst->ops->add_instr2(f.lst, OC_IMUL, new_reg_asm_operand(REG_AX), create_asm_operand(c->op1));
+                f.lst->ops->add_instr2(f.lst, OC_IMUL, new_reg_asm_operand(REG_AX), ir_value_to_asm_operand(c->op1));
                 break;
             case IR_DIV:
-                f.lst->ops->add_instr2(f.lst, OC_IDIV, new_reg_asm_operand(REG_AX), create_asm_operand(c->op1));
+                f.lst->ops->add_instr2(f.lst, OC_IDIV, new_reg_asm_operand(REG_AX), ir_value_to_asm_operand(c->op1));
                 break;
             case IR_MOD:
                 // division puts remainder in DX
-                f.lst->ops->add_instr2(f.lst, OC_IDIV, new_reg_asm_operand(REG_AX), create_asm_operand(c->op1));
+                f.lst->ops->add_instr2(f.lst, OC_IDIV, new_reg_asm_operand(REG_AX), ir_value_to_asm_operand(c->op1));
                 f.lst->ops->add_instr2(f.lst, OC_MOV, new_reg_asm_operand(REG_AX), new_reg_asm_operand(REG_DX));
                 break;
             case IR_AND:
-                f.lst->ops->add_instr2(f.lst, OC_AND, new_reg_asm_operand(REG_AX), create_asm_operand(c->op1));
+                f.lst->ops->add_instr2(f.lst, OC_AND, new_reg_asm_operand(REG_AX), ir_value_to_asm_operand(c->op1));
                 break;
             case IR_OR:
-                f.lst->ops->add_instr2(f.lst, OC_OR, new_reg_asm_operand(REG_AX), create_asm_operand(c->op1));
+                f.lst->ops->add_instr2(f.lst, OC_OR, new_reg_asm_operand(REG_AX), ir_value_to_asm_operand(c->op1));
                 break;
             case IR_XOR:
-                f.lst->ops->add_instr2(f.lst, OC_XOR, new_reg_asm_operand(REG_AX), create_asm_operand(c->op1));
+                f.lst->ops->add_instr2(f.lst, OC_XOR, new_reg_asm_operand(REG_AX), ir_value_to_asm_operand(c->op1));
                 break;
             case IR_LSH:
-                f.lst->ops->add_instr2(f.lst, OC_SHL, new_reg_asm_operand(REG_AX), create_asm_operand(c->op1));
+                f.lst->ops->add_instr2(f.lst, OC_SHL, new_reg_asm_operand(REG_AX), ir_value_to_asm_operand(c->op1));
                 break;
             case IR_RSH:
-                f.lst->ops->add_instr2(f.lst, OC_SHR, new_reg_asm_operand(REG_AX), create_asm_operand(c->op1));
+                f.lst->ops->add_instr2(f.lst, OC_SHR, new_reg_asm_operand(REG_AX), ir_value_to_asm_operand(c->op1));
                 break;
             default:
                 error(NULL, 0, "Unsupported 3-code-addr binary operator %d", c->op);
                 break;
         }
-        f.lst->ops->add_instr2(f.lst, OC_MOV, create_asm_operand(c->lvalue), new_reg_asm_operand(REG_AX));
+        f.lst->ops->add_instr2(f.lst, OC_MOV, ir_value_to_asm_operand(c->lvalue), new_reg_asm_operand(REG_AX));
     } else {
         // error(NULL, 0, "unsupported 3-addr-code format: lv=%s, op1=%s, op2=%s", 
         //     c->lvalue == NULL ? "null" : "non-null",
         //     c->op1 == NULL    ? "null" : "non-null",
         //     c->op2 == NULL    ? "null" : "non-null");
     }
+}
+
+static void _release_temp_reg_allocations(ir_value *v, void *pdata, int idata) {
+    ir_listing *ir = (ir_listing *)pdata;
+    int curr_index = idata;
+
+    if (v != NULL && v->type == IR_TREG) {
+        int reg_no = v->val.temp_reg_no;
+        if (ir->ops->get_register_last_usage(ir, reg_no) == curr_index) {
+            asm_allocator.release_temp_reg_storage(reg_no);
+        }
+    }
+    
 }
 
 static void assemble_function(ir_listing *ir, int start, int end) {
@@ -287,6 +303,9 @@ static void assemble_function(ir_listing *ir, int start, int end) {
                 code_unconditional_jump(e->t.unconditional_jump.str);
                 break;
         }
+
+        // must free temp reg allocations
+        e->ops->visit_ir_values(e, _release_temp_reg_allocations, ir, i);
     }
 
     code_epilogue();

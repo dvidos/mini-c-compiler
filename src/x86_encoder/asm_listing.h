@@ -19,7 +19,7 @@ typedef struct asm_listing {
 struct asm_listing_ops {
     void (*print)(asm_listing *lst, FILE *stream);
     void (*set_next_label)(asm_listing *lst, char *label);
-    void (*add_comment)(asm_listing *lst, char *comment, bool for_next_instruction);
+    void (*add_comment)(asm_listing *lst, bool for_next_instruction, char *comment, ...);
     void (*add_instr)(asm_listing *lst, enum opcode code); // e.g. NOP
     void (*add_instr1)(asm_listing *lst, enum opcode code, struct asm_operand *op1);
     void (*add_instr2)(asm_listing *lst, enum opcode code, struct asm_operand *op1, struct asm_operand *op2);

@@ -1,80 +1,75 @@
 get_next_counter_value:
-    PUSH EBP
+    PUSH EBP             ; establish stak frame
     MOV EBP, ESP
-    MOV EAX, counter
-    SUB ESP, 0x4         ; grab some space for temp register
-    MOV [EBP-4], 0x1
-    MOV EAX, EAX
-    ADD EAX, EAX
+    MOV EBX, counter
+    MOV ECX, 0x1
+    MOV EAX, EBX
+    ADD EAX, EBX
     MOV counter, EAX
     MOV ret_val, counter
     JMP get_next_counter_value_end
 get_next_counter_value_end:
-    MOV ESP, EBP
+    MOV ESP, EBP         ; tear down stak frame
     POP EBP
     RET
 
 rect_area:
-    PUSH EBP
+    PUSH EBP             ; establish stak frame
     MOV EBP, ESP
     ; [EBP +8] argument "width", 4 bytes
     ; [EBP+12] argument "height", 4 bytes
-    MOV EAX, width
-    SUB ESP, 0x4         ; grab some space for temp register
-    MOV [EBP-4], height
-    MOV EAX, EAX
-    IMUL EAX, EAX
+    MOV EBX, width
+    MOV ECX, height
+    MOV EAX, EBX
+    IMUL EAX, EBX
     MOV ret_val, EAX
     JMP rect_area_end
 rect_area_end:
-    MOV ESP, EBP
+    MOV ESP, EBP         ; tear down stak frame
     POP EBP
     RET
 
 triangle_area:
-    PUSH EBP
+    PUSH EBP             ; establish stak frame
     MOV EBP, ESP
     ; [EBP +8] argument "width", 4 bytes
     ; [EBP+12] argument "height", 4 bytes
-    MOV EAX, width
-    MOV EAX, height
-    MOV EAX, 0x2
-    MOV EAX, EAX
-    IDIV EAX, EAX
-    SUB ESP, 0x4         ; grab some space for temp register
-    MOV [EBP-4], EAX
-    MOV EAX, EAX
-    IMUL EAX, EAX
+    MOV EBX, width
+    MOV ECX, height
+    MOV EDX, 0x2
+    MOV EAX, ECX
+    IDIV EAX, ECX
+    MOV E(unknown), EAX
+    MOV EAX, EBX
+    IMUL EAX, EBX
     MOV ret_val, EAX
     JMP triangle_area_end
 triangle_area_end:
-    MOV ESP, EBP
+    MOV ESP, EBP         ; tear down stak frame
     POP EBP
     RET
 
 circle_area:
-    PUSH EBP
+    PUSH EBP             ; establish stak frame
     MOV EBP, ESP
     ; [EBP +8] argument "radius", 4 bytes
-    MOV E(unknown), 0x3
+    MOV EBX, 0x3
+    MOV ECX, radius
     MOV EDX, radius
-    SUB ESP, 0x4         ; grab some space for temp register
-    MOV [EBP-4], radius
-    MOV EAX, EAX
-    IMUL EAX, EAX
-    SUB ESP, 0x4         ; grab some space for temp register
+    MOV EAX, ECX
+    IMUL EAX, ECX
     MOV E(unknown), EAX
-    MOV EAX, EAX
-    IMUL EAX, EAX
+    MOV EAX, EBX
+    IMUL EAX, EBX
     MOV ret_val, EAX
     JMP circle_area_end
 circle_area_end:
-    MOV ESP, EBP
+    MOV ESP, EBP         ; tear down stak frame
     POP EBP
     RET
 
 fibonacci:
-    PUSH EBP
+    PUSH EBP             ; establish stak frame
     MOV EBP, ESP
     ; [EBP +8] argument "n", 4 bytes
     CMP n, 0x2
@@ -82,41 +77,38 @@ fibonacci:
     MOV ret_val, n
     JMP fibonacci_end
 if_3_end:
-    MOV EAX, n
+    MOV EBX, n
+    MOV ECX, 0x1
+    MOV EAX, EBX
+    SUB EAX, EBX
+    MOV EDX, EAX
+    PUSH EDX             ; push 1 args for function call
+    CALL fibonacci
+    MOV E(unknown), EAX
+    ADD ESP, 0x4
+    MOV E(unknown), n
     SUB ESP, 0x4         ; grab some space for temp register
-    MOV [EBP-4], 0x1
-    MOV EAX, EAX
-    SUB EAX, EAX
+    MOV [EBP-4], 0x2
+    MOV EAX, E(unknown)
+    SUB EAX, E(unknown)
     SUB ESP, 0x4         ; grab some space for temp register
     MOV [EBP-8], EAX
-    PUSH [EBP-8]
+    PUSH [EBP-8]         ; push 1 args for function call
     CALL fibonacci
     SUB ESP, 0x4         ; grab some space for temp register
     MOV [EBP-12], EAX
     ADD ESP, 0x4
-    MOV EAX, n
-    SUB ESP, 0x4         ; grab some space for temp register
-    MOV EAX, 0x2
-    MOV EAX, EAX
-    SUB EAX, EAX
-    SUB ESP, 0x4         ; grab some space for temp register
-    MOV [EBP-20], EAX
-    PUSH [EBP-20]
-    CALL fibonacci
-    SUB ESP, 0x4         ; grab some space for temp register
-    MOV [EBP-24], EAX
-    ADD ESP, 0x4
-    MOV EAX, [EBP-12]
-    ADD EAX, [EBP-12]
+    MOV EAX, E(unknown)
+    ADD EAX, E(unknown)
     MOV ret_val, EAX
     JMP fibonacci_end
 fibonacci_end:
-    MOV ESP, EBP
+    MOV ESP, EBP         ; tear down stak frame
     POP EBP
     RET
 
 factorial:
-    PUSH EBP
+    PUSH EBP             ; establish stak frame
     MOV EBP, ESP
     ; [EBP +8] argument "n", 4 bytes
     CMP n, 0x1
@@ -124,56 +116,48 @@ factorial:
     MOV ret_val, n
     JMP factorial_end
 if_4_end:
-    MOV E(unknown), n
-    SUB ESP, 0x4         ; grab some space for temp register
-    MOV [EBP-4], n
-    SUB ESP, 0x4         ; grab some space for temp register
-    MOV [EBP-8], 0x1
-    MOV EAX, [EBP-4]
-    SUB EAX, [EBP-4]
-    SUB ESP, 0x4         ; grab some space for temp register
-    MOV [EBP-12], EAX
-    PUSH [EBP-12]
+    MOV EBX, n
+    MOV ECX, n
+    MOV EDX, 0x1
+    MOV EAX, ECX
+    SUB EAX, ECX
+    MOV E(unknown), EAX
+    PUSH E(unknown)      ; push 1 args for function call
     CALL factorial
-    SUB ESP, 0x4         ; grab some space for temp register
-    MOV [EBP-16], EAX
+    MOV E(unknown), EAX
     ADD ESP, 0x4
-    MOV EAX, EAX
-    IMUL EAX, EAX
+    MOV EAX, EBX
+    IMUL EAX, EBX
     MOV ret_val, EAX
     JMP factorial_end
 factorial_end:
-    MOV ESP, EBP
+    MOV ESP, EBP         ; tear down stak frame
     POP EBP
     RET
 
 math_demo:
-    PUSH EBP
+    PUSH EBP             ; establish stak frame
     MOV EBP, ESP
     SUB ESP, 0x4         ; space for local vars
     ; [EBP -4] local var "i", 4 bytes
     MOV i, 0x0
 while_5_begin:
-    MOV EAX, i
+    MOV EBX, i
     MOV EAX, i
     ADD EAX, i
     MOV i, EAX
-    CMP EAX, 0xa
+    CMP EBX, 0xa
     JGE while_5_end
-    SUB ESP, 0x4         ; grab some space for temp register
-    MOV [EBP-8], __str_1
-    SUB ESP, 0x4         ; grab some space for temp register
-    MOV [EBP-12], i
-    SUB ESP, 0x4         ; grab some space for temp register
-    MOV [EBP-16], i
-    PUSH [EBP-16]
+    MOV ECX, __str_1
+    MOV EDX, i
+    MOV E(unknown), i
+    PUSH E(unknown)      ; push 1 args for function call
     CALL fibonacci
-    SUB ESP, 0x4         ; grab some space for temp register
-    MOV [EBP-20], EAX
+    MOV E(unknown), EAX
     ADD ESP, 0x4
-    PUSH [EBP-20]
-    PUSH [EBP-12]
-    PUSH [EBP-8]
+    PUSH E(unknown)      ; push 3 args for function call
+    PUSH EDX
+    PUSH ECX
     CALL printf
     ADD ESP, 0xc
     JMP while_5_begin
@@ -181,36 +165,36 @@ while_5_end:
     MOV i, 0x0
 while_6_begin:
     SUB ESP, 0x4         ; grab some space for temp register
-    MOV [EBP-24], i
+    MOV [EBP-8], i
     MOV EAX, i
     ADD EAX, i
     MOV i, EAX
-    CMP [EBP-24], 0xa
+    CMP [EBP-8], 0xa
     JGE while_6_end
     SUB ESP, 0x4         ; grab some space for temp register
-    MOV [EBP-28], __str_2
+    MOV [EBP-12], __str_2
     SUB ESP, 0x4         ; grab some space for temp register
-    MOV [EBP-32], i
+    MOV [EBP-16], i
     SUB ESP, 0x4         ; grab some space for temp register
-    MOV [EBP-36], i
-    PUSH [EBP-36]
+    MOV [EBP-20], i
+    PUSH [EBP-20]        ; push 1 args for function call
     CALL factorial
     SUB ESP, 0x4         ; grab some space for temp register
-    MOV [EBP-40], EAX
+    MOV [EBP-24], EAX
     ADD ESP, 0x4
-    PUSH [EBP-40]
-    PUSH [EBP-32]
-    PUSH [EBP-28]
+    PUSH [EBP-24]        ; push 3 args for function call
+    PUSH [EBP-16]
+    PUSH [EBP-12]
     CALL printf
     ADD ESP, 0xc
     JMP while_6_begin
 math_demo_end:
-    MOV ESP, EBP
+    MOV ESP, EBP         ; tear down stak frame
     POP EBP
     RET
 
 nested_loops_test:
-    PUSH EBP
+    PUSH EBP             ; establish stak frame
     MOV EBP, ESP
     SUB ESP, 0x8         ; space for local vars
     ; [EBP -4] local var "outer", 4 bytes
@@ -233,12 +217,12 @@ while_8_end:
     MOV outer, EAX
     JMP while_7_begin
 nested_loops_test_end:
-    MOV ESP, EBP
+    MOV ESP, EBP         ; tear down stak frame
     POP EBP
     RET
 
 main:
-    PUSH EBP
+    PUSH EBP             ; establish stak frame
     MOV EBP, ESP
     SUB ESP, 0x1d        ; space for local vars
     ; [EBP +8] argument "argc", 4 bytes
@@ -249,15 +233,15 @@ main:
     ; [EBP-13] local var "d", 4 bytes
     ; [EBP-29] local var "buffer", 16 bytes
     MOV a, 0x1
-    MOV EAX, a
-    MOV E(unknown), 0x2
-    MOV EAX, EAX
-    ADD EAX, EAX
+    MOV EBX, a
+    MOV ECX, 0x2
+    MOV EAX, EBX
+    ADD EAX, EBX
     MOV b, EAX
     CALL math_demo
     ADD ESP, 0x0
 main_end:
-    MOV ESP, EBP
+    MOV ESP, EBP         ; tear down stak frame
     POP EBP
     RET
 

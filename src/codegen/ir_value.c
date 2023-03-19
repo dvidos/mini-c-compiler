@@ -12,10 +12,10 @@ ir_value *new_ir_value_symbol(char *symbol_name) {
     return v;
 }
 
-ir_value *new_ir_value_register(int reg_no) {
+ir_value *new_ir_value_register(int temp_reg_no) {
     ir_value *v = malloc(sizeof(ir_value));
-    v->type = IR_REG;
-    v->val.reg_no = reg_no;
+    v->type = IR_TREG;
+    v->val.temp_reg_no = temp_reg_no;
     return v;
 }
 
@@ -29,8 +29,8 @@ ir_value *new_ir_value_immediate(int value) {
 void print_ir_value(ir_value *v, FILE *stream) {
     if (v == NULL)
         fprintf(stream, "(null)");
-    else if (v->type == IR_REG)
-        fprintf(stream, "r%d", v->val.reg_no);
+    else if (v->type == IR_TREG)
+        fprintf(stream, "r%d", v->val.temp_reg_no);
     else if (v->type == IR_SYM)
         fprintf(stream, "%s", v->val.symbol_name);
     else if (v->type == IR_IMM) {

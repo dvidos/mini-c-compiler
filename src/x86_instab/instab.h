@@ -1,6 +1,6 @@
 // auto generated file using mkinstrtab, do not edit manually
 
-struct instruction_encoding_info {
+struct asm_instruction_encoding_info {
     enum opcode instr;
     enum optype op1type;
     enum optype op2type;
@@ -9,7 +9,7 @@ struct instruction_encoding_info {
     enum enc_flags;
 };
 
-struct instruction_encoding_info compat_instruction_encodings[] = {
+struct asm_instruction_encoding_info compat_instruction_encodings[] = {
     { OC_NOP,  0,      0,      OE_ZO, "NP 90",         }, // One byte no-operation instruction.
     { OC_NOP,  reg16,  0,      OE_M,  "NP 0F 1F /0",   }, // Multi-byte no-operation instruction.
     { OC_NOP,  mem16,  0,      OE_M,  "NP 0F 1F /0",   }, // Multi-byte no-operation instruction.
@@ -443,7 +443,7 @@ struct instruction_encoding_info compat_instruction_encodings[] = {
     { OC_INT,  imm8,   0,      OE_I,  "CD ib",         }, // Generate software interrupt with vector specified by immediate byte.
 };
 
-struct instruction_encoding_info x64_instruction_encodings[] = {
+struct asm_instruction_encoding_info x64_instruction_encodings[] = {
     { OC_NOP,  0,      0,      OE_ZO, "NP 90",         }, // One byte no-operation instruction.
     { OC_NOP,  reg16,  0,      OE_M,  "NP 0F 1F /0",   }, // Multi-byte no-operation instruction.
     { OC_NOP,  mem16,  0,      OE_M,  "NP 0F 1F /0",   }, // Multi-byte no-operation instruction.

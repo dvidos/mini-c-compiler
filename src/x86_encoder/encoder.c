@@ -166,7 +166,7 @@ typedef uint64_t u64;
 */
 
 
-static bool x86_encoder_encode(struct x86_encoder *enc, struct instruction *instr);
+static bool x86_encoder_encode(struct x86_encoder *enc, struct asm_instruction *instr);
 static void x86_encoder_reset(struct x86_encoder *enc);
 static void x86_encoder_free(struct x86_encoder *enc);
 
@@ -269,7 +269,7 @@ static bool encode_ext_instr_mem_by_symbol(struct x86_encoder *enc, u8 opcode, u
 
 
 
-static bool x86_encoder_encode(struct x86_encoder *enc, struct instruction *instr) {
+static bool x86_encoder_encode(struct x86_encoder *enc, struct asm_instruction *instr) {
     if (enc->mode != CPU_MODE_PROTECTED) {
         return false;
     }
@@ -280,26 +280,26 @@ static bool x86_encoder_encode(struct x86_encoder *enc, struct instruction *inst
             break;
 
         case OC_PUSH:
-            if (instr->op1.type == OT_REGISTER) {
+            if (instr->op1->type == OT_REGISTER) {
                 // this one cannot push segment registers, only general ones
-                return encode_single_byte_instruction_adding_reg_no(enc, 0x50, instr->op1.value);
+                return encode_single_byte_instruction_adding_reg_no(enc, 0x50, instr->op1->reg);
 
-            } else if (instr->op1.type == OT_MEM_DWORD_POINTED_BY_REG) {
+            } else if (instr->op1->type == OT_MEM_POINTED_BY_REG) {
                 // Intel gives this as: "FF /6   ModRM:r/m (r)"
-                return encode_ext_instr_mem_by_register(enc, 0xFF, 6, instr->op1.value, instr->op1.offset);
+                return encode_ext_instr_mem_by_register(enc, 0xFF, 6, instr->op1->reg, instr->op1->offset);
 
-            } else if (instr->op1.type == OT_SYMBOL_MEM_ADDRESS) {
+            } else if (instr->op1->type == OT_MEM_OF_SYMBOL) {
                 // Intel gives this as: "FF /6   ModRM:r/m (r)"
-                return encode_ext_instr_mem_by_symbol(enc, 0xFF, 6, instr->op1.symbol_name);
+                return encode_ext_instr_mem_by_symbol(enc, 0xFF, 6, instr->op1->symbol_name);
 
-            } else if (instr->op1.type == OT_IMMEDIATE) {
+            } else if (instr->op1->type == OT_IMMEDIATE) {
                 // simple 68 + value
-                if (instr->op1.value >= -128 && instr->op1.value <= 127) {
+                if (instr->op1->immediate >= -128 && instr->op1->immediate <= 127) {
                     enc->output->add_byte(enc->output, 0x6a);
-                    enc->output->add_byte(enc->output, (u8)instr->op1.value);
+                    enc->output->add_byte(enc->output, (u8)instr->op1->immediate);
                 } else {
                     enc->output->add_byte(enc->output, 0x68);
-                    enc->output->add_dword(enc->output, instr->op1.value);
+                    enc->output->add_dword(enc->output, instr->op1->immediate);
                 }
                 return true;
             } else {
@@ -307,17 +307,17 @@ static bool x86_encoder_encode(struct x86_encoder *enc, struct instruction *inst
             }
             break;
         case OC_POP:
-            if (instr->op1.type == OT_REGISTER) {
+            if (instr->op1->type == OT_REGISTER) {
                 // this one cannot push segment registers, only general ones
-                return encode_single_byte_instruction_adding_reg_no(enc, 0x58, instr->op1.value);
+                return encode_single_byte_instruction_adding_reg_no(enc, 0x58, instr->op1->reg);
 
-            } else if (instr->op1.type == OT_MEM_DWORD_POINTED_BY_REG) {
+            } else if (instr->op1->type == OT_MEM_POINTED_BY_REG) {
                 // Intel gives this as: "8F /0"
-                return encode_ext_instr_mem_by_register(enc, 0x8F, 0, instr->op1.value, instr->op1.offset);
+                return encode_ext_instr_mem_by_register(enc, 0x8F, 0, instr->op1->reg, instr->op1->offset);
 
-            } else if (instr->op1.type == OT_SYMBOL_MEM_ADDRESS) {
+            } else if (instr->op1->type == OT_MEM_OF_SYMBOL) {
                 // Intel gives this as: "8F /6   ModRM:r/m (r)"
-                return encode_ext_instr_mem_by_symbol(enc, 0x8F, 0, instr->op1.symbol_name);
+                return encode_ext_instr_mem_by_symbol(enc, 0x8F, 0, instr->op1->symbol_name);
 
             } else {
                 return false;
@@ -329,35 +329,35 @@ static bool x86_encoder_encode(struct x86_encoder *enc, struct instruction *inst
             // mov reg, mem    - 8B
             // mov mem, reg    - 89
             // mov mem, imm    - B8 or C7
-            if (instr->op1.type == OT_REGISTER && instr->op2.type == OT_IMMEDIATE) {
+            if (instr->op1->type == OT_REGISTER && instr->op2->type == OT_IMMEDIATE) {
                 // B8+reg, imm32
-                enc->output->add_byte(enc->output, 0xB8 + (instr->op1.value & 0x7));
-                enc->output->add_dword(enc->output, instr->op2.value);
-            } else if (instr->op1.type == OT_REGISTER && instr->op2.type == OT_REGISTER) {
+                enc->output->add_byte(enc->output, 0xB8 + (instr->op1->immediate & 0x7));
+                enc->output->add_dword(enc->output, instr->op2->immediate);
+            } else if (instr->op1->type == OT_REGISTER && instr->op2->type == OT_REGISTER) {
                 // "89 /r"  (mode 11, reg=src, r/m=dest)
                 enc->output->add_byte(enc->output, 0x89);
-                enc->output->add_byte(enc->output, modrm_byte(MODE_DIRECT_REGISTER, instr->op2.value, instr->op1.value));
-            } else if (instr->op1.type == OT_REGISTER && instr->op2.type == OT_MEM_DWORD_POINTED_BY_REG) {
+                enc->output->add_byte(enc->output, modrm_byte(MODE_DIRECT_REGISTER, instr->op2->reg, instr->op1->reg));
+            } else if (instr->op1->type == OT_REGISTER && instr->op2->type == OT_MEM_POINTED_BY_REG) {
                 // "8B /r"  (mode , reg=src, r/m=dest)
                 return encode_ext_instr_mem_by_register(enc, 
-                    0x8B, instr->op1.value, instr->op2.value, instr->op2.offset);
-            } else if (instr->op1.type == OT_REGISTER && instr->op2.type == OT_SYMBOL_MEM_ADDRESS) {
-                encode_single_byte_instruction_adding_reg_no(enc, 0xB8, instr->op1.value);
-                enc->relocations->add(enc->relocations, enc->output->length, instr->op2.symbol_name, RT_ABS_32);
+                    0x8B, instr->op1->reg, instr->op2->reg, instr->op2->offset);
+            } else if (instr->op1->type == OT_REGISTER && instr->op2->type == OT_MEM_OF_SYMBOL) {
+                encode_single_byte_instruction_adding_reg_no(enc, 0xB8, instr->op1->reg);
+                enc->relocations->add(enc->relocations, enc->output->length, instr->op2->symbol_name, RT_ABS_32);
                 enc->output->add_dword(enc->output, 0xFFFFFFFF);
                 return true;
                 
-            } else if (instr->op1.type == OT_MEM_DWORD_POINTED_BY_REG && instr->op2.type == OT_REGISTER) {
+            } else if (instr->op1->type == OT_MEM_POINTED_BY_REG && instr->op2->type == OT_REGISTER) {
 
-            } else if (instr->op1.type == OT_SYMBOL_MEM_ADDRESS && instr->op2.type == OT_REGISTER) {
+            } else if (instr->op1->type == OT_MEM_OF_SYMBOL && instr->op2->type == OT_REGISTER) {
                 enc->output->add_byte(enc->output, 0xA3);
-                enc->relocations->add(enc->relocations, enc->output->length, instr->op1.symbol_name, RT_ABS_32);
+                enc->relocations->add(enc->relocations, enc->output->length, instr->op1->symbol_name, RT_ABS_32);
                 enc->output->add_dword(enc->output, 0xFFFFFFFF);
-                enc->output->add_byte(enc->output, modrm_byte(MODE_DIRECT_REGISTER, 0, instr->op2.value));
+                enc->output->add_byte(enc->output, modrm_byte(MODE_DIRECT_REGISTER, 0, instr->op2->reg));
                 return true;
 
-            } else if (instr->op1.type == OT_MEM_DWORD_POINTED_BY_REG && instr->op2.type == OT_IMMEDIATE) {
-            } else if (instr->op1.type == OT_SYMBOL_MEM_ADDRESS && instr->op2.type == OT_IMMEDIATE) {
+            } else if (instr->op1->type == OT_MEM_POINTED_BY_REG && instr->op2->type == OT_IMMEDIATE) {
+            } else if (instr->op1->type == OT_MEM_OF_SYMBOL && instr->op2->type == OT_IMMEDIATE) {
             } else {
                 return false;
             }
@@ -365,7 +365,7 @@ static bool x86_encoder_encode(struct x86_encoder *enc, struct instruction *inst
         case OC_INT:
             // should be easy
             enc->output->add_byte(enc->output, 0xCD);
-            enc->output->add_byte(enc->output, instr->op1.value);
+            enc->output->add_byte(enc->output, instr->op1->immediate);
             return true;
             break;
 
@@ -376,93 +376,93 @@ static bool x86_encoder_encode(struct x86_encoder *enc, struct instruction *inst
             break;
 
         case OC_INC:
-            if (instr->op1.type == OT_REGISTER) {
-                enc->output->add_byte(enc->output, 0x40 + (instr->op1.value & 0x7));
+            if (instr->op1->type == OT_REGISTER) {
+                enc->output->add_byte(enc->output, 0x40 + (instr->op1->reg & 0x7));
                 return true;
-            } else if (instr->op1.type == OT_MEM_DWORD_POINTED_BY_REG) {
-                return encode_ext_instr_mem_by_register(enc, 0xFF, 0, instr->op1.value, instr->op1.offset);
-            } else if (instr->op1.type == OT_SYMBOL_MEM_ADDRESS) {
-                return encode_ext_instr_mem_by_symbol(enc, 0xFF, 0, instr->op1.symbol_name);
+            } else if (instr->op1->type == OT_MEM_POINTED_BY_REG) {
+                return encode_ext_instr_mem_by_register(enc, 0xFF, 0, instr->op1->reg, instr->op1->offset);
+            } else if (instr->op1->type == OT_MEM_OF_SYMBOL) {
+                return encode_ext_instr_mem_by_symbol(enc, 0xFF, 0, instr->op1->symbol_name);
             }
             break;
         case OC_DEC:
-            if (instr->op1.type == OT_REGISTER) {
-                enc->output->add_byte(enc->output, 0x48 + (instr->op1.value & 0x7));
+            if (instr->op1->type == OT_REGISTER) {
+                enc->output->add_byte(enc->output, 0x48 + (instr->op1->reg & 0x7));
                 return true;
-            } else if (instr->op1.type == OT_MEM_DWORD_POINTED_BY_REG) {
-                return encode_ext_instr_mem_by_register(enc, 0xFF, 1, instr->op1.value, instr->op1.offset);
-            } else if (instr->op1.type == OT_SYMBOL_MEM_ADDRESS) {
-                return encode_ext_instr_mem_by_symbol(enc, 0xFF, 1, instr->op1.symbol_name);
+            } else if (instr->op1->type == OT_MEM_POINTED_BY_REG) {
+                return encode_ext_instr_mem_by_register(enc, 0xFF, 1, instr->op1->reg, instr->op1->offset);
+            } else if (instr->op1->type == OT_MEM_OF_SYMBOL) {
+                return encode_ext_instr_mem_by_symbol(enc, 0xFF, 1, instr->op1->symbol_name);
             }
             break;
         case OC_NEG:
-            if (instr->op1.type == OT_REGISTER) {
+            if (instr->op1->type == OT_REGISTER) {
                 // "F7/3"
                 enc->output->add_byte(enc->output, 0xF7);
-                enc->output->add_byte(enc->output, modrm_byte(MODE_DIRECT_REGISTER, 3, instr->op1.value));
+                enc->output->add_byte(enc->output, modrm_byte(MODE_DIRECT_REGISTER, 3, instr->op1->reg));
                 return true;
-            } else if (instr->op1.type == OT_MEM_DWORD_POINTED_BY_REG) {
+            } else if (instr->op1->type == OT_MEM_POINTED_BY_REG) {
                 // "F7/3"
-                return encode_ext_instr_mem_by_register(enc, 0xF7, 3, instr->op1.value, instr->op1.offset);
-            } else if (instr->op1.type == OT_SYMBOL_MEM_ADDRESS) {
+                return encode_ext_instr_mem_by_register(enc, 0xF7, 3, instr->op1->reg, instr->op1->offset);
+            } else if (instr->op1->type == OT_MEM_OF_SYMBOL) {
                 // "F7/3"
-                return encode_ext_instr_mem_by_symbol(enc, 0xF7, 3, instr->op1.symbol_name);
+                return encode_ext_instr_mem_by_symbol(enc, 0xF7, 3, instr->op1->symbol_name);
             }
             break;
         case OC_NOT:
-            if (instr->op1.type == OT_REGISTER) {
+            if (instr->op1->type == OT_REGISTER) {
                 // "F7/2"
                 enc->output->add_byte(enc->output, 0xF7);
-                enc->output->add_byte(enc->output, modrm_byte(MODE_DIRECT_REGISTER, 2, instr->op1.value));
+                enc->output->add_byte(enc->output, modrm_byte(MODE_DIRECT_REGISTER, 2, instr->op1->reg));
                 return true;
-            } else if (instr->op1.type == OT_MEM_DWORD_POINTED_BY_REG) {
+            } else if (instr->op1->type == OT_MEM_POINTED_BY_REG) {
                 // "F7/2"
-                return encode_ext_instr_mem_by_register(enc, 0xF7, 2, instr->op1.value, instr->op1.offset);
-            } else if (instr->op1.type == OT_SYMBOL_MEM_ADDRESS) {
+                return encode_ext_instr_mem_by_register(enc, 0xF7, 2, instr->op1->reg, instr->op1->offset);
+            } else if (instr->op1->type == OT_MEM_OF_SYMBOL) {
                 // "F7/2"
-                return encode_ext_instr_mem_by_symbol(enc, 0xF7, 2, instr->op1.symbol_name);
+                return encode_ext_instr_mem_by_symbol(enc, 0xF7, 2, instr->op1->symbol_name);
             }
             break;
         case OC_CALL:
-            if (instr->op1.type == OT_REGISTER) {
+            if (instr->op1->type == OT_REGISTER) {
                 // "FF/2"
                 enc->output->add_byte(enc->output, 0xFF);
-                enc->output->add_byte(enc->output, modrm_byte(MODE_DIRECT_REGISTER, 2, instr->op1.value));
+                enc->output->add_byte(enc->output, modrm_byte(MODE_DIRECT_REGISTER, 2, instr->op1->reg));
                 return true;
-            } else if (instr->op1.type == OT_MEM_DWORD_POINTED_BY_REG) {
+            } else if (instr->op1->type == OT_MEM_POINTED_BY_REG) {
                 // "FF/2"
-                return encode_ext_instr_mem_by_register(enc, 0xFF, 2, instr->op1.value, instr->op1.offset);
-            } else if (instr->op1.type == OT_SYMBOL_MEM_ADDRESS) {
+                return encode_ext_instr_mem_by_register(enc, 0xFF, 2, instr->op1->reg, instr->op1->offset);
+            } else if (instr->op1->type == OT_MEM_OF_SYMBOL) {
                 // "FF/2", we'll use a CODE_SEG override to make this an absolute call,
                 //         otherwise it will be relative to the next instruction
                 //         and it'd be encoded as "e8 01 00 00 00" with dword as relative offset
                 enc->output->add_byte(enc->output, 0x2E);
-                return encode_ext_instr_mem_by_symbol(enc, 0xFF, 2, instr->op1.symbol_name);
+                return encode_ext_instr_mem_by_symbol(enc, 0xFF, 2, instr->op1->symbol_name);
             }
             break;
         case OC_ADD:
-            if (instr->op1.type == OT_REGISTER && instr->op2.type == OT_REGISTER) {
+            if (instr->op1->type == OT_REGISTER && instr->op2->type == OT_REGISTER) {
                 enc->output->add_byte(enc->output, 0x01);
                 // for the "reg <- reg" cases, we put the destination in "reg" and source in "reg_mom"
-                enc->output->add_byte(enc->output, modrm_byte(MODE_DIRECT_REGISTER, instr->op2.value, instr->op1.value));
+                enc->output->add_byte(enc->output, modrm_byte(MODE_DIRECT_REGISTER, instr->op2->reg, instr->op1->reg));
                 return true;
-            } else if (instr->op1.type == OT_REGISTER && instr->op2.type == OT_IMMEDIATE) {
+            } else if (instr->op1->type == OT_REGISTER && instr->op2->type == OT_IMMEDIATE) {
                 enc->output->add_byte(enc->output, 0x81);
-                enc->output->add_byte(enc->output, modrm_byte(MODE_DIRECT_REGISTER, 0, instr->op1.value));
-                enc->output->add_dword(enc->output, instr->op2.value);
+                enc->output->add_byte(enc->output, modrm_byte(MODE_DIRECT_REGISTER, 0, instr->op1->reg));
+                enc->output->add_dword(enc->output, instr->op2->immediate);
                 return true;
             }
             break;
         case OC_SUB:
-            if (instr->op1.type == OT_REGISTER && instr->op2.type == OT_REGISTER) {
+            if (instr->op1->type == OT_REGISTER && instr->op2->type == OT_REGISTER) {
                 enc->output->add_byte(enc->output, 0x29);
                 // for the "reg <- reg" cases, we put the destination in "reg" and source in "reg_mom"
-                enc->output->add_byte(enc->output, modrm_byte(MODE_DIRECT_REGISTER, instr->op2.value, instr->op1.value));
+                enc->output->add_byte(enc->output, modrm_byte(MODE_DIRECT_REGISTER, instr->op2->reg, instr->op1->reg));
                 return true;
-            } else if (instr->op1.type == OT_REGISTER && instr->op2.type == OT_IMMEDIATE) {
+            } else if (instr->op1->type == OT_REGISTER && instr->op2->type == OT_IMMEDIATE) {
                 enc->output->add_byte(enc->output, 0x81);
-                enc->output->add_byte(enc->output, modrm_byte(MODE_DIRECT_REGISTER, 5, instr->op1.value));
-                enc->output->add_dword(enc->output, instr->op2.value);
+                enc->output->add_byte(enc->output, modrm_byte(MODE_DIRECT_REGISTER, 5, instr->op1->reg));
+                enc->output->add_dword(enc->output, instr->op2->immediate);
                 return true;
             }
             break;
@@ -471,44 +471,44 @@ static bool x86_encoder_encode(struct x86_encoder *enc, struct instruction *inst
         case OC_IDIV:
             break;
         case OC_AND:
-            if (instr->op1.type == OT_REGISTER && instr->op2.type == OT_REGISTER) {
+            if (instr->op1->type == OT_REGISTER && instr->op2->type == OT_REGISTER) {
                 enc->output->add_byte(enc->output, 0x21);
                 // for the "reg <- reg" cases, we put the destination in "reg" and source in "reg_mom"
-                enc->output->add_byte(enc->output, modrm_byte(MODE_DIRECT_REGISTER, instr->op2.value, instr->op1.value));
+                enc->output->add_byte(enc->output, modrm_byte(MODE_DIRECT_REGISTER, instr->op2->reg, instr->op1->reg));
                 return true;
             }
             break;
         case OC_OR:
-            if (instr->op1.type == OT_REGISTER && instr->op2.type == OT_REGISTER) {
+            if (instr->op1->type == OT_REGISTER && instr->op2->type == OT_REGISTER) {
                 enc->output->add_byte(enc->output, 0x09);
                 // for the "reg <- reg" cases, we put the destination in "reg" and source in "reg_mom"
-                enc->output->add_byte(enc->output, modrm_byte(MODE_DIRECT_REGISTER, instr->op2.value, instr->op1.value));
+                enc->output->add_byte(enc->output, modrm_byte(MODE_DIRECT_REGISTER, instr->op2->reg, instr->op1->reg));
                 return true;
             }
             break;
         case OC_XOR:
-            if (instr->op1.type == OT_REGISTER && instr->op2.type == OT_REGISTER) {
+            if (instr->op1->type == OT_REGISTER && instr->op2->type == OT_REGISTER) {
                 enc->output->add_byte(enc->output, 0x31);
                 // for the "reg <- reg" cases, we put the destination in "reg" and source in "reg_mom"
-                enc->output->add_byte(enc->output, modrm_byte(MODE_DIRECT_REGISTER, instr->op2.value, instr->op1.value));
+                enc->output->add_byte(enc->output, modrm_byte(MODE_DIRECT_REGISTER, instr->op2->reg, instr->op1->reg));
                 return true;
             }
             break;
         case OC_SHR:
-            if (instr->op1.type == OT_REGISTER && instr->op2.type == OT_IMMEDIATE) {
+            if (instr->op1->type == OT_REGISTER && instr->op2->type == OT_IMMEDIATE) {
                 // "C1/5 SHR r/m32, imm8"
                 enc->output->add_byte(enc->output, 0xC1);
-                enc->output->add_byte(enc->output, modrm_byte(MODE_DIRECT_REGISTER, 5, instr->op1.value));
-                enc->output->add_byte(enc->output, instr->op2.value);
+                enc->output->add_byte(enc->output, modrm_byte(MODE_DIRECT_REGISTER, 5, instr->op1->reg));
+                enc->output->add_byte(enc->output, instr->op2->immediate);
                 return true;
             }
             break;
         case OC_SHL:
-            if (instr->op1.type == OT_REGISTER && instr->op2.type == OT_IMMEDIATE) {
+            if (instr->op1->type == OT_REGISTER && instr->op2->type == OT_IMMEDIATE) {
                 // "C1/4 SHL r/m32, imm8"
                 enc->output->add_byte(enc->output, 0xC1);
-                enc->output->add_byte(enc->output, modrm_byte(MODE_DIRECT_REGISTER, 4, instr->op1.value));
-                enc->output->add_byte(enc->output, instr->op2.value);
+                enc->output->add_byte(enc->output, modrm_byte(MODE_DIRECT_REGISTER, 4, instr->op1->reg));
+                enc->output->add_byte(enc->output, instr->op2->immediate);
                 return true;
             }
             break;

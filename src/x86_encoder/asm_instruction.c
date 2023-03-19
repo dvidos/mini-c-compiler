@@ -1,46 +1,38 @@
 #include <string.h>
 #include <stdio.h>
-#include "instruction.h"
+#include "asm_instruction.h"
 #include "../options.h"
 
 
 
 static char *get_opcode_str(enum opcode code);
 static char *get_reg_str(enum reg r);
-static void append_operand_instruction(struct operand *op, char *buffer, int buff_size);
+static void append_operand_instruction(struct asm_operand *op, char *buffer, int buff_size);
 
 
-void instruction_to_string(struct instruction *inst, char *buff, int buff_size) {
+void instruction_to_string(struct asm_instruction *inst, char *buff, int buff_size) {
     strncpy(buff, get_opcode_str(inst->opcode), buff_size);
-    if (inst->op1.type != OT_NONE) {
+    if (inst->op1 != NULL) {
         strncat(buff, " ", buff_size);
-        append_operand_instruction(&inst->op1, buff, buff_size);
-        if (inst->op2.type != OT_NONE) {
+        append_operand_instruction(inst->op1, buff, buff_size);
+        if (inst->op2 != NULL) {
             strncat(buff, ", ", buff_size);
-            append_operand_instruction(&inst->op2, buff, buff_size);
+            append_operand_instruction(inst->op2, buff, buff_size);
         }
     }
 }
 
-static void append_operand_instruction(struct operand *op, char *buffer, int buff_size) {
+static void append_operand_instruction(struct asm_operand *op, char *buffer, int buff_size) {
     char *pos = buffer + strlen(buffer);
     int len = buff_size - strlen(buffer);
 
-    if (op->type == OT_NONE) {
-        ; // nothing.
-    } else if (op->type == OT_IMMEDIATE) {
-        snprintf(pos, len, "0x%lx", op->value);
+    if (op->type == OT_IMMEDIATE) {
+        snprintf(pos, len, "0x%lx", op->immediate);
     } else if (op->type == OT_REGISTER) {
-        snprintf(pos, len, "%c%s", options.register_prefix, get_reg_str(op->value));
-    } else if (op->type == OT_MEM_DWORD_POINTED_BY_REG) {
-        if (op->offset < 0) {
-            snprintf(pos, len, "[%c%s%ld]", options.register_prefix, get_reg_str(op->value), op->offset);
-        } else if (op->offset > 0) {
-            snprintf(pos, len, "[%c%s+%ld]", options.register_prefix, get_reg_str(op->value), op->offset);
-        } else {
-            snprintf(pos, len, "[%c%s]", options.register_prefix, get_reg_str(op->value));
-        }
-    } else if (op->type == OT_SYMBOL_MEM_ADDRESS) {
+        snprintf(pos, len, "%c%s", options.register_prefix, get_reg_str(op->reg));
+    } else if (op->type == OT_MEM_POINTED_BY_REG) {
+        snprintf(pos, len, "[%c%s%+ld]", options.register_prefix, get_reg_str(op->reg), op->offset);
+    } else if (op->type == OT_MEM_OF_SYMBOL) {
         snprintf(pos, len, "%s", op->symbol_name);
     }
 }

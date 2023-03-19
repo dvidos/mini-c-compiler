@@ -320,7 +320,7 @@ void generate_entry_code(FILE *f, entry *e) {
 void generate_table_include_file(FILE *out) {
     fprintf(out, "// auto generated file using mkinstrtab, do not edit manually\n\n");
 
-    fprintf(out, "struct instruction_encoding_info {\n");
+    fprintf(out, "struct asm_instruction_encoding_info {\n");
     fprintf(out, "    enum opcode instr;\n");
     fprintf(out, "    enum optype op1type;\n");
     fprintf(out, "    enum optype op2type;\n");
@@ -329,14 +329,14 @@ void generate_table_include_file(FILE *out) {
     fprintf(out, "    enum enc_flags;\n");
     fprintf(out, "};\n\n");
 
-    fprintf(out, "struct instruction_encoding_info compat_instruction_encodings[] = {\n");
+    fprintf(out, "struct asm_instruction_encoding_info compat_instruction_encodings[] = {\n");
     for (int i = 0; i < entries_length; i++) {
         if (entries_arr[i].valid32)
             generate_entry_code(out, &entries_arr[i]);
     }
     fprintf(out, "};\n\n");
 
-    fprintf(out, "struct instruction_encoding_info x64_instruction_encodings[] = {\n");
+    fprintf(out, "struct asm_instruction_encoding_info x64_instruction_encodings[] = {\n");
     for (int i = 0; i < entries_length; i++) {
         if (entries_arr[i].valid64)
             generate_entry_code(out, &entries_arr[i]);

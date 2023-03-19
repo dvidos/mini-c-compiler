@@ -1,5 +1,5 @@
 #pragma once
-#include "instruction.h"
+#include "asm_instruction.h"
 
 enum operand_type {
     NONE = 0,
@@ -15,7 +15,7 @@ enum operand_type {
     REG_CL, 
 };
 
-struct instruction_encoding_info {
+struct asm_instruction_encoding_info {
     // how to identify the instruction
     enum opcode opcode;
     enum operand_type op1type;
@@ -26,10 +26,10 @@ struct instruction_encoding_info {
     char *encoding;  // e.g. "REX.W + 89 /r"
 };
 
-struct instruction_encoding_info x64_encoding_infos[] = {
+struct asm_instruction_encoding_info x64_encoding_infos[] = {
 };
 
-struct instruction_encoding_info compat_encoding_infos[] = {
+struct asm_instruction_encoding_info compat_encoding_infos[] = {
 
 };
 

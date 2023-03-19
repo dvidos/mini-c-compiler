@@ -127,7 +127,7 @@ static void _get_temp_reg_storage(int reg_no, storage *target) {
     int size = options.pointer_size_bytes;
     data.lowest_bp_offset -= size;
     data.listing->ops->add_comment(data.listing, "grab some space for temp register", true);
-    data.listing->ops->add_instr_reg_imm(data.listing, OC_SUB, REG_SP, size);
+    data.listing->ops->add_instr2(data.listing, OC_SUB, new_reg_asm_operand(REG_SP), new_imm_asm_operand(size));
     data.temp_storage_arr_len += 1;
     data.temp_storage_arr = realloc(data.temp_storage_arr, data.temp_storage_arr_len * sizeof(struct temp_storage_slot));
 

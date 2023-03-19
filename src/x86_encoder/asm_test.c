@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
-#include "instruction.h"
+#include "asm_instruction.h"
 #include "encoder.h"
 #include "../utils/buffer.h"
 #include "symbol_table.h"
@@ -14,8 +14,8 @@
 static void test_create_executable();
 static void test_create_executable2();
 static void verify_instructions();
-static bool verify_single_instruction(struct instruction *instr, char *expected_bytes, int expected_len);
-static void verify_listing(char *title, struct instruction *list, int instr_count, char *expected, int expected_len);
+static bool verify_single_instruction(struct asm_instruction *instr, char *expected_bytes, int expected_len);
+static void verify_listing(char *title, struct asm_instruction *list, int instr_count, char *expected, int expected_len);
 
 
 
@@ -30,58 +30,49 @@ void perform_asm_test() {
 
 #define VERIFY_INSTR0(oc, expect_bytes, expect_len)   \
     instr.opcode = oc; \
-    instr.op1.type = OT_NONE; \
-    instr.op2.type = OT_NONE; \
+    instr.op1 = NULL; \
+    instr.op2 = NULL; \
     if (!verify_single_instruction(&instr, expect_bytes, expect_len)) return;
 
 #define VERIFY_INSTR1_IMMEDIATE(code, val, expect_bytes, expect_len) \
     instr.opcode = code; \
-    instr.op1.type = OT_IMMEDIATE; \
-    instr.op1.value = val; \
-    instr.op2.type = OT_NONE; \
+    instr.op1 = new_imm_asm_operand(val); \
+    instr.op2 = NULL; \
     if (!verify_single_instruction(&instr, expect_bytes, expect_len)) return;
 
 #define VERIFY_INSTR1_REGISTER(code, reg_no, expect_bytes, expect_len) \
     instr.opcode = code; \
-    instr.op1.type = OT_REGISTER; \
-    instr.op1.value = reg_no; \
-    instr.op2.type = OT_NONE; \
+    instr.op1 = new_reg_asm_operand(reg_no); \
+    instr.op2 = NULL; \
     if (!verify_single_instruction(&instr, expect_bytes, expect_len)) return;
 
 #define VERIFY_INSTR1_MEMBYREG(code, reg_no, offs, expect_bytes, expect_len) \
     instr.opcode = code; \
-    instr.op1.type = OT_MEM_DWORD_POINTED_BY_REG; \
-    instr.op1.value = reg_no; \
-    instr.op1.offset = offs; \
-    instr.op2.type = OT_NONE; \
+    instr.op1 = new_mem_by_reg_operand(reg_no, offs); \
+    instr.op2 = NULL; \
     if (!verify_single_instruction(&instr, expect_bytes, expect_len)) return;
 
 #define VERIFY_INSTR1_MEMBYSYM(code, sym, expect_bytes, expect_len) \
     instr.opcode = code; \
-    instr.op1.type = OT_SYMBOL_MEM_ADDRESS; \
-    instr.op1.symbol_name = sym; \
-    instr.op2.type = OT_NONE; \
+    instr.op1 = new_mem_by_sym_asm_operand(sym); \
+    instr.op2 = NULL; \
     if (!verify_single_instruction(&instr, expect_bytes, expect_len)) return;
 
 #define VERIFY_INSTR2_REG_REG(code, target_regno, source_regno, expect_bytes, expect_len) \
     instr.opcode = code; \
-    instr.op1.type = OT_REGISTER; \
-    instr.op1.value = target_regno; \
-    instr.op2.type = OT_REGISTER; \
-    instr.op2.value = source_regno; \
+    instr.op1 = new_reg_asm_operand(target_regno); \
+    instr.op2 = new_reg_asm_operand(source_regno); \
     if (!verify_single_instruction(&instr, expect_bytes, expect_len)) return;
 
 #define VERIFY_INSTR2_REG_IMMEDIATE(code, regno, val, expect_bytes, expect_len) \
     instr.opcode = code; \
-    instr.op1.type = OT_REGISTER; \
-    instr.op1.value = regno; \
-    instr.op2.type = OT_IMMEDIATE; \
-    instr.op2.value = val; \
+    instr.op1 = new_reg_asm_operand(regno); \
+    instr.op2 = new_imm_asm_operand(val); \
     if (!verify_single_instruction(&instr, expect_bytes, expect_len)) return;
 
 
 static void verify_instructions() {
-    struct instruction instr;
+    struct asm_instruction instr;
     printf("Verifying instructions ");
 
     // no operands instruction
@@ -175,7 +166,7 @@ static void verify_instructions() {
 }
 
 
-static bool verify_single_instruction(struct instruction *instr, char *expected_bytes, int expected_len) {
+static bool verify_single_instruction(struct asm_instruction *instr, char *expected_bytes, int expected_len) {
     char buff[128];
 
     instruction_to_string(instr, buff, sizeof(buff));
@@ -208,7 +199,7 @@ static bool verify_single_instruction(struct instruction *instr, char *expected_
     return true;
 }
 
-static void verify_listing(char *title, struct instruction *list, int instr_count, char *expected, int expected_len) {
+static void verify_listing(char *title, struct asm_instruction *list, int instr_count, char *expected, int expected_len) {
     bool encoded;
     char buff[128];
 
@@ -263,30 +254,26 @@ static void verify_listing(char *title, struct instruction *list, int instr_coun
 
 #define MOV_REG_IMM(reg, val) \
     asm_listing[count].opcode = OC_MOV;         \
-    asm_listing[count].op1.type = OT_REGISTER;  \
-    asm_listing[count].op1.value = reg;         \
-    asm_listing[count].op2.type = OT_IMMEDIATE; \
-    asm_listing[count].op2.value = val;         \
+    asm_listing[count].op1 = new_reg_asm_operand(reg); \
+    asm_listing[count].op2 = new_imm_asm_operand(val); \
     count++;
 
 #define MOV_REG_SYM(reg, sym) \
     asm_listing[count].opcode = OC_MOV;                   \
-    asm_listing[count].op1.type = OT_REGISTER;            \
-    asm_listing[count].op1.value = reg;                   \
-    asm_listing[count].op2.type = OT_SYMBOL_MEM_ADDRESS;  \
-    asm_listing[count].op2.symbol_name = sym;             \
+    asm_listing[count].op1 = new_reg_asm_operand(reg); \
+    asm_listing[count].op2 = new_mem_by_sym_asm_operand(sym); \
     count++;
 
 #define INT(no) \
-    asm_listing[count].opcode = OC_INT;          \
-    asm_listing[count].op1.type = OT_IMMEDIATE;  \
-    asm_listing[count].op1.value = no;           \
+    asm_listing[count].opcode = OC_INT;               \
+    asm_listing[count].op1 = new_imm_asm_operand(no); \
+    asm_listing[count].op2 = NULL;                    \
     count++;
 
 void test_create_executable() {
     // based on this: https://www.tutorialspoint.com/assembly_programming/assembly_system_calls.htm
 
-    struct instruction asm_listing[30];
+    struct asm_instruction asm_listing[30];
     int count = 0;
 
     memset(&asm_listing, 0, sizeof(asm_listing));
@@ -386,16 +373,16 @@ void test_create_executable2() {
     mod->ops->declare_data(mod, "hello_msg", 13 + 1, "Hello World!\n");
 
     lst->ops->set_next_label(lst, "_start");
-    lst->ops->add_instr_reg_imm(lst, OC_MOV, REG_AX, 4);
-    lst->ops->add_instr_reg_imm(lst, OC_MOV, REG_BX, 1);
-    lst->ops->add_instr_reg_sym(lst, OC_MOV, REG_CX, "hello_msg");
-    lst->ops->add_instr_reg_imm(lst, OC_MOV, REG_DX, 13);
-    lst->ops->add_instr_imm(lst, OC_INT, 0x80);
+    lst->ops->add_instr2(lst, OC_MOV, new_reg_asm_operand(REG_AX), new_imm_asm_operand(4));
+    lst->ops->add_instr2(lst, OC_MOV, new_reg_asm_operand(REG_BX), new_imm_asm_operand(1));
+    lst->ops->add_instr2(lst, OC_MOV, new_reg_asm_operand(REG_CX), new_mem_by_sym_asm_operand("hello_msg"));
+    lst->ops->add_instr2(lst, OC_MOV, new_reg_asm_operand(REG_DX), new_imm_asm_operand(13));
+    lst->ops->add_instr1(lst, OC_INT, new_imm_asm_operand(0x80));
 
     lst->ops->set_next_label(lst, "_exit");
-    lst->ops->add_instr_reg_imm(lst, OC_MOV, REG_AX, 1);
-    lst->ops->add_instr_reg_imm(lst, OC_MOV, REG_BX, 0);
-    lst->ops->add_instr_imm(lst, OC_INT, 0x80);
+    lst->ops->add_instr2(lst, OC_MOV, new_reg_asm_operand(REG_AX), new_imm_asm_operand(1));
+    lst->ops->add_instr2(lst, OC_MOV, new_reg_asm_operand(REG_BX), new_imm_asm_operand(0));
+    lst->ops->add_instr1(lst, OC_INT, new_imm_asm_operand(0x80));
 
     lst->ops->print(lst, stdout);
 
@@ -414,7 +401,7 @@ void test_create_executable2() {
 static bool _encode_listing_code(asm_listing *lst, obj_code *mod, enum x86_cpu_mode mode) {
     // encode this into intel machine code
     struct x86_encoder *enc = new_x86_encoder(mode, mod->text_seg, mod->relocations);
-    struct instruction *inst;
+    struct asm_instruction *inst;
 
     for (int i = 0; i < lst->length; i++) {
         inst = &lst->instructions[i];

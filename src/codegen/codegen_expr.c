@@ -83,6 +83,7 @@ static void gen_binary_op(code_gen *cg, ir_value *lvalue, expression *expr) {
         case OP_SUB: op = IR_SUB; break;
         case OP_MUL: op = IR_MUL; break;
         case OP_DIV: op = IR_DIV; break;
+        case OP_MOD: op = IR_MOD; break;
         case OP_BITWISE_AND: op = IR_AND; break;
         case OP_BITWISE_OR: op = IR_OR; break;
         case OP_BITWISE_XOR: op = IR_XOR; break;

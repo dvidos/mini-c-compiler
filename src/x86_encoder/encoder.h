@@ -1,7 +1,7 @@
 #pragma once
 #include <stdbool.h>
 #include "encoder.h"
-#include "instruction.h"
+#include "asm_instruction.h"
 #include "../utils/buffer.h"
 #include "reloc_list.h"
 #include "asm_listing.h"
@@ -20,7 +20,7 @@ struct x86_encoder {
     buffer *output;
     struct reloc_list *relocations; // symbol relocations to be backfilled
 
-    bool (*encode)(struct x86_encoder *encoder, struct instruction *instr);
+    bool (*encode)(struct x86_encoder *encoder, struct asm_instruction *instr);
     void (*reset)(struct x86_encoder *encoder);
     void (*free)(struct x86_encoder *encoder);
 };

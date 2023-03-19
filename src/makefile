@@ -39,9 +39,9 @@ SRC_FILES = \
 	binary/encode_asm.c \
 	x86_encoder/symbol_table.c \
 	x86_encoder/reloc_list.c \
-	x86_encoder/instruction.c \
 	x86_encoder/encoder.c \
 	x86_encoder/asm_test.c \
+	x86_encoder/asm_instruction.c \
 	x86_encoder/asm_listing.c \
 	x86_encoder/asm_allocator.c \
 	x86_encoder/obj_code.c \

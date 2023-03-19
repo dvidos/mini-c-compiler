@@ -7,8 +7,8 @@ enum operand_type {
     OT_NONE = 0,              // this operand is not to be used
     OT_IMMEDIATE,             // size depends
     OT_REGISTER,              // e.g. EAX
-    OT_MEM_DWORD_POINTED_BY_REG, // e.g. [EAX]
-    OT_SYMBOL_MEM_ADDRESS,    // e.g. address of symbol (resolved at linking)
+    OT_MEM_POINTED_BY_REG,    // e.g. [EBP+0], also offset
+    OT_MEM_OF_SYMBOL,         // e.g. address of symbol (resolved at linking)
 };
 
 // these have to be 0 through 7, in this sequence.
@@ -23,12 +23,11 @@ enum reg {
     REG_DI = 7
 };
 
-struct operand {
+struct asm_operand {
     enum operand_type type;
-    union {
-        long value; // register no or immediate
-        char *symbol_name;
-    };
+    long immediate;
+    enum reg reg;
+    char *symbol_name;
     long offset; // for indirect memory access
 };
 
@@ -67,12 +66,12 @@ enum opcode {
     OC_INT,
 };
 
-struct instruction {
+struct asm_instruction {
     char *label;
     enum opcode opcode;
-    struct operand op1;
-    struct operand op2;
+    struct asm_operand *op1;
+    struct asm_operand *op2;
     char *comment;
 };
 
-void instruction_to_string(struct instruction *inst, char *buff, int buff_size);
+void instruction_to_string(struct asm_instruction *inst, char *buff, int buff_size);

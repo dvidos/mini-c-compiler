@@ -12,6 +12,7 @@ enum ir_entry_type {
     IR_FUNCTION_CALL,
     IR_CONDITIONAL_JUMP,
     IR_UNCONDITIONAL_JUMP,
+    IR_RETURN,
     IR_FUNCTION_END,
 };
 
@@ -19,7 +20,6 @@ typedef enum ir_data_storage {
     IR_GLOBAL,
     IR_GLOBAL_RO,
     IR_LOCAL,
-    IR_RET_VAL,
 } ir_data_storage;
 
 typedef enum ir_comparison { 
@@ -96,6 +96,10 @@ struct ir_entry_cond_jump_info {
     char *target_label;
 };
 
+struct ir_entry_return_info {
+    ir_value *ret_val;
+};
+
 
 typedef struct ir_entry {
     enum ir_entry_type type;
@@ -108,6 +112,7 @@ typedef struct ir_entry {
         struct ir_entry_function_call_info   function_call;
         struct ir_entry_cond_jump_info       conditional_jump;
         struct ir_entry_str_info             unconditional_jump;
+        struct ir_entry_return_info          return_stmt;
         struct {}                            function_end;
     } t;
     struct ir_entry_ops *ops;
@@ -124,6 +129,7 @@ ir_entry *new_ir_three_address_code(ir_value *lvalue, ir_value *op1, ir_operatio
 ir_entry *new_ir_function_call(ir_value *lvalue, ir_value *func_addr, int args_count, ir_value **args_arr);
 ir_entry *new_ir_conditional_jump(ir_value *v1, ir_comparison cmp, ir_value *v2, char *label_fmt, ...);
 ir_entry *new_ir_unconditional_jump(char *label_fmt, ...);
+ir_entry *new_ir_return(ir_value *ret_val);
 ir_entry *new_ir_function_end();
 
 typedef void (*ir_value_visitor)(ir_value *value, void *data, int index);

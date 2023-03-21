@@ -6,9 +6,10 @@ get_next_counter_value:
     MOV EAX, EBX
     ADD EAX, EBX
     MOV counter, EAX
-    MOV ret_val, counter
-    JMP get_next_counter_value_end
-get_next_counter_value_end:
+    MOV ECX, counter
+    MOV EAX, ECX         ; put returned value in AX
+    JMP get_next_counter_value_exit
+get_next_counter_value_exit:
     MOV ESP, EBP         ; tear down stak frame
     POP EBP
     RET
@@ -22,9 +23,10 @@ rect_area:
     MOV ECX, height
     MOV EAX, EBX
     IMUL EAX, EBX
-    MOV ret_val, EAX
-    JMP rect_area_end
-rect_area_end:
+    MOV EDX, EAX
+    MOV EAX, EDX         ; put returned value in AX
+    JMP rect_area_exit
+rect_area_exit:
     MOV ESP, EBP         ; tear down stak frame
     POP EBP
     RET
@@ -42,9 +44,10 @@ triangle_area:
     MOV E(unknown), EAX
     MOV EAX, EBX
     IMUL EAX, EBX
-    MOV ret_val, EAX
-    JMP triangle_area_end
-triangle_area_end:
+    MOV E(unknown), EAX
+    MOV EAX, E(unknown)  ; put returned value in AX
+    JMP triangle_area_exit
+triangle_area_exit:
     MOV ESP, EBP         ; tear down stak frame
     POP EBP
     RET
@@ -61,9 +64,10 @@ circle_area:
     MOV E(unknown), EAX
     MOV EAX, EBX
     IMUL EAX, EBX
-    MOV ret_val, EAX
-    JMP circle_area_end
-circle_area_end:
+    MOV E(unknown), EAX
+    MOV EAX, E(unknown)  ; put returned value in AX
+    JMP circle_area_exit
+circle_area_exit:
     MOV ESP, EBP         ; tear down stak frame
     POP EBP
     RET
@@ -74,35 +78,39 @@ fibonacci:
     ; [EBP +8] argument "n", 4 bytes
     CMP n, 0x2
     JGT if_3_end
-    MOV ret_val, n
-    JMP fibonacci_end
-if_3_end:
     MOV EBX, n
-    MOV ECX, 0x1
-    MOV EAX, EBX
-    SUB EAX, EBX
-    MOV EDX, EAX
-    PUSH EDX             ; push 1 args for function call
+    MOV EAX, EBX         ; put returned value in AX
+    JMP fibonacci_exit
+if_3_end:
+    MOV ECX, n
+    MOV EDX, 0x1
+    MOV EAX, ECX
+    SUB EAX, ECX
+    MOV E(unknown), EAX
+    PUSH E(unknown)      ; push 1 args for function call
     CALL fibonacci
     MOV E(unknown), EAX
     ADD ESP, 0x4
-    MOV E(unknown), n
     SUB ESP, 0x4         ; grab some space for temp register
-    MOV [EBP-4], 0x2
-    MOV EAX, E(unknown)
-    SUB EAX, E(unknown)
+    MOV [EBP-4], n
     SUB ESP, 0x4         ; grab some space for temp register
-    MOV [EBP-8], EAX
-    PUSH [EBP-8]         ; push 1 args for function call
-    CALL fibonacci
+    MOV [EBP-8], 0x2
+    MOV EAX, [EBP-4]
+    SUB EAX, [EBP-4]
     SUB ESP, 0x4         ; grab some space for temp register
     MOV [EBP-12], EAX
+    PUSH [EBP-12]        ; push 1 args for function call
+    CALL fibonacci
+    SUB ESP, 0x4         ; grab some space for temp register
+    MOV E(unknown), EAX
     ADD ESP, 0x4
     MOV EAX, E(unknown)
     ADD EAX, E(unknown)
-    MOV ret_val, EAX
-    JMP fibonacci_end
-fibonacci_end:
+    SUB ESP, 0x4         ; grab some space for temp register
+    MOV [EBP-20], EAX
+    MOV EAX, [EBP-20]    ; put returned value in AX
+    JMP fibonacci_exit
+fibonacci_exit:
     MOV ESP, EBP         ; tear down stak frame
     POP EBP
     RET
@@ -113,24 +121,28 @@ factorial:
     ; [EBP +8] argument "n", 4 bytes
     CMP n, 0x1
     JGT if_4_end
-    MOV ret_val, n
-    JMP factorial_end
-if_4_end:
     MOV EBX, n
+    MOV EAX, EBX         ; put returned value in AX
+    JMP factorial_exit
+if_4_end:
     MOV ECX, n
-    MOV EDX, 0x1
-    MOV EAX, ECX
-    SUB EAX, ECX
+    MOV EDX, n
+    MOV E(unknown), 0x1
+    MOV EAX, EDX
+    SUB EAX, EDX
     MOV E(unknown), EAX
     PUSH E(unknown)      ; push 1 args for function call
     CALL factorial
-    MOV E(unknown), EAX
+    SUB ESP, 0x4         ; grab some space for temp register
+    MOV [EBP-4], EAX
     ADD ESP, 0x4
-    MOV EAX, EBX
-    IMUL EAX, EBX
-    MOV ret_val, EAX
-    JMP factorial_end
-factorial_end:
+    MOV EAX, ECX
+    IMUL EAX, ECX
+    SUB ESP, 0x4         ; grab some space for temp register
+    MOV [EBP-8], EAX
+    MOV EAX, [EBP-8]     ; put returned value in AX
+    JMP factorial_exit
+factorial_exit:
     MOV ESP, EBP         ; tear down stak frame
     POP EBP
     RET
@@ -188,7 +200,7 @@ while_6_begin:
     CALL printf
     ADD ESP, 0xc
     JMP while_6_begin
-math_demo_end:
+math_demo_exit:
     MOV ESP, EBP         ; tear down stak frame
     POP EBP
     RET
@@ -216,7 +228,7 @@ while_8_end:
     SUB EAX, outer
     MOV outer, EAX
     JMP while_7_begin
-nested_loops_test_end:
+nested_loops_test_exit:
     MOV ESP, EBP         ; tear down stak frame
     POP EBP
     RET
@@ -240,7 +252,7 @@ main:
     MOV b, EAX
     CALL math_demo
     ADD ESP, 0x0
-main_end:
+main_exit:
     MOV ESP, EBP         ; tear down stak frame
     POP EBP
     RET

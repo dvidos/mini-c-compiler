@@ -120,9 +120,12 @@ void code_gen_generate_for_statement(code_gen *cg, statement *stmt) {
                 error(stmt->token->filename, stmt->token->line_no, "return without a function context");
                 return;
             }
-            if (stmt->expr != NULL)
-                cg->ops->generate_for_expression(cg, new_ir_value_symbol("ret_val"), stmt->expr);
-            cg->ir->ops->add(cg->ir, new_ir_unconditional_jump("%s_end", cg->ops->get_curr_func_name(cg)));
+            ir_value *ret_val = NULL;
+            if (stmt->expr != NULL) {
+                ret_val = new_ir_value_register(cg->ops->next_reg_num(cg));
+                cg->ops->generate_for_expression(cg, ret_val, stmt->expr);
+            }
+            cg->ir->ops->add(cg->ir, new_ir_return(ret_val));
             break;
 
         case ST_EXPRESSION:

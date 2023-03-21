@@ -144,6 +144,14 @@ ir_entry *new_ir_unconditional_jump(char *label_fmt, ...) {
     return e;
 }
 
+ir_entry *new_ir_return(ir_value *ret_val) {
+    ir_entry *e = malloc(sizeof(ir_entry));
+    e->type = IR_RETURN;
+    e->t.return_stmt.ret_val = ret_val; // may be null
+    e->ops = &ops;
+    return e;
+}
+
 ir_entry *new_ir_function_end() {
     ir_entry *e = malloc(sizeof(ir_entry));
     e->type = IR_FUNCTION_END;
@@ -268,6 +276,14 @@ static void _print(ir_entry *e, FILE *stream) {
             fprintf(stream, "goto %s", e->t.unconditional_jump.str);
             break;
 
+        case IR_RETURN:
+            fprintf(stream, "    return");
+            if (e->t.return_stmt.ret_val != NULL) {
+                fprintf(stream, " ");
+                print_ir_value(e->t.return_stmt.ret_val, stream);
+            }
+            break;
+
         case IR_FUNCTION_END:
             fprintf(stream, "    function end");
             break;
@@ -301,6 +317,10 @@ static void _visit_ir_values(ir_entry *e, ir_value_visitor visitor, void *pdata,
             struct ir_entry_cond_jump_info *j = &e->t.conditional_jump;
             visitor(j->v1, pdata, idata);
             visitor(j->v2, pdata, idata);
+        case IR_RETURN:
+            struct ir_entry_return_info *r = &e->t.return_stmt;
+            if (r->ret_val != NULL)
+                visitor(r->ret_val, pdata, idata);
             break;
     }
 }
@@ -340,6 +360,9 @@ static void _free(ir_entry *e) {
             break;
         case IR_UNCONDITIONAL_JUMP:
             free_nullable(e->t.unconditional_jump.str);
+            break;
+        case IR_RETURN:
+            free_ir_value(e->t.return_stmt.ret_val);
             break;
     }
     free(e);

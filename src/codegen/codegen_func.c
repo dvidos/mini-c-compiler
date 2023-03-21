@@ -76,11 +76,6 @@ void code_gen_generate_for_function(code_gen *cg, func_declaration *func) {
 
     // declare function (and return value pseudo-var)
     cg->ir->ops->add(cg->ir, new_ir_function_definition(func->func_name, args_arr, args_len, ret_val_size));
-    if (func->return_type != NULL && func->return_type->family != TF_VOID) {
-        cg->ir->ops->add(cg->ir, new_ir_data_declaration(
-            func->return_type->ops->size_of(func->return_type),
-            NULL, "ret_val", IR_RET_VAL));
-    }
 
 
     // traverse function tree to find local variables.
@@ -97,6 +92,5 @@ void code_gen_generate_for_function(code_gen *cg, func_declaration *func) {
         stmt = stmt->next;
     }
 
-    cg->ir->ops->add(cg->ir, new_ir_label("%s_end", func->func_name));
     cg->ir->ops->add(cg->ir, new_ir_function_end());
 }

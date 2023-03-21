@@ -47,24 +47,24 @@ struct asm_operand *new_imm_asm_operand(int value) {
 }
 
 // for handling specific registers, e.g. BP, SP, AX
-struct asm_operand *new_reg_asm_operand(enum reg reg_no) {
+struct asm_operand *new_reg_asm_operand(enum reg gp_reg_no) {
     struct asm_operand *op = malloc(sizeof(struct asm_operand));
     op->type = OT_REGISTER;
-    op->reg = reg_no;
+    op->reg = gp_reg_no;
     return op;
 }
 
 struct asm_operand *new_mem_by_sym_asm_operand(char *symbol_name) {
     struct asm_operand *op = malloc(sizeof(struct asm_operand));
     op->type = OT_MEM_OF_SYMBOL;
-    op->symbol_name = symbol_name;
+    op->symbol_name = strdup(symbol_name);
     return op;
 }
 
-struct asm_operand *new_mem_by_reg_operand(enum reg reg_no, int offset) {
+struct asm_operand *new_mem_by_reg_operand(enum reg gp_reg_no, int offset) {
     struct asm_operand *op = malloc(sizeof(struct asm_operand));
     op->type = OT_MEM_POINTED_BY_REG;
-    op->reg = reg_no;
+    op->reg = gp_reg_no;
     op->offset = offset;
     return op;
 }

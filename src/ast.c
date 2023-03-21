@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include "ast.h"
 #include "declaration.h"
+#include "utils.h"
 
 // currently we do not have a "tree" in the correct sense of the word.
 // if we wanted to do so, we need to make function declarations part of a statement.
@@ -55,7 +56,9 @@ static void print_expression_using_func_format(expression *expr) {
     } else if (expr->op == OP_SYMBOL_NAME) {
         printf("%s", expr->value.str);
     } else if (expr->op == OP_STR_LITERAL) {
-        printf("\"%s\"", expr->value.str);
+        printf("\"");
+        print_pretty(expr->value.str, stdout);
+        printf("\"");
     } else if (expr->op == OP_NUM_LITERAL) {
         printf("%ld", expr->value.num);
     } else if (expr->op == OP_CHR_LITERAL) {

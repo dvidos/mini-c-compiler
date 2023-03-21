@@ -55,9 +55,6 @@ struct asm_operand *ir_value_to_asm_operand(ir_value *v) {
 }
 
 
-// -------------------------------------------------------------------------
-
-
 
 static struct function_assembling_information {
     asm_listing *lst;
@@ -126,11 +123,14 @@ static void code_prologue() {
 }
 
 static void code_epilogue() {
+    char label_name[128];
+    label_name[sizeof(label_name) - 1] = '\0';
+    snprintf(label_name, sizeof(label_name) - 1, "%s_exit", f.func_def->func_name);
+    f.lst->ops->set_next_label(f.lst, label_name);
+
     f.lst->ops->add_comment(f.lst, true, "tear down stak frame");
     f.lst->ops->add_instr2(f.lst, OC_MOV, new_reg_asm_operand(REG_SP), new_reg_asm_operand(REG_BP));
     f.lst->ops->add_instr1(f.lst, OC_POP, new_reg_asm_operand(REG_BP));
-    // callee restored registers
-    // must move ret_val to EAX
     f.lst->ops->add_instr(f.lst, OC_RET);
 }
 
@@ -179,6 +179,20 @@ static void code_conditional_jump(struct ir_entry_cond_jump_info *j) {
 
 static void code_unconditional_jump(char *label) {
     f.lst->ops->add_instr1(f.lst, OC_JMP, new_mem_by_sym_asm_operand(label));
+}
+
+static void code_return_statement(struct ir_entry_return_info *info) {
+    if (info->ret_val != NULL) {
+        f.lst->ops->add_comment(f.lst, true, "put returned value in AX");
+        f.lst->ops->add_instr2(f.lst, OC_MOV, 
+            new_reg_asm_operand(REG_AX), 
+            ir_value_to_asm_operand(info->ret_val));
+    }
+
+    char label_name[128];
+    label_name[sizeof(label_name) - 1] = '\0';
+    snprintf(label_name, sizeof(label_name) - 1, "%s_exit", f.func_def->func_name);
+    f.lst->ops->add_instr1(f.lst, OC_JMP, new_mem_by_sym_asm_operand(label_name));
 }
 
 static void code_three_address_code(struct ir_entry_three_addr_code_info *c) {
@@ -301,6 +315,9 @@ static void assemble_function(ir_listing *ir, int start, int end) {
                 break;
             case IR_UNCONDITIONAL_JUMP:
                 code_unconditional_jump(e->t.unconditional_jump.str);
+                break;
+            case IR_RETURN:
+                code_return_statement(&e->t.return_stmt);
                 break;
         }
 

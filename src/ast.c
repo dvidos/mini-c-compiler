@@ -10,7 +10,7 @@
 // the lists below at file level
 static ast_module_node ast_root;
 
-static void print_statement_list(statement *list, int depth);
+static void print_statement_list(FILE *stream, statement *list, int depth);
 
 
 void init_ast() {
@@ -45,174 +45,164 @@ void ast_add_function(func_declaration *func) {
 }
 
 
-static void indent(int depth) {
+static void indent(FILE *stream, int depth) {
     while (depth--)
-        printf("    ");
+        fprintf(stream, "    ");
 }
 
-static void print_expression_using_func_format(expression *expr) {
+static void print_expression_using_func_format(FILE *stream, expression *expr) {
     if (expr == NULL) {
-        printf("NULL");
+        fprintf(stream, "NULL");
     } else if (expr->op == OP_SYMBOL_NAME) {
-        printf("%s", expr->value.str);
+        fprintf(stream, "%s", expr->value.str);
     } else if (expr->op == OP_STR_LITERAL) {
-        printf("\"");
-        print_pretty(expr->value.str, stdout);
-        printf("\"");
+        fprintf(stream, "\"");
+        print_pretty(expr->value.str, stream);
+        fprintf(stream, "\"");
     } else if (expr->op == OP_NUM_LITERAL) {
-        printf("%ld", expr->value.num);
+        fprintf(stream, "%ld", expr->value.num);
     } else if (expr->op == OP_CHR_LITERAL) {
-        printf("'%c'", expr->value.chr);
+        fprintf(stream, "'%c'", expr->value.chr);
     } else if (expr->op == OP_BOOL_LITERAL) {
-        printf("%s", expr->value.bln ? "true" : "false");
+        fprintf(stream, "%s", expr->value.bln ? "true" : "false");
     } else {
-        printf("%s(", oper_debug_name(expr->op));
-        print_expression_using_func_format(expr->arg1);
+        fprintf(stream, "%s(", oper_debug_name(expr->op));
+        print_expression_using_func_format(stream, expr->arg1);
         if (!is_unary_operator(expr->op)) {
-            printf(", ");
-            print_expression_using_func_format(expr->arg2);
+            fprintf(stream, ", ");
+            print_expression_using_func_format(stream, expr->arg2);
         }
-        printf(")");
+        fprintf(stream, ")");
     }
 }
 
-static void print_expression_using_tree_format(expression *expr, int depth) {
-    indent(depth);
+static void print_expression_using_tree_format(FILE *stream, expression *expr, int depth) {
+    indent(stream, depth);
     
-    if (expr == NULL) {
-        printf("NULL\n");
-    } else if (expr->op == OP_SYMBOL_NAME) {
-        printf("%s\n", expr->value.str);
-    } else if (expr->op == OP_STR_LITERAL) {
-        printf("\"%s\"\n", expr->value.str);
-    } else if (expr->op == OP_NUM_LITERAL) {
-        printf("%ld\n", expr->value.num);
-    } else if (expr->op == OP_CHR_LITERAL) {
-        printf("'%c'\n", expr->value.chr);
-    } else if (expr->op == OP_BOOL_LITERAL) {
-        printf("%s", expr->value.bln ? "true" : "false");
+    if (expr == NULL) { fprintf(stream, "NULL\n");
+    } else if (expr->op == OP_SYMBOL_NAME)  { fprintf(stream, "%s\n", expr->value.str);
+    } else if (expr->op == OP_STR_LITERAL)  { fprintf(stream, "\"%s\"\n", expr->value.str);
+    } else if (expr->op == OP_NUM_LITERAL)  { fprintf(stream, "%ld\n", expr->value.num);
+    } else if (expr->op == OP_CHR_LITERAL)  { fprintf(stream, "'%c'\n", expr->value.chr);
+    } else if (expr->op == OP_BOOL_LITERAL) { fprintf(stream, "%s", expr->value.bln ? "true" : "false");
     } else {
-        printf("%s()\n", oper_debug_name(expr->op));
-        print_expression_using_tree_format(expr->arg1, depth + 1);
+        fprintf(stream, "%s()\n", oper_debug_name(expr->op));
+        print_expression_using_tree_format(stream, expr->arg1, depth + 1);
         if (!is_unary_operator(expr->op)) {
-            print_expression_using_tree_format(expr->arg2, depth + 1);
+            print_expression_using_tree_format(stream, expr->arg2, depth + 1);
         }
     }
 }
 
-static void print_statement(statement *st, int depth) {
+static void print_statement(FILE *stream, statement *st, int depth) {
     switch (st->stmt_type) {
         case ST_BLOCK:
-            indent(depth - 1);
-            printf("{\n");
-            print_statement_list(st->body, depth);
-            indent(depth - 1);
-            printf("}\n");
+            print_statement_list(stream, st->body, depth);
             break;
 
         case ST_VAR_DECL:
-            indent(depth);
-            printf("local variable: %s %s", 
+            indent(stream, depth);
+            fprintf(stream, "variable: %s %s", 
                 st->decl->var_name, 
                 st->decl->data_type->ops->to_string(st->decl->data_type));
             if (st->expr != NULL) {
-                printf(" = ");
-                print_expression_using_func_format(st->expr);
+                fprintf(stream, " = ");
+                print_expression_using_func_format(stream, st->expr);
             }
-            printf("\n");
+            fprintf(stream, "\n");
             break;
 
         case ST_IF:
-            indent(depth);
-            printf("if (");
-            print_expression_using_func_format(st->expr);
-            printf(")\n");
-            print_statement(st->body, depth+1);
+            indent(stream, depth);
+            fprintf(stream, "if (");
+            print_expression_using_func_format(stream, st->expr);
+            fprintf(stream, ")\n");
+            print_statement(stream, st->body, depth+1);
             if (st->else_body != NULL) {
-                indent(depth);
-                printf("else\n");
-                print_statement(st->else_body, depth+1);
+                indent(stream, depth);
+                fprintf(stream, "else\n");
+                print_statement(stream, st->else_body, depth+1);
             }
             break;
 
         case ST_WHILE:
-            indent(depth);
-            printf("while (");
-            print_expression_using_func_format(st->expr);
-            printf(")\n");
-            print_statement(st->body, depth+1);
+            indent(stream, depth);
+            fprintf(stream, "while (");
+            print_expression_using_func_format(stream, st->expr);
+            fprintf(stream, ")\n");
+            print_statement(stream, st->body, depth+1);
             break;
 
         case ST_BREAK:
-            indent(depth);
-            printf("break\n");
+            indent(stream, depth);
+            fprintf(stream, "break\n");
             break;
 
         case ST_CONTINUE:
-            indent(depth);
-            printf("continue\n");
+            indent(stream, depth);
+            fprintf(stream, "continue\n");
             break;
             
         case ST_RETURN:
-            indent(depth);
-            printf("return");
+            indent(stream, depth);
+            fprintf(stream, "return");
             if (st->expr != NULL) {
-                printf(" ");
-                print_expression_using_func_format(st->expr);
+                fprintf(stream, " ");
+                print_expression_using_func_format(stream, st->expr);
             }
-            printf("\n");
+            fprintf(stream, "\n");
             break;
             
         case ST_EXPRESSION:
             //print_expression_using_tree_format(st->expr, depth);
-            indent(depth);
-            printf("expr ");
-            print_expression_using_func_format(st->expr);
-            printf("\n");
+            indent(stream, depth);
+            // fprintf(stream, "expr ");
+            print_expression_using_func_format(stream, st->expr);
+            fprintf(stream, "\n");
             break;
 
         default:
-            indent(depth);
-            printf("??? (unknown statement type)\n");
+            indent(stream, depth);
+            fprintf(stream, "??? (unknown statement type)\n");
     }
 }
 
-static void print_statement_list(statement *list, int depth) {
+static void print_statement_list(FILE *stream, statement *list, int depth) {
     statement *stmt = list;
     while (stmt != NULL) {
-        print_statement(stmt, depth);
+        print_statement(stream, stmt, depth);
         stmt = stmt->next;
     }
 }
 
-void print_ast() {
-
-    printf("Abstract Syntax Tree\n");
+void print_ast(FILE *stream) {
 
     statement *stmt = ast_root.statements_list;
     while (stmt != NULL) {
-        print_statement(stmt, 1);
+        print_statement(stream, stmt, 0);
         stmt = stmt->next;
     }
 
     func_declaration *func = ast_root.funcs_list;
     while (func != NULL) {
-        indent(1);
-        printf("function: ");
-        printf("%s", func->return_type->ops->to_string(func->return_type));
-        printf(" %s(", func->func_name);
+        fprintf(stream, "\n");
+        indent(stream, 0);
+        fprintf(stream, "function: %s %s(",
+            func->return_type->ops->to_string(func->return_type),
+            func->func_name);
         var_declaration *arg = func->args_list;
         while (arg != NULL) {
-            printf("%s", arg->data_type->ops->to_string(arg->data_type));
-            printf(" %s", arg->var_name);
+            fprintf(stream, "%s %s",
+                 arg->data_type->ops->to_string(arg->data_type),
+                 arg->var_name);
             if (arg->next != NULL)
-                printf(", ");
+                fprintf(stream, ", ");
             arg = arg->next;
         }
-        printf(")\n");
+        fprintf(stream, ")\n");
         
         // func body here...
-        print_statement_list(func->stmts_list, 2);
+        print_statement_list(stream, func->stmts_list, 1);
 
         func = func->next;
     }

@@ -1,0 +1,54 @@
+variable: counter int = 65534
+variable: numbers int[10]
+variable: message char* = "Hello world!"
+
+function: void printf(char* fmt, int a, int b)
+
+function: int get_next_counter_value()
+    ASSIGN(counter, ADD(counter, 1))
+    return counter
+
+function: int rect_area(int width, int height)
+    return MUL(width, height)
+
+function: int triangle_area(int width, int height)
+    return MUL(width, DIV(height, 2))
+
+function: int circle_area(int radius)
+    return MUL(3, MUL(radius, radius))
+
+function: int fibonacci(int n)
+    if (LE(n, 2))
+        return n
+    return ADD(CALL(fibonacci, SUB(n, 1)), CALL(fibonacci, SUB(n, 2)))
+
+function: int factorial(int n)
+    if (LE(n, 1))
+        return n
+    return MUL(n, CALL(factorial, SUB(n, 1)))
+
+function: void math_demo()
+    variable: i int
+    ASSIGN(i, 0)
+    while (LT(POSTINC(i), 10))
+        CALL(printf, COMMA("fibonacci of %d is %d\n", COMMA(i, CALL(fibonacci, i))))
+    ASSIGN(i, 0)
+    while (LT(POSTINC(i), 10))
+        CALL(printf, COMMA("factorial of %d is %d\n", COMMA(i, CALL(factorial, i))))
+
+function: void nested_loops_test()
+    variable: outer int = 10
+    while (GT(outer, 0))
+        variable: inner int = 15
+        while (GT(inner, 0))
+            POSTDEC(inner)
+        POSTDEC(outer)
+
+function: void main(int argc, char** argv)
+    variable: a int = 1
+    variable: b int
+    variable: c char
+    variable: d int*
+    variable: buffer char[16]
+    ASSIGN(b, ADD(a, 2))
+    CALL(math_demo, NULL)

@@ -32,8 +32,8 @@ void scope_exited() {
     scope *top = scopes_stack_top;
     scopes_stack_top = top->higher;
 
-    if (options.verbose)
-        print_symbol_table(top);
+    // if (options.verbose)
+    //     print_symbol_table(top);
 
     // maybe we should also free all symbols???
     free(top);

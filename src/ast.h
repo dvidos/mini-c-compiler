@@ -19,6 +19,6 @@ void init_ast();
 ast_module_node *get_ast_root_node();
 void ast_add_statement(statement *stmt);
 void ast_add_function(func_declaration *func);
-void print_ast();
+void print_ast(FILE *stream);
 void ast_count_nodes(int *functions, int *statements, int *expressions);
 

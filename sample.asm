@@ -1,5 +1,5 @@
 get_next_counter_value:
-    PUSH EBP             ; establish stak frame
+    PUSH EBP             ; establish stack frame
     MOV EBP, ESP
     MOV EBX, counter
     MOV ECX, 0x1
@@ -10,12 +10,12 @@ get_next_counter_value:
     MOV EAX, ECX         ; put returned value in AX
     JMP get_next_counter_value_exit
 get_next_counter_value_exit:
-    MOV ESP, EBP         ; tear down stak frame
+    MOV ESP, EBP         ; tear down stack frame
     POP EBP
     RET
 
 rect_area:
-    PUSH EBP             ; establish stak frame
+    PUSH EBP             ; establish stack frame
     MOV EBP, ESP
     ; [EBP +8] argument "width", 4 bytes
     ; [EBP+12] argument "height", 4 bytes
@@ -27,12 +27,12 @@ rect_area:
     MOV EAX, EDX         ; put returned value in AX
     JMP rect_area_exit
 rect_area_exit:
-    MOV ESP, EBP         ; tear down stak frame
+    MOV ESP, EBP         ; tear down stack frame
     POP EBP
     RET
 
 triangle_area:
-    PUSH EBP             ; establish stak frame
+    PUSH EBP             ; establish stack frame
     MOV EBP, ESP
     ; [EBP +8] argument "width", 4 bytes
     ; [EBP+12] argument "height", 4 bytes
@@ -48,12 +48,12 @@ triangle_area:
     MOV EAX, EDI         ; put returned value in AX
     JMP triangle_area_exit
 triangle_area_exit:
-    MOV ESP, EBP         ; tear down stak frame
+    MOV ESP, EBP         ; tear down stack frame
     POP EBP
     RET
 
 circle_area:
-    PUSH EBP             ; establish stak frame
+    PUSH EBP             ; establish stack frame
     MOV EBP, ESP
     ; [EBP +8] argument "radius", 4 bytes
     MOV EBX, 0x3
@@ -68,12 +68,12 @@ circle_area:
     MOV EAX, EDI         ; put returned value in AX
     JMP circle_area_exit
 circle_area_exit:
-    MOV ESP, EBP         ; tear down stak frame
+    MOV ESP, EBP         ; tear down stack frame
     POP EBP
     RET
 
 fibonacci:
-    PUSH EBP             ; establish stak frame
+    PUSH EBP             ; establish stack frame
     MOV EBP, ESP
     ; [EBP +8] argument "n", 4 bytes
     CMP [EBP+8], 0x2
@@ -111,12 +111,12 @@ if_3_end:
     MOV EAX, [EBP-20]    ; put returned value in AX
     JMP fibonacci_exit
 fibonacci_exit:
-    MOV ESP, EBP         ; tear down stak frame
+    MOV ESP, EBP         ; tear down stack frame
     POP EBP
     RET
 
 factorial:
-    PUSH EBP             ; establish stak frame
+    PUSH EBP             ; establish stack frame
     MOV EBP, ESP
     ; [EBP +8] argument "n", 4 bytes
     CMP [EBP+8], 0x1
@@ -143,12 +143,12 @@ if_4_end:
     MOV EAX, [EBP-8]     ; put returned value in AX
     JMP factorial_exit
 factorial_exit:
-    MOV ESP, EBP         ; tear down stak frame
+    MOV ESP, EBP         ; tear down stack frame
     POP EBP
     RET
 
 math_demo:
-    PUSH EBP             ; establish stak frame
+    PUSH EBP             ; establish stack frame
     MOV EBP, ESP
     SUB ESP, 0x4         ; space for local vars
     ; [EBP -4] local var "i", 4 bytes
@@ -201,12 +201,12 @@ while_6_begin:
     ADD ESP, 0xc         ; clean up 12 bytes that were pushed
     JMP while_6_begin
 math_demo_exit:
-    MOV ESP, EBP         ; tear down stak frame
+    MOV ESP, EBP         ; tear down stack frame
     POP EBP
     RET
 
 nested_loops_test:
-    PUSH EBP             ; establish stak frame
+    PUSH EBP             ; establish stack frame
     MOV EBP, ESP
     SUB ESP, 0x8         ; space for local vars
     ; [EBP -4] local var "outer", 4 bytes
@@ -229,12 +229,12 @@ while_8_end:
     MOV [EBP-4], EAX
     JMP while_7_begin
 nested_loops_test_exit:
-    MOV ESP, EBP         ; tear down stak frame
+    MOV ESP, EBP         ; tear down stack frame
     POP EBP
     RET
 
 main:
-    PUSH EBP             ; establish stak frame
+    PUSH EBP             ; establish stack frame
     MOV EBP, ESP
     SUB ESP, 0x1d        ; space for local vars
     ; [EBP +8] argument "argc", 4 bytes
@@ -252,7 +252,7 @@ main:
     MOV [EBP-8], EAX
     CALL math_demo
 main_exit:
-    MOV ESP, EBP         ; tear down stak frame
+    MOV ESP, EBP         ; tear down stack frame
     POP EBP
     RET
 

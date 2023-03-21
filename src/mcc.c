@@ -87,15 +87,21 @@ void parse_abstract_syntax_tree(token_list *list) {
     if (errors_count)
         return;
 
-    // should say "parsed x nodes in AST"
-    // int functions;
-    // int statements;
-    // int expressions;
-    // ast_count_nodes(&functions, &statements, &expressions);
-    // printf("Parsed tokens into %d functions, %d statements, %d expression nodes\n", functions, statements, expressions);
+    if (options.verbose) {
+        printf("---------- Abstract Syntax Tree ----------\n");
+        print_ast(stdout);
+    }
 
-    if (options.verbose)
-        print_ast();
+    if (options.generate_ast) {
+        char *ast_filename = set_extension(options.filename, "ast");
+        FILE *f = fopen(ast_filename, "w");
+        if (f == NULL) {
+            error(NULL, 0, "cannot open file \"%s\" for writing", ast_filename);
+        }
+        print_ast(f);
+        fclose(f);
+        free(ast_filename);
+    }
 }
 
 void perform_semantic_analysis() {

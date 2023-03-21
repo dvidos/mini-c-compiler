@@ -99,8 +99,6 @@ static void gen_binary_op(code_gen *cg, ir_value *lvalue, expression *expr) {
 }
 
 void code_gen_generate_for_expression(code_gen *cg, ir_value *lvalue, expression *expr) {
-    ir_value *addr;
-
     switch (expr->op) {
         case OP_NUM_LITERAL:
             cg->ir->ops->add(cg->ir, new_ir_assignment(lvalue, new_ir_value_immediate(expr->value.num)));
@@ -147,9 +145,9 @@ void code_gen_generate_for_expression(code_gen *cg, ir_value *lvalue, expression
             break;
 
         case OP_ASSIGNMENT:
-            // the provided lvale is ditched (e.g. as in "a = (b = c);")
-            addr = resolve_addr(cg, expr->arg1);
-            cg->ops->generate_for_expression(cg, addr, expr->arg2);
+            // the provided lvalue is ditched (e.g. as in "a = (b = c);")
+            ir_value *assignee = resolve_addr(cg, expr->arg1);
+            cg->ops->generate_for_expression(cg, assignee, expr->arg2);
             break;
 
         case OP_PRE_INC: // fallthrough
@@ -159,13 +157,20 @@ void code_gen_generate_for_expression(code_gen *cg, ir_value *lvalue, expression
             bool is_pre = (expr->op == OP_PRE_INC || expr->op == OP_PRE_DEC);
             bool is_inc = (expr->op == OP_PRE_INC || expr->op == OP_POST_INC);
             ir_operation ir_op = is_inc ? IR_ADD : IR_SUB;
-            ir_value *one = new_ir_value_immediate(1); // it will be used only once
-            addr = resolve_addr(cg, expr->arg1);
-            if (is_pre)
-                cg->ir->ops->add(cg->ir, new_ir_three_address_code(addr, addr, ir_op, one));
-            cg->ir->ops->add(cg->ir, new_ir_assignment(lvalue, addr));
-            if (!is_pre)
-                cg->ir->ops->add(cg->ir, new_ir_three_address_code(addr, addr, ir_op, one));
+            // Pre Inc: result = ++i;
+            // r5 = i
+            // i = r5 + 1     // first two are same in both cases
+            // result = i;    // last assignment depends on pre/post
+            // ---------------------------------------
+            // Post Inc: result = i++;
+            // r5 = i
+            // i = r5 + 1     // first two are same in both cases
+            // result = r5    // last assignment depends on pre/post
+            ir_value *modifiee = resolve_addr(cg, expr->arg1);
+            ir_value *temp_reg = new_ir_value_register(cg->ops->next_reg_num(cg));
+            cg->ir->ops->add(cg->ir, new_ir_assignment(temp_reg, modifiee));
+            cg->ir->ops->add(cg->ir, new_ir_three_address_code(modifiee, temp_reg, ir_op, new_ir_value_immediate(1)));
+            cg->ir->ops->add(cg->ir, new_ir_assignment(lvalue, is_pre ? modifiee : temp_reg));
             break;
 
         default:

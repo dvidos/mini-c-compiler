@@ -11,6 +11,22 @@
 #include "asm_instruction.h"
 
 
+
+struct asm_operand *ir_value_to_asm_operand(ir_value *v);
+static void code_prologue();
+static void code_epilogue();
+static void code_function_call(struct ir_entry_function_call_info *c);
+static void code_conditional_jump(struct ir_entry_cond_jump_info *j);
+static void code_unconditional_jump(char *label);
+static void code_return_statement(struct ir_entry_return_info *info);
+static void code_simple_assignment(ir_value *lvalue, ir_value *rvalue);
+static void code_unary_operation(ir_value *lvalue, ir_operation op, ir_value *rvalue);
+static void code_binary_operation(ir_value *lvalue, ir_value *rvalue1, ir_operation op, ir_value *rvalue2);
+static void assemble_function(ir_listing *ir, int start, int end);
+
+
+
+
 // for converting temp registers and local symbols to assembly operands
 struct asm_operand *ir_value_to_asm_operand(ir_value *v) {
     // consult temp register allocation, to resolve temp reg numbers
@@ -65,45 +81,6 @@ static struct function_assembling_information {
 } f;
 
 
-
-static void analyze_function(ir_listing *ir, int start, int end) {
-    if (ir->entries_arr[start]->type != IR_FUNCTION_DEFINITION) {
-        error(NULL, 0, "internal bug, function declaration IR was expected");
-        return;
-    }
-    f.func_def = &ir->entries_arr[start]->t.function_def;
-    asm_allocator.reset();
-    
-    // declare stack variables and their offsets from BP:
-    //   BP + n = last argument (that was pushed first, right-to-left)
-    //   BP + 8 = first argument (that was pushed last of the arguments)
-    //   BP + 4 = return address (that was pushed last)
-    //   BP + 0 = previous BP
-    //   BP - 4 = first local variable
-    //   BP - n = local variable
-    // this allows the allocator to grab more stack space as needed
-
-    int bp_offset = options.pointer_size_bytes * 2; // skip pushed EBP and return address
-    for (int i = 0; i < f.func_def->args_len; i++) {
-        asm_allocator.declare_local_symbol(
-            f.func_def->args_arr[i].name, f.func_def->args_arr[i].size,
-            bp_offset);
-        bp_offset += f.func_def->args_arr[i].size;
-    }
-
-    bp_offset = 0; // to subtract the size of the first local variable, not of BP
-    f.stack_space_for_local_vars = 0;
-    for (int i = start; i < end; i++) {
-        ir_entry *e = ir->entries_arr[i];
-        if (e->type == IR_DATA_DECLARATION && e->t.data_decl.storage == IR_LOCAL) {
-            bp_offset -= e->t.data_decl.size; // note we subtract before
-            asm_allocator.declare_local_symbol(
-                e->t.data_decl.symbol_name, e->t.data_decl.size,
-                bp_offset);
-            f.stack_space_for_local_vars += e->t.data_decl.size;
-        }
-    }
-}
 
 static void code_prologue() {
     f.lst->ops->set_next_label(f.lst, f.func_def->func_name);
@@ -199,78 +176,73 @@ static void code_return_statement(struct ir_entry_return_info *info) {
     f.lst->ops->add_instr1(f.lst, OC_JMP, new_mem_by_sym_asm_operand(label_name));
 }
 
-static void code_three_address_code(struct ir_entry_three_addr_code_info *c) {
-    // sometimes we only have "c", which is a function call, ignoring ret value
-    if (c->lvalue != NULL && c->op1 == NULL && c->op2 != NULL) {
-        // we have a case of "lv = r2" or "lv = <unary> r2"
-        switch (c->op) {
-            case IR_NONE:
-                f.lst->ops->add_instr2(f.lst, OC_MOV, ir_value_to_asm_operand(c->lvalue), ir_value_to_asm_operand(c->op2));
-                break;
-            case IR_NOT:
-                // we can do this directly, using modRM byte
-                f.lst->ops->add_instr1(f.lst, OC_NOT, ir_value_to_asm_operand(c->op2));
-                break;
-            case IR_NEG:
-                // we can do this directly, using modRM byte
-                f.lst->ops->add_instr1(f.lst, OC_NEG, ir_value_to_asm_operand(c->op2));
-                break;
-            case IR_ADDR_OF:
-                f.lst->ops->add_instr1(f.lst, OC_LEA, ir_value_to_asm_operand(c->op2));
-                break;
-            case IR_VALUE_AT: // fallthrough, for I don't know how to do this.
-            default:
-                error(NULL, 0, "Unsupported 3-code-addr unary operator %d", c->op);
-                break;
-        }
-    } else if (c->lvalue != NULL && c->op1 != NULL && c->op2 != NULL) {
-        // lv = r1 + r2
-        // thinking of doing: MOV AX, r1 / ADD AX, r2 / MOV lv, AX
-        f.lst->ops->add_instr2(f.lst, OC_MOV, new_reg_asm_operand(REG_AX), ir_value_to_asm_operand(c->op1));
-        switch (c->op) {
-            case IR_ADD:
-                f.lst->ops->add_instr2(f.lst, OC_ADD, new_reg_asm_operand(REG_AX), ir_value_to_asm_operand(c->op1));
-                break;
-            case IR_SUB:
-                f.lst->ops->add_instr2(f.lst, OC_SUB, new_reg_asm_operand(REG_AX), ir_value_to_asm_operand(c->op1));
-                break;
-            case IR_MUL:
-                f.lst->ops->add_instr2(f.lst, OC_IMUL, new_reg_asm_operand(REG_AX), ir_value_to_asm_operand(c->op1));
-                break;
-            case IR_DIV:
-                f.lst->ops->add_instr2(f.lst, OC_IDIV, new_reg_asm_operand(REG_AX), ir_value_to_asm_operand(c->op1));
-                break;
-            case IR_MOD:
-                // division puts remainder in DX
-                f.lst->ops->add_instr2(f.lst, OC_IDIV, new_reg_asm_operand(REG_AX), ir_value_to_asm_operand(c->op1));
-                f.lst->ops->add_instr2(f.lst, OC_MOV, new_reg_asm_operand(REG_AX), new_reg_asm_operand(REG_DX));
-                break;
-            case IR_AND:
-                f.lst->ops->add_instr2(f.lst, OC_AND, new_reg_asm_operand(REG_AX), ir_value_to_asm_operand(c->op1));
-                break;
-            case IR_OR:
-                f.lst->ops->add_instr2(f.lst, OC_OR, new_reg_asm_operand(REG_AX), ir_value_to_asm_operand(c->op1));
-                break;
-            case IR_XOR:
-                f.lst->ops->add_instr2(f.lst, OC_XOR, new_reg_asm_operand(REG_AX), ir_value_to_asm_operand(c->op1));
-                break;
-            case IR_LSH:
-                f.lst->ops->add_instr2(f.lst, OC_SHL, new_reg_asm_operand(REG_AX), ir_value_to_asm_operand(c->op1));
-                break;
-            case IR_RSH:
-                f.lst->ops->add_instr2(f.lst, OC_SHR, new_reg_asm_operand(REG_AX), ir_value_to_asm_operand(c->op1));
-                break;
-            default:
-                error(NULL, 0, "Unsupported 3-code-addr binary operator %d", c->op);
-                break;
-        }
-        f.lst->ops->add_instr2(f.lst, OC_MOV, ir_value_to_asm_operand(c->lvalue), new_reg_asm_operand(REG_AX));
-    } else {
-        // error(NULL, 0, "unsupported 3-addr-code format: lv=%s, op1=%s, op2=%s", 
-        //     c->lvalue == NULL ? "null" : "non-null",
-        //     c->op1 == NULL    ? "null" : "non-null",
-        //     c->op2 == NULL    ? "null" : "non-null");
+static void code_simple_assignment(ir_value *lvalue, ir_value *rvalue) {
+    // one of the values MUST be a register, we cannot move mem to mem.
+    // otherwise code an intermediate step through AX
+    f.lst->ops->add_instr2(f.lst, OC_MOV, ir_value_to_asm_operand(lvalue), ir_value_to_asm_operand(rvalue));
+}
+
+static void code_unary_operation(ir_value *lvalue, ir_operation op, ir_value *rvalue) {
+    switch (op) {
+        case IR_NOT:
+            // we can do this directly, using modRM byte
+            f.lst->ops->add_instr1(f.lst, OC_NOT, ir_value_to_asm_operand(rvalue));
+            break;
+        case IR_NEG:
+            // we can do this directly, using modRM byte
+            f.lst->ops->add_instr1(f.lst, OC_NEG, ir_value_to_asm_operand(rvalue));
+            break;
+        case IR_ADDR_OF:
+            f.lst->ops->add_instr1(f.lst, OC_LEA, ir_value_to_asm_operand(rvalue));
+            break;
+        case IR_VALUE_AT: // fallthrough, for I don't know how to do this.
+        default:
+            error(NULL, 0, "Unsupported IR unary operator %d", op);
+            break;
     }
+}
+
+static void code_binary_operation(ir_value *lvalue, ir_value *rvalue1, ir_operation op, ir_value *rvalue2) {
+    // thinking of doing: MOV AX, r1 / ADD AX, r2 / MOV lv, AX
+    f.lst->ops->add_instr2(f.lst, OC_MOV, new_reg_asm_operand(REG_AX), ir_value_to_asm_operand(rvalue1));
+    switch (op) {
+        case IR_ADD:
+            f.lst->ops->add_instr2(f.lst, OC_ADD, new_reg_asm_operand(REG_AX), ir_value_to_asm_operand(rvalue2));
+            break;
+        case IR_SUB:
+            f.lst->ops->add_instr2(f.lst, OC_SUB, new_reg_asm_operand(REG_AX), ir_value_to_asm_operand(rvalue2));
+            break;
+        case IR_MUL:
+            f.lst->ops->add_instr2(f.lst, OC_IMUL, new_reg_asm_operand(REG_AX), ir_value_to_asm_operand(rvalue2));
+            break;
+        case IR_DIV:
+            f.lst->ops->add_instr2(f.lst, OC_IDIV, new_reg_asm_operand(REG_AX), ir_value_to_asm_operand(rvalue2));
+            break;
+        case IR_MOD:
+            // division puts remainder in DX
+            f.lst->ops->add_instr2(f.lst, OC_IDIV, new_reg_asm_operand(REG_AX), ir_value_to_asm_operand(rvalue2));
+            f.lst->ops->add_instr2(f.lst, OC_MOV, new_reg_asm_operand(REG_AX), new_reg_asm_operand(REG_DX));
+            break;
+        case IR_AND:
+            f.lst->ops->add_instr2(f.lst, OC_AND, new_reg_asm_operand(REG_AX), ir_value_to_asm_operand(rvalue2));
+            break;
+        case IR_OR:
+            f.lst->ops->add_instr2(f.lst, OC_OR, new_reg_asm_operand(REG_AX), ir_value_to_asm_operand(rvalue2));
+            break;
+        case IR_XOR:
+            f.lst->ops->add_instr2(f.lst, OC_XOR, new_reg_asm_operand(REG_AX), ir_value_to_asm_operand(rvalue2));
+            break;
+        case IR_LSH:
+            f.lst->ops->add_instr2(f.lst, OC_SHL, new_reg_asm_operand(REG_AX), ir_value_to_asm_operand(rvalue2));
+            break;
+        case IR_RSH:
+            f.lst->ops->add_instr2(f.lst, OC_SHR, new_reg_asm_operand(REG_AX), ir_value_to_asm_operand(rvalue2));
+            break;
+        default:
+            error(NULL, 0, "Unsupported 3-code-addr binary operator %d", op);
+            break;
+    }
+    f.lst->ops->add_instr2(f.lst, OC_MOV, ir_value_to_asm_operand(lvalue), new_reg_asm_operand(REG_AX));
 }
 
 static void _release_temp_reg_allocations(ir_value *v, void *pdata, int idata) {
@@ -283,7 +255,6 @@ static void _release_temp_reg_allocations(ir_value *v, void *pdata, int idata) {
             asm_allocator.release_temp_reg_storage(reg_no);
         }
     }
-    
 }
 
 static void assemble_function(ir_listing *ir, int start, int end) {
@@ -292,7 +263,45 @@ static void assemble_function(ir_listing *ir, int start, int end) {
     // this storage space can be either CPU registers or stack space.
     // for each IR instruction, find appropriate assembly instruction(s)
 
-    analyze_function(ir, start, end);
+    if (ir->entries_arr[start]->type != IR_FUNCTION_DEFINITION) {
+        error(NULL, 0, "internal bug, function declaration IR was expected");
+        return;
+    }
+
+    // house keeping first
+    f.func_def = &ir->entries_arr[start]->t.function_def;
+    asm_allocator.reset();
+    
+    // declare stack variables and their offsets from BP:
+    // this allows the allocator to grab more stack space as needed
+    //   BP + n = last argument (that was pushed first, right-to-left)
+    //   BP + 8 = first argument (that was pushed last of the arguments)
+    //   BP + 4 = return address (that was pushed last)
+    //   BP + 0 = previous BP
+    //   BP - 4 = first local variable
+    //   BP - n = local variable
+
+    int bp_offset = options.pointer_size_bytes * 2; // skip pushed EBP and return address
+    for (int i = 0; i < f.func_def->args_len; i++) {
+        asm_allocator.declare_local_symbol(
+            f.func_def->args_arr[i].name, f.func_def->args_arr[i].size,
+            bp_offset);
+        bp_offset += f.func_def->args_arr[i].size;
+    }
+
+    bp_offset = 0; // to subtract the size of the first local variable, not of BP
+    f.stack_space_for_local_vars = 0;
+    for (int i = start; i < end; i++) {
+        ir_entry *e = ir->entries_arr[i];
+        if (e->type == IR_DATA_DECLARATION && e->t.data_decl.storage == IR_LOCAL) {
+            bp_offset -= e->t.data_decl.size; // note we subtract before
+            asm_allocator.declare_local_symbol(
+                e->t.data_decl.symbol_name, e->t.data_decl.size,
+                bp_offset);
+            f.stack_space_for_local_vars += e->t.data_decl.size;
+        }
+    }
+
     code_prologue();
 
     for (int i = start; i < end; i++) {
@@ -309,7 +318,22 @@ static void assemble_function(ir_listing *ir, int start, int end) {
                 // how about initial data?
                 break;
             case IR_THREE_ADDR_CODE:
-                code_three_address_code(&e->t.three_address_code);
+                struct ir_entry_three_addr_code_info *c = &e->t.three_address_code;
+                if (c->lvalue != NULL && c->op1 == NULL && c->op == IR_NONE && c->op2 != NULL) {
+                    // "lv = rv"
+                    code_simple_assignment(c->lvalue, c->op2);
+                } else if (c->lvalue != NULL && c->op1 == NULL && c->op != IR_NONE && c->op2 != NULL) {
+                    // "lv = <unary> r2"
+                    code_unary_operation(c->lvalue, c->op, c->op2);
+                } else if (c->lvalue != NULL && c->op1 != NULL && c->op2 != NULL) {
+                    // "lv = r1 <+> r2"
+                    code_binary_operation(c->lvalue, c->op1, c->op, c->op2);
+                } else {
+                    // error(NULL, 0, "unsupported 3-addr-code format: lv=%s, op1=%s, op2=%s", 
+                    //     c->lvalue == NULL ? "null" : "non-null",
+                    //     c->op1 == NULL    ? "null" : "non-null",
+                    //     c->op2 == NULL    ? "null" : "non-null");
+                }
                 break;
             case IR_FUNCTION_CALL:
                 code_function_call(&e->t.function_call);

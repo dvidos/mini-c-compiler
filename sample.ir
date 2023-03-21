@@ -72,26 +72,28 @@ function "math_demo" () -> 0
     local data "i", 4 bytes
     i = 0
 while_5_begin:
-    r34 = i
-    i = i + 1
+    r35 = i
+    i = r35 + 1
+    r34 = r35
     if r34 >= 0xa goto while_5_end
-    r35 = __str_1
-    r36 = i
-    r38 = i
-    r37 = call fibonacci passing r38
-    call printf passing r35, r36, r37
+    r36 = __str_1
+    r37 = i
+    r39 = i
+    r38 = call fibonacci passing r39
+    call printf passing r36, r37, r38
     goto while_5_begin
 while_5_end:
     i = 0
 while_6_begin:
-    r39 = i
-    i = i + 1
-    if r39 >= 0xa goto while_6_end
-    r40 = __str_2
     r41 = i
+    i = r41 + 1
+    r40 = r41
+    if r40 >= 0xa goto while_6_end
+    r42 = __str_2
     r43 = i
-    r42 = call factorial passing r43
-    call printf passing r40, r41, r42
+    r45 = i
+    r44 = call factorial passing r45
+    call printf passing r42, r43, r44
     goto while_6_begin
 while_6_end:
     function end
@@ -105,14 +107,40 @@ while_7_begin:
     inner = 0xf
 while_8_begin:
     if inner <= 0 goto while_8_end
-    (null) = inner
-    inner = inner - 1
+    r46 = inner
+    inner = r46 - 1
+    (null) = r46
     goto while_8_begin
 while_8_end:
-    (null) = outer
-    outer = outer - 1
+    r47 = outer
+    outer = r47 - 1
+    (null) = r47
     goto while_7_begin
 while_7_end:
+    function end
+
+function "test_pre_post_inc_dec" () -> 0
+    local data "a", 4 bytes
+    local data "b", 4 bytes
+    local data "c", 4 bytes
+    local data "d", 4 bytes
+    local data "result", 4 bytes
+    a = 8
+    r48 = a
+    a = r48 + 1
+    result = r48
+    b = 8
+    r49 = b
+    b = r49 + 1
+    result = b
+    c = 8
+    r50 = c
+    c = r50 - 1
+    result = r50
+    d = 8
+    r51 = d
+    d = r51 - 1
+    result = d
     function end
 
 function "main" (argc:4, argv:4) -> 0
@@ -122,8 +150,8 @@ function "main" (argc:4, argv:4) -> 0
     local data "d", 4 bytes
     local data "buffer", 16 bytes
     a = 1
-    r44 = a
-    r45 = 2
-    b = r44 + r45
+    r52 = a
+    r53 = 2
+    b = r52 + r53
     call math_demo
     function end

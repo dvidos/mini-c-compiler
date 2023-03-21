@@ -44,6 +44,21 @@ function: void nested_loops_test()
             POSTDEC(inner)
         POSTDEC(outer)
 
+function: void test_pre_post_inc_dec()
+    variable: a int
+    variable: b int
+    variable: c int
+    variable: d int
+    variable: result int
+    ASSIGN(a, 8)
+    ASSIGN(result, POSTINC(a))
+    ASSIGN(b, 8)
+    ASSIGN(result, PREINC(b))
+    ASSIGN(c, 8)
+    ASSIGN(result, POSTDEC(c))
+    ASSIGN(d, 8)
+    ASSIGN(result, PREDEC(d))
+
 function: void main(int argc, char** argv)
     variable: a int = 1
     variable: b int

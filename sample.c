@@ -62,6 +62,26 @@ void nested_loops_test() {
     }
 }
 
+void test_pre_post_inc_dec() {
+    int a;
+    int b;
+    int c;
+    int d;
+    int result;
+
+    a = 8;
+    result = a++;
+
+    b = 8;
+    result = ++b;
+
+    c = 8;
+    result = c--;
+
+    d = 8;
+    result = --d;
+}
+
 void main(int argc, char **argv) {
     int a = 1;
     int b;

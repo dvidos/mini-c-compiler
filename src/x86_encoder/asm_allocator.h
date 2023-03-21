@@ -2,6 +2,16 @@
 #include "asm_listing.h"
 
 
+struct storage_allocator_ops;
+
+typedef struct asm_allocator {
+    void *private_data;
+    struct storage_allocator_ops *ops;
+} asm_allocator;
+
+asm_allocator *new_asm_allocator(asm_listing *listing);
+
+
 // one storage unit, can be either on a register or on stack
 typedef struct storage {
     bool is_gp_reg;
@@ -11,34 +21,14 @@ typedef struct storage {
     int size;
 } storage;
 
-struct storage_allocator_data {
-    asm_listing *listing; // to grab stack space at runtime.
-    int lowest_bp_offset; // equal to negative BP offset of last variable
-
-    // function arguments and local variables.
-    struct named_storage_slot {
-        char *symbol_name;
-        struct storage value;
-    } *named_storage_arr;
-    int named_storage_arr_len;
-
-    // allocatable to temp_registers
-    struct temp_storage_slot {
-        int holder_reg; // non-zero means allocated.
-        struct storage value; 
-    } *temp_storage_arr;
-    int temp_storage_arr_len;
-};
-
 struct storage_allocator_ops {
-    void (*set_asm_listing)(asm_listing *lst); // once
-    void (*reset)();
-    void (*declare_local_symbol)(char *symbol, int size, int bp_offset);
-    void (*generate_stack_info_comments)();
+    void (*reset)(asm_allocator *a);
+    void (*declare_local_symbol)(asm_allocator *a, char *symbol, int size, int bp_offset);
+    void (*generate_stack_info_comments)(asm_allocator *a);
 
-    bool (*get_named_storage)(char *symbol_name, storage *target); // false = not foudn
-    void (*get_temp_reg_storage)(int reg_no, storage *target);
-    void (*release_temp_reg_storage)(int reg_no);
+    bool (*get_named_storage)(asm_allocator *a, char *symbol_name, storage *target); // false = not found
+    void (*get_temp_reg_storage)(asm_allocator *a, int reg_no, storage *target);
+    void (*release_temp_reg_storage)(asm_allocator *a, int reg_no);
 };
 
-extern struct storage_allocator_ops asm_allocator;
+

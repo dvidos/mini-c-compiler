@@ -27,6 +27,10 @@ static void assemble_function(ir_listing *ir, int start, int end);
 
 
 
+asm_allocator *allocator;
+
+
+
 // for converting temp registers and local symbols to assembly operands
 struct asm_operand *ir_value_to_asm_operand(ir_value *v) {
     // consult temp register allocation, to resolve temp reg numbers
@@ -37,7 +41,7 @@ struct asm_operand *ir_value_to_asm_operand(ir_value *v) {
     struct asm_operand *o = malloc(sizeof(struct asm_operand));
 
     if (v->type == IR_TREG) {
-        asm_allocator.get_temp_reg_storage(v->val.temp_reg_no, &s);
+        allocator->ops->get_temp_reg_storage(allocator, v->val.temp_reg_no, &s);
         if (s.is_gp_reg) {
             o->type = OT_REGISTER;
             o->reg = s.gp_reg;
@@ -47,7 +51,7 @@ struct asm_operand *ir_value_to_asm_operand(ir_value *v) {
             o->offset = s.bp_offset;
         }
     } else if (v->type == IR_SYM) {
-        if (asm_allocator.get_named_storage(v->val.symbol_name, &s)) {
+        if (allocator->ops->get_named_storage(allocator, v->val.symbol_name, &s)) {
             if (!s.is_stack_var) {
                 error(NULL, 0, "named symbols ('%s') are expected to be stack oriented", v->val.symbol_name);
                 return NULL;
@@ -92,7 +96,7 @@ static void code_prologue() {
         f.lst->ops->add_instr2(f.lst, OC_SUB, new_reg_asm_operand(REG_SP), new_imm_asm_operand(f.stack_space_for_local_vars));
     }
 
-    asm_allocator.generate_stack_info_comments();
+    allocator->ops->generate_stack_info_comments(allocator);
 
     // then allocate local variables (and temp regs as well)
     // callee saved registers
@@ -252,7 +256,7 @@ static void _release_temp_reg_allocations(ir_value *v, void *pdata, int idata) {
     if (v != NULL && v->type == IR_TREG) {
         int reg_no = v->val.temp_reg_no;
         if (ir->ops->get_register_last_usage(ir, reg_no) == curr_index) {
-            asm_allocator.release_temp_reg_storage(reg_no);
+            allocator->ops->release_temp_reg_storage(allocator, reg_no);
         }
     }
 }
@@ -270,7 +274,7 @@ static void assemble_function(ir_listing *ir, int start, int end) {
 
     // house keeping first
     f.func_def = &ir->entries_arr[start]->t.function_def;
-    asm_allocator.reset();
+    allocator->ops->reset(allocator);
     
     // declare stack variables and their offsets from BP:
     // this allows the allocator to grab more stack space as needed
@@ -283,7 +287,7 @@ static void assemble_function(ir_listing *ir, int start, int end) {
 
     int bp_offset = options.pointer_size_bytes * 2; // skip pushed EBP and return address
     for (int i = 0; i < f.func_def->args_len; i++) {
-        asm_allocator.declare_local_symbol(
+        allocator->ops->declare_local_symbol(allocator, 
             f.func_def->args_arr[i].name, f.func_def->args_arr[i].size,
             bp_offset);
         bp_offset += f.func_def->args_arr[i].size;
@@ -295,7 +299,7 @@ static void assemble_function(ir_listing *ir, int start, int end) {
         ir_entry *e = ir->entries_arr[i];
         if (e->type == IR_DATA_DECLARATION && e->t.data_decl.storage == IR_LOCAL) {
             bp_offset -= e->t.data_decl.size; // note we subtract before
-            asm_allocator.declare_local_symbol(
+            allocator->ops->declare_local_symbol(allocator, 
                 e->t.data_decl.symbol_name, e->t.data_decl.size,
                 bp_offset);
             f.stack_space_for_local_vars += e->t.data_decl.size;
@@ -359,10 +363,10 @@ static void assemble_function(ir_listing *ir, int start, int end) {
 
 // given an Intemediate Representation listing, generate an assembly listing.
 void x86_assemble_ir_listing(ir_listing *ir_list, asm_listing *asm_list) {
+    allocator = new_asm_allocator(asm_list);
 
     // set reference to asm listing, to allow our functions to use it
     f.lst = asm_list;
-    asm_allocator.set_asm_listing(asm_list);
 
     // calculate temp register usage and last mention
     ir_list->ops->run_statistics(ir_list);

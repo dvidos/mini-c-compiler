@@ -6,8 +6,8 @@ get_next_counter_value:
     MOV EAX, EBX
     ADD EAX, ECX
     MOV counter, EAX
-    MOV ECX, counter
-    MOV EAX, ECX         ; put returned value in AX
+    MOV EDX, counter
+    MOV EAX, EDX         ; put returned value in AX
     JMP get_next_counter_value_exit
 get_next_counter_value_exit:
     MOV ESP, EBP         ; tear down stack frame
@@ -248,36 +248,30 @@ test_pre_post_inc_dec:
     ; [EBP-12] local var "c", 4 bytes
     ; [EBP-16] local var "d", 4 bytes
     ; [EBP-20] local var "result", 4 bytes
-    
     MOV [EBP-4], 0x8
     MOV EBX, [EBP-4]
     MOV EAX, EBX
     ADD EAX, 0x1
     MOV [EBP-4], EAX
     MOV [EBP-20], EBX
-
     MOV [EBP-8], 0x8
     MOV ECX, [EBP-8]
     MOV EAX, ECX
     ADD EAX, 0x1
     MOV [EBP-8], EAX
     MOV [EBP-20], [EBP-8]
-
     MOV [EBP-12], 0x8
     MOV EDX, [EBP-12]
     MOV EAX, EDX
     SUB EAX, 0x1
     MOV [EBP-12], EAX
     MOV [EBP-20], EDX
-
     MOV [EBP-16], 0x8
     MOV ESI, [EBP-16]
     MOV EAX, ESI
     SUB EAX, 0x1
     MOV [EBP-16], EAX
     MOV [EBP-20], [EBP-16]
-
-
 test_pre_post_inc_dec_exit:
     MOV ESP, EBP         ; tear down stack frame
     POP EBP

@@ -35,7 +35,7 @@ struct module_ops {
     // void (*encode_listing)(obj_code *obj, listing *list);
 
     // // object file operations    
-    // bool (*save_to_object_file)(char *filename);
+    bool (*save_object_file)(obj_code *obj, FILE *f);
     // bool (*load_from_object_file)(char *filename);
 
     // // linking of merged modules

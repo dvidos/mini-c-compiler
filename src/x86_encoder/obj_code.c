@@ -5,17 +5,22 @@
 #include "reloc_list.h"
 #include "obj_code.h"
 #include "../utils.h"
+#include "../elf/elf_contents.h"
+#include "../elf/elf.h"
 
 
-static void _free(obj_code *obj);
 static void _reset(obj_code *obj);
 static void _declare_data(obj_code *obj, char *symbol_name, u64 bytes, void *init_value);
 static void _print(obj_code *obj);
+static bool _save_object_file(obj_code *obj, FILE *f);
+static void _free(obj_code *obj);
+
 
 struct module_ops ops = {
     .reset = _reset,
     .declare_data = _declare_data,
     .print = _print,
+    .save_object_file = _save_object_file,
     .free = _free,
 };
 
@@ -73,6 +78,10 @@ static void _print(obj_code *obj) {
         printf("Symbols (%d entries)\n", obj->relocations->length);
         obj->symbols->print(obj->symbols);
     }
+}
+
+static bool _save_object_file(obj_code *obj, FILE *f) {
+    return false;
 }
 
 static void _free(obj_code *obj) {

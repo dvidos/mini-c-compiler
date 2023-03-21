@@ -168,7 +168,18 @@ void generate_machine_code(ir_listing *ir_list) {
         return;
 
     if (options.generate_obj) {
-        // save the obj_code as relocatable object code
+        char *obj_filename = set_extension(options.filename, "obj");
+        FILE *f = fopen(obj_filename, "w");
+        if (f == NULL) {
+            error(NULL, 0, "cannot open file \"%s\" for writing", obj_filename);
+            return;
+        }
+        if (!mod->ops->save_object_file(mod, f)) {
+            error(NULL, 0, "error writing to file \"%s\"", obj_filename);
+            return;
+        }
+        fclose(f);
+        free(obj_filename);
     }
 
     // link into executable

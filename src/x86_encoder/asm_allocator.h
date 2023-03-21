@@ -4,10 +4,10 @@
 
 // one storage unit, can be either on a register or on stack
 typedef struct storage {
-    int is_gp_reg:    1;
-    int is_stack_var: 1;
-    int gp_reg:       3; // enum reg, actually.
-    int bp_offset:   24; // negative for local vars, positive for args
+    bool is_gp_reg;
+    bool is_stack_var;
+    enum gp_reg gp_reg;
+    int bp_offset; // negative for local vars, positive for args
     int size;
 } storage;
 

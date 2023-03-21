@@ -12,7 +12,7 @@ enum operand_type {
 };
 
 // these have to be 0 through 7, in this sequence.
-enum reg {
+enum gp_reg {
     REG_AX = 0, 
     REG_CX = 1,
     REG_DX = 2,
@@ -26,7 +26,7 @@ enum reg {
 struct asm_operand {
     enum operand_type type;
     long immediate;
-    enum reg reg;
+    enum gp_reg reg;
     char *symbol_name;
     long offset; // for indirect memory access
 };
@@ -75,3 +75,4 @@ struct asm_instruction {
 };
 
 void instruction_to_string(struct asm_instruction *inst, char *buff, int buff_size);
+char *gp_reg_name(enum gp_reg r);

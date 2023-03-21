@@ -107,7 +107,7 @@ static void analyze_function(ir_listing *ir, int start, int end) {
 
 static void code_prologue() {
     f.lst->ops->set_next_label(f.lst, f.func_def->func_name);
-    f.lst->ops->add_comment(f.lst, true, "establish stak frame");
+    f.lst->ops->add_comment(f.lst, true, "establish stack frame");
     f.lst->ops->add_instr1(f.lst, OC_PUSH, new_reg_asm_operand(REG_BP));
     f.lst->ops->add_instr2(f.lst, OC_MOV, new_reg_asm_operand(REG_BP), new_reg_asm_operand(REG_SP));
     if (f.stack_space_for_local_vars > 0) {
@@ -128,7 +128,7 @@ static void code_epilogue() {
     snprintf(label_name, sizeof(label_name) - 1, "%s_exit", f.func_def->func_name);
     f.lst->ops->set_next_label(f.lst, label_name);
 
-    f.lst->ops->add_comment(f.lst, true, "tear down stak frame");
+    f.lst->ops->add_comment(f.lst, true, "tear down stack frame");
     f.lst->ops->add_instr2(f.lst, OC_MOV, new_reg_asm_operand(REG_SP), new_reg_asm_operand(REG_BP));
     f.lst->ops->add_instr1(f.lst, OC_POP, new_reg_asm_operand(REG_BP));
     f.lst->ops->add_instr(f.lst, OC_RET);
@@ -152,10 +152,14 @@ static void code_function_call(struct ir_entry_function_call_info *c) {
 
     // grab returned value, if any is expected
     if (c->lvalue != NULL) {
+        f.lst->ops->add_comment(f.lst, true, "get value returned from function");
         f.lst->ops->add_instr2(f.lst, OC_MOV, ir_value_to_asm_operand(c->lvalue), new_reg_asm_operand(REG_AX));
     }
     // clean up pushed arguments
-    f.lst->ops->add_instr2(f.lst, OC_ADD, new_reg_asm_operand(REG_SP), new_imm_asm_operand(bytes_pushed));
+    if (bytes_pushed > 0) {
+        f.lst->ops->add_comment(f.lst, true, "clean up %d bytes that were pushed", bytes_pushed);
+        f.lst->ops->add_instr2(f.lst, OC_ADD, new_reg_asm_operand(REG_SP), new_imm_asm_operand(bytes_pushed));
+    }
 
     // caller restore registers (except AX)
 }

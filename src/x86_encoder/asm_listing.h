@@ -27,7 +27,7 @@ struct asm_listing_ops {
 
 asm_listing *new_asm_listing();
 struct asm_operand *new_imm_asm_operand(int value);
-struct asm_operand *new_reg_asm_operand(enum reg reg_no);
+struct asm_operand *new_reg_asm_operand(enum gp_reg reg_no);
 struct asm_operand *new_mem_by_sym_asm_operand(char *symbol_name);
-struct asm_operand *new_mem_by_reg_operand(enum reg reg_no, int offset);
+struct asm_operand *new_mem_by_reg_operand(enum gp_reg reg_no, int offset);
 

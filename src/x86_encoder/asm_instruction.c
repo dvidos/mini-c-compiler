@@ -6,7 +6,6 @@
 
 
 static char *get_opcode_str(enum opcode code);
-static char *get_reg_str(enum reg r);
 static void append_operand_instruction(struct asm_operand *op, char *buffer, int buff_size);
 
 
@@ -29,9 +28,9 @@ static void append_operand_instruction(struct asm_operand *op, char *buffer, int
     if (op->type == OT_IMMEDIATE) {
         snprintf(pos, len, "0x%lx", op->immediate);
     } else if (op->type == OT_REGISTER) {
-        snprintf(pos, len, "%c%s", options.register_prefix, get_reg_str(op->reg));
+        snprintf(pos, len, "%c%s", options.register_prefix, gp_reg_name(op->reg));
     } else if (op->type == OT_MEM_POINTED_BY_REG) {
-        snprintf(pos, len, "[%c%s%+ld]", options.register_prefix, get_reg_str(op->reg), op->offset);
+        snprintf(pos, len, "[%c%s%+ld]", options.register_prefix, gp_reg_name(op->reg), op->offset);
     } else if (op->type == OT_MEM_OF_SYMBOL) {
         snprintf(pos, len, "%s", op->symbol_name);
     }
@@ -72,7 +71,7 @@ static char *get_opcode_str(enum opcode code) {
     return "(unknown)";
 }
 
-static char *get_reg_str(enum reg r) {
+char *gp_reg_name(enum gp_reg r) {
     switch (r) {
         case REG_AX: return "AX";
         case REG_CX: return "CX";

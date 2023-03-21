@@ -12,8 +12,8 @@ static void _reset();
 static void _declare_local_symbol(char *symbol, int size, int bp_offset);
 static void _generate_stack_info_comments();
 static bool _get_named_storage(char *symbol_name, storage *target); // false = not found
-static void _get_temp_reg_storage(int reg_no, storage *target);
-static void _release_temp_reg_storage(int reg_no);
+static void _get_temp_reg_storage(int temp_reg_no, storage *target);
+static void _release_temp_reg_storage(int temp_reg_no);
 
 
 struct storage_allocator_ops asm_allocator = {
@@ -61,6 +61,8 @@ static void _reset() {
     data.temp_storage_arr[2].value.gp_reg = REG_DX;
     data.temp_storage_arr[3].value.gp_reg = REG_SI;
     data.temp_storage_arr[4].value.gp_reg = REG_DI;
+
+    // printf("Prepared storage allocation table:\n"); for (int j=0;j<data.temp_storage_arr_len;j++) printf("  #%d  owner=%d, is_gp=%d, gp=%d, is_bp_off=%d, bp_off=%d\n", j, data.temp_storage_arr[j].holder_reg, data.temp_storage_arr[j].value.is_gp_reg, data.temp_storage_arr[j].value.gp_reg, data.temp_storage_arr[j].value.is_stack_var, data.temp_storage_arr[j].value.bp_offset);
 }
 
 static void _declare_local_symbol(char *symbol, int size, int bp_offset) {
@@ -99,15 +101,16 @@ static bool _get_named_storage(char *symbol_name, storage *target) {
     for (int i = 0; i < data.named_storage_arr_len; i++) {
         if (strcmp(data.named_storage_arr[i].symbol_name, symbol_name) == 0) {
             memcpy(target, &data.named_storage_arr[i].value, sizeof(storage));
+            return true;
         }
     }
     return false; // not found
 }
 
-static void _get_temp_reg_storage(int reg_no, storage *target) {
+static void _get_temp_reg_storage(int temp_reg_no, storage *target) {
     // first see if this register already holds something.
     for (int i = 0; i < data.temp_storage_arr_len; i++) {
-        if (data.temp_storage_arr[i].holder_reg == reg_no) {
+        if (data.temp_storage_arr[i].holder_reg == temp_reg_no) {
             memcpy(target, &data.temp_storage_arr[i].value, sizeof(storage));
             return;
         }
@@ -116,7 +119,7 @@ static void _get_temp_reg_storage(int reg_no, storage *target) {
     // find the first unowned slot to assign to this register
     for (int i = 0; i < data.temp_storage_arr_len; i++) {
         if (data.temp_storage_arr[i].holder_reg == 0) {
-            data.temp_storage_arr[i].holder_reg = reg_no;
+            data.temp_storage_arr[i].holder_reg = temp_reg_no;
             memcpy(target, &data.temp_storage_arr[i].value, sizeof(storage));
             return;
         }
@@ -136,13 +139,13 @@ static void _get_temp_reg_storage(int reg_no, storage *target) {
     s->value.bp_offset = data.lowest_bp_offset;
     s->value.is_stack_var = true;
     s->value.size = size;
-    s->holder_reg = reg_no;
+    s->holder_reg = temp_reg_no;
     memcpy(target, &s->value, sizeof(storage));
 }
 
-static void _release_temp_reg_storage(int reg_no) {
+static void _release_temp_reg_storage(int temp_reg_no) {
     for (int i = 0; i < data.temp_storage_arr_len; i++) {
-        if (data.temp_storage_arr[i].holder_reg == reg_no) {
+        if (data.temp_storage_arr[i].holder_reg == temp_reg_no) {
             data.temp_storage_arr[i].holder_reg = 0;
             return;
         }

@@ -6,8 +6,8 @@ get_next_counter_value:
     MOV EAX, EBX
     ADD EAX, ECX
     MOV counter, EAX
-    MOV EDX, counter
-    MOV EAX, EDX         ; put returned value in AX
+    MOV ECX, counter
+    MOV EAX, ECX         ; put returned value in AX
     JMP get_next_counter_value_exit
 get_next_counter_value_exit:
     MOV ESP, EBP         ; tear down stack frame

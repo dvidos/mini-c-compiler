@@ -25,9 +25,14 @@ static void code_binary_operation(ir_value *lvalue, ir_value *rvalue1, ir_operat
 static void assemble_function(ir_listing *ir, int start, int end);
 
 
+static struct assembler_data {
+    asm_allocator *allocator;
+    asm_listing *listing;
 
-
-asm_allocator *allocator;
+    // as we assemble each function
+    struct ir_entry_func_def_info *func_def;
+    int stack_space_for_local_vars;
+} ad;
 
 
 
@@ -41,7 +46,7 @@ struct asm_operand *ir_value_to_asm_operand(ir_value *v) {
     struct asm_operand *o = malloc(sizeof(struct asm_operand));
 
     if (v->type == IR_TREG) {
-        allocator->ops->get_temp_reg_storage(allocator, v->val.temp_reg_no, &s);
+        ad.allocator->ops->get_temp_reg_storage(ad.allocator, v->val.temp_reg_no, &s);
         if (s.is_gp_reg) {
             o->type = OT_REGISTER;
             o->reg = s.gp_reg;
@@ -51,7 +56,7 @@ struct asm_operand *ir_value_to_asm_operand(ir_value *v) {
             o->offset = s.bp_offset;
         }
     } else if (v->type == IR_SYM) {
-        if (allocator->ops->get_named_storage(allocator, v->val.symbol_name, &s)) {
+        if (ad.allocator->ops->get_named_storage(ad.allocator, v->val.symbol_name, &s)) {
             if (!s.is_stack_var) {
                 error(NULL, 0, "named symbols ('%s') are expected to be stack oriented", v->val.symbol_name);
                 return NULL;
@@ -76,27 +81,17 @@ struct asm_operand *ir_value_to_asm_operand(ir_value *v) {
 
 
 
-static struct function_assembling_information {
-    asm_listing *lst;
-
-    // as we assemble each function
-    struct ir_entry_func_def_info *func_def;
-    int stack_space_for_local_vars;
-} f;
-
-
-
 static void code_prologue() {
-    f.lst->ops->set_next_label(f.lst, f.func_def->func_name);
-    f.lst->ops->add_comment(f.lst, true, "establish stack frame");
-    f.lst->ops->add_instr1(f.lst, OC_PUSH, new_reg_asm_operand(REG_BP));
-    f.lst->ops->add_instr2(f.lst, OC_MOV, new_reg_asm_operand(REG_BP), new_reg_asm_operand(REG_SP));
-    if (f.stack_space_for_local_vars > 0) {
-        f.lst->ops->add_comment(f.lst, true, "space for local vars");
-        f.lst->ops->add_instr2(f.lst, OC_SUB, new_reg_asm_operand(REG_SP), new_imm_asm_operand(f.stack_space_for_local_vars));
+    ad.listing->ops->set_next_label(ad.listing, ad.func_def->func_name);
+    ad.listing->ops->add_comment(ad.listing, true, "establish stack frame");
+    ad.listing->ops->add_instr1(ad.listing, OC_PUSH, new_reg_asm_operand(REG_BP));
+    ad.listing->ops->add_instr2(ad.listing, OC_MOV, new_reg_asm_operand(REG_BP), new_reg_asm_operand(REG_SP));
+    if (ad.stack_space_for_local_vars > 0) {
+        ad.listing->ops->add_comment(ad.listing, true, "space for local vars");
+        ad.listing->ops->add_instr2(ad.listing, OC_SUB, new_reg_asm_operand(REG_SP), new_imm_asm_operand(ad.stack_space_for_local_vars));
     }
 
-    allocator->ops->generate_stack_info_comments(allocator);
+    ad.allocator->ops->generate_stack_info_comments(ad.allocator);
 
     // then allocate local variables (and temp regs as well)
     // callee saved registers
@@ -106,13 +101,13 @@ static void code_prologue() {
 static void code_epilogue() {
     char label_name[128];
     label_name[sizeof(label_name) - 1] = '\0';
-    snprintf(label_name, sizeof(label_name) - 1, "%s_exit", f.func_def->func_name);
-    f.lst->ops->set_next_label(f.lst, label_name);
+    snprintf(label_name, sizeof(label_name) - 1, "%s_exit", ad.func_def->func_name);
+    ad.listing->ops->set_next_label(ad.listing, label_name);
 
-    f.lst->ops->add_comment(f.lst, true, "tear down stack frame");
-    f.lst->ops->add_instr2(f.lst, OC_MOV, new_reg_asm_operand(REG_SP), new_reg_asm_operand(REG_BP));
-    f.lst->ops->add_instr1(f.lst, OC_POP, new_reg_asm_operand(REG_BP));
-    f.lst->ops->add_instr(f.lst, OC_RET);
+    ad.listing->ops->add_comment(ad.listing, true, "tear down stack frame");
+    ad.listing->ops->add_instr2(ad.listing, OC_MOV, new_reg_asm_operand(REG_SP), new_reg_asm_operand(REG_BP));
+    ad.listing->ops->add_instr1(ad.listing, OC_POP, new_reg_asm_operand(REG_BP));
+    ad.listing->ops->add_instr(ad.listing, OC_RET);
 }
 
 static void code_function_call(struct ir_entry_function_call_info *c) {
@@ -122,24 +117,24 @@ static void code_function_call(struct ir_entry_function_call_info *c) {
 
     // push arguments from right to left
     if (c->args_len > 0) 
-        f.lst->ops->add_comment(f.lst, true, "push %d args for function call", c->args_len);
+        ad.listing->ops->add_comment(ad.listing, true, "push %d args for function call", c->args_len);
     
     for (int i = c->args_len - 1; i >= 0; i--) {
         ir_value *v = c->args_arr[i];
-        f.lst->ops->add_instr1(f.lst, OC_PUSH, ir_value_to_asm_operand(v));
+        ad.listing->ops->add_instr1(ad.listing, OC_PUSH, ir_value_to_asm_operand(v));
         bytes_pushed += options.pointer_size_bytes; // how can we be sure?
     }
-    f.lst->ops->add_instr1(f.lst, OC_CALL, ir_value_to_asm_operand(c->func_addr));
+    ad.listing->ops->add_instr1(ad.listing, OC_CALL, ir_value_to_asm_operand(c->func_addr));
 
     // grab returned value, if any is expected
     if (c->lvalue != NULL) {
-        f.lst->ops->add_comment(f.lst, true, "get value returned from function");
-        f.lst->ops->add_instr2(f.lst, OC_MOV, ir_value_to_asm_operand(c->lvalue), new_reg_asm_operand(REG_AX));
+        ad.listing->ops->add_comment(ad.listing, true, "get value returned from function");
+        ad.listing->ops->add_instr2(ad.listing, OC_MOV, ir_value_to_asm_operand(c->lvalue), new_reg_asm_operand(REG_AX));
     }
     // clean up pushed arguments
     if (bytes_pushed > 0) {
-        f.lst->ops->add_comment(f.lst, true, "clean up %d bytes that were pushed", bytes_pushed);
-        f.lst->ops->add_instr2(f.lst, OC_ADD, new_reg_asm_operand(REG_SP), new_imm_asm_operand(bytes_pushed));
+        ad.listing->ops->add_comment(ad.listing, true, "clean up %d bytes that were pushed", bytes_pushed);
+        ad.listing->ops->add_instr2(ad.listing, OC_ADD, new_reg_asm_operand(REG_SP), new_imm_asm_operand(bytes_pushed));
     }
 
     // caller restore registers (except AX)
@@ -149,7 +144,7 @@ static void code_conditional_jump(struct ir_entry_cond_jump_info *j) {
     // emit two things: compare, then appropriate jump.
     // we also need to clobber at least one register for CMP
     // the second _may_ be an immediate
-    f.lst->ops->add_instr2(f.lst, OC_CMP, ir_value_to_asm_operand(j->v1), ir_value_to_asm_operand(j->v2));
+    ad.listing->ops->add_instr2(ad.listing, OC_CMP, ir_value_to_asm_operand(j->v1), ir_value_to_asm_operand(j->v2));
     enum opcode op;
     switch (j->cmp) {
         case IR_EQ: op = OC_JEQ; break;
@@ -159,45 +154,45 @@ static void code_conditional_jump(struct ir_entry_cond_jump_info *j) {
         case IR_LT: op = OC_JLT; break;
         case IR_LE: op = OC_JLE; break;
     }
-    f.lst->ops->add_instr1(f.lst, op, new_mem_by_sym_asm_operand(j->target_label));
+    ad.listing->ops->add_instr1(ad.listing, op, new_mem_by_sym_asm_operand(j->target_label));
 }
 
 static void code_unconditional_jump(char *label) {
-    f.lst->ops->add_instr1(f.lst, OC_JMP, new_mem_by_sym_asm_operand(label));
+    ad.listing->ops->add_instr1(ad.listing, OC_JMP, new_mem_by_sym_asm_operand(label));
 }
 
 static void code_return_statement(struct ir_entry_return_info *info) {
     if (info->ret_val != NULL) {
-        f.lst->ops->add_comment(f.lst, true, "put returned value in AX");
-        f.lst->ops->add_instr2(f.lst, OC_MOV, 
+        ad.listing->ops->add_comment(ad.listing, true, "put returned value in AX");
+        ad.listing->ops->add_instr2(ad.listing, OC_MOV, 
             new_reg_asm_operand(REG_AX), 
             ir_value_to_asm_operand(info->ret_val));
     }
 
     char label_name[128];
     label_name[sizeof(label_name) - 1] = '\0';
-    snprintf(label_name, sizeof(label_name) - 1, "%s_exit", f.func_def->func_name);
-    f.lst->ops->add_instr1(f.lst, OC_JMP, new_mem_by_sym_asm_operand(label_name));
+    snprintf(label_name, sizeof(label_name) - 1, "%s_exit", ad.func_def->func_name);
+    ad.listing->ops->add_instr1(ad.listing, OC_JMP, new_mem_by_sym_asm_operand(label_name));
 }
 
 static void code_simple_assignment(ir_value *lvalue, ir_value *rvalue) {
     // one of the values MUST be a register, we cannot move mem to mem.
     // otherwise code an intermediate step through AX
-    f.lst->ops->add_instr2(f.lst, OC_MOV, ir_value_to_asm_operand(lvalue), ir_value_to_asm_operand(rvalue));
+    ad.listing->ops->add_instr2(ad.listing, OC_MOV, ir_value_to_asm_operand(lvalue), ir_value_to_asm_operand(rvalue));
 }
 
 static void code_unary_operation(ir_value *lvalue, ir_operation op, ir_value *rvalue) {
     switch (op) {
         case IR_NOT:
             // we can do this directly, using modRM byte
-            f.lst->ops->add_instr1(f.lst, OC_NOT, ir_value_to_asm_operand(rvalue));
+            ad.listing->ops->add_instr1(ad.listing, OC_NOT, ir_value_to_asm_operand(rvalue));
             break;
         case IR_NEG:
             // we can do this directly, using modRM byte
-            f.lst->ops->add_instr1(f.lst, OC_NEG, ir_value_to_asm_operand(rvalue));
+            ad.listing->ops->add_instr1(ad.listing, OC_NEG, ir_value_to_asm_operand(rvalue));
             break;
         case IR_ADDR_OF:
-            f.lst->ops->add_instr1(f.lst, OC_LEA, ir_value_to_asm_operand(rvalue));
+            ad.listing->ops->add_instr1(ad.listing, OC_LEA, ir_value_to_asm_operand(rvalue));
             break;
         case IR_VALUE_AT: // fallthrough, for I don't know how to do this.
         default:
@@ -208,45 +203,45 @@ static void code_unary_operation(ir_value *lvalue, ir_operation op, ir_value *rv
 
 static void code_binary_operation(ir_value *lvalue, ir_value *rvalue1, ir_operation op, ir_value *rvalue2) {
     // thinking of doing: MOV AX, r1 / ADD AX, r2 / MOV lv, AX
-    f.lst->ops->add_instr2(f.lst, OC_MOV, new_reg_asm_operand(REG_AX), ir_value_to_asm_operand(rvalue1));
+    ad.listing->ops->add_instr2(ad.listing, OC_MOV, new_reg_asm_operand(REG_AX), ir_value_to_asm_operand(rvalue1));
     switch (op) {
         case IR_ADD:
-            f.lst->ops->add_instr2(f.lst, OC_ADD, new_reg_asm_operand(REG_AX), ir_value_to_asm_operand(rvalue2));
+            ad.listing->ops->add_instr2(ad.listing, OC_ADD, new_reg_asm_operand(REG_AX), ir_value_to_asm_operand(rvalue2));
             break;
         case IR_SUB:
-            f.lst->ops->add_instr2(f.lst, OC_SUB, new_reg_asm_operand(REG_AX), ir_value_to_asm_operand(rvalue2));
+            ad.listing->ops->add_instr2(ad.listing, OC_SUB, new_reg_asm_operand(REG_AX), ir_value_to_asm_operand(rvalue2));
             break;
         case IR_MUL:
-            f.lst->ops->add_instr2(f.lst, OC_IMUL, new_reg_asm_operand(REG_AX), ir_value_to_asm_operand(rvalue2));
+            ad.listing->ops->add_instr2(ad.listing, OC_IMUL, new_reg_asm_operand(REG_AX), ir_value_to_asm_operand(rvalue2));
             break;
         case IR_DIV:
-            f.lst->ops->add_instr2(f.lst, OC_IDIV, new_reg_asm_operand(REG_AX), ir_value_to_asm_operand(rvalue2));
+            ad.listing->ops->add_instr2(ad.listing, OC_IDIV, new_reg_asm_operand(REG_AX), ir_value_to_asm_operand(rvalue2));
             break;
         case IR_MOD:
             // division puts remainder in DX
-            f.lst->ops->add_instr2(f.lst, OC_IDIV, new_reg_asm_operand(REG_AX), ir_value_to_asm_operand(rvalue2));
-            f.lst->ops->add_instr2(f.lst, OC_MOV, new_reg_asm_operand(REG_AX), new_reg_asm_operand(REG_DX));
+            ad.listing->ops->add_instr2(ad.listing, OC_IDIV, new_reg_asm_operand(REG_AX), ir_value_to_asm_operand(rvalue2));
+            ad.listing->ops->add_instr2(ad.listing, OC_MOV, new_reg_asm_operand(REG_AX), new_reg_asm_operand(REG_DX));
             break;
         case IR_AND:
-            f.lst->ops->add_instr2(f.lst, OC_AND, new_reg_asm_operand(REG_AX), ir_value_to_asm_operand(rvalue2));
+            ad.listing->ops->add_instr2(ad.listing, OC_AND, new_reg_asm_operand(REG_AX), ir_value_to_asm_operand(rvalue2));
             break;
         case IR_OR:
-            f.lst->ops->add_instr2(f.lst, OC_OR, new_reg_asm_operand(REG_AX), ir_value_to_asm_operand(rvalue2));
+            ad.listing->ops->add_instr2(ad.listing, OC_OR, new_reg_asm_operand(REG_AX), ir_value_to_asm_operand(rvalue2));
             break;
         case IR_XOR:
-            f.lst->ops->add_instr2(f.lst, OC_XOR, new_reg_asm_operand(REG_AX), ir_value_to_asm_operand(rvalue2));
+            ad.listing->ops->add_instr2(ad.listing, OC_XOR, new_reg_asm_operand(REG_AX), ir_value_to_asm_operand(rvalue2));
             break;
         case IR_LSH:
-            f.lst->ops->add_instr2(f.lst, OC_SHL, new_reg_asm_operand(REG_AX), ir_value_to_asm_operand(rvalue2));
+            ad.listing->ops->add_instr2(ad.listing, OC_SHL, new_reg_asm_operand(REG_AX), ir_value_to_asm_operand(rvalue2));
             break;
         case IR_RSH:
-            f.lst->ops->add_instr2(f.lst, OC_SHR, new_reg_asm_operand(REG_AX), ir_value_to_asm_operand(rvalue2));
+            ad.listing->ops->add_instr2(ad.listing, OC_SHR, new_reg_asm_operand(REG_AX), ir_value_to_asm_operand(rvalue2));
             break;
         default:
             error(NULL, 0, "Unsupported 3-code-addr binary operator %d", op);
             break;
     }
-    f.lst->ops->add_instr2(f.lst, OC_MOV, ir_value_to_asm_operand(lvalue), new_reg_asm_operand(REG_AX));
+    ad.listing->ops->add_instr2(ad.listing, OC_MOV, ir_value_to_asm_operand(lvalue), new_reg_asm_operand(REG_AX));
 }
 
 static void _release_temp_reg_allocations(ir_value *v, void *pdata, int idata) {
@@ -256,7 +251,7 @@ static void _release_temp_reg_allocations(ir_value *v, void *pdata, int idata) {
     if (v != NULL && v->type == IR_TREG) {
         int reg_no = v->val.temp_reg_no;
         if (ir->ops->get_register_last_usage(ir, reg_no) == curr_index) {
-            allocator->ops->release_temp_reg_storage(allocator, reg_no);
+            ad.allocator->ops->release_temp_reg_storage(ad.allocator, reg_no);
         }
     }
 }
@@ -273,8 +268,8 @@ static void assemble_function(ir_listing *ir, int start, int end) {
     }
 
     // house keeping first
-    f.func_def = &ir->entries_arr[start]->t.function_def;
-    allocator->ops->reset(allocator);
+    ad.func_def = &ir->entries_arr[start]->t.function_def;
+    ad.allocator->ops->reset(ad.allocator);
     
     // declare stack variables and their offsets from BP:
     // this allows the allocator to grab more stack space as needed
@@ -286,23 +281,23 @@ static void assemble_function(ir_listing *ir, int start, int end) {
     //   BP - n = local variable
 
     int bp_offset = options.pointer_size_bytes * 2; // skip pushed EBP and return address
-    for (int i = 0; i < f.func_def->args_len; i++) {
-        allocator->ops->declare_local_symbol(allocator, 
-            f.func_def->args_arr[i].name, f.func_def->args_arr[i].size,
+    for (int i = 0; i < ad.func_def->args_len; i++) {
+        ad.allocator->ops->declare_local_symbol(ad.allocator, 
+            ad.func_def->args_arr[i].name, ad.func_def->args_arr[i].size,
             bp_offset);
-        bp_offset += f.func_def->args_arr[i].size;
+        bp_offset += ad.func_def->args_arr[i].size;
     }
 
     bp_offset = 0; // to subtract the size of the first local variable, not of BP
-    f.stack_space_for_local_vars = 0;
+    ad.stack_space_for_local_vars = 0;
     for (int i = start; i < end; i++) {
         ir_entry *e = ir->entries_arr[i];
         if (e->type == IR_DATA_DECLARATION && e->t.data_decl.storage == IR_LOCAL) {
             bp_offset -= e->t.data_decl.size; // note we subtract before
-            allocator->ops->declare_local_symbol(allocator, 
+            ad.allocator->ops->declare_local_symbol(ad.allocator, 
                 e->t.data_decl.symbol_name, e->t.data_decl.size,
                 bp_offset);
-            f.stack_space_for_local_vars += e->t.data_decl.size;
+            ad.stack_space_for_local_vars += e->t.data_decl.size;
         }
     }
 
@@ -316,7 +311,7 @@ static void assemble_function(ir_listing *ir, int start, int end) {
                 // ignore
                 break;
             case IR_LABEL:
-                f.lst->ops->set_next_label(f.lst, e->t.label.str);
+                ad.listing->ops->set_next_label(ad.listing, e->t.label.str);
                 break;
             case IR_DATA_DECLARATION:
                 // how about initial data?
@@ -363,10 +358,9 @@ static void assemble_function(ir_listing *ir, int start, int end) {
 
 // given an Intemediate Representation listing, generate an assembly listing.
 void x86_assemble_ir_listing(ir_listing *ir_list, asm_listing *asm_list) {
-    allocator = new_asm_allocator(asm_list);
-
-    // set reference to asm listing, to allow our functions to use it
-    f.lst = asm_list;
+    // prepare our things
+    ad.allocator = new_asm_allocator(asm_list);
+    ad.listing = asm_list;
 
     // calculate temp register usage and last mention
     ir_list->ops->run_statistics(ir_list);

@@ -466,9 +466,9 @@ static bool x86_encoder_encode(struct x86_encoder *enc, struct asm_instruction *
                 return true;
             }
             break;
-        case OC_IMUL:
+        case OC_MUL:
             break;
-        case OC_IDIV:
+        case OC_DIV:
             break;
         case OC_AND:
             if (instr->op1->type == OT_REGISTER && instr->op2->type == OT_REGISTER) {

@@ -144,6 +144,10 @@ static void code_conditional_jump(struct ir_entry_cond_jump_info *j) {
     // emit two things: compare, then appropriate jump.
     // we also need to clobber at least one register for CMP
     // the second _may_ be an immediate
+
+    // it depends on whether the values are signed or unsigned,
+    // good info here: https://www.cs.princeton.edu/courses/archive/spr18/cos217/lectures/14_Assembly2.pdf
+
     ad.listing->ops->add_instr2(ad.listing, OC_CMP, ir_value_to_asm_operand(j->v1), ir_value_to_asm_operand(j->v2));
     enum opcode op;
     switch (j->cmp) {

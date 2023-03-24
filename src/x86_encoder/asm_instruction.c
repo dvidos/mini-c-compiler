@@ -47,8 +47,8 @@ static char *get_opcode_str(enum opcode code) {
         case OC_SUB: return "SUB";
         case OC_INC: return "INC";
         case OC_DEC: return "DEC";
-        case OC_IMUL: return "IMUL";
-        case OC_IDIV: return "IDIV";
+        case OC_MUL: return "IMUL";
+        case OC_DIV: return "IDIV";
         case OC_AND: return "AND";
         case OC_OR: return "OR";
         case OC_XOR: return "XOR";

@@ -216,14 +216,14 @@ static void code_binary_operation(ir_value *lvalue, ir_value *rvalue1, ir_operat
             ad.listing->ops->add_instr2(ad.listing, OC_SUB, new_reg_asm_operand(REG_AX), ir_value_to_asm_operand(rvalue2));
             break;
         case IR_MUL:
-            ad.listing->ops->add_instr2(ad.listing, OC_IMUL, new_reg_asm_operand(REG_AX), ir_value_to_asm_operand(rvalue2));
+            ad.listing->ops->add_instr2(ad.listing, OC_MUL, new_reg_asm_operand(REG_AX), ir_value_to_asm_operand(rvalue2));
             break;
         case IR_DIV:
-            ad.listing->ops->add_instr2(ad.listing, OC_IDIV, new_reg_asm_operand(REG_AX), ir_value_to_asm_operand(rvalue2));
+            ad.listing->ops->add_instr2(ad.listing, OC_DIV, new_reg_asm_operand(REG_AX), ir_value_to_asm_operand(rvalue2));
             break;
         case IR_MOD:
             // division puts remainder in DX
-            ad.listing->ops->add_instr2(ad.listing, OC_IDIV, new_reg_asm_operand(REG_AX), ir_value_to_asm_operand(rvalue2));
+            ad.listing->ops->add_instr2(ad.listing, OC_DIV, new_reg_asm_operand(REG_AX), ir_value_to_asm_operand(rvalue2));
             ad.listing->ops->add_instr2(ad.listing, OC_MOV, new_reg_asm_operand(REG_AX), new_reg_asm_operand(REG_DX));
             break;
         case IR_AND:

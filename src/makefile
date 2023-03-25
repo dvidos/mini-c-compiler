@@ -6,47 +6,44 @@ SRC_FILES = \
 	options.c \
 	utils.c \
 	utils/buffer.c \
-	lexer/token.c \
-	lexer/token_list.c \
-	lexer/lexer.c \
-	statement.c \
-	data_type.c \
-	expression.c \
-	operators.c \
-	src_symbol.c \
-	scope.c \
-	declaration.c \
-	ast.c \
-	parser/iterator.c \
-	parser/recursive_descend.c \
-	parser/shunting_yard.c \
-	analysis/analysis.c  \
-	analysis/expr_analysis.c  \
-	analysis/stmt_analysis.c \
-	codegen/codegen.c \
-	codegen/codegen_mod.c \
-	codegen/codegen_stmt.c \
-	codegen/codegen_expr.c \
-	codegen/codegen_func.c \
-	codegen/ir_value.c \
-	codegen/ir_entry.c \
-	codegen/ir_listing.c \
-	elf/read_elf.c \
-	elf/write_elf.c \
-	elf/elf_test.c \
-	binary/binary_gen.c \
-	binary/parse_asm.c \
-	binary/encode_asm.c \
-	x86_encoder/symbol_table.c \
-	x86_encoder/reloc_list.c \
-	x86_encoder/encoder.c \
-	x86_encoder/asm_test.c \
-	x86_encoder/asm_instruction.c \
-	x86_encoder/asm_listing.c \
-	x86_encoder/asm_allocator.c \
-	x86_encoder/obj_code.c \
-	x86_encoder/assembler.c \
-	x86_encoder/linker.c
+	compiler/lexer/token.c \
+	compiler/lexer/token_list.c \
+	compiler/lexer/lexer.c \
+	compiler/statement.c \
+	compiler/data_type.c \
+	compiler/expression.c \
+	compiler/operators.c \
+	compiler/src_symbol.c \
+	compiler/scope.c \
+	compiler/declaration.c \
+	compiler/ast.c \
+	compiler/parser/iterator.c \
+	compiler/parser/recursive_descend.c \
+	compiler/parser/shunting_yard.c \
+	compiler/analysis/analysis.c  \
+	compiler/analysis/expr_analysis.c  \
+	compiler/analysis/stmt_analysis.c \
+	compiler/codegen/codegen.c \
+	compiler/codegen/codegen_mod.c \
+	compiler/codegen/codegen_stmt.c \
+	compiler/codegen/codegen_expr.c \
+	compiler/codegen/codegen_func.c \
+	compiler/codegen/ir_value.c \
+	compiler/codegen/ir_entry.c \
+	compiler/codegen/ir_listing.c \
+	linker/elf/read_elf.c \
+	linker/elf/write_elf.c \
+	linker/elf/elf_test.c \
+	assembler/encoder/encoder.c \
+	assembler/encoder/asm_test.c \
+	assembler/encoder/asm_instruction.c \
+	assembler/encoder/asm_listing.c \
+	assembler/encoder/asm_allocator.c \
+	assembler/assembler.c \
+	linker/symbol_table.c \
+	linker/reloc_list.c \
+	linker/obj_code.c \
+	linker/linker.c
 
 
 

@@ -2,6 +2,6 @@
 
 set -e  # exit on fail
 cd src
-make 
+make -B
 cp mcc ..
 cd ..

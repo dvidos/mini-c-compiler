@@ -4,3 +4,6 @@
 * make the first executable, damn it!
 * convert AST to object-like ~~and implement print to file, file line numbers~~
 * maybe convert assembler and allocator to real objects, instead of singletons
+
+
+

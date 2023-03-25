@@ -9,6 +9,7 @@
 #include "encoder/encoder.h"
 #include "encoder/asm_allocator.h"
 #include "encoder/asm_instruction.h"
+#include "encoder/asm_operation.h"
 
 
 
@@ -33,6 +34,7 @@ static struct assembler_data {
     struct ir_entry_func_def_info *func_def;
     int stack_space_for_local_vars;
 } ad;
+
 
 
 

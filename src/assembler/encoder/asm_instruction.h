@@ -75,4 +75,6 @@ struct asm_instruction {
 };
 
 void instruction_to_string(struct asm_instruction *inst, char *buff, int buff_size);
-char *gp_reg_name(enum gp_reg r);
+char *gp_reg_name(enum gp_reg r); // don't free the returned string
+char *opcode_name(enum opcode code); // don't free the returned string
+

@@ -4,13 +4,11 @@
 #include "../../options.h"
 
 
-
-static char *get_opcode_str(enum opcode code);
 static void append_operand_instruction(struct asm_operand *op, char *buffer, int buff_size);
 
 
 void instruction_to_string(struct asm_instruction *inst, char *buff, int buff_size) {
-    strncpy(buff, get_opcode_str(inst->opcode), buff_size);
+    strncpy(buff, opcode_name(inst->opcode), buff_size);
     if (inst->op1 != NULL) {
         strncat(buff, " ", buff_size);
         append_operand_instruction(inst->op1, buff, buff_size);
@@ -36,7 +34,7 @@ static void append_operand_instruction(struct asm_operand *op, char *buffer, int
     }
 }
 
-static char *get_opcode_str(enum opcode code) {
+char *opcode_name(enum opcode code) {
     switch (code) {
         case OC_NOP: return "NOP"; 
         case OC_MOV: return "MOV"; 

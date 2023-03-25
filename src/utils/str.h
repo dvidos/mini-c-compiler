@@ -10,7 +10,8 @@ typedef struct str {
     struct str_vtable *v;
 } str;
 
-str *new_str(char *init_value);
+str *new_str();
+str *new_str_from(char *init_value);
 
 struct str_vtable {
     void (*clear)(str *s);

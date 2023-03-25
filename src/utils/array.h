@@ -8,24 +8,25 @@ typedef struct array {
     char *buffer;
     int length;
     int capacity;
+    int item_size;
 
     struct array_vtable *v;
 } array;
 
-array *new_array();
+array *new_array(int item_size);
 
 struct array_vtable {
     // simple array ops
     void (*clear)(array *a);
     void *(*get)(array *a, int index);
-    void (*add)(array *a, void *item);
+    void (*add)(array *a, void *item); // copies the item into array element
     void (*set)(array *a, int index, void *item);
     int (*index_of)(array *a, void *item);
     void (*insert_at)(array *a, int index, void *item);
     void (*remove_at)(array *a, int index);
 
     // queue, stack implementations
-    void (*prepend)(array *a, void *item); // add from front
+    void (*prepend)(array *a, void *item); // add from front (opposite of append)
     void *(*dequeue)(array *a); // remove from front
     void (*push)(array *a, void *item); // same as add()
     void *(*pop)(array *a); // remove from end (last added)

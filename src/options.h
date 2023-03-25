@@ -7,6 +7,7 @@ struct options {
     bool is_32_bits;
     bool is_64_bits;
 
+    bool unit_tests;
     bool elf_test;
     bool asm_test;
 

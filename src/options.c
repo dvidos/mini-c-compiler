@@ -46,6 +46,8 @@ void parse_options(int argc, char *argv[]) {
         } else if (strcmp(p, "-m64") == 0) { // what should be the default?
             options.is_32_bits = false;
             options.is_64_bits = true;
+        } else if (strcmp(p, "--unit-tests") == 0) {
+            options.unit_tests = true;
         } else if (strcmp(p, "--elf-test") == 0) {
             options.elf_test = true;
         } else if (strcmp(p, "--asm-test") == 0) {

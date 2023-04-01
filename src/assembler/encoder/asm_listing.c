@@ -80,12 +80,17 @@ static void _print(asm_listing *lst, FILE *stream) {
 
     for (int i = 0; i < lst->length; i++) {
         inst = lst->instruction_ptrs[i];
+
+        if (inst->label != NULL)
+            fprintf(stream, "%s:\n", inst->label);
+        
         asm_instruction_to_str(inst, str);
-        fprintf(stream, "%s", str->buffer);
+        fprintf(stream, "    %s\n", str->buffer);
+        str->v->clear(str);
 
         // perhaps allow some space between functions?
         if (inst->operation == OC_RET)
-            fprintf(stream, "\n");
+            fprintf(stream, "\n\n");
     }
 
     str->v->free(str);

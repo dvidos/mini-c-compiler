@@ -7,17 +7,21 @@
 
 static void _free(str *s);
 static void _ensure_capacity_for(str *s, int extra_space_needed);
+static void _clear(str *s);
 static void _add(str *s, str *other);
-static void _addz(str *s, char *strz);
+static void _adds(str *s, char *strz);
 static void _addc(str *s, char c);
 static void _addf(str *s, char *fmt, ...);
+static void _padr(str *s, int len, char c);
 
 
 struct str_vtable vtable = {
+    .clear = _clear,
     .add = _add,
-    .addz = _addz,
+    .adds = _adds,
     .addc = _addc,
     .addf = _addf,
+    .padr = _padr,
     .free = _free
 };
 
@@ -34,7 +38,7 @@ str *new_str() {
 
 str *new_str_from(char *init_value) {
     str *s = new_str();
-    _addz(s, init_value);
+    _adds(s, init_value);
     return s;
 }
 
@@ -45,10 +49,16 @@ static void _free(str *s) {
 }
 
 static void _ensure_capacity_for(str *s, int extra_space_needed) {
-    if (s->length + extra_space_needed + 1 > s->capacity) {
-        s->capacity = s->length + extra_space_needed + 1;
+    if (s->capacity < s->length + extra_space_needed + 1) {
+        while (s->capacity < s->length + extra_space_needed + 1)
+            s->capacity *= 2;
         s->buffer = realloc(s->buffer, s->capacity);
     }
+}
+
+static void _clear(str *s) {
+    s->length = 0;
+    s->buffer[s->length] = 0;
 }
 
 static void _add(str *s, str *other) {
@@ -60,7 +70,7 @@ static void _add(str *s, str *other) {
     s->length += other->length;
 }
 
-static void _addz(str *s, char *strz) {
+static void _adds(str *s, char *strz) {
     if (strz == NULL)
         return;
     
@@ -74,8 +84,7 @@ static void _addc(str *s, char c) {
         return;
 
     _ensure_capacity_for(s, 1);
-    s->buffer[s->length] = c;
-    s->length++;
+    s->buffer[s->length++] = c;
     s->buffer[s->length] = 0;
 }
 
@@ -87,7 +96,14 @@ static void _addf(str *s, char *fmt, ...) {
     va_start(vl, fmt);
     vsnprintf(buff, sizeof(buff) - 1, fmt, vl);
     va_end(vl);
-
     buff[sizeof(buff) - 1] = 0;
-    _addz(s, buff);
+
+    _adds(s, buff);
+}
+
+static void _padr(str *s, int len, char c) {
+    _ensure_capacity_for(s, len - s->length + 1);
+    while (s->length < len)
+        s->buffer[s->length++] = c;
+    s->buffer[s->length] = 0;
 }

@@ -1,286 +1,302 @@
 get_next_counter_value:
-    PUSH EBP             ; establish stack frame
-    MOV EBP, ESP
-    MOV EBX, counter
-    MOV ECX, 0x1
-    MOV EAX, EBX
-    ADD EAX, ECX
-    MOV counter, EAX
-    MOV ECX, counter
-    MOV EAX, ECX         ; put returned value in AX
-    JMP get_next_counter_value_exit
+    PUSH   BP                     ; establish stack frame
+    MOV    BP <- SP
+    MOV    BX <- counter
+    MOV    CX <- 0x1
+    MOV    AX <- BX
+    ADD    AX <- CX
+    MOV    counter <- AX
+    MOV    CX <- counter
+    MOV    AX <- CX               ; set returned value
+    JMP    get_next_counter_value_exit
 get_next_counter_value_exit:
-    MOV ESP, EBP         ; tear down stack frame
-    POP EBP
-    RET
+    MOV    SP <- BP               ; tear down stack frame
+    POP    BP
+    RET                           ; return value should be in EAX
+
 
 rect_area:
-    PUSH EBP             ; establish stack frame
-    MOV EBP, ESP
+    PUSH   BP                     ; establish stack frame
+    MOV    BP <- SP
     ; [EBP +8] argument "width", 4 bytes
     ; [EBP+12] argument "height", 4 bytes
-    MOV EBX, [EBP+8]
-    MOV ECX, [EBP+12]
-    MOV EAX, EBX
-    IMUL EAX, ECX
-    MOV EDX, EAX
-    MOV EAX, EDX         ; put returned value in AX
-    JMP rect_area_exit
+    MOV    BX <- [BP+8]
+    MOV    CX <- [BP+12]
+    MOV    AX <- BX
+    IMUL   AX <- CX
+    MOV    DX <- AX
+    MOV    AX <- DX               ; set returned value
+    JMP    rect_area_exit
 rect_area_exit:
-    MOV ESP, EBP         ; tear down stack frame
-    POP EBP
-    RET
+    MOV    SP <- BP               ; tear down stack frame
+    POP    BP
+    RET                           ; return value should be in EAX
+
 
 triangle_area:
-    PUSH EBP             ; establish stack frame
-    MOV EBP, ESP
+    PUSH   BP                     ; establish stack frame
+    MOV    BP <- SP
     ; [EBP +8] argument "width", 4 bytes
     ; [EBP+12] argument "height", 4 bytes
-    MOV EBX, [EBP+8]
-    MOV ECX, [EBP+12]
-    MOV EDX, 0x2
-    MOV EAX, ECX
-    IDIV EAX, EDX
-    MOV ESI, EAX
-    MOV EAX, EBX
-    IMUL EAX, ESI
-    MOV EDI, EAX
-    MOV EAX, EDI         ; put returned value in AX
-    JMP triangle_area_exit
+    MOV    BX <- [BP+8]
+    MOV    CX <- [BP+12]
+    MOV    DX <- 0x2
+    MOV    AX <- CX
+    IDIV   AX <- DX
+    MOV    SI <- AX
+    MOV    AX <- BX
+    IMUL   AX <- SI
+    MOV    DI <- AX
+    MOV    AX <- DI               ; set returned value
+    JMP    triangle_area_exit
 triangle_area_exit:
-    MOV ESP, EBP         ; tear down stack frame
-    POP EBP
-    RET
+    MOV    SP <- BP               ; tear down stack frame
+    POP    BP
+    RET                           ; return value should be in EAX
+
 
 circle_area:
-    PUSH EBP             ; establish stack frame
-    MOV EBP, ESP
+    PUSH   BP                     ; establish stack frame
+    MOV    BP <- SP
     ; [EBP +8] argument "radius", 4 bytes
-    MOV EBX, 0x3
-    MOV ECX, [EBP+8]
-    MOV EDX, [EBP+8]
-    MOV EAX, ECX
-    IMUL EAX, EDX
-    MOV ESI, EAX
-    MOV EAX, EBX
-    IMUL EAX, ESI
-    MOV EDI, EAX
-    MOV EAX, EDI         ; put returned value in AX
-    JMP circle_area_exit
+    MOV    BX <- 0x3
+    MOV    CX <- [BP+8]
+    MOV    DX <- [BP+8]
+    MOV    AX <- CX
+    IMUL   AX <- DX
+    MOV    SI <- AX
+    MOV    AX <- BX
+    IMUL   AX <- SI
+    MOV    DI <- AX
+    MOV    AX <- DI               ; set returned value
+    JMP    circle_area_exit
 circle_area_exit:
-    MOV ESP, EBP         ; tear down stack frame
-    POP EBP
-    RET
+    MOV    SP <- BP               ; tear down stack frame
+    POP    BP
+    RET                           ; return value should be in EAX
+
 
 fibonacci:
-    PUSH EBP             ; establish stack frame
-    MOV EBP, ESP
+    PUSH   BP                     ; establish stack frame
+    MOV    BP <- SP
     ; [EBP +8] argument "n", 4 bytes
-    CMP [EBP+8], 0x2
-    JGT if_3_end
-    MOV EBX, [EBP+8]
-    MOV EAX, EBX         ; put returned value in AX
-    JMP fibonacci_exit
+    MOV    [BP+8] <- 0x2
+    JGT    if_3_end
+    MOV    BX <- [BP+8]
+    MOV    AX <- BX               ; set returned value
+    JMP    fibonacci_exit
 if_3_end:
-    MOV ECX, [EBP+8]
-    MOV EDX, 0x1
-    MOV EAX, ECX
-    SUB EAX, EDX
-    MOV ESI, EAX
-    PUSH ESI             ; push 1 args for function call
-    CALL fibonacci
-    MOV EDI, EAX         ; get value returned from function
-    ADD ESP, 0x4         ; clean up 4 bytes that were pushed
-    SUB ESP, 0x4         ; grab some space for temp register
-    MOV E(unknown), [EBP+8]
-    SUB ESP, 0x4         ; grab some space for temp register
-    MOV EAX, 0x2
-    MOV EAX, E(unknown)
-    SUB EAX, EAX
-    SUB ESP, 0x4         ; grab some space for temp register
-    MOV [EBP-12], EAX
-    PUSH [EBP-12]        ; push 1 args for function call
-    CALL fibonacci
-    SUB ESP, 0x4         ; grab some space for temp register
-    MOV [EBP-16], EAX
-    ADD ESP, 0x4         ; clean up 4 bytes that were pushed
-    MOV EAX, EDI
-    ADD EAX, [EBP-16]
-    SUB ESP, 0x4         ; grab some space for temp register
-    MOV [EBP-20], EAX
-    MOV EAX, [EBP-20]    ; put returned value in AX
-    JMP fibonacci_exit
+    MOV    CX <- [BP+8]
+    MOV    DX <- 0x1
+    MOV    AX <- CX
+    SUB    AX <- DX
+    MOV    SI <- AX
+    PUSH   SI                     ; push 1 args for function call
+    CALL   fibonacci
+    MOV    DI <- AX               ; get value returned from function
+    ADD    SP <- 0x4              ; clean up 4 bytes that were pushed as arguments
+    SUB    0x4 <- SP              ; grab some space for temp register
+    MOV    AX <- [BP+8]           ; bring value to register for assignment
+    MOV    [BP-4] <- AX
+    SUB    0x4 <- SP              ; grab some space for temp register
+    MOV    [BP-8] <- 0x2
+    SUB    0x4 <- SP              ; grab some space for temp register
+    MOV    AX <- [BP-4]
+    SUB    AX <- [BP-8]
+    MOV    [BP-12] <- AX
+    PUSH   [BP-12]                ; push 1 args for function call
+    CALL   fibonacci
+    SUB    0x4 <- SP              ; grab some space for temp register
+    MOV    [BP-16] <- AX
+    ADD    SP <- 0x4              ; clean up 4 bytes that were pushed as arguments
+    SUB    0x4 <- SP              ; grab some space for temp register
+    MOV    AX <- DI
+    ADD    AX <- [BP-16]
+    MOV    [BP-20] <- AX
+    MOV    AX <- [BP-20]          ; set returned value
+    JMP    fibonacci_exit
 fibonacci_exit:
-    MOV ESP, EBP         ; tear down stack frame
-    POP EBP
-    RET
+    MOV    SP <- BP               ; tear down stack frame
+    POP    BP
+    RET                           ; return value should be in EAX
+
 
 factorial:
-    PUSH EBP             ; establish stack frame
-    MOV EBP, ESP
+    PUSH   BP                     ; establish stack frame
+    MOV    BP <- SP
     ; [EBP +8] argument "n", 4 bytes
-    CMP [EBP+8], 0x1
-    JGT if_4_end
-    MOV EBX, [EBP+8]
-    MOV EAX, EBX         ; put returned value in AX
-    JMP factorial_exit
+    MOV    [BP+8] <- 0x1
+    JGT    if_4_end
+    MOV    BX <- [BP+8]
+    MOV    AX <- BX               ; set returned value
+    JMP    factorial_exit
 if_4_end:
-    MOV ECX, [EBP+8]
-    MOV EDX, [EBP+8]
-    MOV ESI, 0x1
-    MOV EAX, EDX
-    SUB EAX, ESI
-    MOV EDI, EAX
-    PUSH EDI             ; push 1 args for function call
-    CALL factorial
-    SUB ESP, 0x4         ; grab some space for temp register
-    MOV [EBP-4], EAX
-    ADD ESP, 0x4         ; clean up 4 bytes that were pushed
-    MOV EAX, ECX
-    IMUL EAX, [EBP-4]
-    SUB ESP, 0x4         ; grab some space for temp register
-    MOV [EBP-8], EAX
-    MOV EAX, [EBP-8]     ; put returned value in AX
-    JMP factorial_exit
+    MOV    CX <- [BP+8]
+    MOV    DX <- [BP+8]
+    MOV    SI <- 0x1
+    MOV    AX <- DX
+    SUB    AX <- SI
+    MOV    DI <- AX
+    PUSH   DI                     ; push 1 args for function call
+    CALL   factorial
+    SUB    0x4 <- SP              ; grab some space for temp register
+    MOV    [BP-4] <- AX
+    ADD    SP <- 0x4              ; clean up 4 bytes that were pushed as arguments
+    SUB    0x4 <- SP              ; grab some space for temp register
+    MOV    AX <- CX
+    IMUL   AX <- [BP-4]
+    MOV    [BP-8] <- AX
+    MOV    AX <- [BP-8]           ; set returned value
+    JMP    factorial_exit
 factorial_exit:
-    MOV ESP, EBP         ; tear down stack frame
-    POP EBP
-    RET
+    MOV    SP <- BP               ; tear down stack frame
+    POP    BP
+    RET                           ; return value should be in EAX
+
 
 math_demo:
-    PUSH EBP             ; establish stack frame
-    MOV EBP, ESP
-    SUB ESP, 0x4         ; space for local vars
+    PUSH   BP                     ; establish stack frame
+    MOV    BP <- SP
+    SUB    SP <- 0x4              ; reserve space for local vars
     ; [EBP -4] local var "i", 4 bytes
-    MOV [EBP-4], 0x0
+    MOV    [BP-4] <- 0x0
 while_5_begin:
-    MOV EBX, [EBP-4]
-    MOV EAX, EBX
-    ADD EAX, 0x1
-    MOV [EBP-4], EAX
-    MOV ECX, EBX
-    CMP ECX, 0xa
-    JGE while_5_end
-    MOV EDX, __str_1
-    MOV ESI, [EBP-4]
-    MOV EDI, [EBP-4]
-    PUSH EDI             ; push 1 args for function call
-    CALL fibonacci
-    SUB ESP, 0x4         ; grab some space for temp register
-    MOV [EBP-8], EAX
-    ADD ESP, 0x4         ; clean up 4 bytes that were pushed
-    PUSH [EBP-8]         ; push 3 args for function call
-    PUSH ESI
-    PUSH EDX
-    CALL printf
-    ADD ESP, 0xc         ; clean up 12 bytes that were pushed
-    JMP while_5_begin
+    MOV    BX <- [BP-4]
+    MOV    AX <- BX
+    ADD    AX <- 0x1
+    MOV    [BP-4] <- AX
+    MOV    CX <- BX
+    MOV    CX <- 0xa
+    JGE    while_5_end
+    MOV    DX <- __str_1
+    MOV    SI <- [BP-4]
+    MOV    DI <- [BP-4]
+    PUSH   DI                     ; push 1 args for function call
+    CALL   fibonacci
+    SUB    0x4 <- SP              ; grab some space for temp register
+    MOV    [BP-8] <- AX
+    ADD    SP <- 0x4              ; clean up 4 bytes that were pushed as arguments
+    PUSH   [BP-8]                 ; push 3 args for function call
+    PUSH   SI
+    PUSH   DX
+    CALL   printf
+    ADD    SP <- 0xc              ; clean up 12 bytes that were pushed as arguments
+    JMP    while_5_begin
 while_5_end:
-    MOV [EBP-4], 0x0
+    MOV    [BP-4] <- 0x0
 while_6_begin:
-    SUB ESP, 0x4         ; grab some space for temp register
-    MOV [EBP-12], [EBP-4]
-    MOV EAX, [EBP-12]
-    ADD EAX, 0x1
-    MOV [EBP-4], EAX
-    SUB ESP, 0x4         ; grab some space for temp register
-    MOV [EBP-16], [EBP-12]
-    CMP [EBP-16], 0xa
-    JGE while_6_end
-    SUB ESP, 0x4         ; grab some space for temp register
-    MOV [EBP-20], __str_2
-    SUB ESP, 0x4         ; grab some space for temp register
-    MOV E(unknown), [EBP-4]
-    SUB ESP, 0x4         ; grab some space for temp register
-    MOV [EBP-28], [EBP-4]
-    PUSH [EBP-28]        ; push 1 args for function call
-    CALL factorial
-    SUB ESP, 0x4         ; grab some space for temp register
-    MOV [EBP-32], EAX
-    ADD ESP, 0x4         ; clean up 4 bytes that were pushed
-    PUSH [EBP-32]        ; push 3 args for function call
-    PUSH E(unknown)
-    PUSH [EBP-20]
-    CALL printf
-    ADD ESP, 0xc         ; clean up 12 bytes that were pushed
-    JMP while_6_begin
+    SUB    0x4 <- SP              ; grab some space for temp register
+    MOV    AX <- [BP-4]           ; bring value to register for assignment
+    MOV    [BP-12] <- AX
+    MOV    AX <- [BP-12]
+    ADD    AX <- 0x1
+    MOV    [BP-4] <- AX
+    SUB    0x4 <- SP              ; grab some space for temp register
+    MOV    AX <- [BP-12]          ; bring value to register for assignment
+    MOV    [BP-16] <- AX
+    MOV    [BP-16] <- 0xa
+    JGE    while_6_end
+    SUB    0x4 <- SP              ; grab some space for temp register
+    MOV    AX <- __str_2
+    SUB    0x4 <- SP              ; grab some space for temp register
+    MOV    AX <- [BP-4]           ; bring value to register for assignment
+    MOV    [BP-24] <- AX
+    SUB    0x4 <- SP              ; grab some space for temp register
+    MOV    AX <- [BP-4]           ; bring value to register for assignment
+    MOV    [BP-28] <- AX
+    PUSH   [BP-28]                ; push 1 args for function call
+    CALL   factorial
+    SUB    0x4 <- SP              ; grab some space for temp register
+    MOV    [BP-32] <- AX
+    ADD    SP <- 0x4              ; clean up 4 bytes that were pushed as arguments
+    PUSH   [BP-32]                ; push 3 args for function call
+    PUSH   [BP-24]
+    PUSH   AX
+    CALL   printf
+    ADD    SP <- 0xc              ; clean up 12 bytes that were pushed as arguments
+    JMP    while_6_begin
 math_demo_exit:
-    MOV ESP, EBP         ; tear down stack frame
-    POP EBP
-    RET
+    MOV    SP <- BP               ; tear down stack frame
+    POP    BP
+    RET                           ; return value should be in EAX
+
 
 nested_loops_test:
-    PUSH EBP             ; establish stack frame
-    MOV EBP, ESP
-    SUB ESP, 0x8         ; space for local vars
+    PUSH   BP                     ; establish stack frame
+    MOV    BP <- SP
+    SUB    SP <- 0x8              ; reserve space for local vars
     ; [EBP -4] local var "outer", 4 bytes
     ; [EBP -8] local var "inner", 4 bytes
-    MOV [EBP-4], 0xa
+    MOV    [BP-4] <- 0xa
 while_7_begin:
-    CMP [EBP-4], 0x0
-    JLE while_7_end
-    MOV [EBP-8], 0xf
+    MOV    [BP-4] <- 0x0
+    JLE    while_7_end
+    MOV    [BP-8] <- 0xf
 while_8_begin:
-    CMP [EBP-8], 0x0
-    JLE while_8_end
-    MOV EBX, [EBP-8]
-    MOV EAX, EBX
-    SUB EAX, 0x1
-    MOV [EBP-8], EAX
-    JMP while_8_begin
+    MOV    [BP-8] <- 0x0
+    JLE    while_8_end
+    MOV    BX <- [BP-8]
+    MOV    AX <- BX
+    SUB    AX <- 0x1
+    MOV    [BP-8] <- AX
+    JMP    while_8_begin
 while_8_end:
-    MOV ECX, [EBP-4]
-    MOV EAX, ECX
-    SUB EAX, 0x1
-    MOV [EBP-4], EAX
-    JMP while_7_begin
+    MOV    CX <- [BP-4]
+    MOV    AX <- CX
+    SUB    AX <- 0x1
+    MOV    [BP-4] <- AX
+    JMP    while_7_begin
 nested_loops_test_exit:
-    MOV ESP, EBP         ; tear down stack frame
-    POP EBP
-    RET
+    MOV    SP <- BP               ; tear down stack frame
+    POP    BP
+    RET                           ; return value should be in EAX
+
 
 test_pre_post_inc_dec:
-    PUSH EBP             ; establish stack frame
-    MOV EBP, ESP
-    SUB ESP, 0x14        ; space for local vars
+    PUSH   BP                     ; establish stack frame
+    MOV    BP <- SP
+    SUB    SP <- 0x14             ; reserve space for local vars
     ; [EBP -4] local var "a", 4 bytes
     ; [EBP -8] local var "b", 4 bytes
     ; [EBP-12] local var "c", 4 bytes
     ; [EBP-16] local var "d", 4 bytes
     ; [EBP-20] local var "result", 4 bytes
-    MOV [EBP-4], 0x8
-    MOV EBX, [EBP-4]
-    MOV EAX, EBX
-    ADD EAX, 0x1
-    MOV [EBP-4], EAX
-    MOV [EBP-20], EBX
-    MOV [EBP-8], 0x8
-    MOV ECX, [EBP-8]
-    MOV EAX, ECX
-    ADD EAX, 0x1
-    MOV [EBP-8], EAX
-    MOV [EBP-20], [EBP-8]
-    MOV [EBP-12], 0x8
-    MOV EDX, [EBP-12]
-    MOV EAX, EDX
-    SUB EAX, 0x1
-    MOV [EBP-12], EAX
-    MOV [EBP-20], EDX
-    MOV [EBP-16], 0x8
-    MOV ESI, [EBP-16]
-    MOV EAX, ESI
-    SUB EAX, 0x1
-    MOV [EBP-16], EAX
-    MOV [EBP-20], [EBP-16]
+    MOV    [BP-4] <- 0x8
+    MOV    BX <- [BP-4]
+    MOV    AX <- BX
+    ADD    AX <- 0x1
+    MOV    [BP-4] <- AX
+    MOV    [BP-20] <- BX
+    MOV    [BP-8] <- 0x8
+    MOV    CX <- [BP-8]
+    MOV    AX <- CX
+    ADD    AX <- 0x1
+    MOV    [BP-8] <- AX
+    MOV    AX <- [BP-8]           ; bring value to register for assignment
+    MOV    [BP-20] <- AX
+    MOV    [BP-12] <- 0x8
+    MOV    DX <- [BP-12]
+    MOV    AX <- DX
+    SUB    AX <- 0x1
+    MOV    [BP-12] <- AX
+    MOV    [BP-20] <- DX
+    MOV    [BP-16] <- 0x8
+    MOV    SI <- [BP-16]
+    MOV    AX <- SI
+    SUB    AX <- 0x1
+    MOV    [BP-16] <- AX
+    MOV    AX <- [BP-16]          ; bring value to register for assignment
+    MOV    [BP-20] <- AX
 test_pre_post_inc_dec_exit:
-    MOV ESP, EBP         ; tear down stack frame
-    POP EBP
-    RET
+    MOV    SP <- BP               ; tear down stack frame
+    POP    BP
+    RET                           ; return value should be in EAX
+
 
 main:
-    PUSH EBP             ; establish stack frame
-    MOV EBP, ESP
-    SUB ESP, 0x1d        ; space for local vars
+    PUSH   BP                     ; establish stack frame
+    MOV    BP <- SP
+    SUB    SP <- 0x1d             ; reserve space for local vars
     ; [EBP +8] argument "argc", 4 bytes
     ; [EBP+12] argument "argv", 4 bytes
     ; [EBP -4] local var "a", 4 bytes
@@ -288,15 +304,16 @@ main:
     ; [EBP -9] local var "c", 1 bytes
     ; [EBP-13] local var "d", 4 bytes
     ; [EBP-29] local var "buffer", 16 bytes
-    MOV [EBP-4], 0x1
-    MOV EBX, [EBP-4]
-    MOV ECX, 0x2
-    MOV EAX, EBX
-    ADD EAX, ECX
-    MOV [EBP-8], EAX
-    CALL math_demo
+    MOV    [BP-4] <- 0x1
+    MOV    BX <- [BP-4]
+    MOV    CX <- 0x2
+    MOV    AX <- BX
+    ADD    AX <- CX
+    MOV    [BP-8] <- AX
+    CALL   math_demo
 main_exit:
-    MOV ESP, EBP         ; tear down stack frame
-    POP EBP
-    RET
+    MOV    SP <- BP               ; tear down stack frame
+    POP    BP
+    RET                           ; return value should be in EAX
+
 

@@ -235,47 +235,67 @@ asm_instruction *new_asm_instruction_for_registers(enum opcode op, enum gp_reg t
     return o;
 }
 
-void asm_instruction_to_str(asm_instruction *instr, str *str) {
-
-
-    // Mnemonic  Size   Operand1                  Dir    Operand2
-    // XXXXXXX   dword  [EAX+ECX*8+0x12345678]    <--    EDX / 0x12345678
-    str->v->clear(str);
-
-    if (instr->label)
-        str->v->addf(str, "%s:\n", instr->label);
-    str->v->addf(str, "%-10s %d-bits  ", opcode_name(instr->operation), instr->operands_size_bits);
-
-    // first operand: register or memory
+static void _operand1_to_str(asm_instruction *instr, str *str) {
     if (instr->operand1.is_register) {
-        str->v->addz(str, gp_reg_name(instr->operand1.per_type.reg));
+        str->v->adds(str, gp_reg_name(instr->operand1.per_type.reg));
+
     } else if (instr->operand1.is_memory_by_displacement) {
         if (instr->operand1.per_type.mem.displacement_symbol_name != NULL)
-            str->v->addz(str, instr->operand1.per_type.mem.displacement_symbol_name);
+            str->v->adds(str, instr->operand1.per_type.mem.displacement_symbol_name);
         else
             str->v->addf(str, "0x%lx", instr->operand1.per_type.mem.displacement);
+
     } else if (instr->operand1.is_memory_by_reg) {
         str->v->addf(str, "[%s", gp_reg_name(instr->operand1.per_type.mem.pointer_reg));
         if (instr->operand1.per_type.mem.array_item_size > 0)
-            str->v->addf(str, "+%s*%d", gp_reg_name(instr->operand1.per_type.mem.array_index_reg),
+            str->v->addf(str, "+%s*%d", 
+                gp_reg_name(instr->operand1.per_type.mem.array_index_reg),
                 instr->operand1.per_type.mem.array_item_size);
-        if (instr->operand1.per_type.mem.displacement > 0)
+        if (instr->operand1.per_type.mem.displacement != 0)
             str->v->addf(str, "%+ld", instr->operand1.per_type.mem.displacement);
-        str->v->addz(str, "]");
+        str->v->adds(str, "]");
     }
+}
 
-    // direction
-    str->v->addf(str, " %s ", instr->direction_op1_to_op2 ? "-->" : "<--");
-
-    // operand 2: register or immediate
+static void _operand2_to_str(asm_instruction *instr, str *str) {
     if (instr->operand2.is_register) {
-        str->v->addf(str, "%s", gp_reg_name(instr->operand1.per_type.reg));
+        str->v->addf(str, "%s", gp_reg_name(instr->operand2.per_type.reg));
     } else if (instr->operand2.is_immediate) {
         str->v->addf(str, "0x%lx", instr->operand2.per_type.immediate);
     }
+}
 
-    // possible comment
-    if (instr->comment)
-        str->v->addf(str, " ; %s", instr->comment);
+void asm_instruction_to_str(asm_instruction *instr, str *str) {
+    if (instr->operation != OC_NONE) {
+        // opcode first
+        str->v->addf(str, "%-6s ", opcode_name(instr->operation));
+
+        // if there are two operands, print direction
+        if ((instr->operand1.is_register || instr->operand1.is_memory_by_reg || instr->operand1.is_memory_by_displacement) &&
+            (instr->operand2.is_immediate || instr->operand2.is_register)) {
+
+            if (instr->direction_op1_to_op2) {
+                _operand2_to_str(instr, str);
+                str->v->adds(str, " <- ");
+                _operand1_to_str(instr, str);
+            } else {
+                _operand1_to_str(instr, str);
+                str->v->adds(str, " <- ");
+                _operand2_to_str(instr, str);
+            }
+
+        } else {
+            // any one of them
+            _operand1_to_str(instr, str);
+            _operand2_to_str(instr, str);
+        }
+    }
+    
+    // possible comment (full in line or added after instruction)
+    if (instr->comment) {
+        if (str->length > 4)
+            str->v->padr(str, 25, ' ');
+        str->v->addf(str, "; %s", instr->comment);
+    }
 }
 

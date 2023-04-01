@@ -16,9 +16,10 @@ str *new_str_from(char *init_value);
 struct str_vtable {
     void (*clear)(str *s);
     void (*add)(str *s, str *other);
-    void (*addz)(str *s, char *strz);
+    void (*adds)(str *s, char *strz);
     void (*addc)(str *s, char c);
     void (*addf)(str *s, char *fmt, ...);
+    void (*padr)(str *s, int length, char c);
     
     // void (*prepend)(str *s, str *other);
     // void (*repeat)(str *s, char c, int times);

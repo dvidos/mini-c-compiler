@@ -407,7 +407,8 @@ static void assemble_function(ir_listing *ir, int start, int end) {
                     code_binary_operation(c->lvalue, c->op1, c->op, c->op2);
                 } else {
                     // simple function calls might be encoded as "<ignored> = r1"
-                    error(NULL, 0, "unsupported 3-addr-code format: lv=%s, op1=%s, op2=%s", 
+                    // it's the same as writing in C: "1;" or "a;", i.e. evaluation which result is ignored
+                    printf("warning, unsupported 3-addr-code format: lv=%s, op1=%s, op2=%s", 
                         c->lvalue == NULL ? "null" : "non-null",
                         c->op1 == NULL    ? "null" : "non-null",
                         c->op2 == NULL    ? "null" : "non-null");

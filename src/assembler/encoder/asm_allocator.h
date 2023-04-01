@@ -28,6 +28,8 @@ struct storage_allocator_ops {
 
     bool (*get_named_storage)(asm_allocator *a, char *symbol_name, storage *target); // false = not found
     void (*get_temp_reg_storage)(asm_allocator *a, int reg_no, storage *target);
+    bool (*is_treg_a_gp_reg)(asm_allocator *a, int reg_no);
+    bool (*is_treg_a_stack_var)(asm_allocator *a, int reg_no);
     void (*release_temp_reg_storage)(asm_allocator *a, int reg_no);
 };
 

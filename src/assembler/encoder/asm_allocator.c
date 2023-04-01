@@ -30,6 +30,8 @@ static void _declare_local_symbol(asm_allocator *a, char *symbol, int size, int 
 static void _generate_stack_info_comments(asm_allocator *a);
 static bool _get_named_storage(asm_allocator *a, char *symbol_name, storage *target); // false = not found
 static void _get_temp_reg_storage(asm_allocator *a, int temp_reg_no, storage *target);
+static bool _is_treg_a_gp_reg(asm_allocator *a, int reg_no);
+static bool _is_treg_a_stack_var(asm_allocator *a, int reg_no);
 static void _release_temp_reg_storage(asm_allocator *a, int temp_reg_no);
 
 
@@ -39,6 +41,8 @@ static struct storage_allocator_ops ops = {
     .generate_stack_info_comments = _generate_stack_info_comments,
     .get_named_storage = _get_named_storage,
     .get_temp_reg_storage = _get_temp_reg_storage,
+    .is_treg_a_gp_reg = _is_treg_a_gp_reg,
+    .is_treg_a_stack_var = _is_treg_a_stack_var,
     .release_temp_reg_storage = _release_temp_reg_storage,
 };
 
@@ -119,7 +123,7 @@ static void _generate_stack_info_comments(asm_allocator *a) {
     char buffer[64];
 
     for (int i = 0; i < data->named_storage_arr_len; i++) {
-        data->listing->ops->add_comment(data->listing, false, "[%cBP%+3d] %s \"%s\", %d bytes",
+        data->listing->ops->add_comment(data->listing, "[%cBP%+3d] %s \"%s\", %d bytes",
             options.register_prefix,
             data->named_storage_arr[i].value.bp_offset,
             data->named_storage_arr[i].value.bp_offset < 0 ? "local var" : "argument",
@@ -164,8 +168,10 @@ static void _get_temp_reg_storage(asm_allocator *a, int temp_reg_no, storage *ta
     // temp registers have the size of the architecture (32 or 64 bits)
     int size = options.pointer_size_bytes;
     data->lowest_bp_offset -= size;
-    data->listing->ops->add_comment(data->listing, true, "grab some space for temp register");
-    data->listing->ops->add_instr2(data->listing, OC_SUB, new_reg_asm_operand(REG_SP), new_imm_asm_operand(size));
+    data->listing->ops->set_next_comment(data->listing, "grab some space for temp register");
+
+    // we need assembler here... to allocate stack for temp register...
+    data->listing->ops->add(data->listing, new_asm_operation_for_reserving_stack_space(size));
     data->temp_storage_arr_len += 1;
     data->temp_storage_arr = realloc(data->temp_storage_arr, data->temp_storage_arr_len * sizeof(struct temp_storage_slot));
 
@@ -176,6 +182,28 @@ static void _get_temp_reg_storage(asm_allocator *a, int temp_reg_no, storage *ta
     s->value.size = size;
     s->holder_reg = temp_reg_no;
     memcpy(target, &s->value, sizeof(storage));
+}
+
+static bool _is_treg_a_gp_reg(asm_allocator *a, int reg_no) {
+    struct asm_allocator_data *data = (struct asm_allocator_data *)a->private_data;
+
+    for (int i = 0; i < data->temp_storage_arr_len; i++) {
+        if (data->temp_storage_arr[i].holder_reg == reg_no) {
+            return data->temp_storage_arr[i].value.is_gp_reg;
+        }
+    }
+    return false;
+}
+
+static bool _is_treg_a_stack_var(asm_allocator *a, int reg_no) {
+    struct asm_allocator_data *data = (struct asm_allocator_data *)a->private_data;
+    
+    for (int i = 0; i < data->temp_storage_arr_len; i++) {
+        if (data->temp_storage_arr[i].holder_reg == reg_no) {
+            return data->temp_storage_arr[i].value.is_stack_var;
+        }
+    }
+    return false;
 }
 
 static void _release_temp_reg_storage(asm_allocator *a, int temp_reg_no) {

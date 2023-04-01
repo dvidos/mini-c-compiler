@@ -9,12 +9,12 @@
 
 
 static void _print(ir_entry *e, FILE *stream);
-static void _visit_ir_values(ir_entry *e, ir_value_visitor visitor, void *pdata, int idata);
+static void _foreach_ir_value(ir_entry *e, ir_value_visitor visitor, void *pdata, int idata);
 static void _free(ir_entry *e);
 
 static struct ir_entry_ops ops = {
     .print = _print,
-    .visit_ir_values = _visit_ir_values,
+    .foreach_ir_value = _foreach_ir_value,
     .free = _free,
 };
 
@@ -290,7 +290,7 @@ static void _print(ir_entry *e, FILE *stream) {
     }
 }
 
-static void _visit_ir_values(ir_entry *e, ir_value_visitor visitor, void *pdata, int idata) {
+static void _foreach_ir_value(ir_entry *e, ir_value_visitor visitor, void *pdata, int idata) {
     int curr = 0;
     switch (e->type) {
         case IR_FUNCTION_DEFINITION: // fallthrough

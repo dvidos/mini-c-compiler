@@ -90,7 +90,7 @@ static void _run_statistics(ir_listing *l) {
     // first find how many registers
     for (int i = 0; i < l->length; i++) {
         ir_entry *e = l->entries_arr[i];
-        e->ops->visit_ir_values(e, _statistics_find_min_max_register_number, l, i);
+        e->ops->foreach_ir_value(e, _statistics_find_min_max_register_number, l, i);
     }
 
     // now make the array and run again to find last index
@@ -98,7 +98,7 @@ static void _run_statistics(ir_listing *l) {
     l->statistics.reg_last_usage_arr = malloc(sizeof(int) * l->statistics.regs_count);
     for (int i = 0; i < l->length; i++) {
         ir_entry *e = l->entries_arr[i];
-        e->ops->visit_ir_values(e, _statistics_find_each_register_last_index, l, i);
+        e->ops->foreach_ir_value(e, _statistics_find_each_register_last_index, l, i);
     }
 }
 

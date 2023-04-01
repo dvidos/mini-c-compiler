@@ -36,38 +36,38 @@ void perform_asm_test() {
 
 #define VERIFY_INSTR1_IMMEDIATE(code, val, expect_bytes, expect_len) \
     instr.opcode = code; \
-    instr.op1 = new_imm_asm_operand(val); \
+    instr.op1 = new_asm_operand_imm(val); \
     instr.op2 = NULL; \
     if (!verify_single_instruction(&instr, expect_bytes, expect_len)) return;
 
 #define VERIFY_INSTR1_REGISTER(code, reg_no, expect_bytes, expect_len) \
     instr.opcode = code; \
-    instr.op1 = new_reg_asm_operand(reg_no); \
+    instr.op1 = new_asm_operand_reg(reg_no); \
     instr.op2 = NULL; \
     if (!verify_single_instruction(&instr, expect_bytes, expect_len)) return;
 
 #define VERIFY_INSTR1_MEMBYREG(code, reg_no, offs, expect_bytes, expect_len) \
     instr.opcode = code; \
-    instr.op1 = new_mem_by_reg_operand(reg_no, offs); \
+    instr.op1 = new_asm_operand_mem_by_reg(reg_no, offs); \
     instr.op2 = NULL; \
     if (!verify_single_instruction(&instr, expect_bytes, expect_len)) return;
 
 #define VERIFY_INSTR1_MEMBYSYM(code, sym, expect_bytes, expect_len) \
     instr.opcode = code; \
-    instr.op1 = new_mem_by_sym_asm_operand(sym); \
+    instr.op1 = new_asm_operand_mem_by_sym(sym); \
     instr.op2 = NULL; \
     if (!verify_single_instruction(&instr, expect_bytes, expect_len)) return;
 
 #define VERIFY_INSTR2_REG_REG(code, target_regno, source_regno, expect_bytes, expect_len) \
     instr.opcode = code; \
-    instr.op1 = new_reg_asm_operand(target_regno); \
-    instr.op2 = new_reg_asm_operand(source_regno); \
+    instr.op1 = new_asm_operand_reg(target_regno); \
+    instr.op2 = new_asm_operand_reg(source_regno); \
     if (!verify_single_instruction(&instr, expect_bytes, expect_len)) return;
 
 #define VERIFY_INSTR2_REG_IMMEDIATE(code, regno, val, expect_bytes, expect_len) \
     instr.opcode = code; \
-    instr.op1 = new_reg_asm_operand(regno); \
-    instr.op2 = new_imm_asm_operand(val); \
+    instr.op1 = new_asm_operand_reg(regno); \
+    instr.op2 = new_asm_operand_imm(val); \
     if (!verify_single_instruction(&instr, expect_bytes, expect_len)) return;
 
 
@@ -254,19 +254,19 @@ static void verify_listing(char *title, struct asm_instruction *list, int instr_
 
 #define MOV_REG_IMM(reg, val) \
     asm_listing[count].opcode = OC_MOV;         \
-    asm_listing[count].op1 = new_reg_asm_operand(reg); \
-    asm_listing[count].op2 = new_imm_asm_operand(val); \
+    asm_listing[count].op1 = new_asm_operand_reg(reg); \
+    asm_listing[count].op2 = new_asm_operand_imm(val); \
     count++;
 
 #define MOV_REG_SYM(reg, sym) \
     asm_listing[count].opcode = OC_MOV;                   \
-    asm_listing[count].op1 = new_reg_asm_operand(reg); \
-    asm_listing[count].op2 = new_mem_by_sym_asm_operand(sym); \
+    asm_listing[count].op1 = new_asm_operand_reg(reg); \
+    asm_listing[count].op2 = new_asm_operand_mem_by_sym(sym); \
     count++;
 
 #define INT(no) \
     asm_listing[count].opcode = OC_INT;               \
-    asm_listing[count].op1 = new_imm_asm_operand(no); \
+    asm_listing[count].op1 = new_asm_operand_imm(no); \
     asm_listing[count].op2 = NULL;                    \
     count++;
 
@@ -373,16 +373,16 @@ void test_create_executable2() {
     mod->ops->declare_data(mod, "hello_msg", 13 + 1, "Hello World!\n");
 
     lst->ops->set_next_label(lst, "_start");
-    lst->ops->add_instr2(lst, OC_MOV, new_reg_asm_operand(REG_AX), new_imm_asm_operand(4));
-    lst->ops->add_instr2(lst, OC_MOV, new_reg_asm_operand(REG_BX), new_imm_asm_operand(1));
-    lst->ops->add_instr2(lst, OC_MOV, new_reg_asm_operand(REG_CX), new_mem_by_sym_asm_operand("hello_msg"));
-    lst->ops->add_instr2(lst, OC_MOV, new_reg_asm_operand(REG_DX), new_imm_asm_operand(13));
-    lst->ops->add_instr1(lst, OC_INT, new_imm_asm_operand(0x80));
+    lst->ops->add_instr2(lst, OC_MOV, new_asm_operand_reg(REG_AX), new_asm_operand_imm(4));
+    lst->ops->add_instr2(lst, OC_MOV, new_asm_operand_reg(REG_BX), new_asm_operand_imm(1));
+    lst->ops->add_instr2(lst, OC_MOV, new_asm_operand_reg(REG_CX), new_asm_operand_mem_by_sym("hello_msg"));
+    lst->ops->add_instr2(lst, OC_MOV, new_asm_operand_reg(REG_DX), new_asm_operand_imm(13));
+    lst->ops->add_instr1(lst, OC_INT, new_asm_operand_imm(0x80));
 
     lst->ops->set_next_label(lst, "_exit");
-    lst->ops->add_instr2(lst, OC_MOV, new_reg_asm_operand(REG_AX), new_imm_asm_operand(1));
-    lst->ops->add_instr2(lst, OC_MOV, new_reg_asm_operand(REG_BX), new_imm_asm_operand(0));
-    lst->ops->add_instr1(lst, OC_INT, new_imm_asm_operand(0x80));
+    lst->ops->add_instr2(lst, OC_MOV, new_asm_operand_reg(REG_AX), new_asm_operand_imm(1));
+    lst->ops->add_instr2(lst, OC_MOV, new_asm_operand_reg(REG_BX), new_asm_operand_imm(0));
+    lst->ops->add_instr1(lst, OC_INT, new_asm_operand_imm(0x80));
 
     lst->ops->print(lst, stdout);
 

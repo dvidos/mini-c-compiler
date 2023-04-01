@@ -15,7 +15,7 @@ typedef struct ir_value {
 } ir_value;
 
 ir_value *new_ir_value_symbol(char *symbol_name);
-ir_value *new_ir_value_register(int reg_no);
+ir_value *new_ir_value_temp_reg(int temp_reg_no);
 ir_value *new_ir_value_immediate(int value);
 
 // instead of ops struct, maybe hard-named values

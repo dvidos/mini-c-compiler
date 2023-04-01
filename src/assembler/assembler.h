@@ -5,6 +5,10 @@
 #include "encoder/encoder.h"
 
 
+// to be used by asm_allocator
+void mkop_for_allocating_stack_space(int size);
+
+
 // given an Intemediate Representation listing, generate an assembly listing.
 void x86_assemble_ir_listing(ir_listing *ir_list, asm_listing *asm_list);
 

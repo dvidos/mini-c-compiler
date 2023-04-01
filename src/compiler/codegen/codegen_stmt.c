@@ -122,7 +122,7 @@ void code_gen_generate_for_statement(code_gen *cg, statement *stmt) {
             }
             ir_value *ret_val = NULL;
             if (stmt->expr != NULL) {
-                ret_val = new_ir_value_register(cg->ops->next_reg_num(cg));
+                ret_val = new_ir_value_temp_reg(cg->ops->next_reg_num(cg));
                 cg->ops->generate_for_expression(cg, ret_val, stmt->expr);
             }
             cg->ir->ops->add(cg->ir, new_ir_return(ret_val));

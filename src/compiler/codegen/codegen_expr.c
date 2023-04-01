@@ -25,7 +25,7 @@ static ir_value *resolve_addr(code_gen *cg, expression *expr) {
             || expr->op == OP_STRUCT_MEMBER_PTR
             || expr->op == OP_STRUCT_MEMBER_REF) {
 
-        ir_value *lvalue = new_ir_value_register(cg->ops->next_reg_num(cg));
+        ir_value *lvalue = new_ir_value_temp_reg(cg->ops->next_reg_num(cg));
         cg->ops->generate_for_expression(cg, lvalue, expr);
         return lvalue;
 
@@ -62,7 +62,7 @@ static void gen_func_call(code_gen *cg, ir_value *lvalue, expression *expr) {
     // prepare the ir_values array
     ir_value **ir_values_arr = malloc(sizeof(ir_value) * argc);
     for (int i = 0; i < argc; i++) {
-        ir_values_arr[i] = new_ir_value_register(cg->ops->next_reg_num(cg));
+        ir_values_arr[i] = new_ir_value_temp_reg(cg->ops->next_reg_num(cg));
         cg->ops->generate_for_expression(cg, ir_values_arr[i], arg_expressions[i]);
     }
 
@@ -71,10 +71,10 @@ static void gen_func_call(code_gen *cg, ir_value *lvalue, expression *expr) {
 
 static void gen_binary_op(code_gen *cg, ir_value *lvalue, expression *expr) {
 
-    ir_value *r1 = new_ir_value_register(cg->ops->next_reg_num(cg));
+    ir_value *r1 = new_ir_value_temp_reg(cg->ops->next_reg_num(cg));
     cg->ops->generate_for_expression(cg, r1, expr->arg1);
 
-    ir_value *r2 = new_ir_value_register(cg->ops->next_reg_num(cg));
+    ir_value *r2 = new_ir_value_temp_reg(cg->ops->next_reg_num(cg));
     cg->ops->generate_for_expression(cg, r2, expr->arg2);
     
     ir_operation op = IR_NONE;
@@ -135,7 +135,7 @@ void code_gen_generate_for_expression(code_gen *cg, ir_value *lvalue, expression
             break;
 
         case OP_BITWISE_NOT:
-            ir_value *rvalue = new_ir_value_register(cg->ops->next_reg_num(cg));
+            ir_value *rvalue = new_ir_value_temp_reg(cg->ops->next_reg_num(cg));
             cg->ops->generate_for_expression(cg, rvalue, expr->arg2);
             cg->ir->ops->add(cg->ir, new_ir_unary_address_code(lvalue, IR_NOT, rvalue));
             break;
@@ -167,7 +167,7 @@ void code_gen_generate_for_expression(code_gen *cg, ir_value *lvalue, expression
             // i = r5 + 1     // first two are same in both cases
             // result = r5    // last assignment depends on pre/post
             ir_value *modifiee = resolve_addr(cg, expr->arg1);
-            ir_value *temp_reg = new_ir_value_register(cg->ops->next_reg_num(cg));
+            ir_value *temp_reg = new_ir_value_temp_reg(cg->ops->next_reg_num(cg));
             cg->ir->ops->add(cg->ir, new_ir_assignment(temp_reg, modifiee));
             cg->ir->ops->add(cg->ir, new_ir_three_address_code(modifiee, temp_reg, ir_op, new_ir_value_immediate(1)));
             cg->ir->ops->add(cg->ir, new_ir_assignment(lvalue, is_pre ? modifiee : temp_reg));
@@ -175,8 +175,8 @@ void code_gen_generate_for_expression(code_gen *cg, ir_value *lvalue, expression
 
         default:
             cg->ir->ops->add(cg->ir, new_ir_comment("(unhandled expresion (%s) follows)", oper_debug_name(expr->op)));
-            ir_value *r1 = new_ir_value_register(cg->ops->next_reg_num(cg));
-            ir_value *r2 = new_ir_value_register(cg->ops->next_reg_num(cg));
+            ir_value *r1 = new_ir_value_temp_reg(cg->ops->next_reg_num(cg));
+            ir_value *r2 = new_ir_value_temp_reg(cg->ops->next_reg_num(cg));
             if (expr->arg1) code_gen_generate_for_expression(cg, r1, expr->arg1);
             if (expr->arg2) code_gen_generate_for_expression(cg, r2, expr->arg2);
             break;

@@ -12,7 +12,7 @@ ir_value *new_ir_value_symbol(char *symbol_name) {
     return v;
 }
 
-ir_value *new_ir_value_register(int temp_reg_no) {
+ir_value *new_ir_value_temp_reg(int temp_reg_no) {
     ir_value *v = malloc(sizeof(ir_value));
     v->type = IR_TREG;
     v->val.temp_reg_no = temp_reg_no;

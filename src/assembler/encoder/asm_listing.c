@@ -9,8 +9,10 @@
 
 static void _print(asm_listing *lst, FILE *stream);
 static void _ensure_capacity(asm_listing *lst, int extra);
-static void _set_next_label(asm_listing *lst, char *label);
-static void _add_comment(asm_listing *lst, bool for_next_instruction, char *comment, ...);
+static void _set_next_label(asm_listing *lst, char *label, ...);
+static void _set_next_comment(asm_listing *lst, char *comment, ...);
+static void _add_comment(asm_listing *lst, char *comment, ...);
+static void _add_operation(asm_listing *lst, asm_operation *oper);
 static void _add_instr(asm_listing *lst, enum opcode code); // e.g. NOP
 static void _add_instr1(asm_listing *lst, enum opcode code, struct asm_operand *op1);
 static void _add_instr2(asm_listing *lst, enum opcode code, struct asm_operand *op1, struct asm_operand *op2);
@@ -19,7 +21,9 @@ static void _add_instr2(asm_listing *lst, enum opcode code, struct asm_operand *
 static struct asm_listing_ops ops = {
     .print = _print,
     .set_next_label = _set_next_label,
+    .set_next_comment = _set_next_comment,
     .add_comment = _add_comment,
+    .add = _add_operation,
     .add_instr = _add_instr,
     .add_instr1 = _add_instr1,
     .add_instr2 = _add_instr2
@@ -39,7 +43,7 @@ asm_listing *new_asm_listing() {
 }
 
 // for working with specific values, e.g. SUB SP, <bytes>
-struct asm_operand *new_imm_asm_operand(int value) {
+struct asm_operand *new_asm_operand_imm(int value) {
     struct asm_operand *op = malloc(sizeof(struct asm_operand));
     op->type = OT_IMMEDIATE;
     op->immediate = value;
@@ -47,21 +51,21 @@ struct asm_operand *new_imm_asm_operand(int value) {
 }
 
 // for handling specific registers, e.g. BP, SP, AX
-struct asm_operand *new_reg_asm_operand(enum gp_reg gp_reg_no) {
+struct asm_operand *new_asm_operand_reg(enum gp_reg gp_reg_no) {
     struct asm_operand *op = malloc(sizeof(struct asm_operand));
     op->type = OT_REGISTER;
     op->reg = gp_reg_no;
     return op;
 }
 
-struct asm_operand *new_mem_by_sym_asm_operand(char *symbol_name) {
+struct asm_operand *new_asm_operand_mem_by_sym(char *symbol_name) {
     struct asm_operand *op = malloc(sizeof(struct asm_operand));
     op->type = OT_MEM_OF_SYMBOL;
     op->symbol_name = strdup(symbol_name);
     return op;
 }
 
-struct asm_operand *new_mem_by_reg_operand(enum gp_reg gp_reg_no, int offset) {
+struct asm_operand *new_asm_operand_mem_by_reg(enum gp_reg gp_reg_no, int offset) {
     struct asm_operand *op = malloc(sizeof(struct asm_operand));
     op->type = OT_MEM_POINTED_BY_REG;
     op->reg = gp_reg_no;
@@ -104,11 +108,19 @@ static void _ensure_capacity(asm_listing *lst, int extra) {
     lst->instructions = realloc(lst->instructions, lst->capacity * sizeof(struct asm_instruction));
 }
 
-static void _set_next_label(asm_listing *lst, char *label) {
-    lst->next_label = strdup(label); // we must free it later on.
+static void _set_next_label(asm_listing *lst, char *label, ...) {
+    char buffer[128];
+
+    va_list vl;
+    va_start(vl, label);
+    vsnprintf(buffer, sizeof(buffer) - 1, label, vl);
+    buffer[sizeof(buffer) - 1] = 0;
+    va_end(vl);
+
+    lst->next_label = strdup(buffer);
 }
 
-static void _add_comment(asm_listing *lst, bool for_next_instruction, char *comment, ...) {
+static void _set_next_comment(asm_listing *lst, char *comment, ...) {
     char buffer[128];
 
     va_list vl;
@@ -117,24 +129,32 @@ static void _add_comment(asm_listing *lst, bool for_next_instruction, char *comm
     buffer[sizeof(buffer) - 1] = 0;
     va_end(vl);
 
-    if (for_next_instruction) {
-        // keep aside for next instruction, same as label
-        lst->next_comment = strdup(buffer);
-    } else {
-        // add it as a standalone thing
-        _ensure_capacity(lst, 1);
-        struct asm_instruction *inst = &lst->instructions[lst->length];
+    // keep aside for next instruction, same as label
+    lst->next_comment = strdup(buffer);
+}
 
-        inst->label = lst->next_label; // either null or not
-        inst->opcode = OC_NONE;
-        inst->op1 = NULL;
-        inst->op2 = NULL;
-        inst->comment = strdup(buffer);
+static void _add_comment(asm_listing *lst, char *comment, ...) {
+    char buffer[128];
 
-        lst->next_label = NULL;
-        lst->next_comment = NULL;
-        lst->length++;
-    }
+    va_list vl;
+    va_start(vl, comment);
+    vsnprintf(buffer, sizeof(buffer) - 1, comment, vl);
+    buffer[sizeof(buffer) - 1] = 0;
+    va_end(vl);
+
+    // add it as a standalone thing
+    _ensure_capacity(lst, 1);
+    struct asm_instruction *inst = &lst->instructions[lst->length];
+
+    inst->label = lst->next_label; // either null or not
+    inst->opcode = OC_NONE;
+    inst->op1 = NULL;
+    inst->op2 = NULL;
+    inst->comment = strdup(buffer);
+
+    lst->next_label = NULL;
+    lst->next_comment = NULL;
+    lst->length++;
 }
 
 static void _add_instr(asm_listing *lst, enum opcode code) {
@@ -182,3 +202,7 @@ static void _add_instr2(asm_listing *lst, enum opcode code, struct asm_operand *
     lst->length++;
 }
 
+void _add_operation(asm_listing *lst, asm_operation *oper) {
+    // set label, comment,
+    // add it to a list    
+}

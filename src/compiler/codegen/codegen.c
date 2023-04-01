@@ -71,7 +71,7 @@ static ir_value *_create_ir_value(code_gen *cg, expression *expr) {
 
         default:
             // otherwise we need to calculate the expression and store it in a register
-            ir_value *result = new_ir_value_register(cg->ops->next_reg_num(cg));
+            ir_value *result = new_ir_value_temp_reg(cg->ops->next_reg_num(cg));
             cg->ops->generate_for_expression(cg, result, expr);
             return result;
     }

@@ -1,7 +1,6 @@
 #pragma once
 #include <stdint.h>
 
-typedef uint64_t u64;
 
 enum operand_type {
     OT_NONE = 0,              // this operand is not to be used
@@ -28,7 +27,7 @@ struct asm_operand {
     long immediate;
     enum gp_reg reg;
     char *symbol_name;
-    long offset; // for indirect memory access
+    long offset; // for indirect memory access, through BP
 };
 
 enum opcode {

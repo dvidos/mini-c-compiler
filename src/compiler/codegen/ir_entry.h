@@ -136,6 +136,6 @@ typedef void (*ir_value_visitor)(ir_value *value, void *data, int index);
 
 struct ir_entry_ops {
     void (*print)(ir_entry *e, FILE *stream);
-    void (*visit_ir_values)(ir_entry *e, ir_value_visitor visitor, void *pdata, int idata);
+    void (*foreach_ir_value)(ir_entry *e, ir_value_visitor visitor, void *pdata, int idata);
     void (*free)(ir_entry *e);
 };

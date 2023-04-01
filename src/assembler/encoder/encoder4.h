@@ -4,7 +4,6 @@
 #include "asm_instruction.h"
 #include "encoded_instruction.h"
 #include "encoding_info.h"
-#include "asm_operation.h"
 
 
 /*
@@ -26,5 +25,5 @@
     Maybe we should start amazingly simple.
 */
 
-bool encode_cpu_operation(asm_operation *oper, struct encoding_info *info, struct encoded_instruction *result);
+bool encode_cpu_operation(asm_instruction *oper, struct encoding_info *info, struct encoded_instruction *result);
 

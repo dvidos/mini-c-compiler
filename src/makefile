@@ -6,6 +6,7 @@ SRC_FILES = \
 	options.c \
 	utils.c \
 	utils/buffer.c \
+	utils/str.c \
 	compiler/lexer/token.c \
 	compiler/lexer/token_list.c \
 	compiler/lexer/lexer.c \
@@ -40,7 +41,6 @@ SRC_FILES = \
 	assembler/encoder/asm_listing.c \
 	assembler/encoder/asm_allocator.c \
 	assembler/encoder/encoded_instruction.c \
-	assembler/encoder/asm_operation.c \
 	assembler/encoder/encoder4.c \
 	assembler/assembler.c \
 	linker/symbol_table.c \

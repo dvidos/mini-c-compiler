@@ -12,10 +12,10 @@ static void _ensure_capacity(asm_listing *lst, int extra);
 static void _set_next_label(asm_listing *lst, char *label, ...);
 static void _set_next_comment(asm_listing *lst, char *comment, ...);
 static void _add_comment(asm_listing *lst, char *comment, ...);
-static void _add_operation(asm_listing *lst, asm_operation *oper);
-static void _add_instr(asm_listing *lst, enum opcode code); // e.g. NOP
-static void _add_instr1(asm_listing *lst, enum opcode code, struct asm_operand *op1);
-static void _add_instr2(asm_listing *lst, enum opcode code, struct asm_operand *op1, struct asm_operand *op2);
+static void _add(asm_listing *lst, asm_instruction *instr);
+static void _add_instr0(asm_listing *lst, enum opcode code); // e.g. NOP
+static void _add_instr1(asm_listing *lst, enum opcode code, struct asm_operand *op);
+static void _add_instr2(asm_listing *lst, enum opcode code, struct asm_operand *target_op, struct asm_operand *source_op);
 
 
 static struct asm_listing_ops ops = {
@@ -23,8 +23,8 @@ static struct asm_listing_ops ops = {
     .set_next_label = _set_next_label,
     .set_next_comment = _set_next_comment,
     .add_comment = _add_comment,
-    .add = _add_operation,
-    .add_instr = _add_instr,
+    .add = _add,
+    .add_instr0 = _add_instr0,
     .add_instr1 = _add_instr1,
     .add_instr2 = _add_instr2
 };
@@ -33,7 +33,7 @@ asm_listing *new_asm_listing() {
     asm_listing *p = malloc(sizeof(asm_listing));
 
     p->capacity = 10;
-    p->instructions = malloc(sizeof(struct asm_instruction) * p->capacity);
+    p->instruction_ptrs = malloc(sizeof(asm_instruction *) * p->capacity);
     p->length = 0;
     p->next_label = NULL;
     p->next_comment = NULL;
@@ -74,29 +74,21 @@ struct asm_operand *new_asm_operand_mem_by_reg(enum gp_reg gp_reg_no, int offset
 }
 
 static void _print(asm_listing *lst, FILE *stream) {
+    str *str = new_str();
+    
     struct asm_instruction *inst;
-    char buff[128];
 
     for (int i = 0; i < lst->length; i++) {
-        inst = &lst->instructions[i];
-        if (inst->label != NULL)
-            fprintf(stream, "%s:\n", inst->label);
-        
-        if (inst->comment != NULL && inst->opcode == OC_NONE) {
-            fprintf(stream, "    ; %s\n", inst->comment);
-        } else {
-            instruction_to_string(inst, buff, sizeof(buff));
-            if (inst->comment == NULL) {
-                fprintf(stream, "    %s\n", buff);
-            } else {
-                fprintf(stream, "    %-20s ; %s\n", buff, inst->comment);
-            }
-        }
+        inst = lst->instruction_ptrs[i];
+        asm_instruction_to_str(inst, str);
+        fprintf(stream, "%s", str->buffer);
 
         // perhaps allow some space between functions?
-        if (inst->opcode == OC_RET)
+        if (inst->operation == OC_RET)
             fprintf(stream, "\n");
     }
+
+    str->v->free(str);
 }
 
 static void _ensure_capacity(asm_listing *lst, int extra) {
@@ -105,7 +97,7 @@ static void _ensure_capacity(asm_listing *lst, int extra) {
 
     while (lst->length + extra >= lst->capacity)
         lst->capacity *= 2;
-    lst->instructions = realloc(lst->instructions, lst->capacity * sizeof(struct asm_instruction));
+    lst->instruction_ptrs = realloc(lst->instruction_ptrs, lst->capacity * sizeof(asm_instruction *));
 }
 
 static void _set_next_label(asm_listing *lst, char *label, ...) {
@@ -143,66 +135,30 @@ static void _add_comment(asm_listing *lst, char *comment, ...) {
     va_end(vl);
 
     // add it as a standalone thing
-    _ensure_capacity(lst, 1);
-    struct asm_instruction *inst = &lst->instructions[lst->length];
+    lst->next_comment = strdup(buffer);
+    _add(lst, new_asm_instruction(OC_NONE));
+}
 
-    inst->label = lst->next_label; // either null or not
-    inst->opcode = OC_NONE;
-    inst->op1 = NULL;
-    inst->op2 = NULL;
-    inst->comment = strdup(buffer);
+static void _add_instr0(asm_listing *lst, enum opcode code) {
+    _add(lst, new_asm_instruction(code));
+}
+
+static void _add_instr1(asm_listing *lst, enum opcode code, struct asm_operand *op) {
+    _add(lst, new_asm_instruction_with_operand(code, op));
+}
+
+static void _add_instr2(asm_listing *lst, enum opcode code, struct asm_operand *target_op, struct asm_operand *source_op) {
+    _add(lst, new_asm_instruction_with_operands(code, target_op, source_op));
+}
+
+void _add(asm_listing *lst, asm_instruction *instr) {
+    instr->label = lst->next_label; // either null or not
+    instr->comment = lst->next_comment; // null or not
+
+    _ensure_capacity(lst, 1);
+    lst->instruction_ptrs[lst->length] = instr;
+    lst->length++;
 
     lst->next_label = NULL;
     lst->next_comment = NULL;
-    lst->length++;
-}
-
-static void _add_instr(asm_listing *lst, enum opcode code) {
-    _ensure_capacity(lst, 1);
-    struct asm_instruction *inst = &lst->instructions[lst->length];
-
-    inst->label = lst->next_label; // either null or not
-    inst->opcode = code;
-    inst->op1 = NULL;
-    inst->op2 = NULL;
-    inst->comment = lst->next_comment; // null or not
-
-    lst->next_label = NULL;
-    lst->next_comment = NULL;
-    lst->length++;
-}
-
-static void _add_instr1(asm_listing *lst, enum opcode code, struct asm_operand *op1) {
-    _ensure_capacity(lst, 1);
-    struct asm_instruction *inst = &lst->instructions[lst->length];
-
-    inst->label = lst->next_label; // either null or not
-    inst->opcode = code;
-    inst->op1 = op1;
-    inst->op2 = NULL;
-    inst->comment = lst->next_comment; // null or not
-
-    lst->next_label = NULL;
-    lst->next_comment = NULL;
-    lst->length++;
-}
-
-static void _add_instr2(asm_listing *lst, enum opcode code, struct asm_operand *op1, struct asm_operand *op2) {
-    _ensure_capacity(lst, 1);
-    struct asm_instruction *inst = &lst->instructions[lst->length];
-
-    inst->label = lst->next_label; // either null or not
-    inst->opcode = code;
-    inst->op1 = op1;
-    inst->op2 = op2;
-    inst->comment = lst->next_comment; // null or not
-
-    lst->next_label = NULL;
-    lst->next_comment = NULL;
-    lst->length++;
-}
-
-void _add_operation(asm_listing *lst, asm_operation *oper) {
-    // set label, comment,
-    // add it to a list    
 }

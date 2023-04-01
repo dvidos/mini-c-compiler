@@ -3,12 +3,11 @@
 #include "asm_instruction.h"
 #include "encoding_info.h"
 #include "encoded_instruction.h"
-#include "asm_operation.h"
 
 
 
 
-static bool encode_opcode(asm_operation *oper, struct encoding_info *info, struct encoded_instruction *result) {
+static bool encode_opcode(asm_instruction *oper, struct encoding_info *info, struct encoded_instruction *result) {
 
     // setup 16-bit operand size if needed
     if (oper->operands_size_bits == 16) {
@@ -48,7 +47,7 @@ static bool encode_opcode(asm_operation *oper, struct encoding_info *info, struc
     }
 }
 
-static bool encode_operands(asm_operation *oper, struct encoding_info *info, struct encoded_instruction *result) {
+static bool encode_operands(asm_instruction *oper, struct encoding_info *info, struct encoded_instruction *result) {
 
     // see if we need mod/rm
     if (!info->needs_modregrm)
@@ -131,7 +130,7 @@ static bool encode_operands(asm_operation *oper, struct encoding_info *info, str
     return true;
 }
 
-static bool encode_immediate(asm_operation *oper, struct encoding_info *info, struct encoded_instruction *result) {
+static bool encode_immediate(asm_instruction *oper, struct encoding_info *info, struct encoded_instruction *result) {
 
     // maybe we don't need anything
     if (!oper->operand2.is_immediate)
@@ -161,7 +160,7 @@ static bool encode_immediate(asm_operation *oper, struct encoding_info *info, st
     return true;
 }
 
-bool encode_cpu_operation(asm_operation *oper, struct encoding_info *info, struct encoded_instruction *result) {
+bool encode_cpu_operation(asm_instruction *oper, struct encoding_info *info, struct encoded_instruction *result) {
     // logic in this function based largely on this page;
     // http://www.c-jump.com/CIS77/CPU/x86/lecture.html
 

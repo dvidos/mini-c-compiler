@@ -14,8 +14,8 @@
 static void test_create_executable();
 static void test_create_executable2();
 static void verify_instructions();
-static bool verify_single_instruction(struct asm_instruction *instr, char *expected_bytes, int expected_len);
-static void verify_listing(char *title, struct asm_instruction *list, int instr_count, char *expected, int expected_len);
+static bool verify_single_instruction(struct asm_instruction_old *instr, char *expected_bytes, int expected_len);
+static void verify_listing(char *title, struct asm_instruction_old *list, int instr_count, char *expected, int expected_len);
 
 
 
@@ -72,7 +72,7 @@ void perform_asm_test() {
 
 
 static void verify_instructions() {
-    struct asm_instruction instr;
+    struct asm_instruction_old instr;
     printf("Verifying instructions ");
 
     // no operands instruction
@@ -166,13 +166,13 @@ static void verify_instructions() {
 }
 
 
-static bool verify_single_instruction(struct asm_instruction *instr, char *expected_bytes, int expected_len) {
+static bool verify_single_instruction(struct asm_instruction_old *instr, char *expected_bytes, int expected_len) {
     char buff[128];
 
-    instruction_to_string(instr, buff, sizeof(buff));
+    instruction_old_to_string(instr, buff, sizeof(buff));
     struct x86_encoder *enc = new_x86_encoder(CPU_MODE_PROTECTED, new_buffer(), new_reloc_list());
 
-    if (!enc->encode(enc, instr)) {
+    if (!enc->encode_old(enc, instr)) {
         printf("\n");
         printf("  Could not encode instruction '%s'\n", buff);
         enc->free(enc);
@@ -199,7 +199,7 @@ static bool verify_single_instruction(struct asm_instruction *instr, char *expec
     return true;
 }
 
-static void verify_listing(char *title, struct asm_instruction *list, int instr_count, char *expected, int expected_len) {
+static void verify_listing(char *title, struct asm_instruction_old *list, int instr_count, char *expected, int expected_len) {
     bool encoded;
     char buff[128];
 
@@ -207,9 +207,9 @@ static void verify_listing(char *title, struct asm_instruction *list, int instr_
 
     struct x86_encoder *encoder = new_x86_encoder(CPU_MODE_PROTECTED, new_buffer(), new_reloc_list());
     for (int i = 0; i < instr_count; i++) {
-        encoded = encoder->encode(encoder, &list[i]);
+        encoded = encoder->encode_old(encoder, &list[i]);
         if (!encoded) {
-            instruction_to_string(&list[i], buff, sizeof(buff));
+            instruction_old_to_string(&list[i], buff, sizeof(buff));
             printf("Cannot encode expression: \'%s\'\n", buff);
             return;
         }
@@ -224,7 +224,7 @@ static void verify_listing(char *title, struct asm_instruction *list, int instr_
 
     printf("Assembly code asm_listing:\n");
     for (int i = 0; i < instr_count; i++) {
-        instruction_to_string(&list[i], buff, sizeof(buff));
+        instruction_old_to_string(&list[i], buff, sizeof(buff));
         printf("\t%s\n", buff);
     }
 
@@ -273,7 +273,7 @@ static void verify_listing(char *title, struct asm_instruction *list, int instr_
 void test_create_executable() {
     // based on this: https://www.tutorialspoint.com/assembly_programming/assembly_system_calls.htm
 
-    struct asm_instruction asm_listing[30];
+    struct asm_instruction_old asm_listing[30];
     int count = 0;
 
     memset(&asm_listing, 0, sizeof(asm_listing));
@@ -302,9 +302,9 @@ void test_create_executable() {
     // encode this into intel machine code
     struct x86_encoder *enc = new_x86_encoder(CPU_MODE_PROTECTED, new_buffer(), new_reloc_list());
     for (int i = 0; i < count; i++) {
-        if (!enc->encode(enc, &asm_listing[i])) {
+        if (!enc->encode_old(enc, &asm_listing[i])) {
             char str[128];
-            instruction_to_string(&asm_listing[i], str, sizeof(str));
+            instruction_old_to_string(&asm_listing[i], str, sizeof(str));
             printf("Failed encoding instruction: '%s'\n", str);
             return;
         }
@@ -404,19 +404,19 @@ static bool _encode_listing_code(asm_listing *lst, obj_code *mod, enum x86_cpu_m
     struct asm_instruction *inst;
 
     for (int i = 0; i < lst->length; i++) {
-        inst = &lst->instructions[i];
+        inst = lst->instruction_ptrs[i];
 
         if (inst->label != NULL) {
             // we don't know if this is exported for now
             mod->symbols->add(mod->symbols, inst->label, mod->text_seg->length, SB_CODE);
         }
 
-        if (!enc->encode(enc, inst)) {
-            char str[128];
-            instruction_to_string(inst, str, sizeof(str));
-            printf("Failed encoding instruction: '%s'\n", str);
-            return false;
-        }
+        // if (!enc->encode_old(enc, inst)) {
+        //     char str[128];
+        //     instruction_old_to_string(inst, str, sizeof(str));
+        //     printf("Failed encoding instruction: '%s'\n", str);
+        //     return false;
+        // }
     }
 
     return true;

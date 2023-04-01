@@ -20,7 +20,7 @@ struct x86_encoder {
     buffer *output;
     struct reloc_list *relocations; // symbol relocations to be backfilled
 
-    bool (*encode)(struct x86_encoder *encoder, struct asm_instruction *instr);
+    bool (*encode_old)(struct x86_encoder *encoder, struct asm_instruction_old *instr);
     void (*reset)(struct x86_encoder *encoder);
     void (*free)(struct x86_encoder *encoder);
 };

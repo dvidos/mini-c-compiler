@@ -9,7 +9,6 @@
 #include "encoder/encoder.h"
 #include "encoder/asm_allocator.h"
 #include "encoder/asm_instruction.h"
-#include "encoder/asm_operation.h"
 
 
 static struct asm_operand *resolve_ir_value_to_asm_operand(ir_value *v);
@@ -86,12 +85,12 @@ static void code_prologue() {
     ad.listing->ops->set_next_label(ad.listing, ad.func_def->func_name);
     ad.listing->ops->set_next_comment(ad.listing, "establish stack frame");
 
-    ad.listing->ops->add(ad.listing, new_asm_operation_for_register(OC_PUSH, REG_BP));
-    ad.listing->ops->add(ad.listing, new_asm_operation_for_registers(OC_MOV, REG_BP, REG_SP));
+    ad.listing->ops->add(ad.listing, new_asm_instruction_for_register(OC_PUSH, REG_BP));
+    ad.listing->ops->add(ad.listing, new_asm_instruction_for_registers(OC_MOV, REG_BP, REG_SP));
 
     if (ad.stack_space_for_local_vars > 0) {
         ad.listing->ops->set_next_comment(ad.listing, "reserve space for local vars");
-        ad.listing->ops->add(ad.listing, new_asm_operation_with_operands(OC_SUB, 
+        ad.listing->ops->add(ad.listing, new_asm_instruction_with_operands(OC_SUB, 
             new_asm_operand_reg(REG_SP),
             new_asm_operand_imm(ad.stack_space_for_local_vars)));
     }
@@ -105,10 +104,10 @@ static void code_prologue() {
 static void code_epilogue() {
     ad.listing->ops->set_next_label(ad.listing, "%s_exit", ad.func_def->func_name);
     ad.listing->ops->set_next_comment(ad.listing, "tear down stack frame");
-    ad.listing->ops->add(ad.listing, new_asm_operation_for_registers(OC_MOV, REG_SP, REG_BP));
-    ad.listing->ops->add(ad.listing, new_asm_operation_for_register(OC_POP, REG_BP));
+    ad.listing->ops->add(ad.listing, new_asm_instruction_for_registers(OC_MOV, REG_SP, REG_BP));
+    ad.listing->ops->add(ad.listing, new_asm_instruction_for_register(OC_POP, REG_BP));
     ad.listing->ops->set_next_comment(ad.listing, "return value should be in EAX");
-    ad.listing->ops->add(ad.listing, new_asm_operation(OC_RET));
+    ad.listing->ops->add(ad.listing, new_asm_instruction(OC_RET));
 }
 
 static void code_function_call(struct ir_entry_function_call_info *c) {
@@ -122,25 +121,25 @@ static void code_function_call(struct ir_entry_function_call_info *c) {
     
     for (int i = c->args_len - 1; i >= 0; i--) {
         struct asm_operand *op = resolve_ir_value_to_asm_operand(c->args_arr[i]);
-        ad.listing->ops->add(ad.listing, new_asm_operation_with_operand(OC_PUSH, op));
+        ad.listing->ops->add(ad.listing, new_asm_instruction_with_operand(OC_PUSH, op));
         bytes_pushed += options.pointer_size_bytes; // how can we be sure?
     }
 
     struct asm_operand *addr = resolve_ir_value_to_asm_operand(c->func_addr);
-    ad.listing->ops->add(ad.listing, new_asm_operation_with_operand(OC_CALL, addr));
+    ad.listing->ops->add(ad.listing, new_asm_instruction_with_operand(OC_CALL, addr));
 
     // grab returned value, if any is expected
     if (c->lvalue != NULL) {
         ad.listing->ops->set_next_comment(ad.listing, "get value returned from function");
         struct asm_operand *ax = new_asm_operand_reg(REG_AX);
         struct asm_operand *lval = resolve_ir_value_to_asm_operand(c->lvalue);
-        ad.listing->ops->add(ad.listing, new_asm_operation_with_operands(OC_MOV, lval, ax));
+        ad.listing->ops->add(ad.listing, new_asm_instruction_with_operands(OC_MOV, lval, ax));
     }
 
     // clean up pushed arguments
     if (bytes_pushed > 0) {
         ad.listing->ops->set_next_comment(ad.listing, "clean up %d bytes that were pushed as arguments", bytes_pushed);
-        ad.listing->ops->add(ad.listing, new_asm_operation_with_operands(OC_ADD, 
+        ad.listing->ops->add(ad.listing, new_asm_instruction_with_operands(OC_ADD, 
             new_asm_operand_reg(REG_SP), 
             new_asm_operand_imm(bytes_pushed)));
     }
@@ -167,10 +166,10 @@ static void code_conditional_jump(struct ir_entry_cond_jump_info *j) {
         // we cannot compare memory to memory (e.g. "(a > b)"), we must bring one into AX
         struct asm_operand *ax = new_asm_operand_reg(REG_AX);
         ad.listing->ops->set_next_comment(ad.listing, "bring value to register to compare");
-        ad.listing->ops->add(ad.listing, new_asm_operation_with_operands(OC_MOV, ax, op1));
-        ad.listing->ops->add(ad.listing, new_asm_operation_with_operands(OC_CMP, ax, op2));
+        ad.listing->ops->add(ad.listing, new_asm_instruction_with_operands(OC_MOV, ax, op1));
+        ad.listing->ops->add(ad.listing, new_asm_instruction_with_operands(OC_CMP, ax, op2));
     } else {
-        ad.listing->ops->add(ad.listing, new_asm_operation_with_operands(OC_MOV, op1, op2));
+        ad.listing->ops->add(ad.listing, new_asm_instruction_with_operands(OC_MOV, op1, op2));
     }
 
     // find the opcode, depending on the comparison flag
@@ -185,12 +184,12 @@ static void code_conditional_jump(struct ir_entry_cond_jump_info *j) {
     }
 
     struct asm_operand *addr = new_asm_operand_mem_by_sym(j->target_label);
-    ad.listing->ops->add(ad.listing, new_asm_operation_with_operand(op, addr));
+    ad.listing->ops->add(ad.listing, new_asm_instruction_with_operand(op, addr));
 }
 
 static void code_unconditional_jump(char *label) {
     struct asm_operand *addr = new_asm_operand_mem_by_sym(label);
-    ad.listing->ops->add(ad.listing, new_asm_operation_with_operand(OC_JMP, addr));
+    ad.listing->ops->add(ad.listing, new_asm_instruction_with_operand(OC_JMP, addr));
 }
 
 static void code_return_statement(struct ir_entry_return_info *info) {
@@ -198,14 +197,14 @@ static void code_return_statement(struct ir_entry_return_info *info) {
         ad.listing->ops->set_next_comment(ad.listing, "set returned value");
         struct asm_operand *ax = new_asm_operand_reg(REG_AX);
         struct asm_operand *val = resolve_ir_value_to_asm_operand(info->ret_val);
-        ad.listing->ops->add(ad.listing, new_asm_operation_with_operands(OC_MOV, ax,  val));
+        ad.listing->ops->add(ad.listing, new_asm_instruction_with_operands(OC_MOV, ax,  val));
     }
 
     char target[128];
     target[sizeof(target) - 1] = 0;
     snprintf(target, sizeof(target) - 1, "%s_exit", ad.func_def->func_name);
     struct asm_operand *addr = new_asm_operand_mem_by_sym(target);
-    ad.listing->ops->add(ad.listing, new_asm_operation_with_operand(OC_JMP, addr));
+    ad.listing->ops->add(ad.listing, new_asm_instruction_with_operand(OC_JMP, addr));
 }
 
 static void code_simple_assignment(ir_value *lvalue, ir_value *rvalue) {
@@ -217,10 +216,10 @@ static void code_simple_assignment(ir_value *lvalue, ir_value *rvalue) {
         // we cannot move memory to memory (e.g. "(a = b)"), we must bring one into AX
         struct asm_operand *ax = new_asm_operand_reg(REG_AX);
         ad.listing->ops->set_next_comment(ad.listing, "bring value to register for assignment");
-        ad.listing->ops->add(ad.listing, new_asm_operation_with_operands(OC_MOV, ax, rop));
-        ad.listing->ops->add(ad.listing, new_asm_operation_with_operands(OC_MOV, lop, ax));
+        ad.listing->ops->add(ad.listing, new_asm_instruction_with_operands(OC_MOV, ax, rop));
+        ad.listing->ops->add(ad.listing, new_asm_instruction_with_operands(OC_MOV, lop, ax));
     } else {
-        ad.listing->ops->add(ad.listing, new_asm_operation_with_operands(OC_MOV, lop, rop));
+        ad.listing->ops->add(ad.listing, new_asm_instruction_with_operands(OC_MOV, lop, rop));
     }
 }
 
@@ -236,26 +235,26 @@ static void code_unary_operation(ir_value *lvalue, ir_operation op, ir_value *rv
 
     switch (op) {
         case IR_NOT:
-            ad.listing->ops->add(ad.listing, new_asm_operation_with_operands(OC_MOV, ax, rop));
-            ad.listing->ops->add(ad.listing, new_asm_operation_for_register(OC_NOT, REG_AX));
-            ad.listing->ops->add(ad.listing, new_asm_operation_with_operands(OC_MOV, lop, ax));
+            ad.listing->ops->add(ad.listing, new_asm_instruction_with_operands(OC_MOV, ax, rop));
+            ad.listing->ops->add(ad.listing, new_asm_instruction_for_register(OC_NOT, REG_AX));
+            ad.listing->ops->add(ad.listing, new_asm_instruction_with_operands(OC_MOV, lop, ax));
             break;
         case IR_NEG:
-            ad.listing->ops->add(ad.listing, new_asm_operation_with_operands(OC_MOV, ax, rop));
-            ad.listing->ops->add(ad.listing, new_asm_operation_for_register(OC_NEG, REG_AX));
-            ad.listing->ops->add(ad.listing, new_asm_operation_with_operands(OC_MOV, lop, ax));
+            ad.listing->ops->add(ad.listing, new_asm_instruction_with_operands(OC_MOV, ax, rop));
+            ad.listing->ops->add(ad.listing, new_asm_instruction_for_register(OC_NEG, REG_AX));
+            ad.listing->ops->add(ad.listing, new_asm_instruction_with_operands(OC_MOV, lop, ax));
             break;
         case IR_ADDR_OF:
             ad.listing->ops->set_next_comment(ad.listing, "get address of");
-            ad.listing->ops->add(ad.listing, new_asm_operation_with_operands(OC_LEA, ax, rop));
-            ad.listing->ops->add(ad.listing, new_asm_operation_with_operands(OC_MOV, lop, ax));
+            ad.listing->ops->add(ad.listing, new_asm_instruction_with_operands(OC_LEA, ax, rop));
+            ad.listing->ops->add(ad.listing, new_asm_instruction_with_operands(OC_MOV, lop, ax));
             break;
         case IR_VALUE_AT:
             // memory pointed by AX, without displacement.
             ad.listing->ops->set_next_comment(ad.listing, "get value pointed by");
-            ad.listing->ops->add(ad.listing, new_asm_operation_with_operands(OC_MOV, ax, rop));
+            ad.listing->ops->add(ad.listing, new_asm_instruction_with_operands(OC_MOV, ax, rop));
             struct asm_operand *ptr = new_asm_operand_mem_by_reg(REG_AX, 0);
-            ad.listing->ops->add(ad.listing, new_asm_operation_with_operands(OC_MOV, lop, ptr));
+            ad.listing->ops->add(ad.listing, new_asm_instruction_with_operands(OC_MOV, lop, ptr));
             break;
         default:
             error(NULL, 0, "Unsupported IR unary operator %d", op);
@@ -276,50 +275,50 @@ static void code_binary_operation(ir_value *lvalue, ir_value *rvalue1, ir_operat
     struct asm_operand *rop1 = resolve_ir_value_to_asm_operand(rvalue1);
     struct asm_operand *rop2 = resolve_ir_value_to_asm_operand(rvalue2);
 
-    ad.listing->ops->add(ad.listing, new_asm_operation_with_operands(OC_MOV, ax, rop1));
+    ad.listing->ops->add(ad.listing, new_asm_instruction_with_operands(OC_MOV, ax, rop1));
     switch (op) {
         case IR_ADD:
-            ad.listing->ops->add(ad.listing, new_asm_operation_with_operands(OC_ADD, ax, rop2));
+            ad.listing->ops->add(ad.listing, new_asm_instruction_with_operands(OC_ADD, ax, rop2));
             break;
         case IR_SUB:
-            ad.listing->ops->add(ad.listing, new_asm_operation_with_operands(OC_SUB, ax, rop2));
+            ad.listing->ops->add(ad.listing, new_asm_instruction_with_operands(OC_SUB, ax, rop2));
             break;
         case IR_MUL:
-            ad.listing->ops->add(ad.listing, new_asm_operation_with_operands(OC_MUL, ax, rop2));
+            ad.listing->ops->add(ad.listing, new_asm_instruction_with_operands(OC_MUL, ax, rop2));
             break;
         case IR_DIV:
-            ad.listing->ops->add(ad.listing, new_asm_operation_with_operands(OC_DIV, ax, rop2));
+            ad.listing->ops->add(ad.listing, new_asm_instruction_with_operands(OC_DIV, ax, rop2));
             break;
         case IR_MOD:
             // division puts remainder in DX, so move it to AX
-            ad.listing->ops->add(ad.listing, new_asm_operation_with_operands(OC_DIV, ax, rop2));
-            ad.listing->ops->add(ad.listing, new_asm_operation_with_operands(OC_MOV, ax, dx));
+            ad.listing->ops->add(ad.listing, new_asm_instruction_with_operands(OC_DIV, ax, rop2));
+            ad.listing->ops->add(ad.listing, new_asm_instruction_with_operands(OC_MOV, ax, dx));
             break;
         case IR_AND:
-            ad.listing->ops->add(ad.listing, new_asm_operation_with_operands(OC_AND, ax, rop2));
+            ad.listing->ops->add(ad.listing, new_asm_instruction_with_operands(OC_AND, ax, rop2));
             break;
         case IR_OR:
-            ad.listing->ops->add(ad.listing, new_asm_operation_with_operands(OC_OR, ax, rop2));
+            ad.listing->ops->add(ad.listing, new_asm_instruction_with_operands(OC_OR, ax, rop2));
             break;
         case IR_XOR:
-            ad.listing->ops->add(ad.listing, new_asm_operation_with_operands(OC_XOR, ax, rop2));
+            ad.listing->ops->add(ad.listing, new_asm_instruction_with_operands(OC_XOR, ax, rop2));
             break;
         case IR_LSH:
             // we must move num of bits to shift into CL
-            ad.listing->ops->add(ad.listing, new_asm_operation_with_operands(OC_MOV, cx, rop2));
-            ad.listing->ops->add(ad.listing, new_asm_operation_with_operands(OC_SHL, ax, cx));
+            ad.listing->ops->add(ad.listing, new_asm_instruction_with_operands(OC_MOV, cx, rop2));
+            ad.listing->ops->add(ad.listing, new_asm_instruction_with_operands(OC_SHL, ax, cx));
             break;
         case IR_RSH:
             // we must move num of bits to shift into CL
-            ad.listing->ops->add(ad.listing, new_asm_operation_with_operands(OC_MOV, cx, rop2));
-            ad.listing->ops->add(ad.listing, new_asm_operation_with_operands(OC_SHR, ax, cx));
+            ad.listing->ops->add(ad.listing, new_asm_instruction_with_operands(OC_MOV, cx, rop2));
+            ad.listing->ops->add(ad.listing, new_asm_instruction_with_operands(OC_SHR, ax, cx));
             break;
         default:
             error(NULL, 0, "Unsupported 3-code-addr binary operator %d", op);
             break;
     }
 
-    ad.listing->ops->add(ad.listing, new_asm_operation_with_operands(OC_MOV, lop, ax));
+    ad.listing->ops->add(ad.listing, new_asm_instruction_with_operands(OC_MOV, lop, ax));
 }
 
 // when a temp register is no longer used, we release the storage it was allocated for it.
@@ -467,22 +466,25 @@ void x86_assemble_ir_listing(ir_listing *ir_list, asm_listing *asm_list) {
 void x86_encode_asm_into_machine_code(asm_listing *asm_list, enum x86_cpu_mode mode, obj_code *mod) {
     // encode this into intel machine code
     struct x86_encoder *enc = new_x86_encoder(mode, mod->text_seg, mod->relocations);
-    struct asm_instruction *inst;
+    struct asm_instruction *p;
 
-    for (int i = 0; i < asm_list->length; i++) {
-        inst = &asm_list->instructions[i];
+    error(NULL, 0, "x86_encode_asm_into_machine_code() not implemented yet!!");
+    return;
 
-        if (inst->label != NULL) {
-            // we don't know if this is exported for now
-            mod->symbols->add(mod->symbols, inst->label, mod->text_seg->length, SB_CODE);
-        }
+    // for (int i = 0; i < asm_list->length; i++) {
+    //     p = &asm_list->instruction_ptrs[i];
 
-        if (!enc->encode(enc, inst)) {
-            char str[128];
-            instruction_to_string(inst, str, sizeof(str));
-            error(NULL, 0, "Failed encoding instruction: '%s'\n", str);
-            return;
-        }
-    }
+    //     if (p->label != NULL) {
+    //         // we don't know if this is exported for now
+    //         mod->symbols->add(mod->symbols, p->label, mod->text_seg->length, SB_CODE);
+    //     }
+
+    //     if (!enc->encode_old(enc, p)) {
+    //         char str[128];
+    //         instruction_old_to_string(p, str, sizeof(str));
+    //         error(NULL, 0, "Failed encoding instruction: '%s'\n", str);
+    //         return;
+    //     }
+    // }
 }
 

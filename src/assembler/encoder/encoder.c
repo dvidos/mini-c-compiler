@@ -166,7 +166,7 @@ typedef uint64_t u64;
 */
 
 
-static bool x86_encoder_encode(struct x86_encoder *enc, struct asm_instruction *instr);
+static bool x86_encoder_encode(struct x86_encoder *enc, struct asm_instruction_old *instr);
 static void x86_encoder_reset(struct x86_encoder *enc);
 static void x86_encoder_free(struct x86_encoder *enc);
 
@@ -177,7 +177,7 @@ struct x86_encoder *new_x86_encoder(enum x86_cpu_mode mode, buffer *code_out, re
     enc->output = code_out;
     enc->relocations = relocations_out;
 
-    enc->encode = x86_encoder_encode;
+    enc->encode_old = x86_encoder_encode;
     enc->reset = x86_encoder_reset;
     enc->free = x86_encoder_free;
 };
@@ -269,7 +269,7 @@ static bool encode_ext_instr_mem_by_symbol(struct x86_encoder *enc, u8 opcode, u
 
 
 
-static bool x86_encoder_encode(struct x86_encoder *enc, struct asm_instruction *instr) {
+static bool x86_encoder_encode(struct x86_encoder *enc, struct asm_instruction_old *instr) {
     if (enc->mode != CPU_MODE_PROTECTED) {
         return false;
     }

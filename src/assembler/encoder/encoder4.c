@@ -7,7 +7,7 @@
 
 
 
-static bool encode_opcode(asm_instruction *oper, struct encoding_info *info, struct encoded_instruction *result) {
+static bool encode_asm_instr_opcode(asm_instruction *oper, struct encoding_info *info, struct encoded_instruction *result) {
 
     // setup 16-bit operand size if needed
     if (oper->operands_size_bits == 16) {
@@ -47,7 +47,7 @@ static bool encode_opcode(asm_instruction *oper, struct encoding_info *info, str
     }
 }
 
-static bool encode_operands(asm_instruction *oper, struct encoding_info *info, struct encoded_instruction *result) {
+static bool encode_asm_instr_operands(asm_instruction *oper, struct encoding_info *info, struct encoded_instruction *result) {
 
     // see if we need mod/rm
     if (!info->needs_modregrm)
@@ -130,7 +130,7 @@ static bool encode_operands(asm_instruction *oper, struct encoding_info *info, s
     return true;
 }
 
-static bool encode_immediate(asm_instruction *oper, struct encoding_info *info, struct encoded_instruction *result) {
+static bool encode_asm_instr_immediate(asm_instruction *oper, struct encoding_info *info, struct encoded_instruction *result) {
 
     // maybe we don't need anything
     if (!oper->operand2.is_immediate)
@@ -160,19 +160,21 @@ static bool encode_immediate(asm_instruction *oper, struct encoding_info *info, 
     return true;
 }
 
-bool encode_cpu_operation(asm_instruction *oper, struct encoding_info *info, struct encoded_instruction *result) {
+bool encode_asm_instruction(asm_instruction *oper, struct encoding_info *info, struct encoded_instruction *result) {
     // logic in this function based largely on this page;
     // http://www.c-jump.com/CIS77/CPU/x86/lecture.html
 
     // maybe good example will be:
     // "MOV [BP+CX*4+16], -16", it contains 16bit prefix, ModRegRM, SIB, displacement, immediate.
+    // it should become:  op  rm  sid  offset  immediate
+    //                    C7  44  8D   10      F0 FF FF FF
 
     memset(result, 0, sizeof(struct encoded_instruction));
-    if (!encode_opcode(oper, info, result))
+    if (!encode_asm_instr_opcode(oper, info, result))
         return false;
-    if (!encode_operands(oper, info, result))
+    if (!encode_asm_instr_operands(oper, info, result))
         return false;
-    if (!encode_immediate(oper, info, result))
+    if (!encode_asm_instr_immediate(oper, info, result))
         return false;
     return true;
 }

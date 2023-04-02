@@ -1,17 +1,16 @@
 get_next_counter_value:
     PUSH   BP                ; establish stack frame
     MOV    BP <- SP
-    ; r1 is now BX
+    ; BX allocated to r1
     MOV    BX <- counter
-    ; r2 is now CX
+    ; CX allocated to r2
     MOV    CX <- 0x1
     MOV    AX <- BX          ; counter = r1 + r2
     ADD    AX <- CX
     MOV    counter <- AX
-    ; r2 storage released
-    ; r3 is now CX
-    MOV    CX <- counter
-    MOV    AX <- CX          ; return r3
+    ; DX allocated to r3
+    MOV    DX <- counter
+    MOV    AX <- DX          ; return r3
     JMP    get_next_counter_value_exit
 get_next_counter_value_exit:
     MOV    SP <- BP          ; tear down stack frame
@@ -24,11 +23,11 @@ rect_area:
     MOV    BP <- SP
     ; [EBP +8] argument "width", 4 bytes
     ; [EBP+12] argument "height", 4 bytes
-    ; r5 is now BX
+    ; BX allocated to r5
     MOV    BX <- [BP+8]
-    ; r6 is now CX
+    ; CX allocated to r6
     MOV    CX <- [BP+12]
-    ; r4 is now DX
+    ; DX allocated to r4
     MOV    AX <- BX
     IMUL   AX <- CX
     MOV    DX <- AX
@@ -48,17 +47,17 @@ triangle_area:
     MOV    BP <- SP
     ; [EBP +8] argument "width", 4 bytes
     ; [EBP+12] argument "height", 4 bytes
-    ; r8 is now BX
+    ; BX allocated to r8
     MOV    BX <- [BP+8]
-    ; r10 is now CX
+    ; CX allocated to r10
     MOV    CX <- [BP+12]
-    ; r11 is now DX
+    ; DX allocated to r11
     MOV    DX <- 0x2
-    ; r9 is now SI
+    ; SI allocated to r9
     MOV    AX <- CX
     IDIV   AX <- DX
     MOV    SI <- AX
-    ; r7 is now DI
+    ; DI allocated to r7
     MOV    AX <- BX
     IMUL   AX <- SI
     MOV    DI <- AX
@@ -75,17 +74,17 @@ circle_area:
     PUSH   BP                ; establish stack frame
     MOV    BP <- SP
     ; [EBP +8] argument "radius", 4 bytes
-    ; r13 is now BX
+    ; BX allocated to r13
     MOV    BX <- 0x3
-    ; r15 is now CX
+    ; CX allocated to r15
     MOV    CX <- [BP+8]
-    ; r16 is now DX
+    ; DX allocated to r16
     MOV    DX <- [BP+8]
-    ; r14 is now SI
+    ; SI allocated to r14
     MOV    AX <- CX
     IMUL   AX <- DX
     MOV    SI <- AX
-    ; r12 is now DI
+    ; DI allocated to r12
     MOV    AX <- BX
     IMUL   AX <- SI
     MOV    DI <- AX
@@ -103,44 +102,44 @@ fibonacci:
     ; [EBP +8] argument "n", 4 bytes
     CMP    [BP+8] <- 0x2     ; if n > 2 goto if_3_end
     JGT    if_3_end
-    ; r17 is now BX
+    ; BX allocated to r17
     MOV    BX <- [BP+8]
     MOV    AX <- BX          ; return r17
     JMP    fibonacci_exit
 if_3_end:
-    ; r21 is now CX
+    ; CX allocated to r21
     MOV    CX <- [BP+8]
-    ; r22 is now DX
+    ; DX allocated to r22
     MOV    DX <- 0x1
-    ; r20 is now SI
+    ; SI allocated to r20
     MOV    AX <- CX
     SUB    AX <- DX
     MOV    SI <- AX
     PUSH   SI                ; r19 = call fibonacci passing r20
     CALL   fibonacci
-    ; r19 is now DI
+    ; DI allocated to r19
     MOV    DI <- AX
     ADD    SP <- 0x4         ; clean up 4 bytes that were pushed as arguments
     SUB    0x4 <- SP         ; grab some space for temp register
-    ; r25 is now [BP-4] (4 bytes)
+    ; [BP-4] (4 bytes) allocated to r25
     MOV    AX <- [BP+8]
     MOV    [BP-4] <- AX
     SUB    0x4 <- SP         ; grab some space for temp register
-    ; r26 is now [BP-8] (4 bytes)
+    ; [BP-8] (4 bytes) allocated to r26
     MOV    [BP-8] <- 0x2
     SUB    0x4 <- SP         ; grab some space for temp register
-    ; r24 is now [BP-12] (4 bytes)
+    ; [BP-12] (4 bytes) allocated to r24
     MOV    AX <- [BP-4]
     SUB    AX <- [BP-8]
     MOV    [BP-12] <- AX
     PUSH   [BP-12]           ; r23 = call fibonacci passing r24
     CALL   fibonacci
     SUB    0x4 <- SP         ; grab some space for temp register
-    ; r23 is now [BP-16] (4 bytes)
+    ; [BP-16] (4 bytes) allocated to r23
     MOV    [BP-16] <- AX
     ADD    SP <- 0x4         ; clean up 4 bytes that were pushed as arguments
     SUB    0x4 <- SP         ; grab some space for temp register
-    ; r18 is now [BP-20] (4 bytes)
+    ; [BP-20] (4 bytes) allocated to r18
     MOV    AX <- DI
     ADD    AX <- [BP-16]
     MOV    [BP-20] <- AX
@@ -158,29 +157,29 @@ factorial:
     ; [EBP +8] argument "n", 4 bytes
     CMP    [BP+8] <- 0x1     ; if n > 1 goto if_4_end
     JGT    if_4_end
-    ; r27 is now BX
+    ; BX allocated to r27
     MOV    BX <- [BP+8]
     MOV    AX <- BX          ; return r27
     JMP    factorial_exit
 if_4_end:
-    ; r29 is now CX
+    ; CX allocated to r29
     MOV    CX <- [BP+8]
-    ; r32 is now DX
+    ; DX allocated to r32
     MOV    DX <- [BP+8]
-    ; r33 is now SI
+    ; SI allocated to r33
     MOV    SI <- 0x1
-    ; r31 is now DI
+    ; DI allocated to r31
     MOV    AX <- DX
     SUB    AX <- SI
     MOV    DI <- AX
     PUSH   DI                ; r30 = call factorial passing r31
     CALL   factorial
     SUB    0x4 <- SP         ; grab some space for temp register
-    ; r30 is now [BP-4] (4 bytes)
+    ; [BP-4] (4 bytes) allocated to r30
     MOV    [BP-4] <- AX
     ADD    SP <- 0x4         ; clean up 4 bytes that were pushed as arguments
     SUB    0x4 <- SP         ; grab some space for temp register
-    ; r28 is now [BP-8] (4 bytes)
+    ; [BP-8] (4 bytes) allocated to r28
     MOV    AX <- CX
     IMUL   AX <- [BP-4]
     MOV    [BP-8] <- AX
@@ -199,25 +198,25 @@ math_demo:
     ; [EBP -4] local var "i", 4 bytes
     MOV    [BP-4] <- 0x0     ; i = 0
 while_5_begin:
-    ; r35 is now BX
+    ; BX allocated to r35
     MOV    BX <- [BP-4]
     MOV    AX <- BX          ; i = r35 + 1
     ADD    AX <- 0x1
     MOV    [BP-4] <- AX
-    ; r34 is now CX
+    ; CX allocated to r34
     MOV    CX <- BX
     CMP    CX <- 0xa         ; if r34 >= 0xa goto while_5_end
     JGE    while_5_end
-    ; r36 is now DX
+    ; DX allocated to r36
     MOV    DX <- __str_1
-    ; r37 is now SI
+    ; SI allocated to r37
     MOV    SI <- [BP-4]
-    ; r39 is now DI
+    ; DI allocated to r39
     MOV    DI <- [BP-4]
     PUSH   DI                ; r38 = call fibonacci passing r39
     CALL   fibonacci
     SUB    0x4 <- SP         ; grab some space for temp register
-    ; r38 is now [BP-8] (4 bytes)
+    ; [BP-8] (4 bytes) allocated to r38
     MOV    [BP-8] <- AX
     ADD    SP <- 0x4         ; clean up 4 bytes that were pushed as arguments
     PUSH   [BP-8]            ; call printf passing r36, r37, r38
@@ -230,34 +229,34 @@ while_5_end:
     MOV    [BP-4] <- 0x0     ; i = 0
 while_6_begin:
     SUB    0x4 <- SP         ; grab some space for temp register
-    ; r41 is now [BP-12] (4 bytes)
+    ; [BP-12] (4 bytes) allocated to r41
     MOV    AX <- [BP-4]
     MOV    [BP-12] <- AX
     MOV    AX <- [BP-12]     ; i = r41 + 1
     ADD    AX <- 0x1
     MOV    [BP-4] <- AX
     SUB    0x4 <- SP         ; grab some space for temp register
-    ; r40 is now [BP-16] (4 bytes)
+    ; [BP-16] (4 bytes) allocated to r40
     MOV    AX <- [BP-12]
     MOV    [BP-16] <- AX
     CMP    [BP-16] <- 0xa    ; if r40 >= 0xa goto while_6_end
     JGE    while_6_end
     SUB    0x4 <- SP         ; grab some space for temp register
-    ; r42 is now [BP-20] (4 bytes)
+    ; [BP-20] (4 bytes) allocated to r42
     MOV    AX <- __str_2
     MOV    [BP-20] <- AX
     SUB    0x4 <- SP         ; grab some space for temp register
-    ; r43 is now [BP-24] (4 bytes)
+    ; [BP-24] (4 bytes) allocated to r43
     MOV    AX <- [BP-4]
     MOV    [BP-24] <- AX
     SUB    0x4 <- SP         ; grab some space for temp register
-    ; r45 is now [BP-28] (4 bytes)
+    ; [BP-28] (4 bytes) allocated to r45
     MOV    AX <- [BP-4]
     MOV    [BP-28] <- AX
     PUSH   [BP-28]           ; r44 = call factorial passing r45
     CALL   factorial
     SUB    0x4 <- SP         ; grab some space for temp register
-    ; r44 is now [BP-32] (4 bytes)
+    ; [BP-32] (4 bytes) allocated to r44
     MOV    [BP-32] <- AX
     ADD    SP <- 0x4         ; clean up 4 bytes that were pushed as arguments
     PUSH   [BP-32]           ; call printf passing r42, r43, r44
@@ -286,14 +285,14 @@ while_7_begin:
 while_8_begin:
     CMP    [BP-8] <- 0x0     ; if inner <= 0 goto while_8_end
     JLE    while_8_end
-    ; r46 is now BX
+    ; BX allocated to r46
     MOV    BX <- [BP-8]
     MOV    AX <- BX          ; inner = r46 - 1
     SUB    AX <- 0x1
     MOV    [BP-8] <- AX
     JMP    while_8_begin
 while_8_end:
-    ; r47 is now CX
+    ; CX allocated to r47
     MOV    CX <- [BP-4]
     MOV    AX <- CX          ; outer = r47 - 1
     SUB    AX <- 0x1
@@ -315,14 +314,14 @@ test_pre_post_inc_dec:
     ; [EBP-16] local var "d", 4 bytes
     ; [EBP-20] local var "result", 4 bytes
     MOV    [BP-4] <- 0x8     ; a = 8
-    ; r48 is now BX
+    ; BX allocated to r48
     MOV    BX <- [BP-4]
     MOV    AX <- BX          ; a = r48 + 1
     ADD    AX <- 0x1
     MOV    [BP-4] <- AX
     MOV    [BP-20] <- BX     ; result = r48
     MOV    [BP-8] <- 0x8     ; b = 8
-    ; r49 is now CX
+    ; CX allocated to r49
     MOV    CX <- [BP-8]
     MOV    AX <- CX          ; b = r49 + 1
     ADD    AX <- 0x1
@@ -330,14 +329,14 @@ test_pre_post_inc_dec:
     MOV    AX <- [BP-8]      ; result = b
     MOV    [BP-20] <- AX
     MOV    [BP-12] <- 0x8    ; c = 8
-    ; r50 is now DX
+    ; DX allocated to r50
     MOV    DX <- [BP-12]
     MOV    AX <- DX          ; c = r50 - 1
     SUB    AX <- 0x1
     MOV    [BP-12] <- AX
     MOV    [BP-20] <- DX     ; result = r50
     MOV    [BP-16] <- 0x8    ; d = 8
-    ; r51 is now SI
+    ; SI allocated to r51
     MOV    SI <- [BP-16]
     MOV    AX <- SI          ; d = r51 - 1
     SUB    AX <- 0x1
@@ -362,9 +361,9 @@ main:
     ; [EBP-13] local var "d", 4 bytes
     ; [EBP-29] local var "buffer", 16 bytes
     MOV    [BP-4] <- 0x1     ; a = 1
-    ; r52 is now BX
+    ; BX allocated to r52
     MOV    BX <- [BP-4]
-    ; r53 is now CX
+    ; CX allocated to r53
     MOV    CX <- 0x2
     MOV    AX <- BX          ; b = r52 + r53
     ADD    AX <- CX

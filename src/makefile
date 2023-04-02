@@ -41,6 +41,7 @@ SRC_FILES = \
 	assembler/encoder/asm_listing.c \
 	assembler/encoder/asm_allocator.c \
 	assembler/encoder/encoded_instruction.c \
+	assembler/encoder/encoding_info.c \
 	assembler/encoder/encoder4.c \
 	assembler/assembler.c \
 	linker/symbol_table.c \

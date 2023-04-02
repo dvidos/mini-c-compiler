@@ -1,5 +1,6 @@
 #pragma once
 #include <stdbool.h>
+#include "asm_instruction.h"
 
 
 
@@ -21,3 +22,5 @@ struct encoding_info {
     bool has_sign_expanded_immediate_bit; 
 };
 
+
+bool load_encoding_info(enum opcode op, struct encoding_info *info);

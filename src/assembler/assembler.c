@@ -3,12 +3,14 @@
 #include <string.h>
 #include "../err_handler.h"
 #include "../options.h"
+#include "../utils/str.h"
 #include "../compiler/codegen/ir_listing.h"
 #include "../linker/obj_code.h"
 #include "encoder/asm_listing.h"
 #include "encoder/encoder.h"
 #include "encoder/asm_allocator.h"
 #include "encoder/asm_instruction.h"
+#include "encoder/encoder4.h"
 #include "../utils/str.h"
 
 
@@ -500,25 +502,37 @@ void x86_assemble_ir_listing(ir_listing *ir_list, asm_listing *asm_list) {
 void x86_encode_asm_into_machine_code(asm_listing *asm_list, enum x86_cpu_mode mode, obj_code *mod) {
     // encode this into intel machine code
     struct x86_encoder *enc = new_x86_encoder(mode, mod->text_seg, mod->relocations);
-    struct asm_instruction *p;
+    asm_instruction *inst;
+    struct encoding_info enc_info;
+    encoded_instruction enc_inst;
 
-    error(NULL, 0, "x86_encode_asm_into_machine_code() not implemented yet!!");
-    return;
+    for (int i = 0; i < asm_list->length; i++) {
+        inst = asm_list->instruction_ptrs[i];
 
-    // for (int i = 0; i < asm_list->length; i++) {
-    //     p = &asm_list->instruction_ptrs[i];
+        if (inst->label != NULL) {
+            // we don't know if this is exported for now
+            mod->symbols->add(mod->symbols, inst->label, mod->text_seg->length, SB_CODE);
+        }
 
-    //     if (p->label != NULL) {
-    //         // we don't know if this is exported for now
-    //         mod->symbols->add(mod->symbols, p->label, mod->text_seg->length, SB_CODE);
-    //     }
+        if (inst->operation == OC_NONE)
+            continue;
+        
+        if (!load_encoding_info(inst->operation, &enc_info)) {
+            error(NULL, 0, "Failed loading encoding info for operation '%s'\n", opcode_name(inst->operation));
+            return;
+        }
+        
+        if (!encode_asm_instruction(inst, &enc_info, &enc_inst)) {
+            str *s = new_str();
+            asm_instruction_to_str(inst, s);
+            error(NULL, 0, "Failed encoding instruction: '%s'\n", s->buffer);
+            s->v->free(s);
+            return;
+        }
 
-    //     if (!enc->encode_old(enc, p)) {
-    //         char str[128];
-    //         instruction_old_to_string(p, str, sizeof(str));
-    //         error(NULL, 0, "Failed encoding instruction: '%s'\n", str);
-    //         return;
-    //     }
-    // }
+        // should pack the encoded instruction
+        // maybe I should also print it...
+        pack_encoded_instruction(&enc_inst, mod->text_seg);
+    }
 }
 

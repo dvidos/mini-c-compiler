@@ -1,17 +1,19 @@
 #pragma once
+#include "../../utils/buffer.h"
+#include "../../utils/str.h"
 
 
 // represents encoded bytes, eases encoding & debugging
-struct encoded_instruction {
+typedef struct encoded_instruction {
     struct {
-        unsigned long have_instruction_prefix : 1;
-        unsigned long have_address_size_prefix : 1;
-        unsigned long have_operand_size_prefix : 1;
-        unsigned long have_segment_override_prefix : 1;
-        unsigned long have_opcode_expansion_byte: 1;
-        unsigned long have_second_opcode_byte: 1;
-        unsigned long have_modregrm: 1;
-        unsigned long have_sib: 1;
+        unsigned char have_instruction_prefix : 1;
+        unsigned char have_address_size_prefix : 1;
+        unsigned char have_operand_size_prefix : 1;
+        unsigned char have_segment_override_prefix : 1;
+        unsigned char have_opcode_expansion_byte: 1;
+        unsigned char have_second_opcode_byte: 1;
+        unsigned char have_modregrm: 1;
+        unsigned char have_sib: 1;
     } flags;
     unsigned char instruction_prefix;
     unsigned char address_size_prefix;
@@ -25,7 +27,9 @@ struct encoded_instruction {
     unsigned char displacement_bytes_count; // 0..4
     unsigned char immediate[4];
     unsigned char immediate_bytes_count;    // 0..4
-};
+} encoded_instruction;
 
-void pack_encoded_instruction(struct encoded_instruction *inst, char *buffer, int *buffer_length);
-void print_encoded_instruction(struct encoded_instruction *inst, FILE *stream);
+
+void pack_encoded_instruction(encoded_instruction *inst, buffer *buff);
+void print_encoded_instruction(encoded_instruction *inst, str *s);
+

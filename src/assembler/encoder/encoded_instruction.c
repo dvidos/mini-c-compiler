@@ -3,58 +3,43 @@
 #include "encoded_instruction.h"
 
 
-void pack_encoded_instruction(struct encoded_instruction *inst, char *buffer, int *buffer_length) {
+void pack_encoded_instruction(encoded_instruction *inst, buffer *buff) {
 
     // prefixes
-    if (inst->flags.have_instruction_prefix) {
-        *buffer++ = inst->instruction_prefix;
-        (*buffer_length)++;
-    }
-    if (inst->flags.have_address_size_prefix) {
-        *buffer++ = inst->address_size_prefix;
-        (*buffer_length)++;
-    }
-    if (inst->flags.have_operand_size_prefix) {
-        *buffer++ = inst->operand_size_prefix;
-        (*buffer_length)++;
-    }
-    if (inst->flags.have_segment_override_prefix) {
-        *buffer++ = inst->segment_override_prefix;
-        (*buffer_length)++;
-    }
+    if (inst->flags.have_instruction_prefix)
+        buff->add_byte(buff, inst->instruction_prefix);
+
+    if (inst->flags.have_address_size_prefix)
+        buff->add_byte(buff, inst->address_size_prefix);
+    
+    if (inst->flags.have_operand_size_prefix)
+        buff->add_byte(buff, inst->operand_size_prefix);
+
+    if (inst->flags.have_segment_override_prefix)
+        buff->add_byte(buff, inst->segment_override_prefix);
 
     // opcode(s)
-    if (inst->flags.have_opcode_expansion_byte) {
-        *buffer++ = inst->opcode_expansion_byte;
-        (*buffer_length)++;
-    }
-    *buffer++ = inst->opcode_byte;
-    (*buffer_length)++;
+    if (inst->flags.have_opcode_expansion_byte)
+        buff->add_byte(buff, inst->opcode_expansion_byte);
+
+    buff->add_byte(buff, inst->opcode_byte);
 
     // operands
-    if (inst->flags.have_modregrm) {
-        *buffer++ = inst->modregrm_byte;
-        (*buffer_length)++;
-    }
-    if (inst->flags.have_sib) {
-        *buffer++ = inst->sib_byte;
-        (*buffer_length)++;
-    }
+    if (inst->flags.have_modregrm)
+        buff->add_byte(buff, inst->modregrm_byte);
+
+    if (inst->flags.have_sib)
+        buff->add_byte(buff, inst->sib_byte);
 
     // displacement & immediate
-    if (inst->displacement_bytes_count > 0) {
-        memcpy(buffer, inst->displacement, inst->displacement_bytes_count);
-        buffer += inst->displacement_bytes_count;
-        (*buffer_length) += inst->displacement_bytes_count;
-    }
-    if (inst->immediate_bytes_count > 0) {
-        memcpy(buffer, inst->immediate, inst->immediate_bytes_count);
-        buffer += inst->immediate_bytes_count;
-        (*buffer_length) += inst->immediate_bytes_count;
-    }
+    if (inst->displacement_bytes_count > 0)
+        buff->add_mem(buff, inst->displacement, inst->displacement_bytes_count);
+
+    if (inst->immediate_bytes_count > 0)
+        buff->add_mem(buff, inst->immediate, inst->immediate_bytes_count);
 }
 
-void print_encoded_instruction(struct encoded_instruction *inst, FILE *stream) {
+void print_encoded_instruction(encoded_instruction *inst, str *s) {
 /*
     4 prefix bytes, 2 opcode bytes, modregrm, sib, 0-4 displacement, 0-4 immediate
 
@@ -66,13 +51,13 @@ void print_encoded_instruction(struct encoded_instruction *inst, FILE *stream) {
     char buffer[128];
 
     if (inst == NULL) {
-        fprintf(stream, "Ins Adr Opr Seg   Opc         ModR/M       SIB                                \n");
-        fprintf(stream, "Pfx Siz Siz Ovr   Pfx Opc   Md Reg R/M  SS Idx Bse   Displacemnt   Immediate  \n");
+        s->v->adds(s, "Ins Adr Opr Seg   Opc         ModR/M       SIB                                \n");
+        s->v->adds(s, "Pfx Siz Siz Ovr   Pfx Opc   Md Reg R/M  SS Idx Bse   Displacemnt   Immediate  ");
         return;
     }
-    //                   0         1         2         3         4         5         6         7         8
-    //                   012345678901234567890123456789012345678901234567890123456789012345678901234567890
-    strcpy(buffer,      " --  --  --  --    --  --   --.---.---  --.---.---   -- -- -- --   -- -- -- --");
+    //                 0         1         2         3         4         5         6         7         8
+    //                 012345678901234567890123456789012345678901234567890123456789012345678901234567890
+    strcpy(buffer,    " --  --  --  --    --  --   --.---.---  --.---.---   -- -- -- --   -- -- -- --");
 
     if (inst->flags.have_instruction_prefix) {
         sprintf(num, "%02x", (unsigned char)inst->instruction_prefix);
@@ -153,5 +138,5 @@ void print_encoded_instruction(struct encoded_instruction *inst, FILE *stream) {
         sprintf(num, "%02x", (unsigned char)inst->immediate[3]);
         memcpy(buffer + 76, num, 2);
     }
-    fprintf(stream, "%s\n", buffer);
+    s->v->addf(s, "%s", buffer);
 }

@@ -25,5 +25,5 @@
     Maybe we should start amazingly simple.
 */
 
-bool encode_cpu_operation(asm_instruction *oper, struct encoding_info *info, struct encoded_instruction *result);
+bool encode_asm_instruction(asm_instruction *inst, struct encoding_info *info, struct encoded_instruction *result);
 

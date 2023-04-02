@@ -9,19 +9,20 @@
 #include "encoder/encoder.h"
 #include "encoder/asm_allocator.h"
 #include "encoder/asm_instruction.h"
+#include "../utils/str.h"
 
 
 static struct asm_operand *resolve_ir_value_to_asm_operand(ir_value *v);
 
 static void code_prologue();
 static void code_epilogue();
-static void code_function_call(struct ir_entry_function_call_info *c);
-static void code_conditional_jump(struct ir_entry_cond_jump_info *j);
+static void code_function_call(ir_entry *e);
+static void code_conditional_jump(ir_entry *e);
 static void code_unconditional_jump(char *label);
-static void code_return_statement(struct ir_entry_return_info *info);
-static void code_simple_assignment(ir_value *lvalue, ir_value *rvalue);
-static void code_unary_operation(ir_value *lvalue, ir_operation op, ir_value *rvalue);
-static void code_binary_operation(ir_value *lvalue, ir_value *rvalue1, ir_operation op, ir_value *rvalue2);
+static void code_return_statement(ir_entry *e);
+static void code_simple_assignment(ir_entry *e, ir_value *lvalue, ir_value *rvalue);
+static void code_unary_operation(ir_entry *e, ir_value *lvalue, ir_operation op, ir_value *rvalue);
+static void code_binary_operation(ir_entry *e, ir_value *lvalue, ir_value *rvalue1, ir_operation op, ir_value *rvalue2);
 static void assemble_function(ir_listing *ir, int start, int end);
 
 
@@ -39,13 +40,20 @@ static struct assembler_data {
 struct asm_operand *resolve_ir_value_to_asm_operand(ir_value *v) {
     struct asm_operand *o = malloc(sizeof(struct asm_operand));
     storage s;
+    bool allocated;
 
     // consult temp register allocation, to resolve temp reg numbers
     // consult local symbols table, to resolve local symbols (e.g. func arguments)
     // immediates and global symbols stay as they are
     if (v->type == IR_TREG) {
         // could be either a register or stack value, depending on allocation
-        ad.allocator->ops->get_temp_reg_storage(ad.allocator, v->val.temp_reg_no, &s);
+        ad.allocator->ops->get_temp_reg_storage(ad.allocator, v->val.temp_reg_no, &s, &allocated);
+        if (allocated) {
+            str *st = new_str();
+            ad.allocator->ops->storage_to_str(ad.allocator, &s, st);
+            ad.listing->ops->add_comment(ad.listing, "%s allocated to r%d", st->buffer, v->val.temp_reg_no);
+            st->v->free(st);
+        }
         if (s.is_gp_reg) {
             o->type = OT_REGISTER;
             o->reg = s.gp_reg;
@@ -89,7 +97,7 @@ static void code_prologue() {
     ad.listing->ops->add(ad.listing, new_asm_instruction_for_registers(OC_MOV, REG_BP, REG_SP));
 
     if (ad.stack_space_for_local_vars > 0) {
-        ad.listing->ops->set_next_comment(ad.listing, "reserve space for local vars");
+        ad.listing->ops->set_next_comment(ad.listing, "reserve %d bytes for local vars", ad.stack_space_for_local_vars);
         ad.listing->ops->add(ad.listing, new_asm_instruction_with_operands(OC_SUB, 
             new_asm_operand_reg(REG_SP),
             new_asm_operand_imm(ad.stack_space_for_local_vars)));
@@ -110,15 +118,17 @@ static void code_epilogue() {
     ad.listing->ops->add(ad.listing, new_asm_instruction(OC_RET));
 }
 
-static void code_function_call(struct ir_entry_function_call_info *c) {
-    int bytes_pushed = 0;
+static void code_function_call(struct ir_entry *e) {
+    struct ir_entry_function_call_info *c = &e->t.function_call;
+    str *s = new_str();
+    e->ops->to_string(e, s);
+    ad.listing->ops->set_next_comment(ad.listing, s->buffer);
+    s->v->free(s);
+
 
     // caller saved registers
-
-    // push arguments from right to left
-    if (c->args_len > 0) 
-        ad.listing->ops->set_next_comment(ad.listing, "push %d args for function call", c->args_len);
     
+    int bytes_pushed = 0;
     for (int i = c->args_len - 1; i >= 0; i--) {
         struct asm_operand *op = resolve_ir_value_to_asm_operand(c->args_arr[i]);
         ad.listing->ops->add(ad.listing, new_asm_instruction_with_operand(OC_PUSH, op));
@@ -147,14 +157,20 @@ static void code_function_call(struct ir_entry_function_call_info *c) {
     // caller restore registers (except AX)
 }
 
-static void code_conditional_jump(struct ir_entry_cond_jump_info *j) {
+static void code_conditional_jump(ir_entry *e) {
     // emit two things: compare, then appropriate jump.
     // conditions depend on whether the values are signed or unsigned,
     // good info here: https://www.cs.princeton.edu/courses/archive/spr18/cos217/lectures/14_Assembly2.pdf
 
+    struct ir_entry_cond_jump_info *j = &e->t.conditional_jump;
     struct asm_operand *op1 = resolve_ir_value_to_asm_operand(j->v1);
     struct asm_operand *op2 = resolve_ir_value_to_asm_operand(j->v2);
     
+    str *s = new_str();
+    e->ops->to_string(e, s);
+    ad.listing->ops->set_next_comment(ad.listing, s->buffer);
+    s->v->free(s);
+
     // this version does not support immediates in op1 (e.g. "if (1 == a)")
     if (op1->type == OT_IMMEDIATE) {
         error(NULL, 0, "comparison op1 cannot be an immediate");
@@ -165,11 +181,10 @@ static void code_conditional_jump(struct ir_entry_cond_jump_info *j) {
         (op2->type == OT_MEM_POINTED_BY_REG || op2->type == OT_MEM_OF_SYMBOL)) {
         // we cannot compare memory to memory (e.g. "(a > b)"), we must bring one into AX
         struct asm_operand *ax = new_asm_operand_reg(REG_AX);
-        ad.listing->ops->set_next_comment(ad.listing, "bring value to register to compare");
         ad.listing->ops->add(ad.listing, new_asm_instruction_with_operands(OC_MOV, ax, op1));
         ad.listing->ops->add(ad.listing, new_asm_instruction_with_operands(OC_CMP, ax, op2));
     } else {
-        ad.listing->ops->add(ad.listing, new_asm_instruction_with_operands(OC_MOV, op1, op2));
+        ad.listing->ops->add(ad.listing, new_asm_instruction_with_operands(OC_CMP, op1, op2));
     }
 
     // find the opcode, depending on the comparison flag
@@ -192,9 +207,14 @@ static void code_unconditional_jump(char *label) {
     ad.listing->ops->add(ad.listing, new_asm_instruction_with_operand(OC_JMP, addr));
 }
 
-static void code_return_statement(struct ir_entry_return_info *info) {
+static void code_return_statement(ir_entry *e) {
+    struct ir_entry_return_info *info = &e->t.return_stmt;
+    str *s = new_str();
+    e->ops->to_string(e, s);
+    ad.listing->ops->set_next_comment(ad.listing, s->buffer);
+    s->v->free(s);
+
     if (info->ret_val != NULL) {
-        ad.listing->ops->set_next_comment(ad.listing, "set returned value");
         struct asm_operand *ax = new_asm_operand_reg(REG_AX);
         struct asm_operand *val = resolve_ir_value_to_asm_operand(info->ret_val);
         ad.listing->ops->add(ad.listing, new_asm_instruction_with_operands(OC_MOV, ax,  val));
@@ -207,7 +227,12 @@ static void code_return_statement(struct ir_entry_return_info *info) {
     ad.listing->ops->add(ad.listing, new_asm_instruction_with_operand(OC_JMP, addr));
 }
 
-static void code_simple_assignment(ir_value *lvalue, ir_value *rvalue) {
+static void code_simple_assignment(ir_entry *e, ir_value *lvalue, ir_value *rvalue) {
+    str *s = new_str();
+    e->ops->to_string(e, s);
+    ad.listing->ops->set_next_comment(ad.listing, s->buffer);
+    s->v->free(s);
+
     struct asm_operand *lop = resolve_ir_value_to_asm_operand(lvalue);
     struct asm_operand *rop = resolve_ir_value_to_asm_operand(rvalue);
 
@@ -215,7 +240,6 @@ static void code_simple_assignment(ir_value *lvalue, ir_value *rvalue) {
         (rop->type == OT_MEM_POINTED_BY_REG || rop->type == OT_MEM_OF_SYMBOL)) {
         // we cannot move memory to memory (e.g. "(a = b)"), we must bring one into AX
         struct asm_operand *ax = new_asm_operand_reg(REG_AX);
-        ad.listing->ops->set_next_comment(ad.listing, "bring value to register for assignment");
         ad.listing->ops->add(ad.listing, new_asm_instruction_with_operands(OC_MOV, ax, rop));
         ad.listing->ops->add(ad.listing, new_asm_instruction_with_operands(OC_MOV, lop, ax));
     } else {
@@ -223,11 +247,16 @@ static void code_simple_assignment(ir_value *lvalue, ir_value *rvalue) {
     }
 }
 
-static void code_unary_operation(ir_value *lvalue, ir_operation op, ir_value *rvalue) {
+static void code_unary_operation(ir_entry *e, ir_value *lvalue, ir_operation op, ir_value *rvalue) {
     // e.g. "a = ~b"
     // MOV AX, b
     // NOT/NEG AX
     // MOV a, AX
+
+    str *s = new_str();
+    e->ops->to_string(e, s);
+    ad.listing->ops->set_next_comment(ad.listing, s->buffer);
+    s->v->free(s);
 
     struct asm_operand *ax = new_asm_operand_reg(REG_AX);
     struct asm_operand *lop = resolve_ir_value_to_asm_operand(lvalue);
@@ -245,13 +274,11 @@ static void code_unary_operation(ir_value *lvalue, ir_operation op, ir_value *rv
             ad.listing->ops->add(ad.listing, new_asm_instruction_with_operands(OC_MOV, lop, ax));
             break;
         case IR_ADDR_OF:
-            ad.listing->ops->set_next_comment(ad.listing, "get address of");
             ad.listing->ops->add(ad.listing, new_asm_instruction_with_operands(OC_LEA, ax, rop));
             ad.listing->ops->add(ad.listing, new_asm_instruction_with_operands(OC_MOV, lop, ax));
             break;
         case IR_VALUE_AT:
             // memory pointed by AX, without displacement.
-            ad.listing->ops->set_next_comment(ad.listing, "get value pointed by");
             ad.listing->ops->add(ad.listing, new_asm_instruction_with_operands(OC_MOV, ax, rop));
             struct asm_operand *ptr = new_asm_operand_mem_by_reg(REG_AX, 0);
             ad.listing->ops->add(ad.listing, new_asm_instruction_with_operands(OC_MOV, lop, ptr));
@@ -262,12 +289,17 @@ static void code_unary_operation(ir_value *lvalue, ir_operation op, ir_value *rv
     }
 }
 
-static void code_binary_operation(ir_value *lvalue, ir_value *rvalue1, ir_operation op, ir_value *rvalue2) {
+static void code_binary_operation(ir_entry *e, ir_value *lvalue, ir_value *rvalue1, ir_operation op, ir_value *rvalue2) {
     // e.g. "lval = rval1 + rval2"
     // MOV AX, rval1
     // ADD AX, rval2
     // MOV lval, AX
 
+    str *s = new_str();
+    e->ops->to_string(e, s);
+    ad.listing->ops->set_next_comment(ad.listing, s->buffer);
+    s->v->free(s);
+    
     struct asm_operand *ax = new_asm_operand_reg(REG_AX);
     struct asm_operand *cx = new_asm_operand_reg(REG_CX);
     struct asm_operand *dx = new_asm_operand_reg(REG_DX);
@@ -330,6 +362,7 @@ static void _release_temp_reg_allocations(ir_value *v, void *pdata, int idata) {
         int reg_no = v->val.temp_reg_no;
         if (ir->ops->get_register_last_usage(ir, reg_no) == curr_index) {
             ad.allocator->ops->release_temp_reg_storage(ad.allocator, reg_no);
+            ad.listing->ops->add_comment(ad.listing, "r%d storage released", reg_no);
         }
     }
 }
@@ -398,13 +431,13 @@ static void assemble_function(ir_listing *ir, int start, int end) {
                 struct ir_entry_three_addr_code_info *c = &e->t.three_address_code;
                 if (c->lvalue != NULL && c->op1 == NULL && c->op == IR_NONE && c->op2 != NULL) {
                     // "lv = rv"
-                    code_simple_assignment(c->lvalue, c->op2);
+                    code_simple_assignment(e, c->lvalue, c->op2);
                 } else if (c->lvalue != NULL && c->op1 == NULL && c->op != IR_NONE && c->op2 != NULL) {
                     // "lv = <unary> r2"
-                    code_unary_operation(c->lvalue, c->op, c->op2);
+                    code_unary_operation(e, c->lvalue, c->op, c->op2);
                 } else if (c->lvalue != NULL && c->op1 != NULL && c->op2 != NULL) {
                     // "lv = r1 <+> r2"
-                    code_binary_operation(c->lvalue, c->op1, c->op, c->op2);
+                    code_binary_operation(e, c->lvalue, c->op1, c->op, c->op2);
                 } else {
                     // simple function calls might be encoded as "<ignored> = r1"
                     // it's the same as writing in C: "1;" or "a;", i.e. evaluation which result is ignored
@@ -415,16 +448,16 @@ static void assemble_function(ir_listing *ir, int start, int end) {
                 }
                 break;
             case IR_FUNCTION_CALL:
-                code_function_call(&e->t.function_call);
+                code_function_call(e);
                 break;
             case IR_CONDITIONAL_JUMP:
-                code_conditional_jump(&e->t.conditional_jump);
+                code_conditional_jump(e);
                 break;
             case IR_UNCONDITIONAL_JUMP:
                 code_unconditional_jump(e->t.unconditional_jump.str);
                 break;
             case IR_RETURN:
-                code_return_statement(&e->t.return_stmt);
+                code_return_statement(e);
                 break;
         }
 

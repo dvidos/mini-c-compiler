@@ -13,6 +13,7 @@ static void _adds(str *s, char *strz);
 static void _addc(str *s, char c);
 static void _addf(str *s, char *fmt, ...);
 static void _padr(str *s, int len, char c);
+static void _add_escaped(str *s, char *str);
 
 
 struct str_vtable vtable = {
@@ -21,6 +22,7 @@ struct str_vtable vtable = {
     .adds = _adds,
     .addc = _addc,
     .addf = _addf,
+    .add_escaped = _add_escaped,
     .padr = _padr,
     .free = _free
 };
@@ -99,6 +101,19 @@ static void _addf(str *s, char *fmt, ...) {
     buff[sizeof(buff) - 1] = 0;
 
     _adds(s, buff);
+}
+
+static void _add_escaped(str *s, char *str) {
+    while (*str != 0) {
+        switch (*str) {
+            case '\n': _adds(s, "\\n"); break;
+            case '\r': _adds(s, "\\r"); break;
+            case '\t': _adds(s, "\\t"); break;
+            case '\\': _adds(s, "\\\\"); break;
+            default: _addc(s, *str);
+        }
+        str++;
+    }
 }
 
 static void _padr(str *s, int len, char c) {

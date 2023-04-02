@@ -43,6 +43,23 @@ void print_ir_value(ir_value *v, FILE *stream) {
         fprintf(stream, "(unknown)");
 }
 
+void ir_value_to_string(ir_value *v, str *s) {
+    if (v == NULL)
+        s->v->addf(s, "(null)");
+    else if (v->type == IR_TREG)
+        s->v->addf(s, "r%d", v->val.temp_reg_no);
+    else if (v->type == IR_SYM)
+        s->v->addf(s, "%s", v->val.symbol_name);
+    else if (v->type == IR_IMM) {
+        if (v->val.immediate >= 0 && v->val.immediate <= 9)
+            s->v->addf(s, "%d", v->val.immediate);
+        else
+            s->v->addf(s, "0x%x", v->val.immediate);
+    }
+    else
+        s->v->addf(s, "(unknown)");
+}
+
 void free_ir_value(ir_value *v) {
     if (v == NULL) return;
     if (v->type == IR_SYM && v->val.symbol_name != NULL)

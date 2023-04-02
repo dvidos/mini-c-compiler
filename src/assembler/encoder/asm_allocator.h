@@ -1,5 +1,6 @@
 #include <stdbool.h>
 #include "asm_listing.h"
+#include "../../utils/str.h"
 
 
 struct storage_allocator_ops;
@@ -27,10 +28,12 @@ struct storage_allocator_ops {
     void (*generate_stack_info_comments)(asm_allocator *a);
 
     bool (*get_named_storage)(asm_allocator *a, char *symbol_name, storage *target); // false = not found
-    void (*get_temp_reg_storage)(asm_allocator *a, int reg_no, storage *target);
+    void (*get_temp_reg_storage)(asm_allocator *a, int reg_no, storage *target, bool *allocated);
     bool (*is_treg_a_gp_reg)(asm_allocator *a, int reg_no);
     bool (*is_treg_a_stack_var)(asm_allocator *a, int reg_no);
     void (*release_temp_reg_storage)(asm_allocator *a, int reg_no);
+
+    void (*storage_to_str)(asm_allocator *a, storage *stor, str *s);
 };
 
 

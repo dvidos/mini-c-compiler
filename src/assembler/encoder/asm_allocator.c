@@ -29,10 +29,11 @@ static void _reset(asm_allocator *a);
 static void _declare_local_symbol(asm_allocator *a, char *symbol, int size, int bp_offset);
 static void _generate_stack_info_comments(asm_allocator *a);
 static bool _get_named_storage(asm_allocator *a, char *symbol_name, storage *target); // false = not found
-static void _get_temp_reg_storage(asm_allocator *a, int temp_reg_no, storage *target);
+static void _get_temp_reg_storage(asm_allocator *a, int temp_reg_no, storage *target, bool *allocated);
 static bool _is_treg_a_gp_reg(asm_allocator *a, int reg_no);
 static bool _is_treg_a_stack_var(asm_allocator *a, int reg_no);
 static void _release_temp_reg_storage(asm_allocator *a, int temp_reg_no);
+static void _storage_to_str(asm_allocator *a, storage *stor, str *s);
 
 
 static struct storage_allocator_ops ops = {
@@ -44,6 +45,7 @@ static struct storage_allocator_ops ops = {
     .is_treg_a_gp_reg = _is_treg_a_gp_reg,
     .is_treg_a_stack_var = _is_treg_a_stack_var,
     .release_temp_reg_storage = _release_temp_reg_storage,
+    .storage_to_str = _storage_to_str
 };
 
 asm_allocator *new_asm_allocator(asm_listing *listing) {
@@ -144,8 +146,9 @@ static bool _get_named_storage(asm_allocator *a, char *symbol_name, storage *tar
     return false; // not found
 }
 
-static void _get_temp_reg_storage(asm_allocator *a, int temp_reg_no, storage *target) {
+static void _get_temp_reg_storage(asm_allocator *a, int temp_reg_no, storage *target, bool *allocated) {
     struct asm_allocator_data *data = (struct asm_allocator_data *)a->private_data;
+    *allocated = false;
     
     // first see if this register already holds something.
     for (int i = 0; i < data->temp_storage_arr_len; i++) {
@@ -154,6 +157,9 @@ static void _get_temp_reg_storage(asm_allocator *a, int temp_reg_no, storage *ta
             return;
         }
     }
+
+    // if we got here, we need to allocate a storage
+    *allocated = true;
 
     // find the first unowned slot to assign to this register
     for (int i = 0; i < data->temp_storage_arr_len; i++) {
@@ -214,5 +220,13 @@ static void _release_temp_reg_storage(asm_allocator *a, int temp_reg_no) {
             data->temp_storage_arr[i].holder_reg = 0;
             return;
         }
+    }
+}
+
+static void _storage_to_str(asm_allocator *a, storage *stor, str *s) {
+    if (stor->is_gp_reg) {
+        s->v->adds(s, gp_reg_name(stor->gp_reg));
+    } else if (stor->is_stack_var) {
+        s->v->addf(s, "[BP%+d] (%d bytes)", stor->bp_offset, stor->size);
     }
 }

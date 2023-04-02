@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include "ir_listing.h"
+#include "../../utils/str.h"
 
 
 static void _add(ir_listing *l, ir_entry *entry);
@@ -40,10 +41,26 @@ static void _add(ir_listing *l, ir_entry *entry) {
 }
 
 static void _print(ir_listing *l ,FILE *stream) {
+    str *s = new_str();
     for (int i = 0; i < l->length; i++) {
         ir_entry *e = l->entries_arr[i];
-        e->ops->print(e, stream);
-        fprintf(stream, "\n");
+        if (e->type == IR_FUNCTION_DEFINITION)
+            fprintf(stream, "\n");
+        
+        if (e->type == IR_LABEL)
+            fprintf(stream, "%s:\n", e->t.label.str);
+        else {
+            if (e->type != IR_FUNCTION_DEFINITION)
+                fprintf(stream, "    ");
+                
+            e->ops->to_string(e, s);
+            fprintf(stream, "%s\n", s->buffer);
+            s->v->clear(s);
+        } 
+
+        if (e->type == IR_FUNCTION_END) {
+            fprintf(stream, "\n");
+        }
     }
 }
 

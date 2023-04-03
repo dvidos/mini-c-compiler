@@ -74,7 +74,7 @@ struct asm_operand *new_asm_operand_mem_by_reg(enum gp_reg gp_reg_no, int offset
 }
 
 static void _print(asm_listing *lst, FILE *stream) {
-    str *str = new_str();
+    string *str = new_string();
     
     struct asm_instruction *inst;
 

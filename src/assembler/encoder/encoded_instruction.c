@@ -39,7 +39,7 @@ void pack_encoded_instruction(encoded_instruction *inst, buffer *buff) {
         buff->add_mem(buff, inst->immediate, inst->immediate_bytes_count);
 }
 
-void encoded_instruction_to_str(encoded_instruction *inst, str *s) {
+void encoded_instruction_to_str(encoded_instruction *inst, string *s) {
 /*
     4 prefix bytes, 2 opcode bytes, modregrm, sib, 0-4 displacement, 0-4 immediate
 

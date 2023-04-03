@@ -235,7 +235,7 @@ asm_instruction *new_asm_instruction_for_registers(enum opcode op, enum gp_reg t
     return o;
 }
 
-static void _operand1_to_str(asm_instruction *instr, str *str) {
+static void _operand1_to_str(asm_instruction *instr, string *str) {
     if (instr->operand1.is_register) {
         str->v->adds(str, gp_reg_name(instr->operand1.per_type.reg));
 
@@ -257,7 +257,7 @@ static void _operand1_to_str(asm_instruction *instr, str *str) {
     }
 }
 
-static void _operand2_to_str(asm_instruction *instr, str *str) {
+static void _operand2_to_str(asm_instruction *instr, string *str) {
     if (instr->operand2.is_register) {
         str->v->addf(str, "%s", gp_reg_name(instr->operand2.per_type.reg));
     } else if (instr->operand2.is_immediate) {
@@ -265,7 +265,7 @@ static void _operand2_to_str(asm_instruction *instr, str *str) {
     }
 }
 
-void asm_instruction_to_str(asm_instruction *instr, str *str, bool with_comment) {
+void asm_instruction_to_str(asm_instruction *instr, string *str, bool with_comment) {
     if (instr->operation != OC_NONE) {
         // opcode first
         str->v->addf(str, "%-4s ", opcode_name(instr->operation));

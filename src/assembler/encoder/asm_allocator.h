@@ -1,6 +1,6 @@
 #include <stdbool.h>
 #include "asm_listing.h"
-#include "../../utils/str.h"
+#include "../../utils/string.h"
 
 
 struct storage_allocator_ops;
@@ -33,7 +33,7 @@ struct storage_allocator_ops {
     bool (*is_treg_a_stack_var)(asm_allocator *a, int reg_no);
     void (*release_temp_reg_storage)(asm_allocator *a, int reg_no);
 
-    void (*storage_to_str)(asm_allocator *a, storage *stor, str *s);
+    void (*storage_to_str)(asm_allocator *a, storage *stor, string *s);
 };
 
 

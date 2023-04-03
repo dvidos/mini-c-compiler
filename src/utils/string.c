@@ -2,21 +2,21 @@
 #include <string.h>
 #include <stdlib.h>
 #include <stdarg.h>
-#include "str.h"
+#include "string.h"
 
 
-static void _free(str *s);
-static void _ensure_capacity_for(str *s, int extra_space_needed);
-static void _clear(str *s);
-static void _add(str *s, str *other);
-static void _adds(str *s, char *strz);
-static void _addc(str *s, char c);
-static void _addf(str *s, char *fmt, ...);
-static void _padr(str *s, int len, char c);
-static void _add_escaped(str *s, char *str);
+static void _free(string *s);
+static void _ensure_capacity_for(string *s, int extra_space_needed);
+static void _clear(string *s);
+static void _add(string *s, string *other);
+static void _adds(string *s, char *strz);
+static void _addc(string *s, char c);
+static void _addf(string *s, char *fmt, ...);
+static void _padr(string *s, int len, char c);
+static void _add_escaped(string *s, char *str);
 
 
-struct str_vtable vtable = {
+struct string_vtable vtable = {
     .clear = _clear,
     .add = _add,
     .adds = _adds,
@@ -27,8 +27,8 @@ struct str_vtable vtable = {
     .free = _free
 };
 
-str *new_str() {
-    str *s = malloc(sizeof(str));
+string *new_string() {
+    string *s = malloc(sizeof(string));
     s->capacity = 10;
     s->buffer = malloc(s->capacity);
     s->length = 0;
@@ -38,19 +38,19 @@ str *new_str() {
     return s;
 }
 
-str *new_str_from(char *init_value) {
-    str *s = new_str();
+string *new_string_from(char *init_value) {
+    string *s = new_string();
     _adds(s, init_value);
     return s;
 }
 
-static void _free(str *s) {
+static void _free(string *s) {
     if (s->buffer != NULL)
         free(s->buffer);
     free(s);
 }
 
-static void _ensure_capacity_for(str *s, int extra_space_needed) {
+static void _ensure_capacity_for(string *s, int extra_space_needed) {
     if (s->capacity < s->length + extra_space_needed + 1) {
         while (s->capacity < s->length + extra_space_needed + 1)
             s->capacity *= 2;
@@ -58,12 +58,12 @@ static void _ensure_capacity_for(str *s, int extra_space_needed) {
     }
 }
 
-static void _clear(str *s) {
+static void _clear(string *s) {
     s->length = 0;
     s->buffer[s->length] = 0;
 }
 
-static void _add(str *s, str *other) {
+static void _add(string *s, string *other) {
     if (other == NULL)
         return;
     
@@ -72,7 +72,7 @@ static void _add(str *s, str *other) {
     s->length += other->length;
 }
 
-static void _adds(str *s, char *strz) {
+static void _adds(string *s, char *strz) {
     if (strz == NULL)
         return;
     
@@ -81,7 +81,7 @@ static void _adds(str *s, char *strz) {
     s->length += strlen(strz);
 }
 
-static void _addc(str *s, char c) {
+static void _addc(string *s, char c) {
     if (c == 0)
         return;
 
@@ -90,7 +90,7 @@ static void _addc(str *s, char c) {
     s->buffer[s->length] = 0;
 }
 
-static void _addf(str *s, char *fmt, ...) {
+static void _addf(string *s, char *fmt, ...) {
     // we don't know how many bytes we'll need....
     char buff[128];
 
@@ -103,7 +103,7 @@ static void _addf(str *s, char *fmt, ...) {
     _adds(s, buff);
 }
 
-static void _add_escaped(str *s, char *str) {
+static void _add_escaped(string *s, char *str) {
     while (*str != 0) {
         switch (*str) {
             case '\n': _adds(s, "\\n"); break;
@@ -116,7 +116,7 @@ static void _add_escaped(str *s, char *str) {
     }
 }
 
-static void _padr(str *s, int len, char c) {
+static void _padr(string *s, int len, char c) {
     _ensure_capacity_for(s, len - s->length + 1);
     while (s->length < len)
         s->buffer[s->length++] = c;

@@ -1,7 +1,7 @@
 #pragma once
 #include <stdbool.h>
 #include <stdio.h>
-#include "../../utils/str.h"
+#include "../../utils/string.h"
 
 
 enum ir_value_type { IR_TREG, IR_SYM, IR_IMM };
@@ -21,6 +21,6 @@ ir_value *new_ir_value_immediate(int value);
 
 // instead of ops struct, maybe hard-named values
 void print_ir_value(ir_value *v, FILE *stream);
-void ir_value_to_string(ir_value *v, str *s);
+void ir_value_to_string(ir_value *v, string *s);
 void free_ir_value(ir_value *v);
 

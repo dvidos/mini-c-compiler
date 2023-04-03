@@ -8,9 +8,10 @@ get_next_counter_value:
     MOV  AX <- BX            ; counter = r1 + r2
     ADD  AX <- CX
     MOV  counter <- AX
-    ; DX allocated to r3
-    MOV  DX <- counter
-    MOV  AX <- DX            ; return r3
+    ; r2 storage released
+    ; CX allocated to r3
+    MOV  CX <- counter
+    MOV  AX <- CX            ; return r3
     JMP  get_next_counter_value_exit
 get_next_counter_value_exit:
     MOV  SP <- BP            ; tear down stack frame

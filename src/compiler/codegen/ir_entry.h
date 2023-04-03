@@ -2,7 +2,7 @@
 #include <stdbool.h>
 #include <stdio.h>
 #include "ir_value.h"
-#include "../../utils/str.h"
+#include "../../utils/string.h"
 
 enum ir_entry_type {
     IR_FUNCTION_DEFINITION,
@@ -136,7 +136,7 @@ ir_entry *new_ir_function_end();
 typedef void (*ir_value_visitor)(ir_value *value, void *data, int index);
 
 struct ir_entry_ops {
-    void (*to_string)(ir_entry *e, str *s);
+    void (*to_string)(ir_entry *e, string *s);
     void (*print)(ir_entry *e, FILE *stream);
     void (*foreach_ir_value)(ir_entry *e, ir_value_visitor visitor, void *pdata, int idata);
     void (*free)(ir_entry *e);

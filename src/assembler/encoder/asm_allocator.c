@@ -33,7 +33,7 @@ static void _get_temp_reg_storage(asm_allocator *a, int temp_reg_no, storage *ta
 static bool _is_treg_a_gp_reg(asm_allocator *a, int reg_no);
 static bool _is_treg_a_stack_var(asm_allocator *a, int reg_no);
 static void _release_temp_reg_storage(asm_allocator *a, int temp_reg_no);
-static void _storage_to_str(asm_allocator *a, storage *stor, str *s);
+static void _storage_to_str(asm_allocator *a, storage *stor, string *s);
 
 
 static struct storage_allocator_ops ops = {
@@ -223,7 +223,7 @@ static void _release_temp_reg_storage(asm_allocator *a, int temp_reg_no) {
     }
 }
 
-static void _storage_to_str(asm_allocator *a, storage *stor, str *s) {
+static void _storage_to_str(asm_allocator *a, storage *stor, string *s) {
     if (stor->is_gp_reg) {
         s->v->adds(s, gp_reg_name(stor->gp_reg));
     } else if (stor->is_stack_var) {

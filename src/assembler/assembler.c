@@ -3,7 +3,7 @@
 #include <string.h>
 #include "../err_handler.h"
 #include "../options.h"
-#include "../utils/str.h"
+#include "../utils/string.h"
 #include "../compiler/codegen/ir_listing.h"
 #include "../linker/obj_code.h"
 #include "encoder/asm_listing.h"
@@ -11,7 +11,7 @@
 #include "encoder/asm_allocator.h"
 #include "encoder/asm_instruction.h"
 #include "encoder/encoder4.h"
-#include "../utils/str.h"
+#include "../utils/string.h"
 
 
 static struct asm_operand *resolve_ir_value_to_asm_operand(ir_value *v);
@@ -51,7 +51,7 @@ struct asm_operand *resolve_ir_value_to_asm_operand(ir_value *v) {
         // could be either a register or stack value, depending on allocation
         ad.allocator->ops->get_temp_reg_storage(ad.allocator, v->val.temp_reg_no, &s, &allocated);
         if (allocated) {
-            str *st = new_str();
+            string *st = new_string();
             ad.allocator->ops->storage_to_str(ad.allocator, &s, st);
             ad.listing->ops->add_comment(ad.listing, "%s allocated to r%d", st->buffer, v->val.temp_reg_no);
             st->v->free(st);
@@ -122,7 +122,7 @@ static void code_epilogue() {
 
 static void code_function_call(struct ir_entry *e) {
     struct ir_entry_function_call_info *c = &e->t.function_call;
-    str *s = new_str();
+    string *s = new_string();
     e->ops->to_string(e, s);
     ad.listing->ops->set_next_comment(ad.listing, s->buffer);
     s->v->free(s);
@@ -168,7 +168,7 @@ static void code_conditional_jump(ir_entry *e) {
     struct asm_operand *op1 = resolve_ir_value_to_asm_operand(j->v1);
     struct asm_operand *op2 = resolve_ir_value_to_asm_operand(j->v2);
     
-    str *s = new_str();
+    string *s = new_string();
     e->ops->to_string(e, s);
     ad.listing->ops->set_next_comment(ad.listing, s->buffer);
     s->v->free(s);
@@ -211,7 +211,7 @@ static void code_unconditional_jump(char *label) {
 
 static void code_return_statement(ir_entry *e) {
     struct ir_entry_return_info *info = &e->t.return_stmt;
-    str *s = new_str();
+    string *s = new_string();
     e->ops->to_string(e, s);
     ad.listing->ops->set_next_comment(ad.listing, s->buffer);
     s->v->free(s);
@@ -230,7 +230,7 @@ static void code_return_statement(ir_entry *e) {
 }
 
 static void code_simple_assignment(ir_entry *e, ir_value *lvalue, ir_value *rvalue) {
-    str *s = new_str();
+    string *s = new_string();
     e->ops->to_string(e, s);
     ad.listing->ops->set_next_comment(ad.listing, s->buffer);
     s->v->free(s);
@@ -255,7 +255,7 @@ static void code_unary_operation(ir_entry *e, ir_value *lvalue, ir_operation op,
     // NOT/NEG AX
     // MOV a, AX
 
-    str *s = new_str();
+    string *s = new_string();
     e->ops->to_string(e, s);
     ad.listing->ops->set_next_comment(ad.listing, s->buffer);
     s->v->free(s);
@@ -297,7 +297,7 @@ static void code_binary_operation(ir_entry *e, ir_value *lvalue, ir_value *rvalu
     // ADD AX, rval2
     // MOV lval, AX
 
-    str *s = new_str();
+    string *s = new_string();
     e->ops->to_string(e, s);
     ad.listing->ops->set_next_comment(ad.listing, s->buffer);
     s->v->free(s);
@@ -505,10 +505,10 @@ void x86_encode_asm_into_machine_code(asm_listing *asm_list, enum x86_cpu_mode m
     asm_instruction *inst;
     struct encoding_info enc_info;
     encoded_instruction enc_inst;
-    str *s;
+    string *s;
     buffer *b;
 
-    s = new_str();
+    s = new_string();
     b = new_buffer();
 
     for (int i = 0; i < asm_list->length; i++) {
@@ -529,7 +529,7 @@ void x86_encode_asm_into_machine_code(asm_listing *asm_list, enum x86_cpu_mode m
         }
         
         if (!encode_asm_instruction(inst, &enc_info, &enc_inst)) {
-            str *s = new_str();
+            string *s = new_string();
             asm_instruction_to_str(inst, s, false);
             error(NULL, 0, "Failed encoding instruction: '%s'\n", s->buffer);
             s->v->free(s);

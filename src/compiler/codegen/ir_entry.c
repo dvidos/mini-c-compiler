@@ -8,7 +8,7 @@
 #include "ir_value.h"
 
 
-static void _to_string(ir_entry *e, str *s);
+static void _to_string(ir_entry *e, string *s);
 static void _print(ir_entry *e, FILE *stream);
 static void _foreach_ir_value(ir_entry *e, ir_value_visitor visitor, void *pdata, int idata);
 static void _free(ir_entry *e);
@@ -183,7 +183,7 @@ static char *ir_comparison_name(ir_comparison cmp) {
     return "(unknown)";
 }
 
-static void _to_string(ir_entry *e, str *s) {
+static void _to_string(ir_entry *e, string *s) {
     switch (e->type) {
         case IR_FUNCTION_DEFINITION:
             s->v->addf(s, "function \"%s\" (", e->t.function_def.func_name);

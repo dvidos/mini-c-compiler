@@ -1,26 +1,26 @@
 #pragma once
 
-struct str_vtable;
+struct string_vtable;
 
-typedef struct str {
+typedef struct string {
     char *buffer;
     int length;   // does not include zero terminator
     int capacity; // malloc'ed size of buffer
 
-    struct str_vtable *v;
-} str;
+    struct string_vtable *v;
+} string;
 
-str *new_str();
-str *new_str_from(char *init_value);
+string *new_string();
+string *new_string_from(char *init_value);
 
-struct str_vtable {
-    void (*clear)(str *s);
-    void (*add)(str *s, str *other);
-    void (*adds)(str *s, char *str);
-    void (*addc)(str *s, char c);
-    void (*addf)(str *s, char *fmt, ...);
-    void (*padr)(str *s, int length, char c);
-    void (*add_escaped)(str *s, char *str); // converts "\n" into "\\n"
+struct string_vtable {
+    void (*clear)(string *s);
+    void (*add)(string *s, string *other);
+    void (*adds)(string *s, char *str);
+    void (*addc)(string *s, char c);
+    void (*addf)(string *s, char *fmt, ...);
+    void (*padr)(string *s, int length, char c);
+    void (*add_escaped)(string *s, char *str); // converts "\n" into "\\n"
     
     // void (*prepend)(str *s, str *other);
     // void (*repeat)(str *s, char c, int times);
@@ -42,5 +42,5 @@ struct str_vtable {
     // unsigned long (*hash)(str *s);
     // array *(*split)(str *s, char *delimiters);
 
-    void (*free)(str *s);
+    void (*free)(string *s);
 };

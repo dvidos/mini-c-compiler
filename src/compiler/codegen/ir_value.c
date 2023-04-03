@@ -43,7 +43,7 @@ void print_ir_value(ir_value *v, FILE *stream) {
         fprintf(stream, "(unknown)");
 }
 
-void ir_value_to_string(ir_value *v, str *s) {
+void ir_value_to_string(ir_value *v, string *s) {
     if (v == NULL)
         s->v->addf(s, "(null)");
     else if (v->type == IR_TREG)

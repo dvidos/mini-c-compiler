@@ -11,7 +11,8 @@ struct encoding_info {
     unsigned char base_opcode_byte; // the basis, adding direction and size to this
     bool has_width_bit;     // usually bit 0
     bool has_direction_bit; // usually bit 1
-    char opcode_extension; // valid values 0-7, -1 means N/A, used often with immediates
+    bool has_opcode_extension; 
+    char opcode_extension_value; // valid values 0-7, used often with immediates
     bool is_reg_part_of_opcode;  // e.g. PUSH EBP (0x55)
 
     bool supports_immediate_value; // does in support immediate following?
@@ -23,4 +24,4 @@ struct encoding_info {
 };
 
 
-bool load_encoding_info(enum opcode op, struct encoding_info *info);
+bool load_encoding_info(asm_instruction *inst, struct encoding_info *info);

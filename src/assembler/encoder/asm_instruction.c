@@ -265,10 +265,10 @@ static void _operand2_to_str(asm_instruction *instr, str *str) {
     }
 }
 
-void asm_instruction_to_str(asm_instruction *instr, str *str) {
+void asm_instruction_to_str(asm_instruction *instr, str *str, bool with_comment) {
     if (instr->operation != OC_NONE) {
         // opcode first
-        str->v->addf(str, "%-6s ", opcode_name(instr->operation));
+        str->v->addf(str, "%-4s ", opcode_name(instr->operation));
 
         // if there are two operands, print direction
         if ((instr->operand1.is_register || instr->operand1.is_memory_by_reg || instr->operand1.is_memory_by_displacement) &&
@@ -292,7 +292,7 @@ void asm_instruction_to_str(asm_instruction *instr, str *str) {
     }
     
     // possible comment (full in line or added after instruction)
-    if (instr->comment) {
+    if (with_comment && instr->comment) {
         if (str->length > 4)
             str->v->padr(str, 25, ' ');
         str->v->addf(str, "; %s", instr->comment);

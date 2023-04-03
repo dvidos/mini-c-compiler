@@ -31,5 +31,5 @@ typedef struct encoded_instruction {
 
 
 void pack_encoded_instruction(encoded_instruction *inst, buffer *buff);
-void print_encoded_instruction(encoded_instruction *inst, str *s);
+void encoded_instruction_to_str(encoded_instruction *inst, str *s);
 

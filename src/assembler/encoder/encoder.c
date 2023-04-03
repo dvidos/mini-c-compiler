@@ -648,9 +648,9 @@ static bool encode_asm_instr_opcode(asm_instruction *oper, struct encoding_info 
     }
     
     // some immediate instructions have this (e.g. "SAL D0 /7")
-    if (info->opcode_extension != -1) {
+    if (info->has_opcode_extension != -1) {
         result->flags.have_modregrm = true;
-        result->modregrm_byte |= ((info->opcode_extension & 0x7) << 3);
+        result->modregrm_byte |= ((info->opcode_extension_value & 0x7) << 3);
     }
 }
 

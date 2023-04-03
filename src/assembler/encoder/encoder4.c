@@ -41,10 +41,12 @@ static bool encode_asm_instr_opcode(asm_instruction *oper, struct encoding_info 
     }
     
     // some immediate instructions have this (e.g. "SAL D0 /7")
-    if (info->opcode_extension != -1) {
+    if (info->has_opcode_extension) {
         result->flags.have_modregrm = true;
-        result->modregrm_byte |= ((info->opcode_extension & 0x7) << 3);
+        result->modregrm_byte |= ((info->opcode_extension_value & 0x7) << 3);
     }
+
+    return true;
 }
 
 static bool encode_asm_instr_operands(asm_instruction *oper, struct encoding_info *info, struct encoded_instruction *result) {
@@ -176,6 +178,7 @@ bool encode_asm_instruction(asm_instruction *oper, struct encoding_info *info, s
         return false;
     if (!encode_asm_instr_immediate(oper, info, result))
         return false;
+    
     return true;
 }
 

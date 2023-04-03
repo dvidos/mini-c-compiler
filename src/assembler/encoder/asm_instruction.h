@@ -124,5 +124,5 @@ asm_instruction *new_asm_instruction_for_reserving_stack_space(int size);
 asm_instruction *new_asm_instruction_for_register(enum opcode op, enum gp_reg gp_reg);
 asm_instruction *new_asm_instruction_for_registers(enum opcode op, enum gp_reg target_reg, enum gp_reg source_reg);
 
-void asm_instruction_to_str(asm_instruction *instr, str *str);
+void asm_instruction_to_str(asm_instruction *instr, str *str, bool with_comment);
 

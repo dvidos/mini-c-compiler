@@ -84,7 +84,7 @@ static void _print(asm_listing *lst, FILE *stream) {
         if (inst->label != NULL)
             fprintf(stream, "%s:\n", inst->label);
         
-        asm_instruction_to_str(inst, str);
+        asm_instruction_to_str(inst, str, true);
         fprintf(stream, "    %s\n", str->buffer);
         str->v->clear(str);
 

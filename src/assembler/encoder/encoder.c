@@ -648,7 +648,7 @@ static bool encode_asm_instr_opcode(asm_instruction *oper, struct encoding_info 
     }
     
     // some immediate instructions have this (e.g. "SAL D0 /7")
-    if (info->has_opcode_extension != -1) {
+    if (info->has_opcode_extension) {
         result->flags.have_modregrm = true;
         result->modregrm_byte |= ((info->opcode_extension_value & 0x7) << 3);
     }
@@ -657,7 +657,7 @@ static bool encode_asm_instr_opcode(asm_instruction *oper, struct encoding_info 
 static bool encode_asm_instr_operands(asm_instruction *oper, struct encoding_info *info, struct encoded_instruction *result) {
 
     // see if we need mod/rm
-    if (!info->needs_modregrm)
+    if (!info->needs_modregrm && !info->has_opcode_extension)
         return true;
     
     result->flags.have_modregrm = true;
@@ -730,7 +730,10 @@ static bool encode_asm_instr_operands(asm_instruction *oper, struct encoding_inf
     } 
 
     // then, operand two (if it's immediate, see other function)
-    if (oper->operand2.is_register) {
+    if (info->has_opcode_extension) {
+        result->modregrm_byte |= ((info->opcode_extension_value & 0x7) << 3);
+    }
+    else if (oper->operand2.is_register) {
         result->modregrm_byte |= ((oper->operand2.per_type.reg & 0x7) << 3);
     }
 

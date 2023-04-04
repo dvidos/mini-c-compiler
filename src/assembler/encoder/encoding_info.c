@@ -75,7 +75,7 @@ bool load_encoding_info(asm_instruction *inst, struct encoding_info *info) {
         info->base_opcode_byte                = GET_BYTE(entry->table_str, MAIN_OPCODE_POS);
         info->has_width_bit                   = IS_TRUE(entry->table_str, WIDTH_BIT_POS);
         info->has_direction_bit               = IS_TRUE(entry->table_str, DIRECTION_BIT_POS);
-        info->has_opcode_extension            = IS_TRUE(entry->table_str, OPCODE_EXTENSION_POS);
+        info->has_opcode_extension            = HAS_BYTE(entry->table_str, OPCODE_EXTENSION_POS);
         info->opcode_extension_value          = HEX_DIGIT(entry->table_str[OPCODE_EXTENSION_POS]);
         info->is_reg_part_of_opcode           = IS_TRUE(entry->table_str, REGISTER_PART_POS);
         info->supports_immediate_value        = IS_TRUE(entry->table_str, SUPPORTS_IMMEDIATE_POS);

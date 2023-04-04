@@ -6,6 +6,8 @@
     inline T *next_#T(iter) { return (T*)(iter->v->next(iter)); } \
     inline T *curr_#T(iter) { return (T*)(iter->v->curr(iter)); } \
 
+#define for_typed_iteration(iter, T, ptr) \
+    for (T *ptr = (T *)iter->reset(); iter->valid(); ptr = (T *)iter->next())
 
 struct iterator_vtable;
 

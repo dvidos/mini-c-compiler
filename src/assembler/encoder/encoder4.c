@@ -144,7 +144,7 @@ static bool encode_asm_instr_immediate(asm_instruction *oper, struct encoding_in
     
     // set the full immediate value
     *(long *)result->immediate = (long)oper->operand2.per_type.immediate;
-    result->immediate_bytes_count = 1;
+    result->immediate_bytes_count = 4;
 
     // see if we can shorten the bytes added
     // "sign_expanded_immediate" takes the place of direction

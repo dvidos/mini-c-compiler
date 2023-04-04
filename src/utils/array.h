@@ -6,9 +6,9 @@ struct array_vtable;
 // add() works by adding a pointer to the pointed item
 typedef struct array {
     char *buffer;
-    int length;
-    int capacity;
-    int item_size;
+    int length;    // in items
+    int capacity;  // in items
+    int item_size; // in bytes
 
     struct array_vtable *v;
 } array;
@@ -31,6 +31,9 @@ struct array_vtable {
     void (*push)(array *a, void *item); // same as add()
     void *(*pop)(array *a); // remove from end (last added)
     void *(*peek)(array *a);  // return last, without removing
+
+    // iteration
+    iterator *(*make_iterator)(array *a, int start_index, int end_index);
 
     // involved operations
     void (*for_each)(array *a, visitor_func *visitor);

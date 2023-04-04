@@ -39,7 +39,6 @@ struct encoding_info_table_row {
             //  |  |  |||  | +---- supports immediate value
             //  |  |  |||  | |+--- needs ModRegRm byte
             //  |  |  |||  | ||+-- has sign expanded immediate bit (bit1)
-            //  |  |  |||  | |||
             //  XX XX yyy /n yyy   
             //  012345678901234567
     { OC_NONE, "   .. ... .. ... " },
@@ -48,13 +47,20 @@ struct encoding_info_table_row {
     { OC_PUSH, "   68 ... .. y.y " }, // for pushing immediates
     { OC_POP,  "   8F ... /0 .y. " }, // essentially 0x8F and a ModRM, short hand would be '01011rrr'
     { OC_MOV,  "   88 yy. .. .y. " }, // move between reg, mem
-    { OC_MOV,  "   B6 y.. /0 yy. " }, // for immediates (target in modregrm: mem or reg)
+    { OC_MOV,  "   C6 y.. /0 yy. " }, // for immediates (target in modregrm: mem or reg)
     { OC_RET,  "   C3 ... .. ... " }, // return inside segment
     { OC_CALL, "   E8 ... .. y.. " }, // direct call, full displacement (4bytes)
     { OC_CALL, "   FF ... /2 .y. " }, // indirect call, through register
     { OC_CMP,  "   34 yy. .. .y. " }, // move between reg, mem
     { OC_CMP,  "   80 yy. /7 yy. " }, // for immediates (target in modregrm: mem or reg)
 };
+/*  1001  9
+    1010  A
+    1011  B
+    1100  C
+    1101  D
+    1110  E
+    1111  F */
 
 bool load_encoding_info(asm_instruction *inst, struct encoding_info *info) {
     // maybe lookup at a table, but for now... nothing.

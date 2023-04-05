@@ -137,106 +137,9 @@ numeric_literal "3"
 +
 numeric_literal "4"
 ;
-int
-identifier "d"
-=
-numeric_literal "2"
-+
-numeric_literal "3"
-*
-numeric_literal "4"
-;
-int
-identifier "e"
-=
-(
-numeric_literal "2"
-+
-numeric_literal "3"
-)
-*
-numeric_literal "4"
-;
-int
-identifier "f"
-=
-numeric_literal "1"
-+
-numeric_literal "2"
-+
-numeric_literal "3"
-+
-numeric_literal "4"
-;
-int
-identifier "f"
-=
-numeric_literal "1"
-*
-numeric_literal "2"
-+
-numeric_literal "3"
-*
-numeric_literal "4"
-;
-int
-identifier "f"
-=
-numeric_literal "1"
-+
-numeric_literal "2"
-*
-numeric_literal "3"
-+
-numeric_literal "4"
-;
-if
-(
-identifier "c"
->
-numeric_literal "3"
-)
-{
-return
-numeric_literal "1"
-;
-}
-else
-{
-return
-identifier "c"
-;
-}
-int
-identifier "x"
-=
-numeric_literal "3"
-;
-while
-(
-identifier "x"
->
-numeric_literal "0"
-)
-{
-if
-(
-identifier "x"
->
-numeric_literal "10"
-)
-continue
-;
-if
-(
-identifier "x"
-<
-numeric_literal "3"
-)
-break
-;
-}
-}
+
+[... snipped for brevity ...]
+
 void
 identifier "main"
 (
@@ -345,3 +248,74 @@ Wrote 8393 bytes to out.elf file
 Hello world!
 ```
 
+### Some more notes
+
+
+A high level language, could have the following characteristics:
+
+* Built-in advanced data structures, like hashtables, lists, dictionaries, etc.
+* Ability to initialize those in code, for example: { "name": "John", "age": 30 }
+* Built-in algorithms for business processes, more than just qsort, allow various graph, Dynamic Programming, NP-complete problems to be executed
+* Ability to run threads, or async tasks or other way of working with very shallow entry (think go routines)
+* Ability to set reactive functions very easily, think cloud functions (arrival of a message, or a network packet etc)
+* Ability to make restarting or rebooting very cheap, meaning, bring memory and things up to where they were in a previous snapshot or something.
+
+Something similar to Python maybe...
+
+
+How about we start from the bottom up?
+
+* Given a machine code, make an elf file that can be read using readelf and objdump dissassembly
+* Given specific encoding capabilities, allow encoding of specific listings into machine code.
+* Find a way to convert IR code into those specific listings
+* Find a way to encode high level constructs (e.g. for loops), using IR code
+* Find a way to parse high level code (e.g. C) into these constructs
+* Profit!
+
+So the levels would be, along with their respective characteristics:
+
+* Machine Code
+	* Elf files, obj and executables
+	* Segments and memory sections
+	* Relocations & symbol tables
+	* Representation: obj_code, mem_buffer, relocation_entry, elf file
+* Assembly
+	* Using tags and keywords for data / text segments
+	* Representation: asm_listing, asm_instruction
+* Intermediate Representation
+	* Using Three Adress Code instructions, (un)conditional jumps, function calls
+	* Representation: ir_listing, ir_entry
+* Abstract Syntax Tree
+	* Expressions (e.g. assignments, numeric operations, evaluations, func calls)
+	* Statements (e.g. for loops, if statements, function declarations)
+	* Representation: ast_node, ast_tree, ast_statement, ast_expression
+* Source code
+	* Syntax, parser
+	* Representation: text file, string lines in memory
+
+Then we need the following processes:
+
+* Linker - to resolve relocations and create the elf files
+* Encoder(?) - to convert assembly language into machine code
+* Assembler(?) - to convert Intermediate Representation into assembly
+* Code Generator - to convert Abstract Syntax Tree into Intermediate Representation code (e.g. for LLVM)
+* Parser - to parse source code into Abstract Syntax Tree
+* Editor - to write source code :-D
+
+https://www.cs.princeton.edu/courses/archive/spr03/cs320/notes/IR-trans1.pdf
+https://www.cs.princeton.edu/courses/archive/spr03/cs320/notes/IR-trans2.pdf
+
+To produce a "hello world" executable we'll also need a small runtime in assembly,
+e.g. the functions `exit()`, `read()`, `write()`, and their interface with the Operating System.
+
+Graphical representation:
+
+```
+          [Lexer]           [Parser]              [Code Gen]                 [Assembler]             [Encoder]            [Linker]
+  Source ---------> Tokens -----------> Abstract -------------> Intermediate -------------> Assembly -----------> Object ----------> Executable
+   Code             Stream            Syntax Tree               Represenation                                      Code       ^         File
+                                                                                                                              |
+                                                                                                     [nasm]                   | 
+                                                                                      runtime.asm  ---------> runtime.obj ----+
+                                                                                      (hand crafted)
+```

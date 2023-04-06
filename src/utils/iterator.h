@@ -12,13 +12,13 @@
 struct iterator_vtable;
 
 typedef struct iterator {
-    arr *arr;
+    array *arr;
     int current;
 
     struct iterator_vtable *v;
 } iterator;
 
-iterator *new_iterator(arr *a, int start_idx, int upper_limit, bool descending, filter_func *filter);
+iterator *new_iterator(array *a, int start_idx, int upper_limit, bool descending, filter_func *filter);
 
 struct iterator_vtable {
     void (*reset)(iterator *i); // go before the first element

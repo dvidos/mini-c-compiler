@@ -1,6 +1,7 @@
 #include <stdbool.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <string.h>
 #include "ir_listing.h"
 #include "../../utils/string.h"
 
@@ -113,10 +114,15 @@ static void _run_statistics(ir_listing *l) {
     // now make the array and run again to find last index
     l->statistics.regs_count = l->statistics.max_reg_no - l->statistics.min_reg_no + 1;
     l->statistics.reg_last_usage_arr = malloc(sizeof(int) * l->statistics.regs_count);
+    memset(l->statistics.reg_last_usage_arr, 0, sizeof(int) * l->statistics.regs_count);
     for (int i = 0; i < l->length; i++) {
         ir_entry *e = l->entries_arr[i];
         e->ops->foreach_ir_value(e, _statistics_find_each_register_last_index, l, i);
     }
+
+    // print the "last-used" array for sanity check
+    // for (int regno = 0; regno < l->statistics.regs_count; regno++)
+    //     printf("last usage of r%d is at index %d\n", regno, l->statistics.reg_last_usage_arr[regno]);
 }
 
 static int _get_register_last_usage(ir_listing *l, int reg_no) {

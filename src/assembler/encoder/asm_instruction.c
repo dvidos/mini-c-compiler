@@ -204,7 +204,7 @@ asm_instruction *new_asm_instruction_for_reserving_stack_space(int size) {
     memset(p, 0, sizeof(asm_instruction));
 
     p->operation = OC_SUB;
-    p->direction_op1_to_op2 = true;
+    p->direction_op1_to_op2 = false;
     p->operands_size_bits = 32;
     p->operand1.is_register = true;
     p->operand1.per_type.reg = REG_SP;
@@ -276,11 +276,11 @@ void asm_instruction_to_str(asm_instruction *instr, string *str, bool with_comme
 
             if (instr->direction_op1_to_op2) {
                 _operand2_to_str(instr, str);
-                str->v->adds(str, " <- ");
+                str->v->adds(str, ", ");
                 _operand1_to_str(instr, str);
             } else {
                 _operand1_to_str(instr, str);
-                str->v->adds(str, " <- ");
+                str->v->adds(str, ", ");
                 _operand2_to_str(instr, str);
             }
 

@@ -39,20 +39,27 @@ struct encoding_info_table_row {
             //  |  |  |||  | +---- supports immediate value
             //  |  |  |||  | |+--- needs ModRegRm byte
             //  |  |  |||  | ||+-- has sign expanded immediate bit (bit1)
+            //  |  |  |||  | |||
             //  XX XX yyy /n yyy   
             //  012345678901234567
     { OC_NONE, "   .. ... .. ... " },
     { OC_NOP,  "   90            " },
     { OC_PUSH, "   FF ... /6 .y. " }, // essentially 0xFF and a ModRM, short hand would be '01010rrr'
-    { OC_PUSH, "   68 ... .. y.y " }, // for pushing immediates
+    { OC_PUSH, "   68 ... /. y.y " }, // for pushing immediates
     { OC_POP,  "   8F ... /0 .y. " }, // essentially 0x8F and a ModRM, short hand would be '01011rrr'
-    { OC_MOV,  "   88 yy. .. .y. " }, // move between reg, mem
+    { OC_MOV,  "   88 yy. /. .y. " }, // move between reg, mem
     { OC_MOV,  "   C6 y.. /0 yy. " }, // for immediates (target in modregrm: mem or reg)
-    { OC_RET,  "   C3 ... .. ... " }, // return inside segment
-    { OC_CALL, "   E8 ... .. y.. " }, // direct call, full displacement (4bytes)
+    { OC_RET,  "   C3 ... /. ... " }, // return inside segment
+    { OC_CALL, "   E8 ... /. y.. " }, // direct call, full displacement (4bytes)
     { OC_CALL, "   FF ... /2 .y. " }, // indirect call, through register
-    { OC_CMP,  "   34 yy. .. .y. " }, // move between reg, mem
+    { OC_CMP,  "   34 yy. /. .y. " }, // move between reg, mem
     { OC_CMP,  "   80 yy. /7 yy. " }, // for immediates (target in modregrm: mem or reg)
+    { OC_JMP,  "   E9 ... .. y.. " }, // direct, through symbol (resolved by linker)
+    { OC_JMP,  "   FF ... /4 .y. " }, // indirect, through register
+    { OC_ADD,  "   00 yy. /. .y. " }, // add between reg, mem
+    { OC_ADD,  "   80 y.. /0 yyy " }, // add immediate
+    { OC_SUB,  "   28 yy. /. .y. " }, // sub between reg, mem
+    { OC_SUB,  "   80 y.. /5 yyy " }, // sub immediate
 };
 /*  1001  9
     1010  A

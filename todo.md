@@ -2,20 +2,34 @@
 * ~~fix three address code assembly generation...~~
 * ~~implement the IR RETURN command to return a temp reg, to abstract away calling conventions~~
 * asm encoding using the new instruction structure
-* make the first executable, damn it!
+* make register names & capacities confront to size, e.g. AL, AX, EAX, RAX.
+* make the first executable, damn it! <------ THIS
+* rename the assembler into something else (backend IR converter?) and rename the Encoder into Assembler.
 * convert AST to object-like ~~and implement print to file, file line numbers~~
-* maybe convert assembler and allocator to real objects, instead of singletons
+* convert assembler and allocator to real objects, instead of singletons
 
-
-* besides the generated files, we can generate files that show side-to-side, how the conversions are made
-    * from AST into IR
-    * from IR into ASM
-    * from ASM into machine code, example follows
+* Besides the generated files, we can generate files that show side-to-side, how the conversions are made
+  * from AST into IR
+  * from IR into ASM
+  * from ASM into machine code, example follows
 
 ```
 MOV  [BP-8] <- AX    >> --  --  --  --  --  89  01.000.101 --.---.--- f8.--.--.-- --.--.--.-- >>  89 45 f8
 CALL math_demo       >> --  --  --  --  --  ff  00.010.101 --.---.--- 00.00.00.00 --.--.--.-- >>  ff 15 00 00 00 00
 ```
+
+* Good refactoring for later: 
+  * Identify the various stages
+    * What they do
+    * What is the processor and what runtime structures it uses
+    * What are the input and output formats
+  * Identify the data between each stage
+    * Allow them to be saved and loaded from/to files
+
+* Better error handling, logging etc
+* Better testing... we do need this
+ 
+
 
 
 For when we nail a working v.1...

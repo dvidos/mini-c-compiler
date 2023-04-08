@@ -302,8 +302,6 @@ Then we need the following processes:
 * Parser - to parse source code into Abstract Syntax Tree
 * Editor - to write source code :-D
 
-https://www.cs.princeton.edu/courses/archive/spr03/cs320/notes/IR-trans1.pdf
-https://www.cs.princeton.edu/courses/archive/spr03/cs320/notes/IR-trans2.pdf
 
 To produce a "hello world" executable we'll also need a small runtime in assembly,
 e.g. the functions `exit()`, `read()`, `write()`, and their interface with the Operating System.
@@ -319,3 +317,10 @@ Graphical representation:
                                                                                       runtime.asm  ---------> runtime.obj ----+
                                                                                       (hand crafted)
 ```
+
+# Resources
+
+* http://www.c-jump.com/CIS77/CIS77syllabus.htm
+* https://www.cs.princeton.edu/courses/archive/spr03/cs320/notes/IR-trans1.pdf
+* https://www.cs.princeton.edu/courses/archive/spr03/cs320/notes/IR-trans2.pdf
+

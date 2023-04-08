@@ -13,7 +13,6 @@ get_next_counter_value:
     ; BX allocated to r3
     MOV  BX, counter
     MOV  AX, BX              ; IR: return r3
-    MOV  AX, BX              ; IR: return r3
     JMP  get_next_counter_value_exit
     ; BX released from r3
 get_next_counter_value_exit:
@@ -33,7 +32,7 @@ rect_area:
     MOV  CX, [BP+12]
     ; DX allocated to r4
     MOV  AX, BX
-    IMUL AX, CX
+    MUL  AX, CX
     MOV  DX, AX
     ; BX released from r5
     ; CX released from r6
@@ -59,13 +58,13 @@ triangle_area:
     MOV  DX, 0x2
     ; SI allocated to r9
     MOV  AX, CX
-    IDIV AX, DX
+    DIV  AX, DX
     MOV  SI, AX
     ; CX released from r10
     ; DX released from r11
     ; CX allocated to r7
     MOV  AX, BX
-    IMUL AX, SI
+    MUL  AX, SI
     MOV  CX, AX
     ; BX released from r8
     ; SI released from r9
@@ -90,13 +89,13 @@ circle_area:
     MOV  DX, [BP+8]
     ; SI allocated to r14
     MOV  AX, CX
-    IMUL AX, DX
+    MUL  AX, DX
     MOV  SI, AX
     ; CX released from r15
     ; DX released from r16
     ; CX allocated to r12
     MOV  AX, BX
-    IMUL AX, SI
+    MUL  AX, SI
     MOV  CX, AX
     ; BX released from r13
     ; SI released from r14
@@ -114,7 +113,7 @@ fibonacci:
     MOV  BP, SP
     ; [EBP +8] argument "n", 4 bytes
     CMP  [BP+8], 0x2         ; IR: if n > 2 goto if_3_end
-    JGT  if_3_end
+    JAB  if_3_end
     ; BX allocated to r17
     MOV  BX, [BP+8]
     MOV  AX, BX              ; IR: return r17
@@ -173,7 +172,7 @@ factorial:
     MOV  BP, SP
     ; [EBP +8] argument "n", 4 bytes
     CMP  [BP+8], 0x1         ; IR: if n > 1 goto if_4_end
-    JGT  if_4_end
+    JAB  if_4_end
     ; BX allocated to r27
     MOV  BX, [BP+8]
     MOV  AX, BX              ; IR: return r27
@@ -200,7 +199,7 @@ if_4_end:
     ; SI released from r31
     ; DX allocated to r28
     MOV  AX, BX
-    IMUL AX, CX
+    MUL  AX, CX
     MOV  DX, AX
     ; BX released from r29
     ; CX released from r30
@@ -229,7 +228,7 @@ while_5_begin:
     MOV  CX, BX
     ; BX released from r35
     CMP  CX, 0xa             ; IR: if r34 >= 0xa goto while_5_end
-    JGE  while_5_end
+    JAE  while_5_end
     ; CX released from r34
     ; BX released from r34
     ; BX allocated to r36
@@ -265,7 +264,7 @@ while_6_begin:
     MOV  CX, BX
     ; BX released from r41
     CMP  CX, 0xa             ; IR: if r40 >= 0xa goto while_6_end
-    JGE  while_6_end
+    JAE  while_6_end
     ; CX released from r40
     ; BX released from r40
     ; BX allocated to r42
@@ -304,11 +303,11 @@ nested_loops_test:
     MOV  [BP-4], 0xa         ; IR: outer = 0xa
 while_7_begin:
     CMP  [BP-4], 0x0         ; IR: if outer <= 0 goto while_7_end
-    JLE  while_7_end
+    JBE  while_7_end
     MOV  [BP-8], 0xf         ; IR: inner = 0xf
 while_8_begin:
     CMP  [BP-8], 0x0         ; IR: if inner <= 0 goto while_8_end
-    JLE  while_8_end
+    JBE  while_8_end
     ; BX allocated to r46
     MOV  BX, [BP-8]
     MOV  AX, BX              ; IR: inner = r46 - 1

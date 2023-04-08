@@ -614,10 +614,10 @@ static void _free(struct x86_encoder *enc) {
 // -----------------------------
 
 
-static bool encode_asm_instr_opcode(asm_instruction *oper, struct encoding_info *info, struct encoded_instruction *result) {
+static bool encode_asm_instr_opcode(asm_instruction *instr, struct encoding_info *info, struct encoded_instruction *result) {
 
     // setup 16-bit operand size if needed
-    if (oper->operands_size_bits == 16) {
+    if (instr->operands_size_bits == 16) {
         // not sure of difference between operands size and address size...
         result->flags.have_operand_size_prefix = 1;
         result->operand_size_prefix = 0x66;
@@ -633,7 +633,7 @@ static bool encode_asm_instr_opcode(asm_instruction *oper, struct encoding_info 
     result->opcode_byte = info->base_opcode_byte;
 
     if (info->has_direction_bit) {
-        if (oper->direction_op1_to_op2)  // one means from R/M --> Reg in the ModRegR/M byte                
+        if (instr->direction_op1_to_op2)  // one means from R/M --> Reg in the ModRegR/M byte                
             result->opcode_byte |= 0x2;
         else // zero means from Reg --> R/M in the ModRegR/M byte
             result->opcode_byte &= ~0x2;
@@ -641,7 +641,7 @@ static bool encode_asm_instr_opcode(asm_instruction *oper, struct encoding_info 
 
     // width bit works both for immediate and for reg-mem types of instructions
     if (info->has_width_bit) {
-        if (oper->operands_size_bits == 8) // zero indicates single byte operands
+        if (instr->operands_size_bits == 8) // zero indicates single byte operands
             result->opcode_byte &= ~0x1;
         else // one indicates full size operands
             result->opcode_byte |= 0x1;
@@ -652,98 +652,107 @@ static bool encode_asm_instr_opcode(asm_instruction *oper, struct encoding_info 
         result->flags.have_modregrm = true;
         result->modregrm_byte |= ((info->opcode_extension_value & 0x7) << 3);
     }
-}
-
-static bool encode_asm_instr_operands(asm_instruction *oper, struct encoding_info *info, struct encoded_instruction *result) {
-
-    // see if we need mod/rm
-    if (!info->needs_modregrm && !info->has_opcode_extension)
-        return true;
-    
-    result->flags.have_modregrm = true;
-    
-    // first operand one
-    if (oper->operand1.is_register)
-    {
-        // easy set Mod to "11" and "R/M" to the register
-        result->modregrm_byte |= (0x3 << 6);
-        result->modregrm_byte |= (oper->operand1.per_type.reg & 0x7);
-    }
-    else if (oper->operand1.is_memory_by_displacement)
-    {
-        // special case, set mod to '00' and r/m to '101'
-        result->modregrm_byte |= (0x0 << 6);
-        result->modregrm_byte |= (0x5);
-
-        // fixed size 32-bits displacement in this case
-        *(long *)result->displacement = oper->operand1.per_type.mem.displacement;
-        result->displacement_bytes_count = 4;
-    }
-    else if (oper->operand1.is_memory_by_reg)
-    {
-        // see if we have an array notation (item must be 1,2,4 or 8)
-        if (oper->operand1.per_type.mem.array_item_size == 0)
-        {
-            // it's invalid to use SP as pointer, the notation is used for the SIB
-            if (oper->operand1.per_type.mem.pointer_reg == REG_SP)
-                return false;
-            
-            // no SIB byte, proceed normally
-            // "Mod" part will be set by the displacement size
-            result->modregrm_byte |= oper->operand1.per_type.mem.pointer_reg;
-        }
-        else // we have item size, use SIB
-        {
-            // flag SIB presence in Reg part of ModRegRM (32bits mode)
-            result->modregrm_byte |= (0x4); // '100' signals SIB presense
-            result->flags.have_sib = true;
-
-            // scale x1, x2, x4, x8
-            switch (oper->operand1.per_type.mem.array_item_size) {
-                case 1: result->sib_byte |= (0x0 << 6); break;
-                case 2: result->sib_byte |= (0x1 << 6); break;
-                case 4: result->sib_byte |= (0x2 << 6); break;
-                case 8: result->sib_byte |= (0x3 << 6); break;
-                default: return false;
-            }
-            // register to use for array index
-            result->sib_byte |= ((oper->operand1.per_type.mem.array_index_reg & 0x7) << 3);
-            // register to use for base
-            result->sib_byte |= (oper->operand1.per_type.mem.pointer_reg & 0x7);
-        }
-        
-        // SIB or not, add possible displacement
-        if (oper->operand1.per_type.mem.displacement == 0) {
-            // no displacement, set mod to 00
-            result->modregrm_byte |= (0x0 << 6);
-        } else if (oper->operand1.per_type.mem.displacement >= -128 && oper->operand1.per_type.mem.displacement <= 127) {
-            // one byte signed displacement follows
-            result->modregrm_byte |= (0x1 << 6);
-            result->displacement[0] = (char)oper->operand1.per_type.mem.displacement;
-            result->displacement_bytes_count = 1;
-        } else {
-            // full four bytes signed displacement follows
-            result->modregrm_byte |= (0x2 << 6);
-            *(long *)result->displacement = oper->operand1.per_type.mem.displacement;
-            result->displacement_bytes_count = 4;
-        }
-    } 
-
-    // then, operand two (if it's immediate, see other function)
-    if (info->has_opcode_extension) {
-        result->modregrm_byte |= ((info->opcode_extension_value & 0x7) << 3);
-    }
-    else if (oper->operand2.is_register) {
-        result->modregrm_byte |= ((oper->operand2.per_type.reg & 0x7) << 3);
-    }
 
     return true;
 }
 
-static bool encode_asm_instr_immediate(asm_instruction *oper, struct encoding_info *info, struct encoded_instruction *result) {
+static bool encode_asm_instr_operands(asm_instruction *instr, struct encoding_info *info, struct encoded_instruction *result) {
+
+    // most instructions need mod/rm byte
+    if (info->needs_modregrm || info->has_opcode_extension) {
+        result->flags.have_modregrm = true;
+        
+        // first operand one
+        if (instr->operand1.is_register)
+        {
+            // easy set Mod to "11" and "R/M" to the register
+            result->modregrm_byte |= (0x3 << 6);
+            result->modregrm_byte |= (instr->operand1.per_type.reg & 0x7);
+        }
+        else if (instr->operand1.is_memory_by_displacement)
+        {
+            // special case, set mod to '00' and r/m to '101'
+            result->modregrm_byte |= (0x0 << 6);
+            result->modregrm_byte |= (0x5);
+
+            // fixed size 32-bits displacement in this case
+            *(long *)result->displacement = instr->operand1.per_type.mem.displacement;
+            result->displacement_bytes_count = 4;
+        }
+        else if (instr->operand1.is_memory_by_reg)
+        {
+            // see if we have an array notation (item must be 1,2,4 or 8)
+            if (instr->operand1.per_type.mem.array_item_size == 0)
+            {
+                // it's invalid to use SP as pointer, the notation is used for the SIB
+                if (instr->operand1.per_type.mem.pointer_reg == REG_SP)
+                    return false;
+                
+                // no SIB byte, proceed normally
+                // "Mod" part will be set by the displacement size
+                result->modregrm_byte |= instr->operand1.per_type.mem.pointer_reg;
+            }
+            else // we have item size, use SIB
+            {
+                // flag SIB presence in Reg part of ModRegRM (32bits mode)
+                result->modregrm_byte |= (0x4); // '100' signals SIB presense
+                result->flags.have_sib = true;
+
+                // scale x1, x2, x4, x8
+                switch (instr->operand1.per_type.mem.array_item_size) {
+                    case 1: result->sib_byte |= (0x0 << 6); break;
+                    case 2: result->sib_byte |= (0x1 << 6); break;
+                    case 4: result->sib_byte |= (0x2 << 6); break;
+                    case 8: result->sib_byte |= (0x3 << 6); break;
+                    default: return false;
+                }
+                // register to use for array index
+                result->sib_byte |= ((instr->operand1.per_type.mem.array_index_reg & 0x7) << 3);
+                // register to use for base
+                result->sib_byte |= (instr->operand1.per_type.mem.pointer_reg & 0x7);
+            }
+            
+            // SIB or not, add possible displacement
+            if (instr->operand1.per_type.mem.displacement == 0) {
+                // no displacement, set mod to 00
+                result->modregrm_byte |= (0x0 << 6);
+            } else if (instr->operand1.per_type.mem.displacement >= -128 && instr->operand1.per_type.mem.displacement <= 127) {
+                // one byte signed displacement follows
+                result->modregrm_byte |= (0x1 << 6);
+                result->displacement[0] = (char)instr->operand1.per_type.mem.displacement;
+                result->displacement_bytes_count = 1;
+            } else {
+                // full four bytes signed displacement follows
+                result->modregrm_byte |= (0x2 << 6);
+                *(long *)result->displacement = instr->operand1.per_type.mem.displacement;
+                result->displacement_bytes_count = 4;
+            }
+        } 
+
+        // then, operand two (if it's immediate, see other function)
+        if (info->has_opcode_extension) {
+            result->modregrm_byte |= ((info->opcode_extension_value & 0x7) << 3);
+        }
+        else if (instr->operand2.is_register) {
+            result->modregrm_byte |= ((instr->operand2.per_type.reg & 0x7) << 3);
+        }
+    }
+
+    // some instructions take a displacement without modregrm byte (e.g. JMP)
+    if (instr->operand1.is_memory_by_displacement && info->displacement_without_modrm && !info->needs_modregrm) {
+        // must save relocation position!!!!!!
+        *(long *)result->displacement = instr->operand1.per_type.mem.displacement;
+        result->displacement_bytes_count = 4;
+        return true;
+    }
+    
+    return true;
+}
+
+static bool encode_asm_instr_immediate(asm_instruction *instr, struct encoding_info *info, struct encoded_instruction *result) {
 
     // maybe we don't need anything
-    if (!oper->operand2.is_immediate)
+    if (!instr->operand2.is_immediate)
         return true;
     
     // verify the instruction chosen supports immediate values
@@ -751,7 +760,7 @@ static bool encode_asm_instr_immediate(asm_instruction *oper, struct encoding_in
         return false;
     
     // set the full immediate value
-    *(long *)result->immediate = (long)oper->operand2.per_type.immediate;
+    *(long *)result->immediate = (long)instr->operand2.per_type.immediate;
     result->immediate_bytes_count = 4;
 
     // see if we can shorten the bytes added
@@ -759,18 +768,18 @@ static bool encode_asm_instr_immediate(asm_instruction *oper, struct encoding_in
     // 0=immediate as indicated by size bit (8/32 bits),
     // 1=immediate is 1-byte signed number, to be sign extended
     if (info->has_sign_expanded_immediate_bit 
-        && oper->operand2.per_type.immediate >= -128
-        && oper->operand2.per_type.immediate <= 127) {
+        && instr->operand2.per_type.immediate >= -128
+        && instr->operand2.per_type.immediate <= 127) {
             // set the sign expand bit and add just one immediate byte
             result->opcode_byte |= 0x2;
-            *(char *)result->immediate = (char)oper->operand2.per_type.immediate;
+            *(char *)result->immediate = (char)instr->operand2.per_type.immediate;
             result->immediate_bytes_count = 1;
     }
 
     return true;
 }
 
-static bool encode_asm_instruction(asm_instruction *oper, struct encoding_info *info, struct encoded_instruction *result) {
+bool encode_asm_instruction(asm_instruction *instr, struct encoding_info *info, struct encoded_instruction *result) {
     // logic in this function based largely on this page;
     // http://www.c-jump.com/CIS77/CPU/x86/lecture.html
 
@@ -780,11 +789,11 @@ static bool encode_asm_instruction(asm_instruction *oper, struct encoding_info *
     //                    op  rm  sid  offs   immediate
 
     memset(result, 0, sizeof(struct encoded_instruction));
-    if (!encode_asm_instr_opcode(oper, info, result))
+    if (!encode_asm_instr_opcode(instr, info, result))
         return false;
-    if (!encode_asm_instr_operands(oper, info, result))
+    if (!encode_asm_instr_operands(instr, info, result))
         return false;
-    if (!encode_asm_instr_immediate(oper, info, result))
+    if (!encode_asm_instr_immediate(instr, info, result))
         return false;
     return true;
 }

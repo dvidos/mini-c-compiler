@@ -47,8 +47,8 @@ char *opcode_name(enum opcode code) {
         case OC_SUB: return "SUB";
         case OC_INC: return "INC";
         case OC_DEC: return "DEC";
-        case OC_MUL: return "IMUL";
-        case OC_DIV: return "IDIV";
+        case OC_MUL: return "MUL";
+        case OC_DIV: return "DIV";
         case OC_AND: return "AND";
         case OC_OR: return "OR";
         case OC_XOR: return "XOR";
@@ -60,6 +60,10 @@ char *opcode_name(enum opcode code) {
         case OC_CMP: return "CMP";
         case OC_JEQ: return "JEQ";
         case OC_JNE: return "JNE";
+        case OC_JAB: return "JAB";
+        case OC_JAE: return "JAE";
+        case OC_JBL: return "JBL";
+        case OC_JBE: return "JBE";
         case OC_JGT: return "JGT";
         case OC_JGE: return "JGE";
         case OC_JLT: return "JLT";

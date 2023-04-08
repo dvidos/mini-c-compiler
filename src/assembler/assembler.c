@@ -10,7 +10,6 @@
 #include "encoder/encoder.h"
 #include "encoder/asm_allocator.h"
 #include "encoder/asm_instruction.h"
-#include "encoder/encoder4.h"
 #include "../utils/string.h"
 
 
@@ -199,10 +198,11 @@ static void code_conditional_jump(ir_entry *e) {
     switch (j->cmp) {
         case IR_EQ: op = OC_JEQ; break;
         case IR_NE: op = OC_JNE; break;
-        case IR_GT: op = OC_JGT; break;
-        case IR_GE: op = OC_JGE; break;
-        case IR_LT: op = OC_JLT; break;
-        case IR_LE: op = OC_JLE; break;
+        // let's use unsigned comparisons for now
+        case IR_GT: op = OC_JAB; break;
+        case IR_GE: op = OC_JAE; break;
+        case IR_LT: op = OC_JBL; break;
+        case IR_LE: op = OC_JBE; break;
     }
 
     struct asm_operand *addr = new_asm_operand_mem_by_sym(j->target_label);
@@ -547,7 +547,7 @@ void x86_encode_asm_into_machine_code(asm_listing *asm_list, enum x86_cpu_mode m
             // return;
             continue;
         }
-        
+
         if (!encode_asm_instruction(inst, &enc_info, &enc_inst)) {
             string *s = new_string();
             asm_instruction_to_str(inst, s, false);

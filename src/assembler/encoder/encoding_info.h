@@ -17,6 +17,7 @@ struct encoding_info {
 
     bool supports_immediate_value; // does in support immediate following?
     bool needs_modregrm; // means ModRegRM (and possibly SIB) byte is needed
+    bool displacement_without_modrm; // four bytes of displacement
 
     // usually bit 1 (not zero) of opcode, instead of direction bit
     // means that immediate can be shortened to 1 byte, instead of four

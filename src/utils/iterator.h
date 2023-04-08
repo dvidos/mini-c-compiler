@@ -23,7 +23,24 @@ iterator *new_iterator(array *a, int start_idx, int upper_limit, bool descending
 struct iterator_vtable {
     void (*reset)(iterator *i); // go before the first element
     void *(*curr)(iterator *i); // returns current, does not advance
-    bool (*has_next)(iterator *i); 
+    bool (*valid)(iterator *i); // whether current is valid (through reset() or next())
     void *(*next)(iterator *i); // null if none, 
 };
+
+iterator *it;
+
+// using a while format
+it->v->reset();
+while (it->v->valid()) {
+    void *ptr = it->v->curr();
+
+    it->v->next():
+}
+
+// using a for format
+for (it->v->reset(), ptr = it->v->curr(); it->v->valid(); it->v->next(), ptr = it->v->curr()) {
+
+}
+
+
 

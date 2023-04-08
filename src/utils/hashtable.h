@@ -6,6 +6,7 @@
 struct hashtable_vtable;
 
 typedef struct hashtable {
+    void *priv_data;
     struct hashtable_vtable *v;
 } hashtable;
 
@@ -15,7 +16,7 @@ struct hashtable_vtable {
     int (*count)(hashtable *h);
     void (*clear)(hashtable *h);
 
-    bool (*contains_key)(hashtable *h, string *key);     // O(1) operation
+    bool (*contains)(hashtable *h, string *key);     // O(1) operation
     void (*set)(hashtable *h, string *key, void *value); // O(1) operation
     void *(*get)(hashtable *h, string *key);             // O(1) operation
     void (*delete)(hashtable *h, string *key);           // O(1) operation

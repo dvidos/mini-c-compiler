@@ -5,13 +5,15 @@ struct array_vtable;
 // an array holding references to other objects
 // add() works by adding a pointer to the pointed item
 typedef struct array {
-    char *buffer;
-    int length;    // in items
-    int capacity;  // in items
-    int item_size; // in bytes
-
+    void *priv_data;
+    // char *buffer;
+    // int length;    // in items
+    // int capacity;  // in items
+    // int item_size; // in bytes
     struct array_vtable *v;
 } array;
+
+
 
 array *new_array(int item_size);
 
@@ -19,7 +21,7 @@ struct array_vtable {
     // simple array ops
     void (*clear)(array *a);
     void *(*get)(array *a, int index);
-    void (*add)(array *a, void *item); // copies the item into array element
+    void (*add)(array *a, void *item);
     void (*set)(array *a, int index, void *item);
     int (*index_of)(array *a, void *item);
     void (*insert_at)(array *a, int index, void *item);

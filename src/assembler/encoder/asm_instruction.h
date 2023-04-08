@@ -117,7 +117,6 @@ struct asm_instruction_old {
     char *comment;
 };
 
-void instruction_old_to_string(struct asm_instruction_old *inst, char *buff, int buff_size);
 char *gp_reg_name(enum gp_reg r); // don't free the returned string
 char *opcode_name(enum opcode code); // don't free the returned string
 

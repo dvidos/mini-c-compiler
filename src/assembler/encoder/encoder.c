@@ -803,3 +803,4 @@ bool encode_asm_instruction(asm_instruction *instr, struct encoding_info *info, 
         return false;
     return true;
 }
+

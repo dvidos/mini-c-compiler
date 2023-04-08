@@ -38,6 +38,7 @@ struct symbol_table {
     void (*add)(symbol_table *table, char *name, u64 offset, enum symbol_base base);
     struct symbol_entry *(*find)(symbol_table *table, char *name);
     void (*print)(symbol_table *table);
+    void (*offset)(symbol_table *table, long offset);
     void (*free)(symbol_table *table);
 };
 

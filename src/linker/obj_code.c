@@ -16,7 +16,7 @@ static bool _save_object_file(obj_code *obj, FILE *f);
 static void _free(obj_code *obj);
 
 
-struct module_ops ops = {
+struct obj_code_ops ops = {
     .reset = _reset,
     .declare_data = _declare_data,
     .print = _print,

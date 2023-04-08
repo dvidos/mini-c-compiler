@@ -9,6 +9,7 @@ static void _add(reloc_list *list, u64 offset, char *name, enum reloc_type type)
 static void _clear(reloc_list *list);
 static bool _backfill_buffer(reloc_list *list, symbol_table *symbols, buffer *buff, u64 code_base_address, u64 data_base_address, u64 bss_base_address);
 static void _print(reloc_list *list);
+static void _offset(reloc_list *list, long offset);
 static void _free(reloc_list *list);
 
 
@@ -22,6 +23,7 @@ reloc_list *new_reloc_list() {
     p->clear = _clear;
     p->backfill_buffer = _backfill_buffer;
     p->print = _print;
+    p->offset = _offset;
     p->free = _free;
 
     return p;
@@ -95,6 +97,12 @@ static void _print(reloc_list *list) {
             ),
             r->name
         );
+    }
+}
+
+static void _offset(reloc_list *list, long offset) {
+    for (int i = 0; i < list->length; i++) {
+        list->list[i].position += offset;
     }
 }
 

@@ -34,6 +34,7 @@ struct reloc_list {
     void (*clear)(reloc_list *list);
     bool (*backfill_buffer)(reloc_list *list, symbol_table *symbols, buffer *buff, u64 code_base_address, u64 data_base_address, u64 bss_base_address);
     void (*print)(reloc_list *list);
+    void (*offset)(reloc_list *list, long offset);
     void (*free)(reloc_list *list);
 };
 

@@ -13,68 +13,46 @@
 #include "assembler.h"
 #include "../linker/linker.h"
 
-static void test_create_hello_world_executable();
+// static void test_create_hello_world_executable();
 static void test_create_hello_world_executable2();
 static void test_create_hello_world_executable3();
 static void verify_instructions();
-static bool verify_single_instruction(struct asm_instruction_old *instr, char *expected_bytes, int expected_len);
-static void verify_listing(char *title, struct asm_instruction_old *list, int instr_count, char *expected, int expected_len);
+static bool verify_single_instruction(enum opcode oc, struct asm_operand *op1, struct asm_operand *op2, char *expected_bytes, int expected_len);
 
 
 
 
 void perform_asm_test() {
-    // verify_instructions();
+    verify_instructions();
     // test_create_hello_world_executable();
     // test_create_hello_world_executable2();
     test_create_hello_world_executable3();
 }
 
 #define VERIFY_INSTR0(oc, expect_bytes, expect_len)   \
-    instr.opcode = oc; \
-    instr.op1 = NULL; \
-    instr.op2 = NULL; \
-    if (!verify_single_instruction(&instr, expect_bytes, expect_len)) return;
+    if (!verify_single_instruction(oc, NULL, NULL, expect_bytes, expect_len)) return;
 
 #define VERIFY_INSTR1_IMMEDIATE(code, val, expect_bytes, expect_len) \
-    instr.opcode = code; \
-    instr.op1 = new_asm_operand_imm(val); \
-    instr.op2 = NULL; \
-    if (!verify_single_instruction(&instr, expect_bytes, expect_len)) return;
+    if (!verify_single_instruction(code, new_asm_operand_imm(val), NULL, expect_bytes, expect_len)) return;
 
 #define VERIFY_INSTR1_REGISTER(code, reg_no, expect_bytes, expect_len) \
-    instr.opcode = code; \
-    instr.op1 = new_asm_operand_reg(reg_no); \
-    instr.op2 = NULL; \
-    if (!verify_single_instruction(&instr, expect_bytes, expect_len)) return;
+    if (!verify_single_instruction(code, new_asm_operand_reg(reg_no), NULL, expect_bytes, expect_len)) return;
 
 #define VERIFY_INSTR1_MEMBYREG(code, reg_no, offs, expect_bytes, expect_len) \
-    instr.opcode = code; \
-    instr.op1 = new_asm_operand_mem_by_reg(reg_no, offs); \
-    instr.op2 = NULL; \
-    if (!verify_single_instruction(&instr, expect_bytes, expect_len)) return;
+    if (!verify_single_instruction(code, new_asm_operand_mem_by_reg(reg_no, offs), NULL, expect_bytes, expect_len)) return;
 
 #define VERIFY_INSTR1_MEMBYSYM(code, sym, expect_bytes, expect_len) \
-    instr.opcode = code; \
-    instr.op1 = new_asm_operand_mem_by_sym(sym); \
-    instr.op2 = NULL; \
-    if (!verify_single_instruction(&instr, expect_bytes, expect_len)) return;
+    if (!verify_single_instruction(code, new_asm_operand_mem_by_sym(sym), NULL, expect_bytes, expect_len)) return;
 
 #define VERIFY_INSTR2_REG_REG(code, target_regno, source_regno, expect_bytes, expect_len) \
-    instr.opcode = code; \
-    instr.op1 = new_asm_operand_reg(target_regno); \
-    instr.op2 = new_asm_operand_reg(source_regno); \
-    if (!verify_single_instruction(&instr, expect_bytes, expect_len)) return;
+    if (!verify_single_instruction(code, new_asm_operand_reg(target_regno), new_asm_operand_reg(source_regno), expect_bytes, expect_len)) return;
 
 #define VERIFY_INSTR2_REG_IMMEDIATE(code, regno, val, expect_bytes, expect_len) \
-    instr.opcode = code; \
-    instr.op1 = new_asm_operand_reg(regno); \
-    instr.op2 = new_asm_operand_imm(val); \
-    if (!verify_single_instruction(&instr, expect_bytes, expect_len)) return;
+    if (!verify_single_instruction(code, new_asm_operand_reg(regno), new_asm_operand_imm(val), expect_bytes, expect_len)) return;
 
 
 static void verify_instructions() {
-    struct asm_instruction_old instr;
+    asm_instruction *instr;
     printf("Verifying instructions ");
 
     // no operands instruction
@@ -167,202 +145,178 @@ static void verify_instructions() {
     printf(" OK\n");
 }
 
+static bool verify_single_instruction(enum opcode oc, struct asm_operand *op1, struct asm_operand *op2, char *expected_bytes, int expected_len) {
 
-static bool verify_single_instruction(struct asm_instruction_old *instr, char *expected_bytes, int expected_len) {
-    char buff[128];
+    asm_instruction *instr;
+    if (op1 == NULL && op2 == NULL)
+        instr = new_asm_instruction(oc);
+    else if (op1 != NULL && op2 == NULL)
+        instr = new_asm_instruction_with_operand(oc, op1);
+    else if (op1 != NULL && op2 != NULL)
+        instr = new_asm_instruction_with_operands(oc, op1, op2);
 
-    instruction_old_to_string(instr, buff, sizeof(buff));
-    struct x86_encoder *enc = new_x86_encoder(CPU_MODE_PROTECTED, new_buffer(), new_reloc_list());
+    string *s = new_string();
+    asm_instruction_to_str(instr, s, false);
 
-    if (!enc->encode_old(enc, instr)) {
-        printf("\n");
-        printf("  Could not encode instruction '%s'\n", buff);
-        enc->free(enc);
+    // struct x86_encoder *enc = new_x86_encoder(CPU_MODE_PROTECTED, new_buffer(), new_reloc_list());
+    // if (!enc->encode_old(enc, instr)) {
+    //     printf("\n");
+    //     printf("  Could not encode instruction '%s'\n", s->buffer);
+    //     enc->free(enc);
+    //     s->v->free(s);
+    //     return false;
+    // }
+
+    // new encoding style
+    struct encoding_info info;
+    if (!load_encoding_info(instr, &info)) {
+        printf("  Could not find encoding info for '%s'\n", s->buffer);
+        s->v->free(s);
         return false;
     }
 
-    if (memcmp(enc->output->buffer, expected_bytes, expected_len) != 0) {
+    encoded_instruction enc;
+    if (!encode_asm_instruction(instr, &info, &enc)) {
+        printf("  Could not encode '%s'\n", s->buffer);
+        s->v->free(s);
+        return false;
+    }
+
+    buffer *b = new_buffer();
+    pack_encoded_instruction(&enc, b);
+    if (memcmp(b->buffer, expected_bytes, expected_len) != 0) {
         printf("\n");
-        printf("  Bad instruction encoding '%s'\n", buff);
+        printf("  Bad instruction encoding '%s'\n", s->buffer);
         printf("  Expected:");
         for (int i = 0; i < expected_len; i++)
             printf(" %02x", (u8)expected_bytes[i]);
         printf("\n");
         printf("  Produced:");
-        for (int i = 0; i < enc->output->length; i++)
-            printf(" %02x", (u8)enc->output->buffer[i]);
+        for (int i = 0; i < b->length; i++)
+            printf(" %02x", (u8)b->buffer[i]);
         printf("\n");
-        enc->free(enc);
+        s->v->free(s);
+        b->free(b);
         return false;
     }
 
-    enc->free(enc);
+    s->v->free(s);
+    b->free(b);
     printf(".");
     return true;
 }
 
-static void verify_listing(char *title, struct asm_instruction_old *list, int instr_count, char *expected, int expected_len) {
-    bool encoded;
-    char buff[128];
-
-    printf("Verify asm_listing '%s'...", title);
-
-    struct x86_encoder *encoder = new_x86_encoder(CPU_MODE_PROTECTED, new_buffer(), new_reloc_list());
-    for (int i = 0; i < instr_count; i++) {
-        encoded = encoder->encode_old(encoder, &list[i]);
-        if (!encoded) {
-            instruction_old_to_string(&list[i], buff, sizeof(buff));
-            printf("Cannot encode expression: \'%s\'\n", buff);
-            return;
-        }
-    }
-
-    if (memcmp(encoder->output->buffer, expected, expected_len) == 0) {
-        printf(" [OK]\n");
-        return;
-    }
-
-    printf(" [FAILED]\n");
-
-    printf("Assembly code asm_listing:\n");
-    for (int i = 0; i < instr_count; i++) {
-        instruction_old_to_string(&list[i], buff, sizeof(buff));
-        printf("\t%s\n", buff);
-    }
-
-    printf("Encoded machine code: (%d bytes)\n", encoder->output->length);
-    print_16_hex(encoder->output->buffer, encoder->output->length, 2);
-
-    printf("Unresolved references:\n");
-    printf("  Position  Symbol name\n");
-    //        12345678  abcdef
-    for (int i = 0; i < encoder->relocations->length; i++) {
-        struct relocation *r = &encoder->relocations->list[i];
-        printf("  %8ld  %s\n", r->position, r->name);
-    }
-
-    printf("Expected: ");
-    for (int i = 0; i < expected_len; i++)
-        printf(" %02x", (unsigned char)expected[i]);
-    printf("\n");
-
-    printf("Produced: ");
-    for (int i = 0; i < encoder->output->length; i++)
-        printf(" %02x", (unsigned char)encoder->output->buffer[i]);
-    printf("\n");
-}
 
 
+// #define MOV_REG_IMM(reg, val) \
+//     asm_listing[count].opcode = OC_MOV;         \
+//     asm_listing[count].op1 = new_asm_operand_reg(reg); \
+//     asm_listing[count].op2 = new_asm_operand_imm(val); \
+//     count++;
 
-#define MOV_REG_IMM(reg, val) \
-    asm_listing[count].opcode = OC_MOV;         \
-    asm_listing[count].op1 = new_asm_operand_reg(reg); \
-    asm_listing[count].op2 = new_asm_operand_imm(val); \
-    count++;
+// #define MOV_REG_SYM(reg, sym) \
+//     asm_listing[count].opcode = OC_MOV;                   \
+//     asm_listing[count].op1 = new_asm_operand_reg(reg); \
+//     asm_listing[count].op2 = new_asm_operand_mem_by_sym(sym); \
+//     count++;
 
-#define MOV_REG_SYM(reg, sym) \
-    asm_listing[count].opcode = OC_MOV;                   \
-    asm_listing[count].op1 = new_asm_operand_reg(reg); \
-    asm_listing[count].op2 = new_asm_operand_mem_by_sym(sym); \
-    count++;
+// #define INT(no) \
+//     asm_listing[count].opcode = OC_INT;               \
+//     asm_listing[count].op1 = new_asm_operand_imm(no); \
+//     asm_listing[count].op2 = NULL;                    \
+//     count++;
 
-#define INT(no) \
-    asm_listing[count].opcode = OC_INT;               \
-    asm_listing[count].op1 = new_asm_operand_imm(no); \
-    asm_listing[count].op2 = NULL;                    \
-    count++;
+// void test_create_hello_world_executable() {
+//     // based on this: https://www.tutorialspoint.com/assembly_programming/assembly_system_calls.htm
 
-void test_create_hello_world_executable() {
-    // based on this: https://www.tutorialspoint.com/assembly_programming/assembly_system_calls.htm
+//     struct asm_instruction_old asm_listing[30];
+//     int count = 0;
 
-    struct asm_instruction_old asm_listing[30];
-    int count = 0;
-
-    memset(&asm_listing, 0, sizeof(asm_listing));
+//     memset(&asm_listing, 0, sizeof(asm_listing));
     
-    // prepare a data segment as well, keeping address of symbols
-    buffer *data_seg = new_buffer();
-    symbol_table *data_symbols = new_symbol_table();
-    char *msg = "Hello world!\n";
-    data_symbols->add(data_symbols, "hello_msg", data_seg->length, SB_DATA);
-    data_seg->add_strz(data_seg, msg);
-    data_symbols->add(data_symbols, "hello_msg_len", data_seg->length, SB_DATA);
-    data_seg->add_dword(data_seg, strlen(msg));
+//     // prepare a data segment as well, keeping address of symbols
+//     buffer *data_seg = new_buffer();
+//     symbol_table *data_symbols = new_symbol_table();
+//     char *msg = "Hello world!\n";
+//     data_symbols->add(data_symbols, "hello_msg", data_seg->length, SB_DATA);
+//     data_seg->add_strz(data_seg, msg);
+//     data_symbols->add(data_symbols, "hello_msg_len", data_seg->length, SB_DATA);
+//     data_seg->add_dword(data_seg, strlen(msg));
 
-    // syscall for write(), eax=4, ebx=handle, ecx=buffer, edx=length
-    MOV_REG_IMM(REG_AX, 4);
-    MOV_REG_IMM(REG_BX, 1);
-    MOV_REG_SYM(REG_CX, "hello_msg");
-    MOV_REG_IMM(REG_DX, 13);
-    INT(0x80);
+//     // syscall for write(), eax=4, ebx=handle, ecx=buffer, edx=length
+//     MOV_REG_IMM(REG_AX, 4);
+//     MOV_REG_IMM(REG_BX, 1);
+//     MOV_REG_SYM(REG_CX, "hello_msg");
+//     MOV_REG_IMM(REG_DX, 13);
+//     INT(0x80);
 
-    // syscall for exit(), eax=1, ebx=exit_code
-    MOV_REG_IMM(REG_AX, 1);
-    MOV_REG_IMM(REG_BX, 0);
-    INT(0x80);
+//     // syscall for exit(), eax=1, ebx=exit_code
+//     MOV_REG_IMM(REG_AX, 1);
+//     MOV_REG_IMM(REG_BX, 0);
+//     INT(0x80);
 
-    // encode this into intel machine code
-    struct x86_encoder *enc = new_x86_encoder(CPU_MODE_PROTECTED, new_buffer(), new_reloc_list());
-    for (int i = 0; i < count; i++) {
-        if (!enc->encode_old(enc, &asm_listing[i])) {
-            char str[128];
-            instruction_old_to_string(&asm_listing[i], str, sizeof(str));
-            printf("Failed encoding instruction: '%s'\n", str);
-            return;
-        }
-    }
+//     // encode this into intel machine code
+//     struct x86_encoder *enc = new_x86_encoder(CPU_MODE_PROTECTED, new_buffer(), new_reloc_list());
+//     for (int i = 0; i < count; i++) {
+//         if (!enc->encode_old(enc, &asm_listing[i])) {
+//             char str[128];
+//             instruction_old_to_string(&asm_listing[i], str, sizeof(str));
+//             printf("Failed encoding instruction: '%s'\n", str);
+//             return;
+//         }
+//     }
     
-    u64 code_seg_address = 0x8049000; // 0x8048000;
-    u64 data_seg_address = code_seg_address + round_up(enc->output->length, 4096);
+//     u64 code_seg_address = 0x8049000; // 0x8048000;
+//     u64 data_seg_address = code_seg_address + round_up(enc->output->length, 4096);
 
-    // backfill relocations
-    enc->relocations->backfill_buffer(enc->relocations,
-        data_symbols, enc->output, code_seg_address, data_seg_address, 0);
+//     // backfill relocations
+//     enc->relocations->backfill_buffer(enc->relocations,
+//         data_symbols, enc->output, code_seg_address, data_seg_address, 0);
 
-    // now we should be good. let's write this.
-    elf_contents *prog = malloc(sizeof(elf_contents));
-    memset(prog, 0, sizeof(elf_contents));
+//     // now we should be good. let's write this.
+//     elf_contents *prog = malloc(sizeof(elf_contents));
+//     memset(prog, 0, sizeof(elf_contents));
 
-    // .text
-    prog->code_address = code_seg_address; // usual starting address
-    prog->code_contents = enc->output->buffer;
-    prog->code_size = enc->output->length;
-    prog->code_entry_point = code_seg_address; // address of _start, actually...
-    // .data
-    prog->data_address = data_seg_address;
-    prog->data_contents = data_seg->buffer;
-    prog->data_size = data_seg->length;
-    // .bss
-    prog->bss_address = round_up(prog->data_address + prog->data_size, 4096);
-    prog->bss_size = 0;
-    // flags
-    prog->flags.is_64_bits = false;
-    prog->flags.is_static_executable = true;
+//     // .text
+//     prog->code_address = code_seg_address; // usual starting address
+//     prog->code_contents = enc->output->buffer;
+//     prog->code_size = enc->output->length;
+//     prog->code_entry_point = code_seg_address; // address of _start, actually...
+//     // .data
+//     prog->data_address = data_seg_address;
+//     prog->data_contents = data_seg->buffer;
+//     prog->data_size = data_seg->length;
+//     // .bss
+//     prog->bss_address = round_up(prog->data_address + prog->data_size, 4096);
+//     prog->bss_size = 0;
+//     // flags
+//     prog->flags.is_64_bits = false;
+//     prog->flags.is_static_executable = true;
 
-    // seems to have been encoded correctly, despite the seg fault
-    /*
-        $ objdump -d out.elf
+//     // seems to have been encoded correctly, despite the seg fault
+//     /*
+//         $ objdump -d out.elf
 
-        out.elf:     file format elf32-i386
-        Disassembly of section .text:
-        08048000 <.text>:
+//         out.elf:     file format elf32-i386
+//         Disassembly of section .text:
+//         08048000 <.text>:
 
-        8048000:	b8 04 00 00 00       	mov    $0x4,%eax
-        8048005:	bb 01 00 00 00       	mov    $0x1,%ebx
-        804800a:	b9 00 90 04 08       	mov    $0x8049000,%ecx
-        804800f:	ba 0d 90 04 08       	mov    $0x804900d,%edx
-        8048014:	cd 80                	int    $0x80
-        8048016:	b8 01 00 00 00       	mov    $0x1,%eax
-        804801b:	bb 00 00 00 00       	mov    $0x0,%ebx
-        8048020:	cd 80                	int    $0x80
-    */
+//         8048000:	b8 04 00 00 00       	mov    $0x4,%eax
+//         8048005:	bb 01 00 00 00       	mov    $0x1,%ebx
+//         804800a:	b9 00 90 04 08       	mov    $0x8049000,%ecx
+//         804800f:	ba 0d 90 04 08       	mov    $0x804900d,%edx
+//         8048014:	cd 80                	int    $0x80
+//         8048016:	b8 01 00 00 00       	mov    $0x1,%eax
+//         804801b:	bb 00 00 00 00       	mov    $0x0,%ebx
+//         8048020:	cd 80                	int    $0x80
+//     */
 
-    long elf_size = 0;
-    if (!write_elf_file(prog, "out.elf", &elf_size))
-        printf("Error writing output elf file!\n");
-    else
-        printf("Wrote %ld bytes to out.elf file\n", elf_size);
-}
+//     long elf_size = 0;
+//     if (!write_elf_file(prog, "out.elf", &elf_size))
+//         printf("Error writing output elf file!\n");
+//     else
+//         printf("Wrote %ld bytes to out.elf file\n", elf_size);
+// }
 
 
 static bool _encode_listing_code(asm_listing *lst, obj_code *mod, enum x86_cpu_mode mode);
@@ -413,9 +367,8 @@ static bool _encode_listing_code(asm_listing *lst, obj_code *mod, enum x86_cpu_m
             mod->symbols->add(mod->symbols, inst->label, mod->text_seg->length, SB_CODE);
         }
 
-        // if (!enc->encode_old(enc, inst)) {
+        // if (!enc->encode_new(enc, inst)) {
         //     char str[128];
-        //     instruction_old_to_string(inst, str, sizeof(str));
         //     printf("Failed encoding instruction: '%s'\n", str);
         //     return false;
         // }

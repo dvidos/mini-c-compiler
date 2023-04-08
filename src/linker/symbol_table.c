@@ -8,6 +8,7 @@ static void _clear(symbol_table *table);
 static void _add(symbol_table *table, char *name, u64 offset, enum symbol_base base);
 static struct symbol_entry *_find(symbol_table *table, char *name);
 static void _print(symbol_table *table);
+static void _offset(symbol_table *table, long offset);
 static void _free(symbol_table *table);
 
 symbol_table *new_symbol_table() {
@@ -20,6 +21,7 @@ symbol_table *new_symbol_table() {
     p->find = _find;
     p->clear = _clear;
     p->print = _print;
+    p->offset = _offset;
     p->free = _free;
 
     return p;
@@ -65,6 +67,12 @@ static void _print(symbol_table *table) {
             ),
             s->offset
         );
+    }
+}
+
+static void _offset(symbol_table *table, long offset) {
+    for (int i = 0; i < table->length; i++) {
+        table->symbols[i].offset += offset;
     }
 }
 

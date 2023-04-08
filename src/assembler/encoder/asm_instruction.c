@@ -9,18 +9,6 @@
 static void append_operand_instruction(struct asm_operand *op, char *buffer, int buff_size);
 
 
-void instruction_old_to_string(struct asm_instruction_old *inst, char *buff, int buff_size) {
-    strncpy(buff, opcode_name(inst->opcode), buff_size);
-    if (inst->op1 != NULL) {
-        strncat(buff, " ", buff_size);
-        append_operand_instruction(inst->op1, buff, buff_size);
-        if (inst->op2 != NULL) {
-            strncat(buff, ", ", buff_size);
-            append_operand_instruction(inst->op2, buff, buff_size);
-        }
-    }
-}
-
 static void append_operand_instruction(struct asm_operand *op, char *buffer, int buff_size) {
     char *pos = buffer + strlen(buffer);
     int len = buff_size - strlen(buffer);

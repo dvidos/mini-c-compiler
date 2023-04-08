@@ -22,12 +22,12 @@ struct obj_code {
     // references in the code segment that need to be resolved at link time
     reloc_list *relocations;
 
-    struct module_ops *ops;
+    struct obj_code_ops *ops;
 };
 
 typedef struct obj_code obj_code;
 
-struct module_ops {
+struct obj_code_ops {
     // runtime manipulation
     void (*reset)(obj_code *obj);
     void (*declare_data)(obj_code *obj, char *symbol_name, u64 bytes, void *init_value);

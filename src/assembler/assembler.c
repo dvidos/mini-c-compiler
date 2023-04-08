@@ -7,6 +7,8 @@
 #include "../compiler/codegen/ir_listing.h"
 #include "../linker/obj_code.h"
 #include "encoder/asm_listing.h"
+#include "encoder/encoding_info.h"
+#include "encoder/encoded_instruction.h"
 #include "encoder/encoder.h"
 #include "encoder/asm_allocator.h"
 #include "encoder/asm_instruction.h"

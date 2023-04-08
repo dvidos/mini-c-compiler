@@ -22,10 +22,7 @@ struct asm_listing_ops {
     void (*set_next_label)(asm_listing *lst, char *label, ...);
     void (*set_next_comment)(asm_listing *lst, char *comment, ...);
     void (*add_comment)(asm_listing *lst, char *comment, ...);
-    void (*add)(asm_listing *lst, asm_instruction *oper);
-    void (*add_instr0)(asm_listing *lst, enum opcode code); // e.g. NOP
-    void (*add_instr1)(asm_listing *lst, enum opcode code, struct asm_operand *op);
-    void (*add_instr2)(asm_listing *lst, enum opcode code, struct asm_operand *target_op, struct asm_operand *source_op);
+    void (*add)(asm_listing *lst, asm_instruction *instr);
 };
 
 asm_listing *new_asm_listing();

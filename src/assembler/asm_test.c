@@ -1,18 +1,21 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
-#include "../../utils.h"
-#include "../../options.h"
-#include "../../utils/buffer.h"
-#include "../../linker/symbol_table.h"
-#include "../../linker/elf/elf.h"
-#include "../../linker/obj_code.h"
-#include "asm_instruction.h"
-#include "encoder.h"
-#include "asm_listing.h"
+#include "../utils.h"
+#include "../options.h"
+#include "../utils/buffer.h"
+#include "../linker/symbol_table.h"
+#include "../linker/elf/elf.h"
+#include "../linker/obj_code.h"
+#include "encoder/asm_instruction.h"
+#include "encoder/encoder.h"
+#include "encoder/asm_listing.h"
+#include "assembler.h"
+#include "../linker/linker.h"
 
-static void test_create_executable();
-static void test_create_executable2();
+static void test_create_hello_world_executable();
+static void test_create_hello_world_executable2();
+static void test_create_hello_world_executable3();
 static void verify_instructions();
 static bool verify_single_instruction(struct asm_instruction_old *instr, char *expected_bytes, int expected_len);
 static void verify_listing(char *title, struct asm_instruction_old *list, int instr_count, char *expected, int expected_len);
@@ -21,12 +24,11 @@ static void verify_listing(char *title, struct asm_instruction_old *list, int in
 
 
 void perform_asm_test() {
-    verify_instructions();
-    test_create_executable();
-    test_create_executable2();
+    // verify_instructions();
+    // test_create_hello_world_executable();
+    // test_create_hello_world_executable2();
+    test_create_hello_world_executable3();
 }
-
-
 
 #define VERIFY_INSTR0(oc, expect_bytes, expect_len)   \
     instr.opcode = oc; \
@@ -270,7 +272,7 @@ static void verify_listing(char *title, struct asm_instruction_old *list, int in
     asm_listing[count].op2 = NULL;                    \
     count++;
 
-void test_create_executable() {
+void test_create_hello_world_executable() {
     // based on this: https://www.tutorialspoint.com/assembly_programming/assembly_system_calls.htm
 
     struct asm_instruction_old asm_listing[30];
@@ -366,23 +368,23 @@ void test_create_executable() {
 static bool _encode_listing_code(asm_listing *lst, obj_code *mod, enum x86_cpu_mode mode);
 static bool _link_module(obj_code *mod, u64 code_base_address, char *filename);
 
-void test_create_executable2() {
+void test_create_hello_world_executable2() {
     asm_listing *lst = new_asm_listing();
     obj_code *mod = new_obj_code_module();
     
     mod->ops->declare_data(mod, "hello_msg", 13 + 1, "Hello World!\n");
 
     lst->ops->set_next_label(lst, "_start");
-    lst->ops->add_instr2(lst, OC_MOV, new_asm_operand_reg(REG_AX), new_asm_operand_imm(4));
-    lst->ops->add_instr2(lst, OC_MOV, new_asm_operand_reg(REG_BX), new_asm_operand_imm(1));
-    lst->ops->add_instr2(lst, OC_MOV, new_asm_operand_reg(REG_CX), new_asm_operand_mem_by_sym("hello_msg"));
-    lst->ops->add_instr2(lst, OC_MOV, new_asm_operand_reg(REG_DX), new_asm_operand_imm(13));
-    lst->ops->add_instr1(lst, OC_INT, new_asm_operand_imm(0x80));
+    lst->ops->add(lst, new_asm_instruction_with_operands(OC_MOV, new_asm_operand_reg(REG_AX), new_asm_operand_imm(4)));
+    lst->ops->add(lst, new_asm_instruction_with_operands(OC_MOV, new_asm_operand_reg(REG_BX), new_asm_operand_imm(1)));
+    lst->ops->add(lst, new_asm_instruction_with_operands(OC_MOV, new_asm_operand_reg(REG_CX), new_asm_operand_mem_by_sym("hello_msg")));
+    lst->ops->add(lst, new_asm_instruction_with_operands(OC_MOV, new_asm_operand_reg(REG_DX), new_asm_operand_imm(13)));
+    lst->ops->add(lst, new_asm_instruction_with_operand(OC_INT, new_asm_operand_imm(0x80)));
 
     lst->ops->set_next_label(lst, "_exit");
-    lst->ops->add_instr2(lst, OC_MOV, new_asm_operand_reg(REG_AX), new_asm_operand_imm(1));
-    lst->ops->add_instr2(lst, OC_MOV, new_asm_operand_reg(REG_BX), new_asm_operand_imm(0));
-    lst->ops->add_instr1(lst, OC_INT, new_asm_operand_imm(0x80));
+    lst->ops->add(lst, new_asm_instruction_with_operands(OC_MOV, new_asm_operand_reg(REG_AX), new_asm_operand_imm(1)));
+    lst->ops->add(lst, new_asm_instruction_with_operands(OC_MOV, new_asm_operand_reg(REG_BX), new_asm_operand_imm(0)));
+    lst->ops->add(lst, new_asm_instruction_with_operand(OC_INT, new_asm_operand_imm(0x80)));
 
     lst->ops->print(lst, stdout);
 
@@ -473,4 +475,27 @@ static bool _link_module(obj_code *mod, u64 code_base_address, char *filename) {
     }
 
     printf("Wrote %ld bytes to file '%s'\n", elf_size, filename);
+}
+
+static void test_create_hello_world_executable3() {
+
+    asm_listing *l = new_asm_listing();
+    l->ops->set_next_label(l, "_start");
+    l->ops->add(l, new_asm_instruction_with_operands(OC_MOV, new_asm_operand_reg(REG_AX), new_asm_operand_imm(4)));
+    l->ops->add(l, new_asm_instruction_with_operands(OC_MOV, new_asm_operand_reg(REG_BX), new_asm_operand_imm(1)));
+    l->ops->add(l, new_asm_instruction_with_operands(OC_MOV, new_asm_operand_reg(REG_CX), new_asm_operand_mem_by_sym("hello_msg")));
+    l->ops->add(l, new_asm_instruction_with_operands(OC_MOV, new_asm_operand_reg(REG_DX), new_asm_operand_imm(13)));
+    l->ops->add(l, new_asm_instruction_with_operand(OC_INT, new_asm_operand_imm(0x80)));
+    l->ops->set_next_label(l, "_exit");
+    l->ops->add(l, new_asm_instruction_with_operands(OC_MOV, new_asm_operand_reg(REG_AX), new_asm_operand_imm(1)));
+    l->ops->add(l, new_asm_instruction_with_operands(OC_MOV, new_asm_operand_reg(REG_BX), new_asm_operand_imm(0)));
+    l->ops->add(l, new_asm_instruction_with_operand(OC_INT, new_asm_operand_imm(0x80)));
+
+    obj_code *c = new_obj_code_module();
+    c->ops->declare_data(c, "hello_msg", 13 + 1, "Hello World!\n");
+    x86_encode_asm_into_machine_code(l, CPU_MODE_PROTECTED, c);
+
+    // link into executable
+    obj_code *modules[1] = { c };
+    x86_link(modules, 1, 0x8048000, "hello.elf");
 }

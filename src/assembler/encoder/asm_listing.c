@@ -13,9 +13,6 @@ static void _set_next_label(asm_listing *lst, char *label, ...);
 static void _set_next_comment(asm_listing *lst, char *comment, ...);
 static void _add_comment(asm_listing *lst, char *comment, ...);
 static void _add(asm_listing *lst, asm_instruction *instr);
-static void _add_instr0(asm_listing *lst, enum opcode code); // e.g. NOP
-static void _add_instr1(asm_listing *lst, enum opcode code, struct asm_operand *op);
-static void _add_instr2(asm_listing *lst, enum opcode code, struct asm_operand *target_op, struct asm_operand *source_op);
 
 
 static struct asm_listing_ops ops = {
@@ -24,9 +21,6 @@ static struct asm_listing_ops ops = {
     .set_next_comment = _set_next_comment,
     .add_comment = _add_comment,
     .add = _add,
-    .add_instr0 = _add_instr0,
-    .add_instr1 = _add_instr1,
-    .add_instr2 = _add_instr2
 };
 
 asm_listing *new_asm_listing() {
@@ -142,18 +136,6 @@ static void _add_comment(asm_listing *lst, char *comment, ...) {
     // add it as a standalone thing
     lst->next_comment = strdup(buffer);
     _add(lst, new_asm_instruction(OC_NONE));
-}
-
-static void _add_instr0(asm_listing *lst, enum opcode code) {
-    _add(lst, new_asm_instruction(code));
-}
-
-static void _add_instr1(asm_listing *lst, enum opcode code, struct asm_operand *op) {
-    _add(lst, new_asm_instruction_with_operand(code, op));
-}
-
-static void _add_instr2(asm_listing *lst, enum opcode code, struct asm_operand *target_op, struct asm_operand *source_op) {
-    _add(lst, new_asm_instruction_with_operands(code, target_op, source_op));
 }
 
 void _add(asm_listing *lst, asm_instruction *instr) {

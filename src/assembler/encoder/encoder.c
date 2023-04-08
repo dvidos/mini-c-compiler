@@ -756,24 +756,30 @@ static bool encode_asm_instr_immediate(asm_instruction *instr, struct encoding_i
         return true;
     
     // verify the instruction chosen supports immediate values
-    if (!info->supports_immediate_value)
+    if (info->immediate_support == IMM_NONE)
         return false;
     
-    // set the full immediate value
-    *(long *)result->immediate = (long)instr->operand2.per_type.immediate;
-    result->immediate_bytes_count = 4;
+    bool fits_single_byte = instr->operand2.per_type.immediate >= -128 && instr->operand2.per_type.immediate <= 127;
 
-    // see if we can shorten the bytes added
-    // "sign_expanded_immediate" takes the place of direction
-    // 0=immediate as indicated by size bit (8/32 bits),
-    // 1=immediate is 1-byte signed number, to be sign extended
-    if (info->has_sign_expanded_immediate_bit 
-        && instr->operand2.per_type.immediate >= -128
-        && instr->operand2.per_type.immediate <= 127) {
+    if (info->immediate_support == IMM_FIXED8) {
+        *(char *)result->immediate = (char)(instr->operand2.per_type.immediate & 0xFF);
+        result->immediate_bytes_count = 1;
+    } else if (info->immediate_support == IMM_FIXED32) {
+        *(long *)result->immediate = (long)instr->operand2.per_type.immediate;
+        result->immediate_bytes_count = 4;
+    } else if (info->immediate_support == IMM_SIGN_EXP_BIT) {
+        if (fits_single_byte) {
             // set the sign expand bit and add just one immediate byte
+            // "sign_expanded_immediate" takes the place of direction bit
+            // 0=immediate as indicated by size bit (8/32 bits),
+            // 1=immediate is 1-byte signed number, to be sign extended
             result->opcode_byte |= 0x2;
-            *(char *)result->immediate = (char)instr->operand2.per_type.immediate;
+            *(char *)result->immediate = (char)(instr->operand2.per_type.immediate & 0xFF);
             result->immediate_bytes_count = 1;
+        } else {
+            *(long *)result->immediate = (long)instr->operand2.per_type.immediate;
+            result->immediate_bytes_count = 4;
+        }
     }
 
     return true;

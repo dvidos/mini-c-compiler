@@ -544,37 +544,13 @@ void x86_encode_asm_into_machine_code(asm_listing *asm_list, enum x86_cpu_mode m
         if (inst->operation == OC_NONE)
             continue;
         
-        if (!load_encoding_info(inst, &enc_info)) {
-            error(NULL, 0, "Failed loading encoding info for operation '%s'\n", opcode_name(inst->operation));
-            // return;
-            continue;
-        }
-
-        if (!encode_asm_instruction(inst, &enc_info, &enc_inst)) {
+        if (!enc->encode_v4(enc, inst)) {
             string *s = new_string();
             asm_instruction_to_str(inst, s, false);
             error(NULL, 0, "Failed encoding instruction: '%s'\n", s->buffer);
             s->v->free(s);
-            // return;
             continue;
         }
-
-        // should pack the encoded instruction
-        // maybe I should also print it...
-        pack_encoded_instruction(&enc_inst, obj->text_seg);
-
-        // show the conversion
-        asm_instruction_to_str(inst, s, false);
-        printf("%-20s >> ", s->buffer);
-        s->v->clear(s);
-        encoded_instruction_to_str(&enc_inst, s);
-        printf("%s >> ", s->buffer);
-        s->v->clear(s);
-        pack_encoded_instruction(&enc_inst, b);
-        for (int i = 0; i < b->length; i++)
-            printf(" %02x", (unsigned char)b->buffer[i]);
-        printf("\n");
-        b->clear(b);
     }
 
     printf("Sample resulting machine code\n");

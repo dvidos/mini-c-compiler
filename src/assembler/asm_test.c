@@ -158,32 +158,16 @@ static bool verify_single_instruction(enum opcode oc, struct asm_operand *op1, s
     string *s = new_string();
     asm_instruction_to_str(instr, s, false);
 
-    // struct x86_encoder *enc = new_x86_encoder(CPU_MODE_PROTECTED, new_buffer(), new_reloc_list());
-    // if (!enc->encode_old(enc, instr)) {
-    //     printf("\n");
-    //     printf("  Could not encode instruction '%s'\n", s->buffer);
-    //     enc->free(enc);
-    //     s->v->free(s);
-    //     return false;
-    // }
-
-    // new encoding style
-    struct encoding_info info;
-    if (!load_encoding_info(instr, &info)) {
-        printf("  Could not find encoding info for '%s'\n", s->buffer);
-        s->v->free(s);
-        return false;
-    }
-
-    encoded_instruction enc;
-    if (!encode_asm_instruction(instr, &info, &enc)) {
-        printf("  Could not encode '%s'\n", s->buffer);
-        s->v->free(s);
-        return false;
-    }
-
     buffer *b = new_buffer();
-    pack_encoded_instruction(&enc, b);
+    reloc_list *relocs = new_reloc_list();
+    x86_encoder *enc = new_x86_encoder(CPU_MODE_PROTECTED, b, relocs);
+    if (!enc->encode_v4(enc, instr)) {
+        printf("  Could not encode instruction '%s'\n", s->buffer);
+        enc->free(enc);
+        s->v->free(s);
+        return false;
+    }
+
     if (memcmp(b->buffer, expected_bytes, expected_len) != 0) {
         printf("\n");
         printf("  Bad instruction encoding '%s'\n", s->buffer);
@@ -205,7 +189,6 @@ static bool verify_single_instruction(enum opcode oc, struct asm_operand *op1, s
     printf(".");
     return true;
 }
-
 
 
 // #define MOV_REG_IMM(reg, val) \
@@ -367,11 +350,13 @@ static bool _encode_listing_code(asm_listing *lst, obj_code *mod, enum x86_cpu_m
             mod->symbols->add(mod->symbols, inst->label, mod->text_seg->length, SB_CODE);
         }
 
-        // if (!enc->encode_new(enc, inst)) {
-        //     char str[128];
-        //     printf("Failed encoding instruction: '%s'\n", str);
-        //     return false;
-        // }
+        if (!enc->encode_v4(enc, inst)) {
+            string *s = new_string();
+            asm_instruction_to_str(inst, s, false);
+            printf("Failed encoding instruction: '%s'\n", s->buffer);
+            s->v->free(s);
+            return false;
+        }
     }
 
     return true;

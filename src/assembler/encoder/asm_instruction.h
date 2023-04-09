@@ -109,14 +109,6 @@ typedef struct asm_instruction {
 } asm_instruction;
 
 
-struct asm_instruction_old {
-    char *label;
-    enum opcode opcode;
-    struct asm_operand *op1;
-    struct asm_operand *op2;
-    char *comment;
-};
-
 char *gp_reg_name(enum gp_reg r); // don't free the returned string
 char *opcode_name(enum opcode code); // don't free the returned string
 

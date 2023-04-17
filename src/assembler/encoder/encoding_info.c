@@ -87,15 +87,14 @@ struct encoding_info_table_row {
     { OC_XOR,  "   30 yy.. /. y. __ " }, // reg from/to mem/reg
     { OC_AND,  "   80 y.y. /4 y. sb " }, // immediate to reg/mem
     { OC_OR,   "   80 y.y. /1 y. sb " }, // immediate to reg/mem
-    { OC_XOR,  "   80 y.y. /3 y. sb " }, // immediate to reg/mem
+    { OC_XOR,  "   80 y.y. /6 y. sb " }, // immediate to reg/mem
+    { OC_SHL,  "   C0 y... /4 y. 08 " }, // shift mem/reg left by 8bit immediate
+    { OC_SHR,  "   C0 y... /5 y. 08 " }, // shift mem/reg right by 8bit immediate
+
 };
-/*  1001  9
-    1010  A
-    1011  B
-    1100  C
-    1101  D
-    1110  E
-    1111  F */
+//   0     1     2     3     4     5     6     7     8     9     A     B     C     D     E     F
+// 0000  0001  0010  0011  0100  0101  0110  0111  1000  1001  1010  1011  1100  1101  1110  1111  
+
 
 bool load_encoding_info(asm_instruction *inst, struct encoding_info *info) {
     bool needs_immediate = inst->operand2.is_immediate;

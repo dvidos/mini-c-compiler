@@ -1,0 +1,23 @@
+
+displacements.o:     file format elf32-i386
+
+
+Disassembly of section .text:
+
+00000000 <_start>:
+   0:	90                   	nop
+   1:	e8 08 00 00 00       	call   e <func1>
+   6:	90                   	nop
+
+00000007 <label1>:
+   7:	90                   	nop
+   8:	eb fd                	jmp    7 <label1>
+   a:	90                   	nop
+   b:	eb 01                	jmp    e <func1>
+   d:	90                   	nop
+
+0000000e <func1>:
+   e:	66 b8 01 00          	mov    $0x1,%ax
+  12:	66 bb 02 00          	mov    $0x2,%bx
+  16:	66 b9 03 00          	mov    $0x3,%cx
+  1a:	c3                   	ret    

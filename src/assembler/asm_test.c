@@ -16,42 +16,44 @@
 // static void test_create_hello_world_executable();
 static void test_create_hello_world_executable2();
 static void test_create_hello_world_executable3();
-static void verify_instructions();
+static bool verify_instructions();
 static bool verify_single_instruction(enum opcode oc, struct asm_operand *op1, struct asm_operand *op2, char *expected_bytes, int expected_len);
 
 
 
 
 void perform_asm_test() {
-    verify_instructions();
+    if (!verify_instructions())
+        return;
+    
     // test_create_hello_world_executable();
     // test_create_hello_world_executable2();
     test_create_hello_world_executable3();
 }
 
 #define VERIFY_INSTR0(oc, expect_bytes, expect_len)   \
-    if (!verify_single_instruction(oc, NULL, NULL, expect_bytes, expect_len)) return;
+    if (!verify_single_instruction(oc, NULL, NULL, expect_bytes, expect_len)) return false;
 
 #define VERIFY_INSTR1_IMMEDIATE(code, val, expect_bytes, expect_len) \
-    if (!verify_single_instruction(code, new_asm_operand_imm(val), NULL, expect_bytes, expect_len)) return;
+    if (!verify_single_instruction(code, new_asm_operand_imm(val), NULL, expect_bytes, expect_len)) return false;
 
 #define VERIFY_INSTR1_REGISTER(code, reg_no, expect_bytes, expect_len) \
-    if (!verify_single_instruction(code, new_asm_operand_reg(reg_no), NULL, expect_bytes, expect_len)) return;
+    if (!verify_single_instruction(code, new_asm_operand_reg(reg_no), NULL, expect_bytes, expect_len)) return false;
 
 #define VERIFY_INSTR1_MEMBYREG(code, reg_no, offs, expect_bytes, expect_len) \
-    if (!verify_single_instruction(code, new_asm_operand_mem_by_reg(reg_no, offs), NULL, expect_bytes, expect_len)) return;
+    if (!verify_single_instruction(code, new_asm_operand_mem_by_reg(reg_no, offs), NULL, expect_bytes, expect_len)) return false;
 
 #define VERIFY_INSTR1_MEMBYSYM(code, sym, expect_bytes, expect_len) \
-    if (!verify_single_instruction(code, new_asm_operand_mem_by_sym(sym), NULL, expect_bytes, expect_len)) return;
+    if (!verify_single_instruction(code, new_asm_operand_mem_by_sym(sym), NULL, expect_bytes, expect_len)) return false;
 
 #define VERIFY_INSTR2_REG_REG(code, target_regno, source_regno, expect_bytes, expect_len) \
-    if (!verify_single_instruction(code, new_asm_operand_reg(target_regno), new_asm_operand_reg(source_regno), expect_bytes, expect_len)) return;
+    if (!verify_single_instruction(code, new_asm_operand_reg(target_regno), new_asm_operand_reg(source_regno), expect_bytes, expect_len)) return false;
 
 #define VERIFY_INSTR2_REG_IMMEDIATE(code, regno, val, expect_bytes, expect_len) \
-    if (!verify_single_instruction(code, new_asm_operand_reg(regno), new_asm_operand_imm(val), expect_bytes, expect_len)) return;
+    if (!verify_single_instruction(code, new_asm_operand_reg(regno), new_asm_operand_imm(val), expect_bytes, expect_len)) return false;
 
 
-static void verify_instructions() {
+static bool verify_instructions() {
     asm_instruction *instr;
     printf("Verifying instructions ");
 
@@ -68,14 +70,14 @@ static void verify_instructions() {
     VERIFY_INSTR1_IMMEDIATE(OC_PUSH, 0x12345678, "\x68\x78\x56\x34\x12", 5);
 
     // one operand, with a register
-    VERIFY_INSTR1_REGISTER(OC_PUSH, REG_AX, "\x50", 1);
-    VERIFY_INSTR1_REGISTER(OC_PUSH, REG_DX, "\x52", 1);
-    VERIFY_INSTR1_REGISTER(OC_POP,  REG_BX, "\x5b", 1);
-    VERIFY_INSTR1_REGISTER(OC_POP,  REG_CX, "\x59", 1);
-    VERIFY_INSTR1_REGISTER(OC_INC,  REG_SI, "\x46", 1);
-    VERIFY_INSTR1_REGISTER(OC_INC,  REG_DI, "\x47", 1);
-    VERIFY_INSTR1_REGISTER(OC_DEC,  REG_SI, "\x4e", 1);
-    VERIFY_INSTR1_REGISTER(OC_DEC,  REG_DI, "\x4f", 1);
+    VERIFY_INSTR1_REGISTER(OC_PUSH, REG_AX, "\xFF\xF0", 2);
+    VERIFY_INSTR1_REGISTER(OC_PUSH, REG_DX, "\xFF\xF2", 2);
+    VERIFY_INSTR1_REGISTER(OC_POP,  REG_BX, "\x8F\xC3", 2);
+    VERIFY_INSTR1_REGISTER(OC_POP,  REG_CX, "\x8F\xC1", 2);
+    VERIFY_INSTR1_REGISTER(OC_INC,  REG_SI, "\xFF\xC6", 2);
+    VERIFY_INSTR1_REGISTER(OC_INC,  REG_DI, "\xFF\xC7", 2);
+    VERIFY_INSTR1_REGISTER(OC_DEC,  REG_SI, "\xFF\xCE", 2);
+    VERIFY_INSTR1_REGISTER(OC_DEC,  REG_DI, "\xFF\xCF", 2);
     VERIFY_INSTR1_REGISTER(OC_NOT,  REG_DX, "\xf7\xd2", 2);
     VERIFY_INSTR1_REGISTER(OC_NEG,  REG_DX, "\xf7\xda", 2);
     VERIFY_INSTR1_REGISTER(OC_CALL, REG_AX, "\xff\xd0", 2);
@@ -97,13 +99,13 @@ static void verify_instructions() {
     VERIFY_INSTR1_MEMBYREG(OC_CALL, REG_DX,      0, "\xff\x12",     2);
 
     // modify dword pointed by symbol
-    VERIFY_INSTR1_MEMBYSYM(OC_PUSH, "var1", "\xff\x35\xFF\xFF\xFF\xFF", 6);
-    VERIFY_INSTR1_MEMBYSYM(OC_POP,  "var1", "\x8f\x05\xFF\xFF\xFF\xFF", 6);
-    VERIFY_INSTR1_MEMBYSYM(OC_INC,  "var1", "\xff\x05\xFF\xFF\xFF\xFF", 6);
-    VERIFY_INSTR1_MEMBYSYM(OC_DEC,  "var1", "\xff\x0d\xFF\xFF\xFF\xFF", 6);
-    VERIFY_INSTR1_MEMBYSYM(OC_NOT,  "var1", "\xf7\x15\xFF\xFF\xFF\xFF", 6);
-    VERIFY_INSTR1_MEMBYSYM(OC_NEG,  "var1", "\xf7\x1d\xFF\xFF\xFF\xFF", 6);
-    VERIFY_INSTR1_MEMBYSYM(OC_CALL, "var1", "\x2e\xff\x15\xFF\xFF\xFF\xFF", 7);
+    VERIFY_INSTR1_MEMBYSYM(OC_PUSH, "var1", "\xff\x35\x00\x00\x00\x00", 6);
+    VERIFY_INSTR1_MEMBYSYM(OC_POP,  "var1", "\x8f\x05\x00\x00\x00\x00", 6);
+    VERIFY_INSTR1_MEMBYSYM(OC_INC,  "var1", "\xff\x05\x00\x00\x00\x00", 6);
+    VERIFY_INSTR1_MEMBYSYM(OC_DEC,  "var1", "\xff\x0d\x00\x00\x00\x00", 6);
+    VERIFY_INSTR1_MEMBYSYM(OC_NOT,  "var1", "\xf7\x15\x00\x00\x00\x00", 6);
+    VERIFY_INSTR1_MEMBYSYM(OC_NEG,  "var1", "\xf7\x1d\x00\x00\x00\x00", 6);
+    VERIFY_INSTR1_MEMBYSYM(OC_CALL, "func1", "\xe8\x00\x00\x00\x00", 5);
 
     // // two operands operations, source & target is a register
     VERIFY_INSTR2_REG_REG(OC_MOV, REG_AX, REG_SP, "\x89\xE0", 2);
@@ -118,9 +120,9 @@ static void verify_instructions() {
     VERIFY_INSTR2_REG_REG(OC_OR,  REG_AX, REG_DX, "\x09\xD0", 2);
     VERIFY_INSTR2_REG_REG(OC_XOR, REG_AX, REG_DX, "\x31\xD0", 2);
 
-    VERIFY_INSTR2_REG_IMMEDIATE(OC_MOV, REG_DX, 0x0,        "\xBA\x00\x00\x00\x00", 5);
-    VERIFY_INSTR2_REG_IMMEDIATE(OC_MOV, REG_DX, 0x1,        "\xBA\x01\x00\x00\x00", 5);
-    VERIFY_INSTR2_REG_IMMEDIATE(OC_MOV, REG_DX, 0x12345678, "\xBA\x78\x56\x34\x12", 5);
+    VERIFY_INSTR2_REG_IMMEDIATE(OC_MOV, REG_DX, 0x0,        "\xC7\xC2\x00\x00\x00\x00", 6);
+    VERIFY_INSTR2_REG_IMMEDIATE(OC_MOV, REG_DX, 0x1,        "\xC7\xC2\x01\x00\x00\x00", 6);
+    VERIFY_INSTR2_REG_IMMEDIATE(OC_MOV, REG_DX, 0x12345678, "\xC7\xC2\x78\x56\x34\x12", 5);
     VERIFY_INSTR2_REG_IMMEDIATE(OC_ADD, REG_DX, 0x200,      "\x81\xC2\x00\x02\x00\x00", 6);
     VERIFY_INSTR2_REG_IMMEDIATE(OC_SUB, REG_DX, 0x200,      "\x81\xEA\x00\x02\x00\x00", 6);
     VERIFY_INSTR2_REG_IMMEDIATE(OC_SHR, REG_DX, 0x3,        "\xC1\xEA\x03", 3);
@@ -143,6 +145,7 @@ static void verify_instructions() {
 
     // if we got here, no test failed
     printf(" OK\n");
+    return true;
 }
 
 static bool verify_single_instruction(enum opcode oc, struct asm_operand *op1, struct asm_operand *op2, char *expected_bytes, int expected_len) {

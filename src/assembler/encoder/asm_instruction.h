@@ -83,7 +83,7 @@ typedef struct asm_instruction {
     struct operand1 { 
         bool is_register;
         bool is_memory_by_reg;
-        bool is_memory_by_displacement; // i.e. displacement only, no regs
+        bool is_mem_addr_by_symbol; // i.e. displacement only, no regs
         union {
             enum gp_reg reg;
             struct {

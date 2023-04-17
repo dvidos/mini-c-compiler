@@ -99,11 +99,11 @@ asm_instruction *new_asm_instruction_with_operand(enum opcode op, struct asm_ope
 
     } else if (target->type == OT_MEM_POINTED_BY_REG) {
         o->operand1.is_memory_by_reg = true;
-        o->operand1.per_type.mem.pointer_reg = REG_BP;
+        o->operand1.per_type.mem.pointer_reg = target->reg;
         o->operand1.per_type.mem.displacement = target->offset;
 
     } else if (target->type == OT_MEM_OF_SYMBOL) {
-        o->operand1.is_memory_by_displacement = true;
+        o->operand1.is_mem_addr_by_symbol = true;
         o->operand1.per_type.mem.displacement_symbol_name = strdup(target->symbol_name);
 
     } else if (target->type == OT_IMMEDIATE) {
@@ -163,7 +163,7 @@ asm_instruction *new_asm_instruction_with_operands(enum opcode op, struct asm_op
         o->operand1.per_type.mem.pointer_reg = REG_BP;
         o->operand1.per_type.mem.displacement = operand1->offset;
     } else if (operand1->type == OT_MEM_OF_SYMBOL) {
-        o->operand1.is_memory_by_displacement = true;
+        o->operand1.is_mem_addr_by_symbol = true;
         o->operand1.per_type.mem.displacement_symbol_name = strdup(operand1->symbol_name);
     } else {
         error(NULL, 0, "possible bug, expected register or memory for operand 1");
@@ -231,7 +231,7 @@ static void _operand1_to_str(asm_instruction *instr, string *str) {
     if (instr->operand1.is_register) {
         str->v->adds(str, gp_reg_name(instr->operand1.per_type.reg));
 
-    } else if (instr->operand1.is_memory_by_displacement) {
+    } else if (instr->operand1.is_mem_addr_by_symbol) {
         if (instr->operand1.per_type.mem.displacement_symbol_name != NULL)
             str->v->adds(str, instr->operand1.per_type.mem.displacement_symbol_name);
         else
@@ -253,7 +253,7 @@ static void _operand2_to_str(asm_instruction *instr, string *str) {
     if (instr->operand2.is_register) {
         str->v->addf(str, "%s", gp_reg_name(instr->operand2.per_type.reg));
     } else if (instr->operand2.is_immediate) {
-        str->v->addf(str, "0x%lx", instr->operand2.per_type.immediate);
+        str->v->addf(str, "0x%lx", (unsigned)instr->operand2.per_type.immediate);
     }
 }
 
@@ -263,7 +263,7 @@ void asm_instruction_to_str(asm_instruction *instr, string *str, bool with_comme
         str->v->addf(str, "%-4s ", opcode_name(instr->operation));
 
         // if there are two operands, print direction
-        if ((instr->operand1.is_register || instr->operand1.is_memory_by_reg || instr->operand1.is_memory_by_displacement) &&
+        if ((instr->operand1.is_register || instr->operand1.is_memory_by_reg || instr->operand1.is_mem_addr_by_symbol) &&
             (instr->operand2.is_immediate || instr->operand2.is_register)) {
 
             if (instr->direction_op1_to_op2) {

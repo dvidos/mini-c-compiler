@@ -64,7 +64,7 @@ static bool encode_asm_instr_operands(asm_instruction *oper, struct encoding_inf
         result->modregrm_byte |= (0x3 << 6);
         result->modregrm_byte |= (oper->operand1.per_type.reg & 0x7);
     }
-    else if (oper->operand1.is_memory_by_displacement)
+    else if (oper->operand1.is_mem_addr_by_symbol)
     {
         // special case, set mod to '00' and r/m to '101'
         result->modregrm_byte |= (0x0 << 6);

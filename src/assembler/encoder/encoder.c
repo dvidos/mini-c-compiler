@@ -144,7 +144,7 @@ static bool encode_asm_instr_operands(asm_instruction *instr, struct encoding_in
             result->modregrm_byte |= (0x3 << 6);
             result->modregrm_byte |= (instr->operand1.per_type.reg & 0x7);
         }
-        else if (instr->operand1.is_memory_by_displacement)
+        else if (instr->operand1.is_mem_addr_by_symbol)
         {
             // special case, set mod to '00' and r/m to '101'
             result->modregrm_byte |= (0x0 << 6);
@@ -214,7 +214,7 @@ static bool encode_asm_instr_operands(asm_instruction *instr, struct encoding_in
     }
 
     // some instructions take a displacement without modregrm byte (e.g. JMP)
-    if (instr->operand1.is_memory_by_displacement && info->displacement_without_modrm && !info->needs_modregrm) {
+    if (instr->operand1.is_mem_addr_by_symbol && info->displacement_without_modrm && !info->needs_modregrm) {
         // must save relocation position!!!!!!
         *(long *)result->displacement = instr->operand1.per_type.mem.displacement;
         result->displacement_bytes_count = 4;

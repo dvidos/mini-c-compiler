@@ -2,14 +2,9 @@
 
 struct array_vtable;
 
-// an array holding references to other objects
-// add() works by adding a pointer to the pointed item
+// an array holding pointers to other objects
 typedef struct array {
     void *priv_data;
-    // char *buffer;
-    // int length;    // in items
-    // int capacity;  // in items
-    // int item_size; // in bytes
     struct array_vtable *v;
 } array;
 
@@ -18,8 +13,10 @@ typedef struct array {
 array *new_array(int item_size);
 
 struct array_vtable {
+
     // simple array ops
     void (*clear)(array *a);
+    int (*length)(array *a);
     void *(*get)(array *a, int index);
     void (*add)(array *a, void *item);
     void (*set)(array *a, int index, void *item);
@@ -34,8 +31,8 @@ struct array_vtable {
     void *(*pop)(array *a); // remove from end (last added)
     void *(*peek)(array *a);  // return last, without removing
 
-    // iteration
-    iterator *(*make_iterator)(array *a, int start_index, int end_index);
+    // iterator implementation is private. caller to free iterator
+    iterator *(*create_iterator)(array *a);
 
     // involved operations
     void (*for_each)(array *a, visitor_func *visitor);
@@ -51,4 +48,13 @@ struct array_vtable {
     long (*hash)(array *a, hasher_func *hasher);
 
     void (*free)(array *a, visitor_func *free_item); 
+};
+
+// ----------------------
+
+struct array_priv_data {
+    char *buffer;
+    int length;    // in items
+    int capacity;  // in items
+    int item_size; // in bytes
 };

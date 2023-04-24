@@ -1,7 +1,7 @@
 * ~~fix pre/post inc/dec~~
 * ~~fix three address code assembly generation...~~
 * ~~implement the IR RETURN command to return a temp reg, to abstract away calling conventions~~
-* asm encoding using the new instruction structure
+* ~~asm encoding using the new instruction structure~~
 * make register names & capacities confront to size, e.g. AL, AX, EAX, RAX.
 * make the first executable, damn it! <------ THIS
 * rename the assembler into something else (backend IR converter?) and rename the Encoder into Assembler.

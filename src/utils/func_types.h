@@ -10,7 +10,7 @@
 typedef void visitor_func(void *item, void *extra_data);
 
 // can compare two items and return <0, 0, >0, similar to strcmp()
-typedef int comparer_func(void *a, void *b);
+typedef int comparer_func(void *a, void *b, void *extra_data);
 
 // can provide a boolean value, whether an item passes a filter
 typedef bool filter_func(void *item, void *extra_data);

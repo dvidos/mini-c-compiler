@@ -4,7 +4,6 @@
 #include "iterator.h"
 
 
-
 struct hashtable_vtable;
 
 typedef struct hashtable {
@@ -19,16 +18,20 @@ struct hashtable_vtable {
     void (*clear)(hashtable *h);
 
     bool (*contains)(hashtable *h, string *key);         // O(1) operation
-    void (*set)(hashtable *h, string *key, void *value); // O(1) operation
+    void (*put)(hashtable *h, string *key, void *value); // O(1) operation
     void *(*get)(hashtable *h, string *key);             // O(1) operation
     void (*delete)(hashtable *h, string *key);           // O(1) operation
+
+    // iterator implementation is private. caller to free iterator
+    // iterates over values
+    iterator *create_iterator(hashtable *h);
+
+    // iterates over values
+    void (*for_each)(hashtable *h, visitor_func *visitor, void *extra_data);
 
     // caller to free arrays (how to duplicate values though?)
     array *(*get_keys)(hashtable *h);
     array *(*get_values)(hashtable *h);
-
-    // iterator implementation is private. caller to free iterator
-    iterator *create_keys_iterator(hashtable *h);
 
     void (*free)(hashtable *h, visitor_func *freeer);
 };

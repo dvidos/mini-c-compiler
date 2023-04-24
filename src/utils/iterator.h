@@ -1,4 +1,5 @@
 #pragma once
+#include <stdbool.h>
 #include "func_types.h"
 
 struct iterator_vtable;
@@ -25,7 +26,7 @@ struct iterator_vtable {
 
 // helpful function for primitive arrays
 // "array" and "hashtable" generate their own iterators
-iterator *new_array_iterator(void *arr[], int start_idx, int upper_limit, bool descending, filter_func *filter);
+iterator *new_mem_iterator(void *base_addr, int item_size, int start_idx, int upper_limit, bool descending, filter_func *filter);
 
 
 // macro to aid in syntax
@@ -34,13 +35,13 @@ iterator *new_array_iterator(void *arr[], int start_idx, int upper_limit, bool d
 
 // -----------------------------------------------
 
-// used in a "while" format
-void *ptr = it->v->reset(it);
-while (it->v->valid(it)) {
-    ..
-    ptr = it->v->next(it):
-}
-// used in in a "for" format
-for (void *ptr = it->v->reset(it); it->v->valid(it); ptr = it->v->next(it)) {
-    ...
-}
+// // used in a "while" format
+// void *ptr = it->v->reset(it);
+// while (it->v->valid(it)) {
+//     ..
+//     ptr = it->v->next(it):
+// }
+// // used in in a "for" format
+// for (void *ptr = it->v->reset(it); it->v->valid(it); ptr = it->v->next(it)) {
+//     ...
+// }

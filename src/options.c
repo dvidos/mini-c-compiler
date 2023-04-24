@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <string.h>
 #include "options.h"
+#include "unit_tests.h"
 #include "utils.h"
 
 // global read-only variable
@@ -17,6 +18,9 @@ void show_syntax() {
     printf("\t--gen-ir     generate intermediate representation file (.ir)\n");
     printf("\t--gen-asm    generate assembly file (.asm)\n");
     printf("\t--gen-obj    generate object file (.o)\n");
+#ifdef INCLUDE_UNIT_TESTS
+    printf("\t--unit-tests run unit test\n");
+#endif
     printf("\t--elf-test   run elf test\n");
     printf("\t--asm-test   run asm test\n");
 }

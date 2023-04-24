@@ -3,10 +3,12 @@ BINARY = mcc
 SRC_FILES = \
 	mcc.c \
 	err_handler.c \
+	unit_tests.c \
 	options.c \
 	utils.c \
 	utils/buffer.c \
 	utils/string.c \
+	utils/list.c \
 	compiler/lexer/token.c \
 	compiler/lexer/token_list.c \
 	compiler/lexer/lexer.c \

@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include "err_handler.h"
+#include "unit_tests.h"
 #include "utils.h"
 #include "options.h"
 #include "compiler/lexer/token_list.h"
@@ -26,7 +27,15 @@
 #include "linker/elf/elf.h"
 #include "linker/elf/elf_contents.h"
 
+#ifdef INCLUDE_UNIT_TESTS
+static bool run_unit_tests() {
+    
+    void list_unit_tests();
+    list_unit_tests();
 
+    return unit_tests_outcome(); // prints results and returns success flag
+}
+#endif 
 
 void load_source_code(char **source_code) {
 
@@ -192,6 +201,12 @@ int main(int argc, char *argv[]) {
     printf("mini-c-compiler, v0.01\n");
 
     parse_options(argc, argv);
+
+#ifdef INCLUDE_UNIT_TESTS
+    if (options.unit_tests) {
+        return run_unit_tests() ? 0 : 1;
+    }
+#endif
 
     if (options.elf_test) {
         perform_elf_test();

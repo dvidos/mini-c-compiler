@@ -37,16 +37,16 @@ struct list_vtable {
 
     // involved operations
     void (*for_each)(list *l, visitor_func *visitor, void *extra_data);
-    list *(*find)(list *l, void *criteria, matcher_func *matcher, void *extra_data); // O(n)
+    int (*find)(list *l, void *criteria, matcher_func *matcher, void *extra_data); // O(n)
     void (*append_all)(list *l, list *other);
     void (*sort)(list *l, comparer_func *comparer, void *extra_data);
     int (*bin_search)(list *l, void *criteria, comparer_func *comparer, void *extra_data);
     list *(*filter)(list *l, filter_func *filter, void *extra_data);
     list *(*map)(list *l, mapper_func *mapper, void *extra_data);
     void *(*reduce)(list *l, void *init_value, reducer_func *reduce, void *extra_data);
-    void (*deduplicate)(list *l, comparer_func *comparer, void *extra_data);
+    list *(*deduplicate)(list *l, matcher_func *matcher, void *extra_data);
     string *(*join)(list *l, string *separator, to_string_func *to_str);
-    long (*hash)(list *l, hasher_func *hasher);
+    unsigned long (*hash)(list *l, hasher_func *hasher);
 
     void (*free)(list *l, visitor_func *free_item); 
 };

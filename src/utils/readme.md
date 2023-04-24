@@ -7,7 +7,7 @@ The idea is to support the following structures:
 
 * string - for better memory manipulation
 * buffer - for binary data
-* array - a dynamic array of pointers, many operations
+* list - a dynamic array of pointers, many operations
 * hashtable - a dynamic hash lookup array in O(1)
 * iterator - an interface to iterate over arrays, hashtables, bstrees etc
 

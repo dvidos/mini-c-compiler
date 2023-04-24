@@ -217,6 +217,26 @@ Similarly, it tells the Linker how to link a piece of object code, what the
 unsolved symbols are etc.
 Therefore, I need to have code that supports ELF creation. 
 
+### More lessons learned
+
+As most software approach, it's always best to make the tiniest thing that works
+and build on top of that, instead of building for the big picture immediately.
+
+That said, I discovered that two things, that I implemented quite late, 
+are very important to the success of the project: error handling and unit testing.
+
+Error handling can be a simple function `error()`, `warn()` or `fatal()` etc,
+that prints to stderr and flags an internal flag that an error has occured.
+Code should frequently check whether errors have occured and not proceed to next step if so.
+
+Unit testing is important to streamline testing and to ensure good code behavior,
+especially during refactoring. A simple unit testing framework can be a `check_assertion()` function,
+with a `__FILE__` and `__LINE__` passed in, again with some internal variables counting the errors.
+Finally, the executable can be compiled with unit tests support, and a command line switch can run those.
+
+Oh, and a `todo.md` file is very useful to not forget what you meant to implement next, 
+in a long living project.
+
 ### Machine code blues...
 
 Turns out there's a very big number of instructions and not everything

@@ -1,3 +1,4 @@
+#include "../unit_tests.h"
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -122,3 +123,12 @@ static void _padr(string *s, int len, char c) {
         s->buffer[s->length++] = c;
     s->buffer[s->length] = 0;
 }
+
+
+#ifdef INCLUDE_UNIT_TESTS
+
+void string_unit_tests() {
+    assert(1 == 1);
+}
+
+#endif // UNIT_TESTS

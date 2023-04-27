@@ -50,15 +50,16 @@ SRC_FILES = \
 	linker/obj_code.c \
 	linker/linker.c
 
+# target: $(BINARY)
+target: $(BINARY) unit-tests
 
+tested: $(BINARY) unit-tests integration-tests
 
+unit-tests:
+	./$(BINARY) --unit-tests
 
-# target: tested
-target: $(BINARY)
-
-
-tested: $(BINARY) run-tests.sh
-	./run-tests.sh
+integration-tests:
+	../run-tests.sh
 
 $(BINARY): $(SRC_FILES)
 	gcc -o $@ $(CFLAGS) $^

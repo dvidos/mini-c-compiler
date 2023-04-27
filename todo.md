@@ -42,3 +42,20 @@ For when we nail a working v.1...
 * Make a bunch of tests?
 * Make a debugger? Where is the limit?
 
+
+Objects to make:
+
+* token
+* ast_node
+* declaration
+* expression
+* operator
+* statement
+* symbol
+* ir_entry (expression, function, module, statement)
+* ir_value
+* asm_allocator
+* asm_instruction
+* asm_listing
+* obj_code_module
+* elf_contents

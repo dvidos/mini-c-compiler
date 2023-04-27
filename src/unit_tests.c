@@ -8,11 +8,11 @@ static int assertions_failed = 0;
 
 bool unit_tests_outcome() {
     if (assertions_failed == 0) {
-        fprintf(stderr, "\n** Unit Tests: PASSED ** (%d assertions)\n", assertions_made);
+        fprintf(stderr, "\nUnit Tests: PASSED! (%d assertions)\n", assertions_made);
         return true;
     } else {
-        fprintf(stderr, "\n** Unit Tests: FAILED ** (%d assertions failed, out of %d total)\n",
-            assertions_failed, assertions_made);
+        fprintf(stderr, "\nUnit Tests: ** FAILED ** (%d assertions, %d failed)\n",
+            assertions_made, assertions_failed);
         return false;
     }
 }

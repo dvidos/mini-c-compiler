@@ -1,3 +1,4 @@
+#include "../unit_tests.h"
 #include "buffer.h"
 #include <stdlib.h>
 #include <string.h>
@@ -119,3 +120,11 @@ static void _free(buffer *buff) {
     free(buff);
 }
 
+
+#ifdef INCLUDE_UNIT_TESTS
+
+void buffer_unit_tests() {
+    assert(1 == 1);
+}
+
+#endif // UNIT_TESTS

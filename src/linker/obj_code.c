@@ -39,13 +39,13 @@ obj_code *new_obj_code_module() {
 
 static void _declare_data(obj_code *obj, char *symbol_name, u64 bytes, void *init_value) {
     if (init_value == NULL) {
-        u64 offset = obj->bss_seg->length;
+        u64 address = obj->bss_seg->length;
         obj->bss_seg->add_zeros(obj->bss_seg, bytes);
-        obj->symbols->add(obj->symbols, symbol_name, offset, SB_ZERO_DATA);
+        obj->symbols->add(obj->symbols, symbol_name, address, SB_BSS);
     } else {
-        u64 offset = obj->bss_seg->length;
+        u64 address = obj->bss_seg->length;
         obj->data_seg->add_mem(obj->data_seg, init_value, bytes);
-        obj->symbols->add(obj->symbols, symbol_name, offset, SB_DATA);
+        obj->symbols->add(obj->symbols, symbol_name, address, SB_DATA);
     }
 }
 

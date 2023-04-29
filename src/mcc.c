@@ -197,10 +197,12 @@ void generate_machine_code(ir_listing *ir_list) {
     }
 
     // link into executable
-    obj_code *modules[1] = { mod };
+    list *modules = new_list();
+    modules->v->add(modules, mod);
     char *executable_name = set_extension(options.filename, "");
-    x86_link(modules, 1, 0x8048000, executable_name);
+    x86_link(modules, 0x8048000, executable_name);
     free(executable_name);
+    modules->v->free(modules, NULL);
 }
 
 int main(int argc, char *argv[]) {

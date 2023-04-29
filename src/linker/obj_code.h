@@ -16,7 +16,7 @@ struct obj_code {
     buffer *ro_data_seg;
 
     // some symbols are exported, some are not
-    // a symbol refers to a segment (section) and has an offset from it.
+    // a symbol refers to a segment (section) and has an address from it.
     symbol_table *symbols;
 
     // references in the code segment that need to be resolved at link time

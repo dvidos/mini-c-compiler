@@ -14,6 +14,7 @@ static void _add_strz(buffer *buff, char *strz);
 static void _add_mem(buffer *buff, void *mem, int len);
 static void _add_zeros(buffer *buff, int len);
 static void _fill(buffer *buff, int target_length, u8 filler);
+static void _round_up(buffer *buff, int round_value, u8 filler);
 static void _free(buffer *buff);
 
 
@@ -33,6 +34,7 @@ buffer *new_buffer() {
     p->add_mem = _add_mem;
     p->add_zeros = _add_zeros;
     p->fill = _fill;
+    p->round_up = _round_up;
     p->free = _free;
 
     return p;
@@ -95,6 +97,17 @@ static void _fill(buffer *buff, int target_length, u8 filler) {
     int expansion = target_length - buff->length;
     memset(buff->buffer + buff->length, filler, expansion);
     buff->length += expansion;
+}
+
+static void _round_up(buffer *buff, int round_value, u8 filler) {
+    if (buff->length == 0)
+        return;
+    
+    int target_length = (((buff->length + round_value - 1) / round_value) * round_value);
+    if (target_length == buff->length)
+        return;
+
+    _fill(buff, target_length, filler);
 }
 
 static void _add_mem(buffer *buff, void *mem, int len) {

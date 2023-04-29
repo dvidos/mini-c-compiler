@@ -5,10 +5,11 @@
 #include "symbol_table.h"
 
 static void _clear(symbol_table *table);
-static void _add(symbol_table *table, char *name, u64 offset, enum symbol_base base);
+static void _add(symbol_table *table, char *name, u64 address, enum symbol_base base);
 static struct symbol_entry *_find(symbol_table *table, char *name);
 static void _print(symbol_table *table);
-static void _offset(symbol_table *table, long offset);
+static void _offset(symbol_table *table, enum symbol_base base, long offset);
+static void _append(symbol_table *table, symbol_table *source);
 static void _free(symbol_table *table);
 
 symbol_table *new_symbol_table() {
@@ -22,20 +23,27 @@ symbol_table *new_symbol_table() {
     p->clear = _clear;
     p->print = _print;
     p->offset = _offset;
+    p->append = _append;
     p->free = _free;
 
     return p;
 }
 
-static void _add(symbol_table *table, char *name, u64 offset, enum symbol_base base) {
-    if (table->length + 1 >= table->capacity) {
-        table->capacity *= 2;
+static void _ensure_capacity(symbol_table *table, int capacity) {
+    if (table->capacity < capacity) {
+        while (table->capacity < capacity)
+            table->capacity *= 2;
+        
         table->symbols = realloc(table->symbols, table->capacity * sizeof(struct symbol_entry));
     }
+}
+
+static void _add(symbol_table *table, char *name, u64 address, enum symbol_base base) {
+    _ensure_capacity(table, table->length + 1);
 
     struct symbol_entry *sym = &table->symbols[table->length];
     sym->name = strdup(name);
-    sym->offset = offset;
+    sym->address = address;
     sym->base = base;
     table->length++;
 }
@@ -62,21 +70,38 @@ static void _print(symbol_table *table) {
             s->name, 
             s->base == SB_CODE ? "code" : (
                 s->base == SB_DATA ? "data" : (
-                    s->base == SB_ZERO_DATA ? "bss" : "???"
+                    s->base == SB_BSS ? "bss" : "???"
                 )
             ),
-            s->offset
+            s->address
         );
     }
 }
 
-static void _offset(symbol_table *table, long offset) {
+static void _offset(symbol_table *table, enum symbol_base base, long offset) {
     for (int i = 0; i < table->length; i++) {
-        table->symbols[i].offset += offset;
+        if (table->symbols[i].base == base)
+            table->symbols[i].address += offset;
+    }
+}
+
+static void _append(symbol_table *table, symbol_table *source) {
+    _ensure_capacity(table, table->length + source->length);
+
+    for (int i = 0; i < source->length; i++) {
+        struct symbol_entry *src_sym = &source->symbols[i];
+
+        struct symbol_entry *tgt_sym = &table->symbols[table->length];
+        tgt_sym->name = strdup(src_sym->name);
+        tgt_sym->address = src_sym->address;
+        tgt_sym->base = src_sym->base;
+        table->length++;
     }
 }
 
 static void _free(symbol_table *table) {
+    for (int i = 0; i < table->length; i++)
+        free(table->symbols[i].name);
     free(table->symbols);
     free(table);
 }

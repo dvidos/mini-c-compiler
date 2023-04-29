@@ -28,6 +28,15 @@ In the future, the following may be built, depending on projects:
   * json schema to validate json objects
 * memory pool (to allocate memory, then free the pool altogether)
 
+* in-memory cache, a combination of hashmap and double linked list.
+  * given a fixed amount of memory to allocate
+  * when items are accessed, move them at the start of the linked list.
+  * then we can always evict them, if the allocated memory is full.
+  * pair this with possible callbacks for populating the cache and you have a very fast cached system!
+
+* if we make graphs, we can have a `create_bfs_iterator()` and `create_dfs_iterator()`
+to allow us to traverse the graphs easily!
+
 * then explore maybe algorithms or math, or graphics or other stuff
 
 ### todo

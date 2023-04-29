@@ -384,13 +384,11 @@ static bool _link_module(obj_code *mod, u64 code_base_address, char *filename) {
     data_base_address = round_up(code_base_address + mod->text_seg->length, 4096);
     bss_base_address = round_up(data_base_address + mod->data_seg->length, 4096);
 
-    if (!mod->relocations->backfill_buffer(
-        mod->relocations, 
-        mod->symbols,
-        mod->text_seg,
-        // choose base, depending on the symbol type
-        code_base_address, data_base_address, bss_base_address))
-    {
+    mod->symbols->offset(mod->symbols, SB_CODE, code_base_address);
+    mod->symbols->offset(mod->symbols, SB_DATA, data_base_address);
+    mod->symbols->offset(mod->symbols, SB_BSS, bss_base_address);
+
+    if (!mod->relocations->backfill_buffer(mod->relocations, mod->symbols, mod->text_seg)) {
         printf("Error resolving references\n");
         return false;
     }
@@ -402,7 +400,7 @@ static bool _link_module(obj_code *mod, u64 code_base_address, char *filename) {
     elf.code_address = code_base_address; // usual starting address
     elf.code_contents = mod->text_seg->buffer;
     elf.code_size = mod->text_seg->length;
-    elf.code_entry_point = code_base_address + start->offset; // address of _start, actually...
+    elf.code_entry_point = code_base_address + start->address; // address of _start, actually...
     elf.data_address = data_base_address;
     elf.data_contents = mod->data_seg->buffer;
     elf.data_size = mod->data_seg->length;
@@ -437,6 +435,7 @@ static void test_create_hello_world_executable3() {
     x86_encode_asm_into_machine_code(l, CPU_MODE_PROTECTED, c);
 
     // link into executable
-    obj_code *modules[1] = { c };
-    x86_link(modules, 1, 0x8048000, "hello.elf");
+    list *modules = new_list();
+    modules->v->add(modules, c);
+    x86_link(modules, 0x8048000, "hello.elf");
 }

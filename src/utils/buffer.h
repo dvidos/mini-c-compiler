@@ -24,6 +24,7 @@ struct buffer {
     void (*add_strz)(buffer *buff, char *strz);
     void (*add_zeros)(buffer *buff, int len);
     void (*fill)(buffer *buff, int target_length, u8 filler);
+    void (*round_up)(buffer *buff, int round_value, u8 filler);
     void (*free)(buffer *buff);
 };
 

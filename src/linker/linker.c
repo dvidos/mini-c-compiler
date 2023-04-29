@@ -30,6 +30,12 @@ bool save_object_file(obj_code *obj, char *filename) {
 
 static obj_code *create_crt0_code() {
     obj_code *code = new_obj_code_module();
+    code->ops->set_name(code, "crt0");
+
+    code->text_seg->add_zeros(code->text_seg, 64);
+    code->symbols->add(code->symbols, "_start", 16, SB_CODE);
+    // we should also have "main" as relocation, in "call main()"
+
     // paste code here or have assembly being encoded.
     // this code MUST expose the "_start" function symbol
     return code;
@@ -65,7 +71,7 @@ static bool include_crt0_if_needed(list *obj_codes) {
 
         obj_codes->v->insert_at(obj_codes, 0, create_crt0_code());
         if (!find_named_symbol(obj_codes, "_start", &entry_point_obj_index, &entry_point_symbol)) {
-            error(NULL, 0, "symbol '_start()' was not found, even in crt0, cannot link");
+            error(NULL, 0, "symbol '_start' was not found, even in crt0, cannot link");
             return false;
         }
     }
@@ -196,7 +202,7 @@ static bool resolve_addresses_and_merge(link_map *map) {
         // ideally we'd merge only public symbols
         int syms_len = info->module->symbols->length;
         for (int j = 0; j < syms_len; j++) {
-            struct symbol_entry *sym = &info->module->symbols->symbols[i];
+            struct symbol_entry *sym = &info->module->symbols->symbols[j];
             if (map->merged->symbols->find(map->merged->symbols, sym->name)) {
                 error(NULL, 0, "Linker: symbol '%s' already declared", sym->name);
                 return false;
@@ -226,9 +232,114 @@ static bool resolve_addresses_and_merge(link_map *map) {
 }
 
 
-static void print_link_map(link_map *map) {
+static void print_link_map(link_map *map, FILE *f) {
+    obj_link_info *info;
+
     // print where each module is to be loaded
     // print each symbol location, per section (functions, data, bss)
+    
+    // Section         Offset      Length
+    // .text       0x00000000  0x00000000 
+
+    fprintf(f, "Section         Offset      Length\n");
+    fprintf(f, "%-10s  0x%08lx  0x%08lx\n", ".text", map->text_base_address, map->text_total_size);
+    fprintf(f, "%-10s  0x%08lx  0x%08lx\n", ".data", map->data_base_address, map->data_total_size);
+    fprintf(f, "%-10s  0x%08lx  0x%08lx\n", ".bss",  map->bss_base_address,  map->bss_total_size);
+    fprintf(f, "\n");
+    fprintf(f, "Program entry point: 0x%08lx\n", map->entry_point);
+    fprintf(f, "\n");
+
+    // a list of modules
+    // Module         Text Addr   Size     Data Addr   Size      Bss Addr   Size
+    // crt0          0x00000000  1234K    0x00000000  1234K    0x00000000  1234K
+    // 123456789012  0x00000000  1234K    0x00000000  1234K    0x00000000  1234K
+
+    fprintf(f, "Module         Text Addr   Size     Data Addr   Size      Bss Addr   Size\n");
+    int len = map->obj_link_infos->v->length(map->obj_link_infos);
+    for (int i = 0; i < len; i++) {
+        // section num, address and size for each section
+        info = map->obj_link_infos->v->get(map->obj_link_infos, i);
+        fprintf(f, "%-12s  0x%08lx  %4dK  0x%08lx  %4dK  0x%08lx  %4dK\n",
+            info->module->name == NULL ? "" : info->module->name,
+            info->text_base_address,
+            info->module->text_seg->length / 1024,
+            info->data_base_address,
+            info->module->data_seg->length / 1024,
+            info->bss_base_address,
+            info->module->bss_seg->length / 1024
+        );
+    }
+    fprintf(f, "\n");
+
+    // a list of symbols (maybe also the module each symbol comes from???)
+    // Section  Module           Address  Symbol                Type
+    // 1234567  123456789012  0x00000000  12345678901234567890  XXXX
+    fprintf(f, "Section  Module           Address  Symbol                Type\n");
+
+    // going over the modules to allow printing of the module name
+    len = map->obj_link_infos->v->length(map->obj_link_infos);
+    bool section_shown = false;
+    obj_code *last_module = NULL;
+    for (int i = 0; i < len; i++) {
+        info = map->obj_link_infos->v->get(map->obj_link_infos, i);
+        int j_len = info->module->symbols->length;
+        for (int j = 0; j < j_len; j++) {
+            struct symbol_entry *sym = &info->module->symbols->symbols[j];
+            if (sym->base != SB_CODE)
+                continue;
+            fprintf(f, "%-7s  %-12s  0x%08lx  %-20s  %-4s\n",
+                section_shown ? "" : ".text",
+                info->module == last_module ? "" : info->module->name,
+                sym->address,
+                sym->name,
+                ""
+            );
+        }
+        section_shown = true;
+        last_module = info->module;
+    }
+    section_shown = false;
+    last_module = NULL;
+    for (int i = 0; i < len; i++) {
+        info = map->obj_link_infos->v->get(map->obj_link_infos, i);
+        int j_len = info->module->symbols->length;
+        for (int j = 0; j < j_len; j++) {
+            struct symbol_entry *sym = &info->module->symbols->symbols[j];
+            if (sym->base != SB_DATA)
+                continue;
+            fprintf(f, "%-7s  %-12s  0x%08lx  %-20s  %-4s\n",
+                section_shown ? "" : ".data",
+                info->module == last_module ? "" : info->module->name,
+                sym->address,
+                sym->name,
+                ""
+            );
+        }
+        section_shown = true;
+        last_module = info->module;
+    }
+    section_shown = false;
+    last_module = NULL;
+    for (int i = 0; i < len; i++) {
+        info = map->obj_link_infos->v->get(map->obj_link_infos, i);
+        int j_len = info->module->symbols->length;
+        for (int j = 0; j < j_len; j++) {
+            struct symbol_entry *sym = &info->module->symbols->symbols[j];
+            if (sym->base != SB_BSS)
+                continue;
+            fprintf(f, "%-7s  %-12s  0x%08lx  %-20s  %-4s\n",
+                section_shown ? "" : ".bss",
+                info->module == last_module ? "" : info->module->name,
+                sym->address,
+                sym->name,
+                ""
+            );
+        }
+        section_shown = true;
+        last_module = info->module;
+    }
+    fprintf(f, "\n");
+    fprintf(f, "\n");
 }
 
 // arrange code, ro_data, data, bss, etc, align in 4k pages, write 
@@ -251,7 +362,7 @@ void x86_link(list *obj_codes, u64 base_address, char *executable_filename) {
 
     if (options.verbose) {
         printf("---- Link Map ----\n");
-        print_link_map(map);
+        print_link_map(map, stdout);
     }
 
     // let's save things

@@ -15,6 +15,7 @@ struct options {
     bool generate_ir;
     bool generate_asm;
     bool generate_obj;
+    bool generate_map;
 
     char *filename;
     

@@ -18,6 +18,7 @@ void show_syntax() {
     printf("\t--gen-ir     generate intermediate representation file (.ir)\n");
     printf("\t--gen-asm    generate assembly file (.asm)\n");
     printf("\t--gen-obj    generate object file (.o)\n");
+    printf("\t--gen-map    generate linker map file (.map)\n");
 #ifdef INCLUDE_UNIT_TESTS
     printf("\t--unit-tests run unit test\n");
 #endif
@@ -64,6 +65,8 @@ void parse_options(int argc, char *argv[]) {
             options.generate_asm = true;
         } else if (strcmp(p, "--gen-obj") == 0) {
             options.generate_obj = true;
+        } else if (strcmp(p, "--gen-map") == 0) {
+            options.generate_map = true;
         }
     }
 

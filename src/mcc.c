@@ -176,7 +176,11 @@ void generate_machine_code(ir_listing *ir_list) {
         free(asm_filename);
     }
 
+    char *mod_name = set_extension(options.filename, "");
     obj_code *mod = new_obj_code_module();
+    mod->ops->set_name(mod, mod_name);
+    free(mod_name);
+
     x86_encode_asm_into_machine_code(asm_list, CPU_MODE_PROTECTED, mod);
     if (errors_count)
         return;
@@ -196,9 +200,10 @@ void generate_machine_code(ir_listing *ir_list) {
         free(obj_filename);
     }
 
-    // link into executable
+    // link into executable (one or more modules)
     list *modules = new_list();
     modules->v->add(modules, mod);
+
     char *executable_name = set_extension(options.filename, "");
     x86_link(modules, 0x8048000, executable_name);
     free(executable_name);

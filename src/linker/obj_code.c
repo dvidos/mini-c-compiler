@@ -1,3 +1,4 @@
+#include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include "../utils/buffer.h"
@@ -5,10 +6,9 @@
 #include "reloc_list.h"
 #include "obj_code.h"
 #include "../utils.h"
-#include "elf/elf_contents.h"
-#include "elf/elf.h"
 
 
+static void _set_name(obj_code *obj, char *name);
 static void _reset(obj_code *obj);
 static void _declare_data(obj_code *obj, char *symbol_name, u64 bytes, void *init_value);
 static void _print(obj_code *obj);
@@ -17,6 +17,7 @@ static void _free(obj_code *obj);
 
 
 struct obj_code_ops ops = {
+    .set_name = _set_name,
     .reset = _reset,
     .declare_data = _declare_data,
     .print = _print,
@@ -35,6 +36,10 @@ obj_code *new_obj_code_module() {
     m->ops = &ops;
 
     return m;
+}
+
+static void _set_name(obj_code *obj, char *name) {
+    obj->name = name == NULL ? NULL : strdup(name);
 }
 
 static void _declare_data(obj_code *obj, char *symbol_name, u64 bytes, void *init_value) {

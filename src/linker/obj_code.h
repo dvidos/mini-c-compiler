@@ -10,6 +10,8 @@
 // would yield of a set of segments, a set of exported symbols, a set of relocations needed
 // so we can give the "obj_code" as a dependency to a x86_encoder.
 struct obj_code {
+    char *name; // helps in linker map
+
     buffer *text_seg;
     buffer *data_seg;
     buffer *bss_seg;
@@ -28,6 +30,8 @@ struct obj_code {
 typedef struct obj_code obj_code;
 
 struct obj_code_ops {
+    void (*set_name)(obj_code *obj, char *name);
+
     // runtime manipulation
     void (*reset)(obj_code *obj);
     void (*declare_data)(obj_code *obj, char *symbol_name, u64 bytes, void *init_value);

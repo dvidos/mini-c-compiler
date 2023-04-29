@@ -77,6 +77,7 @@ static bool _backfill_buffer(reloc_list *list, symbol_table *symbols, buffer *bu
             return false;
         }
     }
+    return true;
 }
 
 static void _print(reloc_list *list) {

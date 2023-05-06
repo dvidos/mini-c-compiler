@@ -121,3 +121,15 @@ char *set_extension(char *path, char *extension) {
 
     return str;
 }
+
+unsigned long hash(const char *str) {
+    unsigned long hash = 0, nibble;
+
+    while (*str) {
+        hash = (hash << 4) + *str++;
+        if (nibble = (hash & 0xf0000000))
+            hash ^= (nibble >> 24);
+        hash &= 0x0fffffff;
+    }
+    return hash;
+}

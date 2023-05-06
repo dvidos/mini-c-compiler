@@ -407,13 +407,12 @@ static bool _link_module(obj_code *mod, u64 code_base_address, char *filename) {
     elf.bss_address = bss_base_address;
     elf.bss_size = mod->bss_seg->length;
     
-    long elf_size = 0;
-    if (!write_elf_file(&elf, filename, &elf_size)) {
+    if (!write_elf_file(&elf, filename)) {
         printf("Error writing output elf file!\n");
         return false;
     }
 
-    printf("Wrote %ld bytes to file '%s'\n", elf_size, filename);
+    printf("Wrote output to '%s'\n", filename);
 }
 
 static void test_create_hello_world_executable3() {

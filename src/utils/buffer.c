@@ -2,6 +2,7 @@
 #include "buffer.h"
 #include <stdlib.h>
 #include <string.h>
+#include <stdio.h>
 
 
 static void _clear(buffer *buff);
@@ -15,6 +16,8 @@ static void _add_mem(buffer *buff, void *mem, int len);
 static void _add_zeros(buffer *buff, int len);
 static void _fill(buffer *buff, int target_length, u8 filler);
 static void _round_up(buffer *buff, int round_value, u8 filler);
+static bool _from_file(buffer *buff, FILE *f, size_t bytes);
+static bool _to_file(buffer *buff, FILE *f);
 static void _free(buffer *buff);
 
 
@@ -35,6 +38,10 @@ buffer *new_buffer() {
     p->add_zeros = _add_zeros;
     p->fill = _fill;
     p->round_up = _round_up;
+
+    p->from_file = _from_file;
+    p->to_file = _to_file;
+
     p->free = _free;
 
     return p;
@@ -126,6 +133,18 @@ static void _add_zeros(buffer *buff, int len) {
     char *pos = &buff->buffer[buff->length];
     memset(pos, 0, len);
     buff->length += len;
+}
+
+static bool _from_file(buffer *buff, FILE *f, size_t bytes) { 
+    _ensure_enough_capacity(buff, buff->length + bytes);
+    size_t gotten = fread(buff->buffer + buff->length, 1, bytes, f);
+    buff->length += gotten;
+    return gotten == bytes;
+}
+
+static bool _to_file(buffer *buff, FILE *f) { 
+    size_t wrote = fwrite(buff->buffer, 1, (size_t)buff->length, f);
+    return wrote == buff->length;
 }
 
 static void _free(buffer *buff) {

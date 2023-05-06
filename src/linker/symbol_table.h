@@ -14,6 +14,13 @@ enum symbol_base {
     SB_BSS,
 };
 
+enum symbol_type {
+    ST_OBJECT, // i.e. data item
+    ST_FUNCTION,
+    ST_SECTION,
+    ST_FILE,
+};
+
 struct symbol_entry {
     char *name;  // would be smallish, but allocate for any size of name
     u64 address;  // symbols always represent an address in a segment/section.
@@ -26,6 +33,9 @@ struct symbol_entry {
     // a symbol should also have an indicator of the "section" it belongs to,
     // e.g. if the address is for the data, text, rodata, or bss segments
     enum symbol_base base;
+
+    enum symbol_type type;
+    bool global; // otherwise constrained to the module
 };
 
 typedef struct symbol_table symbol_table;

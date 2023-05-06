@@ -191,13 +191,51 @@ typedef struct elf64_section_header {
 #define SHN_COMMON 0xfff2
 #define SHN_HIRESERVE 0xffff
 
-
-
-
-
-
-
 //-----------------------------------------------------------------
+
+ // This info is needed when parsing the symbol table
+#define STB_LOCAL  0
+#define STB_GLOBAL 1
+#define STB_WEAK   2
+
+#define STT_NOTYPE  0
+#define STT_OBJECT  1
+#define STT_FUNC    2
+#define STT_SECTION 3
+#define STT_FILE    4
+#define STT_COMMON  5
+#define STT_TLS     6
+
+#define ELF_ST_BIND(x)  ((x) >> 4)
+#define ELF_ST_TYPE(x)  ((x) & 0xf)
+#define ELF32_ST_BIND(x) ELF_ST_BIND(x)
+#define ELF32_ST_TYPE(x) ELF_ST_TYPE(x)
+#define ELF64_ST_BIND(x) ELF_ST_BIND(x)
+#define ELF64_ST_TYPE(x) ELF_ST_TYPE(x)
+
+typedef struct elf32_sym {
+  elf32_word      st_name;   // Symbol name, index in string tbl
+  elf32_address   st_value;  
+  elf32_word      st_size;
+  unsigned char   st_info;   // Type and binding attributes
+  unsigned char   st_other;
+  elf32_half_word st_shndx;
+} elf32_sym;
+
+typedef struct elf64_sym {
+  elf64_word       st_name;   // Symbol name, index in string tbl
+  unsigned char    st_info;   // Type and binding attributes
+  unsigned char    st_other;  // No defined meaning, 0
+  elf64_half_word  st_shndx;  // Associated section index
+  elf64_address    st_value;  // Value of the symbol
+  elf64_extra_word st_size;   // Associated symbol size
+} elf64_sym;
+
+
+
+
+
+
 //-----------------------------------------------------------------
 //-----------------------------------------------------------------
 //-----------------------------------------------------------------
@@ -249,26 +287,6 @@ typedef struct elf64_section_header {
 #define DT_LOPROC 0x70000000
 #define DT_HIPROC 0x7fffffff
 
- // This info is needed when parsing the symbol table
-#define STB_LOCAL  0
-#define STB_GLOBAL 1
-#define STB_WEAK   2
-
-#define STT_NOTYPE  0
-#define STT_OBJECT  1
-#define STT_FUNC    2
-#define STT_SECTION 3
-#define STT_FILE    4
-#define STT_COMMON  5
-#define STT_TLS     6
-
-#define ELF_ST_BIND(x)  ((x) >> 4)
-#define ELF_ST_TYPE(x)  ((x) & 0xf)
-#define ELF32_ST_BIND(x) ELF_ST_BIND(x)
-#define ELF32_ST_TYPE(x) ELF_ST_TYPE(x)
-#define ELF64_ST_BIND(x) ELF_ST_BIND(x)
-#define ELF64_ST_TYPE(x) ELF_ST_TYPE(x)
-
 typedef struct dynamic {
   elf32_signed_word d_tag;
   union {
@@ -313,24 +331,6 @@ typedef struct elf64_rela {
   elf64_extra_word r_info;  // index and type of relocation
   elf64_signed_extra_word r_addend;  // Constant addend used to compute value
 } elf64_rela;
-
-typedef struct elf32_sym {
-  elf32_word st_name;
-  elf32_address st_value;
-  elf32_word st_size;
-  unsigned char st_info;
-  unsigned char st_other;
-  elf32_half_word st_shndx;
-} elf32_Sym;
-
-typedef struct elf64_sym {
-  elf64_word st_name;   // Symbol name, index in string tbl
-  unsigned char st_info;  // Type and binding attributes
-  unsigned char st_other;  // No defined meaning, 0
-  elf64_half_word st_shndx;   // Associated section index
-  elf64_address st_value;   // Value of the symbol
-  elf64_extra_word st_size;   // Associated symbol size
-} elf64_Sym;
 
 
 #define ELF_IDENTITY_BYTES 16

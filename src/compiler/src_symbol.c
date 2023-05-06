@@ -2,7 +2,7 @@
 #include "src_symbol.h"
 
 
-src_symbol *create_symbol(char *name, data_type *data_type, symbol_type definition, char *file_name, int line_no) {
+src_symbol *create_symbol(char *name, data_type *data_type, src_symbol_type definition, char *file_name, int line_no) {
     src_symbol *s = malloc(sizeof(src_symbol));
 
     s->name = name;
@@ -47,7 +47,7 @@ src_symbol *create_func_symbol(char *name, func_declaration *func, char *file_na
     return s;
 }
 
-char *symbol_type_name(symbol_type st) {
+char *symbol_type_name(src_symbol_type st) {
     switch (st) {
         case SYM_VAR: return "var";
         case SYM_FUNC: return "func";

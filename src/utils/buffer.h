@@ -1,5 +1,7 @@
 #pragma once
 #include <stdint.h>
+#include <stdio.h>
+#include <stdbool.h>
 
 
 typedef uint8_t u8;
@@ -25,6 +27,10 @@ struct buffer {
     void (*add_zeros)(buffer *buff, int len);
     void (*fill)(buffer *buff, int target_length, u8 filler);
     void (*round_up)(buffer *buff, int round_value, u8 filler);
+
+    bool (*from_file)(buffer *buff, FILE *f, size_t bytes);
+    bool (*to_file)(buffer *buff, FILE *f);
+
     void (*free)(buffer *buff);
 };
 

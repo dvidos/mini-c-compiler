@@ -381,7 +381,7 @@ static void write_elf64_file(elf_contents *prog, FILE *f) {
 }
 
 
-bool write_elf_file(elf_contents *prog, char *filename, long *bytes_written) {
+bool write_elf_file(elf_contents *prog, char *filename) {
     FILE *f = fopen(filename, "w+");
     if (f == NULL) {
         printf("Error opening file %s for writing\n", filename);
@@ -392,13 +392,6 @@ bool write_elf_file(elf_contents *prog, char *filename, long *bytes_written) {
         write_elf64_file(prog, f);
     else
         write_elf32_file(prog, f);
-
-    fseek(f, 0, SEEK_END);
-    long last_location = ftell(f);
-    fclose(f);
-
-    if (bytes_written != NULL)
-        *bytes_written = last_location;
 
     return true;
 }

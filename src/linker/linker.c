@@ -12,18 +12,19 @@
 
 
 obj_code *load_object_file(char *filename) {
-    elf_contents *c = read_elf_file(filename);
+    elf_contents *contents = malloc(sizeof(elf_contents));
+    read_elf_file(filename, contents);
+    free(contents);
     // verify obj file
     // transfer from elf to obj
     return NULL;
 }
 
 bool save_object_file(obj_code *obj, char *filename) {
-    elf_contents *c = read_elf_file(filename);
-    // verify obj file
+    elf_contents *contents = malloc(sizeof(elf_contents));
     // transfer from obj to elf
-    long bytes_written;
-    return write_elf_file(c, filename, &bytes_written);
+    
+    return write_elf_file(contents, filename);
 }
 
 // --------------------------------------------------------------
@@ -380,11 +381,10 @@ void x86_link(list *obj_codes, u64 base_address, char *executable_filename) {
     elf.data_size        = map->merged->data_seg->length;
     elf.bss_size         = map->merged->bss_seg->length;
     
-    long elf_size = 0;
-    if (!write_elf_file(&elf, executable_filename, &elf_size)) {
+    if (!write_elf_file(&elf, executable_filename)) {
         error(NULL, 0, "Error writing output elf file \"%s\"!\n", executable_filename);
         return;
     }
 
-    printf("Wrote %ld bytes to file '%s'\n", elf_size, executable_filename);
+    printf("Wrote file '%s'\n", executable_filename);
 }

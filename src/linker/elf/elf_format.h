@@ -231,6 +231,26 @@ typedef struct elf64_sym {
   elf64_extra_word st_size;   // Associated symbol size
 } elf64_sym;
 
+//-----------------------------------------------------------------
+
+// The following are used with relocations
+#define ELF32_R_SYM(x) ((x) >> 8)
+#define ELF32_R_TYPE(x) ((x) & 0xff)
+
+#define ELF64_R_SYM(i)   ((i) >> 32)
+#define ELF64_R_TYPE(i)   ((i) & 0xffffffff)
+
+typedef struct elf32_rela {
+  elf32_address r_offset;
+  elf32_word r_info;
+  elf32_signed_word r_addend;
+} elf32_rela;
+
+typedef struct elf64_rela {
+  elf64_address r_offset;  // Location at which to apply the action
+  elf64_extra_word r_info;  // index and type of relocation
+  elf64_signed_extra_word r_addend;  // Constant addend used to compute value
+} elf64_rela;
 
 
 
@@ -303,7 +323,7 @@ typedef struct {
   } d_un;
 } elf64_dyn;
 
- // The following are used with relocations
+// The following are used with relocations
 #define ELF32_R_SYM(x) ((x) >> 8)
 #define ELF32_R_TYPE(x) ((x) & 0xff)
 

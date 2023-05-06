@@ -2,6 +2,7 @@
 #include <stdbool.h>
 #include <stdio.h>
 #include <string.h>
+#include "../../utils.h"
 #include "../../utils/buffer.h"
 #include "../../utils/list.h"
 #include "elf_format.h"
@@ -135,22 +136,22 @@ static bool read_elf32_file(FILE *f, elf_contents *contents) {
 
 
 static void elf64_print_file_header(elf64_header *header) {
-    printf("  Identity   : %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x\n",
+    printf("  Identity bytes  : %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x\n",
         header->identity[0], header->identity[1], header->identity[2], header->identity[3], 
         header->identity[4], header->identity[5], header->identity[6], header->identity[7], 
         header->identity[8], header->identity[9], header->identity[10], header->identity[11], 
         header->identity[12], header->identity[13], header->identity[14], header->identity[15]
     );
-    printf("  Class      : %d (%s)\n", header->identity[ELF_IDENTITY_CLASS], NM(elf_class_names, header->identity[ELF_IDENTITY_CLASS]));
-    printf("  Encoding   : %d (%s)\n", header->identity[ELF_IDENTITY_DATA], NM(elf_data_encoding_names, header->identity[ELF_IDENTITY_DATA]));
-    printf("  File type  : %d (%s)\n", header->file_type, NM(elf_file_type_names, header->file_type));
-    printf("  Machine    : %d\n", header->machine);
-    printf("  Version    : %d\n", header->version);
-    printf("  Entry point: 0x%lx\n", header->entry_point);
-    printf("  Flags      : 0x%x\n", header->flags);
-    printf("  Header size: %d\n", header->elf_header_size);
-    printf("  Program Headers - Num %u, Size %u, Offset %lu\n", header->prog_headers_entries, header->prog_headers_entry_size, header->prog_headers_offset);
-    printf("  Section Headers - Num %u, Size %u, Offset %lu  (section str ndx %d)\n", header->section_headers_entries, header->section_headers_entry_size, header->section_headers_offset, header->section_headers_strings_entry);
+    printf("  Class           : %d (%s)\n", header->identity[ELF_IDENTITY_CLASS], NM(elf_class_names, header->identity[ELF_IDENTITY_CLASS]));
+    printf("  Encoding        : %d (%s)\n", header->identity[ELF_IDENTITY_DATA], NM(elf_data_encoding_names, header->identity[ELF_IDENTITY_DATA]));
+    printf("  File type       : %d (%s)\n", header->file_type, NM(elf_file_type_names, header->file_type));
+    printf("  Machine         : %d\n", header->machine);
+    printf("  Version         : %d\n", header->version);
+    printf("  Entry point     : 0x%lx\n", header->entry_point);
+    printf("  Flags           : 0x%x\n", header->flags);
+    printf("  Header size     : %d\n", header->elf_header_size);
+    printf("  Program Headers : Num %u, Size %u, Offset %lu\n", header->prog_headers_entries, header->prog_headers_entry_size, header->prog_headers_offset);
+    printf("  Section Headers : Num %u, Size %u, Offset %lu  (section str ndx %d)\n", header->section_headers_entries, header->section_headers_entry_size, header->section_headers_offset, header->section_headers_strings_entry);
 }
 
 static void elf64_print_prog_header(elf64_prog_header *prog, int index) {
@@ -173,6 +174,7 @@ static void elf64_print_prog_header(elf64_prog_header *prog, int index) {
 
 static void elf64_print_section_header(elf64_section_header *section, int index, char *names) {
     if (section == NULL) {
+        printf("  Section Headers\n");
         printf("    S# Name                 Type        Offset      Size  Algn Flg\n");
         //          nn 12345678901234567890 12345678 123456789 123456789  1234 XXX
     } else {
@@ -191,15 +193,17 @@ static void elf64_print_section_header(elf64_section_header *section, int index,
     }
 }
 
-static void elf64_print_symbol(elf64_sym *symbol, list *section_headers, buffer *section_names, buffer *symbol_names) {
+static void elf64_print_symbol(elf64_sym *symbol, list *section_headers, buffer *section_names, buffer *strings_table) {
     if (symbol == NULL) {
+        printf("  Symbols\n");
         printf("    Name                           Type     Bind     Section       Value      Size\n");
         //          123456789012345678901234567890 12345678 12345678 1234567890 00000000 123456789
     } else {
-        char *sym_name = symbol->st_name == 0 ? "(none)" : (symbol_names == NULL ? "(unknown)" : symbol_names->buffer + symbol->st_name);
+        char *sym_name = symbol->st_name == 0 ? "(none)" : (strings_table == NULL ? "(unknown)" : strings_table->buffer + symbol->st_name);
         char *sym_type = NM(elf_sym_type_names, ELF64_ST_TYPE(symbol->st_info));
         char *sym_bind = NM(elf_sym_bind_names, ELF64_ST_BIND(symbol->st_info));
 
+        // find the section it belongs, then the section's name
         elf64_section_header *section = section_headers->v->get(section_headers, symbol->st_shndx);
         char *sect_name = section == NULL ? "" : (section_names == NULL ? "(unknown)" : section_names->buffer + section->name);
 
@@ -210,6 +214,36 @@ static void elf64_print_symbol(elf64_sym *symbol, list *section_headers, buffer 
             sect_name,
             symbol->st_value, 
             symbol->st_size
+        );
+    }
+}
+
+static void elf64_print_relocation(elf64_rela *rela, list *section_headers, buffer *section_names, buffer *symbols_table, buffer *symbol_strings_table, buffer *section_strings_table) {
+    if (rela == NULL) {
+        printf("  Relocations\n");
+        printf("    Offset    Sym  Symbol name                     Type     Addend\n");
+        //          12345678  123  123456789012345678901234567890  1234  123456789
+    } else {
+        int symbol_idx = ELF64_R_SYM(rela->r_info);
+        elf64_sym *sym = (elf64_sym *)&symbols_table->buffer[symbol_idx * sizeof(elf64_sym)];
+        char *sym_name;
+        if (ELF64_ST_TYPE(sym->st_info) == STT_SECTION) {
+            // this is a section, usually rodata with an addend
+            elf64_section_header *sect = section_headers->v->get(section_headers, sym->st_shndx);
+            sym_name = sect == NULL ? "(unknown)": &section_strings_table->buffer[sect->name];
+        } else {
+            // this is a normal symbol
+            sym_name = &symbol_strings_table->buffer[sym->st_name];
+        }
+
+        int type = ELF64_R_TYPE(rela->r_info);
+        
+        printf("    %08lx  %3d  %-30s  %4d  %9ld\n",
+            rela->r_offset,
+            symbol_idx,
+            sym_name,
+            type,
+            rela->r_addend
         );
     }
 }
@@ -282,6 +316,17 @@ static bool elf64_load_section(FILE *f, elf64_section_header *sect, buffer *buff
     return true;
 }
 
+static void elf64_print_section_contents(FILE *f, list *section_headers, int index, buffer *section_names) {
+    elf64_section_header *sect = section_headers->v->get(section_headers, index);
+    buffer *b = new_buffer();
+    elf64_load_section(f, sect, b);
+
+    printf("Contents of section \"%s\", total %ld bytes\n", section_names->buffer + sect->name, sect->size);
+    print_16_hex(b->buffer, sect->size > 64 ? 64 : sect->size, 4);
+
+    b->free(b);
+}
+
 static elf64_section_header *elf64_find_section_by_name(FILE *f, list *section_headers, buffer *names_table, char *name) {
     if (names_table == NULL)
         return NULL;
@@ -326,13 +371,12 @@ static bool read_elf64_file(FILE *f, elf_contents *contents) {
     // print them all for debugging purposes
     elf64_print_headers(file_header, program_headers, section_headers, section_names_table);
 
-
     // debug symbol loading...
     elf64_section_header *strings_header = elf64_find_section_by_name(f, section_headers,section_names_table, ".strtab");
     elf64_section_header *symbols_header = elf64_find_section_by_name(f, section_headers,section_names_table, ".symtab");
-    buffer *strings_table = new_buffer();
+    buffer *symbol_strings_table = new_buffer();
     buffer *symbols_table = new_buffer();
-    elf64_load_section(f, strings_header, strings_table);
+    elf64_load_section(f, strings_header, symbol_strings_table);
     elf64_load_section(f, symbols_header, symbols_table);
 
     if (symbols_table->length > 0) {
@@ -341,30 +385,66 @@ static bool read_elf64_file(FILE *f, elf_contents *contents) {
         elf64_print_symbol(NULL, NULL, NULL, NULL);
         for (int i = 0; i < scount; i++) {
             elf64_sym *sym = (elf64_sym *)&symbols_table->buffer[i * sizeof(elf64_sym)];
-            elf64_print_symbol(sym, section_headers, section_names_table, strings_table);
+            elf64_print_symbol(sym, section_headers, section_names_table, symbol_strings_table);
         }
+        /*
+            Name                           Type     Bind     Section       Value      Size
+            (none)                         NOTYPE   LOCAL                      0         0
+            mcc.c                          FILE     LOCAL                      0         0
+            (none)                         SECTION  LOCAL    .text             0         0
+            run_unit_tests                 FUNC     LOCAL    .text             0        50  // <-- static func
+            (none)                         SECTION  LOCAL    .rodata           0         0
+            buffer_unit_tests              NOTYPE   GLOBAL                     0         0  // <-- extern
+            string_unit_tests              NOTYPE   GLOBAL                     0         0
+            list_unit_tests                NOTYPE   GLOBAL                     0         0
+            unit_tests_outcome             NOTYPE   GLOBAL                     0         0
+            load_source_code               FUNC     GLOBAL   .text            32       223  // <-- non static func
+        */
     }
-    /*
-        Name                           Type     Bind     Section       Value      Size
-        (none)                         NOTYPE   LOCAL                      0         0
-        mcc.c                          FILE     LOCAL                      0         0
-        (none)                         SECTION  LOCAL    .text             0         0
-        run_unit_tests                 FUNC     LOCAL    .text             0        50  // <-- static func
-        (none)                         SECTION  LOCAL    .rodata           0         0
-        buffer_unit_tests              NOTYPE   GLOBAL                     0         0  // <-- extern
-        string_unit_tests              NOTYPE   GLOBAL                     0         0
-        list_unit_tests                NOTYPE   GLOBAL                     0         0
-        unit_tests_outcome             NOTYPE   GLOBAL                     0         0
-        load_source_code               FUNC     GLOBAL   .text            32       223  // <-- non static func
-    */
 
-    // debug relocations loading...
+    // relocations by convention are named ".rel<section>" and ".rela<section>" to the section they refer to.
+    buffer *text_relocations = new_buffer();
+    elf64_section_header *text_rela_header = elf64_find_section_by_name(f, section_headers, section_names_table, ".rela.text");
+    if (text_rela_header != NULL)
+        elf64_load_section(f, text_rela_header, text_relocations);
+    if (text_relocations->length > 0) {
+        int rcount = text_relocations->length / sizeof(elf64_rela);
+        printf("Relocations in file - total %d\n", rcount);
+        elf64_print_relocation(NULL, NULL, NULL, NULL, NULL, NULL);
+        for (int i = 0; i < rcount; i++) {
+            elf64_rela *rela = (elf64_rela *)&text_relocations->buffer[i * sizeof(elf64_rela)];
+            elf64_print_relocation(rela, section_headers, section_names_table, symbols_table, symbol_strings_table, section_names_table);
+        }
+        /*
+            Relocations
+                Offset    Sym  Symbol name                     Type     Addend
+                0000000e    5  buffer_unit_tests                  4         -4
+                00000018    6  string_unit_tests                  4         -4
+                00000022    7  list_unit_tests                    4         -4
+                0000002c    8  unit_tests_outcome                 4         -4
+                0000005d   10  options                            2         12
+                0000006c   11  load_text                          4         -4
+                0000007a   10  options                            2         12
+                00000081    4  .rodata                            2         -4
+                00000093   12  error                              4         -4
+        */        
+    }
+
+    // for fun, print some section contents
+    // for (int i = 0; i < section_headers->v->length(section_headers); i++)
+    //     elf64_print_section_contents(f, section_headers, i, section_names_table);
+
 
     // now selectively pick things and load into elf_contents...
-
-
-
-
+    // in the end, i think we should build a 'section' object, 
+    // that has a name (e.g. ".text") and maybe some flags (e.g. LOADED)
+    // it also has both a 'symbols' and a 'relocations' list,
+    // a collection of sections should be able to be loaded from and saved to elf tables
+    // also, a collection of sections should be able to be merged by type
+    // meaning, all .text sections merged together, along with their symbols and relocations,
+    //          all .rodata sections merged together, along with their symbols, etc.
+    // instead of having specific structure fields for specific sections ("code_address")
+    // we should have a collection of sections, each with type and name (e.g. .text and .rodata)
 
     return true;
 }

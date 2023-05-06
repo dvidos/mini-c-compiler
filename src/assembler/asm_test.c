@@ -310,9 +310,9 @@ static bool _link_module(obj_code *mod, u64 code_base_address, char *filename);
 
 void test_create_hello_world_executable2() {
     asm_listing *lst = new_asm_listing();
-    obj_code *mod = new_obj_code_module();
+    obj_code *mod = new_obj_code();
     
-    mod->ops->declare_data(mod, "hello_msg", 13 + 1, "Hello World!\n");
+    mod->vt->declare_data(mod, "hello_msg", 13 + 1, "Hello World!\n");
 
     lst->ops->set_next_label(lst, "_start");
     lst->ops->add(lst, new_asm_instruction_with_operands(OC_MOV, new_asm_operand_reg(REG_AX), new_asm_operand_imm(4)));
@@ -333,7 +333,7 @@ void test_create_hello_world_executable2() {
         return;
 
     printf("Prepared obj_code:\n");
-    mod->ops->print(mod);
+    mod->vt->print(mod);
     
     // now we need a linker to convert the obj_code into an executable
     if (!_link_module(mod, 0x8049000, "out2.elf"))
@@ -342,7 +342,7 @@ void test_create_hello_world_executable2() {
 
 static bool _encode_listing_code(asm_listing *lst, obj_code *mod, enum x86_cpu_mode mode) {
     // encode this into intel machine code
-    struct x86_encoder *enc = new_x86_encoder(mode, mod->text_seg, mod->relocations);
+    struct x86_encoder *enc = new_x86_encoder(mode, mod->text->contents, mod->text->relocations);
     struct asm_instruction *inst;
 
     for (int i = 0; i < lst->length; i++) {
@@ -350,7 +350,7 @@ static bool _encode_listing_code(asm_listing *lst, obj_code *mod, enum x86_cpu_m
 
         if (inst->label != NULL) {
             // we don't know if this is exported for now
-            mod->symbols->add(mod->symbols, inst->label, mod->text_seg->length, SB_CODE);
+            mod->text->symbols->add(mod->text->symbols, inst->label, mod->text->contents->length, SB_CODE);
         }
 
         if (!enc->encode_v4(enc, inst)) {
@@ -372,7 +372,7 @@ static bool _link_module(obj_code *mod, u64 code_base_address, char *filename) {
     // find "_start" as entry point set it
     // save executable
 
-    struct symbol_entry *start = mod->symbols->find(mod->symbols, "_start");
+    struct symbol_entry *start = mod->text->symbols->find(mod->text->symbols, "_start");
     if (start == NULL) {
         printf("Entry point '_start' not found\n");
         return false;
@@ -381,14 +381,14 @@ static bool _link_module(obj_code *mod, u64 code_base_address, char *filename) {
     u64 data_base_address;
     u64 bss_base_address;
 
-    data_base_address = round_up(code_base_address + mod->text_seg->length, 4096);
-    bss_base_address = round_up(data_base_address + mod->data_seg->length, 4096);
+    data_base_address = round_up(code_base_address + mod->text->contents->length, 4096);
+    bss_base_address = round_up(data_base_address + mod->data->contents->length, 4096);
 
-    mod->symbols->offset(mod->symbols, SB_CODE, code_base_address);
-    mod->symbols->offset(mod->symbols, SB_DATA, data_base_address);
-    mod->symbols->offset(mod->symbols, SB_BSS, bss_base_address);
+    mod->text->symbols->offset(mod->text->symbols, SB_CODE, code_base_address);
+    mod->text->symbols->offset(mod->text->symbols, SB_DATA, data_base_address);
+    mod->text->symbols->offset(mod->text->symbols, SB_BSS, bss_base_address);
 
-    if (!mod->relocations->backfill_buffer(mod->relocations, mod->symbols, mod->text_seg)) {
+    if (!mod->text->relocations->backfill_buffer(mod->text->relocations, mod->text->symbols, mod->text->contents)) {
         printf("Error resolving references\n");
         return false;
     }
@@ -398,14 +398,14 @@ static bool _link_module(obj_code *mod, u64 code_base_address, char *filename) {
     elf.flags.is_static_executable = true;
     elf.flags.is_64_bits = false;
     elf.code_address = code_base_address; // usual starting address
-    elf.code_contents = mod->text_seg->buffer;
-    elf.code_size = mod->text_seg->length;
+    elf.code_contents = mod->text->contents->buffer;
+    elf.code_size = mod->text->contents->length;
     elf.code_entry_point = code_base_address + start->address; // address of _start, actually...
     elf.data_address = data_base_address;
-    elf.data_contents = mod->data_seg->buffer;
-    elf.data_size = mod->data_seg->length;
+    elf.data_contents = mod->data->contents->buffer;
+    elf.data_size = mod->data->contents->length;
     elf.bss_address = bss_base_address;
-    elf.bss_size = mod->bss_seg->length;
+    elf.bss_size = mod->bss->contents->length;
     
     if (!write_elf_file(&elf, filename)) {
         printf("Error writing output elf file!\n");
@@ -429,8 +429,8 @@ static void test_create_hello_world_executable3() {
     l->ops->add(l, new_asm_instruction_with_operands(OC_MOV, new_asm_operand_reg(REG_BX), new_asm_operand_imm(0)));
     l->ops->add(l, new_asm_instruction_with_operand(OC_INT, new_asm_operand_imm(0x80)));
 
-    obj_code *c = new_obj_code_module();
-    c->ops->declare_data(c, "hello_msg", 13 + 1, "Hello World!\n");
+    obj_code *c = new_obj_code();
+    c->vt->declare_data(c, "hello_msg", 13 + 1, "Hello World!\n");
     x86_encode_asm_into_machine_code(l, CPU_MODE_PROTECTED, c);
 
     // link into executable

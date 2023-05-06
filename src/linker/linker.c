@@ -30,11 +30,11 @@ bool save_object_file(obj_code *obj, char *filename) {
 // --------------------------------------------------------------
 
 static obj_code *create_crt0_code() {
-    obj_code *code = new_obj_code_module();
-    code->ops->set_name(code, "crt0");
+    obj_code *code = new_obj_code();
+    code->vt->set_name(code, "crt0");
 
-    code->text_seg->add_zeros(code->text_seg, 64);
-    code->symbols->add(code->symbols, "_start", 16, SB_CODE);
+    code->text->contents->add_zeros(code->text->contents, 64);
+    code->text->symbols->add(code->text->symbols, "_start", 16, SB_CODE);
     // we should also have "main" as relocation, in "call main()"
 
     // paste code here or have assembly being encoded.
@@ -48,7 +48,7 @@ static bool find_named_symbol(list *obj_codes, char *name, int *obj_index, struc
 
     for (int i = 0; i < codes_len; i++) {
         obj_code *code = obj_codes->v->get(obj_codes, i);
-        p = code->symbols->find(code->symbols, name);
+        p = code->text->symbols->find(code->text->symbols, name);
         if (p != NULL) {
             *obj_index = i;
             *entry = p;
@@ -114,7 +114,7 @@ static link_map *create_link_map(list *obj_codes, u64 base_address) {
 
     map->obj_link_infos = new_list();
     map->obj_codes = obj_codes;
-    map->merged = new_obj_code_module();
+    map->merged = new_obj_code();
     map->base_address = base_address;
 
     return map;
@@ -136,9 +136,9 @@ static bool resolve_addresses_and_merge(link_map *map) {
     // round all sections sizes up to 4K
     for (i = 0; i < objs_len; i++) {
         info = map->obj_link_infos->v->get(map->obj_link_infos, i);
-        info->module->text_seg->round_up(info->module->text_seg, 4096, 0);
-        info->module->data_seg->round_up(info->module->data_seg, 4096, 0);
-        info->module->bss_seg->round_up(info->module->bss_seg, 4096, 0);
+        info->module->text->contents->round_up(info->module->text->contents, 4096, 0);
+        info->module->data->contents->round_up(info->module->data->contents, 4096, 0);
+        info->module->bss->contents->round_up(info->module->bss->contents, 4096, 0);
     }
 
     // the current running address
@@ -150,8 +150,8 @@ static bool resolve_addresses_and_merge(link_map *map) {
     for (i = 0; i < objs_len; i++) {
         info = map->obj_link_infos->v->get(map->obj_link_infos, i);
         info->text_base_address = addr;
-        map->text_total_size += info->module->text_seg->length;
-        addr += info->module->text_seg->length;
+        map->text_total_size += info->module->text->contents->length;
+        addr += info->module->text->contents->length;
     }
 
     // find locations of data segments
@@ -160,8 +160,8 @@ static bool resolve_addresses_and_merge(link_map *map) {
     for (i = 0; i < objs_len; i++) {
         info = map->obj_link_infos->v->get(map->obj_link_infos, i);
         info->data_base_address = addr;
-        map->data_total_size += info->module->data_seg->length;
-        addr += info->module->data_seg->length;
+        map->data_total_size += info->module->data->contents->length;
+        addr += info->module->data->contents->length;
     }
 
     // find locations of bss segments
@@ -170,22 +170,22 @@ static bool resolve_addresses_and_merge(link_map *map) {
     for (i = 0; i < objs_len; i++) {
         info = map->obj_link_infos->v->get(map->obj_link_infos, i);
         info->bss_base_address = addr;
-        map->bss_total_size += info->module->bss_seg->length;
-        addr += info->module->bss_seg->length;
+        map->bss_total_size += info->module->bss->contents->length;
+        addr += info->module->bss->contents->length;
     }
 
     // relocate symbol lists to their new target addresses
     for (i = 0; i < objs_len; i++) {
         info = map->obj_link_infos->v->get(map->obj_link_infos, i);
-        info->module->symbols->offset(info->module->symbols, SB_CODE, info->text_base_address);
-        info->module->symbols->offset(info->module->symbols, SB_DATA, info->data_base_address);
-        info->module->symbols->offset(info->module->symbols, SB_BSS, info->bss_base_address);
+        info->module->text->symbols->offset(info->module->text->symbols, SB_CODE, info->text_base_address);
+        info->module->text->symbols->offset(info->module->text->symbols, SB_DATA, info->data_base_address);
+        info->module->text->symbols->offset(info->module->text->symbols, SB_BSS, info->bss_base_address);
     }
 
     // reposition relocations to their new code addresses
     for (i = 0; i < objs_len; i++) {
         info = map->obj_link_infos->v->get(map->obj_link_infos, i);
-        info->module->relocations->offset(info->module->relocations, info->text_base_address);
+        info->module->text->relocations->offset(info->module->text->relocations, info->text_base_address);
     }
 
     // now that symbols have the target address, we could resolve static (module scope) symbols
@@ -195,34 +195,34 @@ static bool resolve_addresses_and_merge(link_map *map) {
     // merge all sections, all symbols and all relocations
     for (i = 0; i < objs_len; i++) {
         info = map->obj_link_infos->v->get(map->obj_link_infos, i);
-        map->merged->text_seg->append(map->merged->text_seg, info->module->text_seg);
-        map->merged->data_seg->append(map->merged->data_seg, info->module->text_seg);
-        map->merged->bss_seg->append(map->merged->bss_seg, info->module->text_seg);
+        map->merged->text->contents->append(map->merged->text->contents, info->module->text->contents);
+        map->merged->data->contents->append(map->merged->data->contents, info->module->text->contents);
+        map->merged->bss->contents->append(map->merged->bss->contents, info->module->text->contents);
 
         // we have to be careful with symbols, they must not be declared twice
         // ideally we'd merge only public symbols
-        int syms_len = info->module->symbols->length;
+        int syms_len = info->module->text->symbols->length;
         for (int j = 0; j < syms_len; j++) {
-            struct symbol_entry *sym = &info->module->symbols->symbols[j];
-            if (map->merged->symbols->find(map->merged->symbols, sym->name)) {
+            struct symbol_entry *sym = &info->module->text->symbols->symbols[j];
+            if (map->merged->text->symbols->find(map->merged->text->symbols, sym->name)) {
                 error(NULL, 0, "Linker: symbol '%s' already declared", sym->name);
                 return false;
             }
-            map->merged->symbols->add(map->merged->symbols, sym->name, sym->address, sym->base);
+            map->merged->text->symbols->add(map->merged->text->symbols, sym->name, sym->address, sym->base);
         }
 
         // also merge all relocations (ideally only the public ones)
-        map->merged->relocations->append(map->merged->relocations, info->module->relocations);
+        map->merged->text->relocations->append(map->merged->text->relocations, info->module->text->relocations, 0);
     }
 
     // now that everything is merged in target addresses, we can backfill relocations
-    if (!map->merged->relocations->backfill_buffer(map->merged->relocations, map->merged->symbols, map->merged->text_seg)) {
+    if (!map->merged->text->relocations->backfill_buffer(map->merged->text->relocations, map->merged->text->symbols, map->merged->text->contents)) {
         error(NULL, 0, "Linker: Error resolving references");
         return false;
     }
 
     // and now we can find the final "_start" entry point
-    struct symbol_entry *start = map->merged->symbols->find(map->merged->symbols, "_start");
+    struct symbol_entry *start = map->merged->text->symbols->find(map->merged->text->symbols, "_start");
     if (start == NULL) {
         error(NULL, 0, "Linker: Cannot find entry point '_start'");
         return false;
@@ -263,11 +263,11 @@ static void print_link_map(link_map *map, FILE *f) {
         fprintf(f, "%-12s  0x%08lx  %4dK  0x%08lx  %4dK  0x%08lx  %4dK\n",
             info->module->name == NULL ? "" : info->module->name,
             info->text_base_address,
-            info->module->text_seg->length / 1024,
+            info->module->text->contents->length / 1024,
             info->data_base_address,
-            info->module->data_seg->length / 1024,
+            info->module->data->contents->length / 1024,
             info->bss_base_address,
-            info->module->bss_seg->length / 1024
+            info->module->bss->contents->length / 1024
         );
     }
     fprintf(f, "\n");
@@ -283,9 +283,9 @@ static void print_link_map(link_map *map, FILE *f) {
     obj_code *last_module = NULL;
     for (int i = 0; i < len; i++) {
         info = map->obj_link_infos->v->get(map->obj_link_infos, i);
-        int j_len = info->module->symbols->length;
+        int j_len = info->module->text->symbols->length;
         for (int j = 0; j < j_len; j++) {
-            struct symbol_entry *sym = &info->module->symbols->symbols[j];
+            struct symbol_entry *sym = &info->module->text->symbols->symbols[j];
             if (sym->base != SB_CODE)
                 continue;
             fprintf(f, "%-7s  %-12s  0x%08lx  %-20s  %-4s\n",
@@ -303,9 +303,9 @@ static void print_link_map(link_map *map, FILE *f) {
     last_module = NULL;
     for (int i = 0; i < len; i++) {
         info = map->obj_link_infos->v->get(map->obj_link_infos, i);
-        int j_len = info->module->symbols->length;
+        int j_len = info->module->text->symbols->length;
         for (int j = 0; j < j_len; j++) {
-            struct symbol_entry *sym = &info->module->symbols->symbols[j];
+            struct symbol_entry *sym = &info->module->text->symbols->symbols[j];
             if (sym->base != SB_DATA)
                 continue;
             fprintf(f, "%-7s  %-12s  0x%08lx  %-20s  %-4s\n",
@@ -323,9 +323,9 @@ static void print_link_map(link_map *map, FILE *f) {
     last_module = NULL;
     for (int i = 0; i < len; i++) {
         info = map->obj_link_infos->v->get(map->obj_link_infos, i);
-        int j_len = info->module->symbols->length;
+        int j_len = info->module->text->symbols->length;
         for (int j = 0; j < j_len; j++) {
-            struct symbol_entry *sym = &info->module->symbols->symbols[j];
+            struct symbol_entry *sym = &info->module->text->symbols->symbols[j];
             if (sym->base != SB_BSS)
                 continue;
             fprintf(f, "%-7s  %-12s  0x%08lx  %-20s  %-4s\n",
@@ -375,11 +375,11 @@ void x86_link(list *obj_codes, u64 base_address, char *executable_filename) {
     elf.code_address     = map->text_base_address;
     elf.data_address     = map->data_base_address;
     elf.bss_address      = map->bss_base_address;
-    elf.code_contents    = map->merged->text_seg->buffer;
-    elf.code_size        = map->merged->text_seg->length;
-    elf.data_contents    = map->merged->data_seg->buffer;
-    elf.data_size        = map->merged->data_seg->length;
-    elf.bss_size         = map->merged->bss_seg->length;
+    elf.code_contents    = map->merged->text->contents->buffer;
+    elf.code_size        = map->merged->text->contents->length;
+    elf.data_contents    = map->merged->data->contents->buffer;
+    elf.data_size        = map->merged->data->contents->length;
+    elf.bss_size         = map->merged->bss->contents->length;
     
     if (!write_elf_file(&elf, executable_filename)) {
         error(NULL, 0, "Error writing output elf file \"%s\"!\n", executable_filename);

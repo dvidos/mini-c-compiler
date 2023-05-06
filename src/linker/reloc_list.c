@@ -5,12 +5,12 @@
 #include <stdio.h>
 
 
-static void _add(reloc_list *list, u64 address, char *name, enum reloc_type type);
+static void _add(reloc_list *list, u64 address, char *name, enum reloc_type type, long addend);
 static void _clear(reloc_list *list);
 static bool _backfill_buffer(reloc_list *list, symbol_table *symbols, buffer *buff);
 static void _print(reloc_list *list);
 static void _offset(reloc_list *list, long offset);
-static void _append(reloc_list *list, reloc_list *source);
+static void _append(reloc_list *list, reloc_list *source, long address_offset);
 static void _free(reloc_list *list);
 
 
@@ -39,12 +39,13 @@ static void _ensure_capacity(reloc_list *list, int capacity) {
         list->list = realloc(list->list, list->capacity * sizeof(struct relocation));
     }
 }
-static void _add(reloc_list *list, u64 position, char *name, enum reloc_type type) {
+static void _add(reloc_list *list, u64 position, char *name, enum reloc_type type, long addend) {
     _ensure_capacity(list, list->length + 1);
 
     list->list[list->length].position = position;
     list->list[list->length].name = strdup(name);
     list->list[list->length].type = type;
+    list->list[list->length].addend = addend;
     list->length++;
 }
 
@@ -101,7 +102,7 @@ static void _offset(reloc_list *list, long offset) {
     }
 }
 
-static void _append(reloc_list *list, reloc_list *source) {
+static void _append(reloc_list *list, reloc_list *source, long address_offset) {
     _ensure_capacity(list, list->length + source->length);
 
     for (int i = 0; i < source->length; i++) {
@@ -110,8 +111,9 @@ static void _append(reloc_list *list, reloc_list *source) {
         // set it at the end of the array
         struct relocation *tgt_rel = &list->list[list->length];
         tgt_rel->name = strdup(src_rel->name);
-        tgt_rel->position = src_rel->position;
+        tgt_rel->position = src_rel->position + address_offset;
         tgt_rel->type = src_rel->type;
+        tgt_rel->addend = src_rel->addend;
         list->length++;
     }
 }

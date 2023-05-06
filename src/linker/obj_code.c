@@ -16,7 +16,7 @@ static bool _save_object_file(obj_code *obj, FILE *f);
 static void _free(obj_code *obj);
 
 
-struct obj_code_ops ops = {
+struct obj_code_vtable ops = {
     .set_name = _set_name,
     .reset = _reset,
     .declare_data = _declare_data,
@@ -25,16 +25,22 @@ struct obj_code_ops ops = {
     .free = _free,
 };
 
-obj_code *new_obj_code_module() {
+obj_code *new_obj_code() {
     obj_code *m = malloc(sizeof(obj_code));
 
-    m->text_seg = new_buffer();
-    m->data_seg = new_buffer();
-    m->bss_seg = new_buffer();
-    m->symbols = new_symbol_table();
-    m->relocations = new_reloc_list();
-    m->ops = &ops;
+    m->text = new_section();
+    m->text->v->set_name(m->text, ".text");
 
+    m->data = new_section();
+    m->data->v->set_name(m->data, ".data");
+    
+    m->bss = new_section();
+    m->bss->v->set_name(m->bss, ".bss");
+    
+    m->rodata = new_section();
+    m->rodata->v->set_name(m->rodata, ".rodata");
+
+    m->vt = &ops;
     return m;
 }
 
@@ -44,45 +50,28 @@ static void _set_name(obj_code *obj, char *name) {
 
 static void _declare_data(obj_code *obj, char *symbol_name, u64 bytes, void *init_value) {
     if (init_value == NULL) {
-        u64 address = obj->bss_seg->length;
-        obj->bss_seg->add_zeros(obj->bss_seg, bytes);
-        obj->symbols->add(obj->symbols, symbol_name, address, SB_BSS);
+        u64 address = obj->bss->contents->length;
+        obj->bss->contents->add_zeros(obj->bss->contents, bytes);
+        obj->bss->symbols->add(obj->bss->symbols, symbol_name, address, SB_BSS);
     } else {
-        u64 address = obj->bss_seg->length;
-        obj->data_seg->add_mem(obj->data_seg, init_value, bytes);
-        obj->symbols->add(obj->symbols, symbol_name, address, SB_DATA);
+        u64 address = obj->bss->contents->length;
+        obj->data->contents->add_mem(obj->data->contents, init_value, bytes);
+        obj->data->symbols->add(obj->data->symbols, symbol_name, address, SB_DATA);
     }
 }
 
 static void _reset(obj_code *obj) {
-    obj->text_seg->clear(obj->text_seg);
-    obj->data_seg->clear(obj->data_seg);
-    obj->bss_seg->clear(obj->bss_seg);
-    obj->relocations->clear(obj->relocations);
-    obj->symbols->clear(obj->symbols);
+    // obj->text->reset(obj->text);
+    // obj->data->reset(obj->data);
+    // obj->bss->reset(obj->bss);
+    // obj->rodata->reset(obj->rodata);
 }
 
 static void _print(obj_code *obj) {
-    if (obj->text_seg->length > 0) {
-        printf("Code (%d bytes)\n", obj->text_seg->length);
-        print_16_hex(obj->text_seg->buffer, obj->text_seg->length, 2);
-    }
-    if (obj->relocations->length > 0) {
-        printf("Relocations (%d entries)\n", obj->relocations->length);
-        obj->relocations->print(obj->relocations);
-    }
-    if (obj->data_seg->length > 0) {
-        printf("Data (%d bytes):\n", obj->data_seg->length);
-        print_16_hex(obj->data_seg->buffer, obj->data_seg->length, 2);
-    }
-    if (obj->bss_seg->length > 0) {
-        printf("Bss (%d bytes):\n", obj->bss_seg->length);
-        print_16_hex(obj->bss_seg->buffer, obj->bss_seg->length, 2);
-    }
-    if (obj->relocations->length > 0) {
-        printf("Symbols (%d entries)\n", obj->relocations->length);
-        obj->symbols->print(obj->symbols);
-    }
+    obj->text->v->print(obj->text);
+    obj->data->v->print(obj->data);
+    obj->bss->v->print(obj->bss);
+    obj->rodata->v->print(obj->rodata);
 }
 
 static bool _save_object_file(obj_code *obj, FILE *f) {
@@ -90,10 +79,11 @@ static bool _save_object_file(obj_code *obj, FILE *f) {
 }
 
 static void _free(obj_code *obj) {
-    obj->text_seg->free(obj->text_seg);
-    obj->data_seg->free(obj->data_seg);
-    obj->bss_seg->free(obj->bss_seg);
-    obj->relocations->free(obj->relocations);
-    obj->symbols->free(obj->symbols);
+    if (obj->name != NULL)
+        free(obj->name);
+    obj->text->v->free(obj->text);
+    obj->data->v->free(obj->data);
+    obj->bss->v->free(obj->bss);
+    obj->rodata->v->free(obj->rodata);
     free(obj);
 }

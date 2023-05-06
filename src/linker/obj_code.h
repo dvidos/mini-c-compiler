@@ -1,7 +1,7 @@
 #pragma once
 #include <stdio.h>
 #include "../utils/buffer.h"
-#include "symbol_table.h"
+#include "section.h"
 #include "../linker/reloc_list.h"
 
 
@@ -12,24 +12,17 @@
 struct obj_code {
     char *name; // helps in linker map
 
-    buffer *text_seg;
-    buffer *data_seg;
-    buffer *bss_seg;
-    buffer *ro_data_seg;
+    section *text;
+    section *data;
+    section *bss;
+    section *rodata;
 
-    // some symbols are exported, some are not
-    // a symbol refers to a segment (section) and has an address from it.
-    symbol_table *symbols;
-
-    // references in the code segment that need to be resolved at link time
-    reloc_list *relocations;
-
-    struct obj_code_ops *ops;
+    struct obj_code_vtable *vt;
 };
 
 typedef struct obj_code obj_code;
 
-struct obj_code_ops {
+struct obj_code_vtable {
     void (*set_name)(obj_code *obj, char *name);
 
     // runtime manipulation
@@ -51,5 +44,5 @@ struct obj_code_ops {
     void (*free)();
 };
 
-obj_code *new_obj_code_module();
+obj_code *new_obj_code();
 

@@ -47,6 +47,7 @@ SRC_FILES = \
 	assembler/asm_test.c \
 	linker/symbol_table.c \
 	linker/reloc_list.c \
+	linker/section.c \
 	linker/obj_code.c \
 	linker/linker.c
 

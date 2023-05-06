@@ -7,6 +7,7 @@
 #include "../../utils/list.h"
 #include "elf_format.h"
 #include "elf_contents.h"
+#include "../obj_code.h"
 
 char *elf_file_type_names[] = { "NONE", "REL - object code", "EXEC - statically linked executable", "DYN - executable requiring dyn libraries", "CORE" };
 char *elf_class_names[] = { "NONE", "32 bits", "64 bits" };
@@ -125,8 +126,6 @@ static bool read_elf32_file(FILE *f, elf_contents *contents) {
         if (symbols != NULL) free(symbols);
         free(section);
     }
-
-
 
     return true;
 }
@@ -345,13 +344,11 @@ static elf64_section_header *elf64_find_section_by_name(FILE *f, list *section_h
 }
 
 static bool read_elf64_file(FILE *f, elf_contents *contents) {
-    size_t bytes;
-    int i;
-    elf64_offset offs;
-
     elf64_header *file_header = malloc(sizeof(elf64_header));
     list *section_headers = new_list();
     list *program_headers = new_list();
+    obj_code *code = new_obj_code();
+    elf64_section_header *sect;
 
     // load all headers, to iterate as needed
     if (!read_elf64_all_headers(f, file_header, program_headers, section_headers)) {
@@ -371,6 +368,21 @@ static bool read_elf64_file(FILE *f, elf_contents *contents) {
     // print them all for debugging purposes
     elf64_print_headers(file_header, program_headers, section_headers, section_names_table);
 
+    // load all major sections
+    sect = elf64_find_section_by_name(f, section_headers, section_names_table, ".text");
+    if (sect != NULL)
+        elf64_load_section(f, sect, code->text->contents);
+    sect = elf64_find_section_by_name(f, section_headers, section_names_table, ".data");
+    if (sect != NULL)
+        elf64_load_section(f, sect, code->data->contents);
+    sect = elf64_find_section_by_name(f, section_headers, section_names_table, ".bss");
+    if (sect != NULL)
+        elf64_load_section(f, sect, code->bss->contents);
+    sect = elf64_find_section_by_name(f, section_headers, section_names_table, ".rodata");
+    if (sect != NULL)
+        elf64_load_section(f, sect, code->rodata->contents);
+
+
     // debug symbol loading...
     elf64_section_header *strings_header = elf64_find_section_by_name(f, section_headers,section_names_table, ".strtab");
     elf64_section_header *symbols_header = elf64_find_section_by_name(f, section_headers,section_names_table, ".symtab");
@@ -379,27 +391,52 @@ static bool read_elf64_file(FILE *f, elf_contents *contents) {
     elf64_load_section(f, strings_header, symbol_strings_table);
     elf64_load_section(f, symbols_header, symbols_table);
 
-    if (symbols_table->length > 0) {
-        int scount = symbols_table->length / sizeof(elf64_sym);
-        printf("Symbols in file - total %d\n", scount);
-        elf64_print_symbol(NULL, NULL, NULL, NULL);
-        for (int i = 0; i < scount; i++) {
-            elf64_sym *sym = (elf64_sym *)&symbols_table->buffer[i * sizeof(elf64_sym)];
-            elf64_print_symbol(sym, section_headers, section_names_table, symbol_strings_table);
+    int scount = symbols_table->length / sizeof(elf64_sym);
+    printf("Symbols in file - total %d\n", scount);
+    elf64_print_symbol(NULL, NULL, NULL, NULL);
+    /*
+        Name                           Type     Bind     Section       Value      Size
+        (none)                         NOTYPE   LOCAL                      0         0
+        mcc.c                          FILE     LOCAL                      0         0
+        (none)                         SECTION  LOCAL    .text             0         0
+        run_unit_tests                 FUNC     LOCAL    .text             0        50  // <-- static func
+        (none)                         SECTION  LOCAL    .rodata           0         0
+        buffer_unit_tests              NOTYPE   GLOBAL                     0         0  // <-- extern
+        string_unit_tests              NOTYPE   GLOBAL                     0         0
+        list_unit_tests                NOTYPE   GLOBAL                     0         0
+        unit_tests_outcome             NOTYPE   GLOBAL                     0         0
+        load_source_code               FUNC     GLOBAL   .text            32       223  // <-- non static func
+    */
+
+    for (int i = 0; i < scount; i++) {
+        elf64_sym *sym = (elf64_sym *)&symbols_table->buffer[i * sizeof(elf64_sym)];
+        elf64_print_symbol(sym, section_headers, section_names_table, symbol_strings_table);
+        if (sym->st_shndx == 0)
+            continue;
+        int sym_type = ELF64_ST_TYPE(sym->st_info);
+        if (sym_type != STT_FUNC && sym_type != STT_OBJECT && sym_type != STT_SECTION)
+            continue;
+
+        // must distribute these to the various sections of the module
+        elf64_section_header *h = section_headers->v->get(section_headers, sym->st_shndx);
+        if (h == NULL)
+            continue;
+        char *sect_name = section_names_table->buffer + h->name;
+
+        section *target = NULL;
+        if (strcmp(sect_name, ".text") == 0)
+            target = code->text;
+        else if (strcmp(sect_name, ".data") == 0)
+            target = code->data;
+        else if (strcmp(sect_name, ".bss") == 0)
+            target = code->bss;
+        else if (strcmp(sect_name, ".rodata") == 0)
+            target = code->rodata;
+        
+        if (target != NULL) {
+            // need to see if global/local and type func/data/etc.
+            target->symbols->add(target->symbols, symbol_strings_table->buffer + sym->st_name, sym->st_value, SB_CODE);
         }
-        /*
-            Name                           Type     Bind     Section       Value      Size
-            (none)                         NOTYPE   LOCAL                      0         0
-            mcc.c                          FILE     LOCAL                      0         0
-            (none)                         SECTION  LOCAL    .text             0         0
-            run_unit_tests                 FUNC     LOCAL    .text             0        50  // <-- static func
-            (none)                         SECTION  LOCAL    .rodata           0         0
-            buffer_unit_tests              NOTYPE   GLOBAL                     0         0  // <-- extern
-            string_unit_tests              NOTYPE   GLOBAL                     0         0
-            list_unit_tests                NOTYPE   GLOBAL                     0         0
-            unit_tests_outcome             NOTYPE   GLOBAL                     0         0
-            load_source_code               FUNC     GLOBAL   .text            32       223  // <-- non static func
-        */
     }
 
     // relocations by convention are named ".rel<section>" and ".rela<section>" to the section they refer to.
@@ -407,45 +444,53 @@ static bool read_elf64_file(FILE *f, elf_contents *contents) {
     elf64_section_header *text_rela_header = elf64_find_section_by_name(f, section_headers, section_names_table, ".rela.text");
     if (text_rela_header != NULL)
         elf64_load_section(f, text_rela_header, text_relocations);
-    if (text_relocations->length > 0) {
-        int rcount = text_relocations->length / sizeof(elf64_rela);
-        printf("Relocations in file - total %d\n", rcount);
-        elf64_print_relocation(NULL, NULL, NULL, NULL, NULL, NULL);
-        for (int i = 0; i < rcount; i++) {
-            elf64_rela *rela = (elf64_rela *)&text_relocations->buffer[i * sizeof(elf64_rela)];
-            elf64_print_relocation(rela, section_headers, section_names_table, symbols_table, symbol_strings_table, section_names_table);
+
+    int rcount = text_relocations->length / sizeof(elf64_rela);
+    printf("Relocations in file - total %d\n", rcount);
+    elf64_print_relocation(NULL, NULL, NULL, NULL, NULL, NULL);
+    /*
+        Relocations
+            Offset    Sym  Symbol name                     Type     Addend
+            0000000e    5  buffer_unit_tests                  4         -4
+            00000018    6  string_unit_tests                  4         -4
+            00000022    7  list_unit_tests                    4         -4
+            0000002c    8  unit_tests_outcome                 4         -4
+            0000005d   10  options                            2         12
+            0000006c   11  load_text                          4         -4
+            0000007a   10  options                            2         12
+            00000081    4  .rodata                            2         -4
+            00000093   12  error                              4         -4
+    */        
+
+    for (int i = 0; i < rcount; i++) {
+        elf64_rela *rela = (elf64_rela *)&text_relocations->buffer[i * sizeof(elf64_rela)];
+        elf64_print_relocation(rela, section_headers, section_names_table, symbols_table, symbol_strings_table, section_names_table);
+
+        // must distribute these to the various sections of the module
+        // the .rela<name> tells us which section these relocations should go to.
+        int symbol_idx = ELF64_R_SYM(rela->r_info);
+        elf64_sym *sym = (elf64_sym *)&symbols_table->buffer[symbol_idx * sizeof(elf64_sym)];
+        int rela_type = ELF64_R_TYPE(rela->r_info);
+
+        char *sym_name;
+        if (ELF64_ST_TYPE(sym->st_info) == STT_SECTION) {
+            // this is a section, usually rodata with an addend
+            elf64_section_header *target = section_headers->v->get(section_headers, sym->st_shndx);
+            sym_name = (target == NULL) ? "(unknown)": section_names_table->buffer + target->name;
+        } else {
+            sym_name = &symbol_strings_table->buffer[sym->st_name];
         }
-        /*
-            Relocations
-                Offset    Sym  Symbol name                     Type     Addend
-                0000000e    5  buffer_unit_tests                  4         -4
-                00000018    6  string_unit_tests                  4         -4
-                00000022    7  list_unit_tests                    4         -4
-                0000002c    8  unit_tests_outcome                 4         -4
-                0000005d   10  options                            2         12
-                0000006c   11  load_text                          4         -4
-                0000007a   10  options                            2         12
-                00000081    4  .rodata                            2         -4
-                00000093   12  error                              4         -4
-        */        
+
+        // we read the ".rela.text" section, we add it to the text section
+        code->text->relocations->add(code->text->relocations, rela->r_offset, sym_name, RT_ABS_32, rela->r_addend);
     }
 
     // for fun, print some section contents
     // for (int i = 0; i < section_headers->v->length(section_headers); i++)
     //     elf64_print_section_contents(f, section_headers, i, section_names_table);
 
-
-    // now selectively pick things and load into elf_contents...
-    // in the end, i think we should build a 'section' object, 
-    // that has a name (e.g. ".text") and maybe some flags (e.g. LOADED)
-    // it also has both a 'symbols' and a 'relocations' list,
-    // a collection of sections should be able to be loaded from and saved to elf tables
-    // also, a collection of sections should be able to be merged by type
-    // meaning, all .text sections merged together, along with their symbols and relocations,
-    //          all .rodata sections merged together, along with their symbols, etc.
-    // instead of having specific structure fields for specific sections ("code_address")
-    // we should have a collection of sections, each with type and name (e.g. .text and .rodata)
-
+    printf("--- obj_code loaded ---\n");
+    code->vt->print(code);
     return true;
 }
 

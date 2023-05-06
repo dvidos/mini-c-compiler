@@ -9,7 +9,7 @@ static void _add(symbol_table *table, char *name, u64 address, enum symbol_base 
 static struct symbol_entry *_find(symbol_table *table, char *name);
 static void _print(symbol_table *table);
 static void _offset(symbol_table *table, enum symbol_base base, long offset);
-static void _append(symbol_table *table, symbol_table *source);
+static void _append(symbol_table *table, symbol_table *source, long address_offset);
 static void _free(symbol_table *table);
 
 symbol_table *new_symbol_table() {
@@ -85,7 +85,7 @@ static void _offset(symbol_table *table, enum symbol_base base, long offset) {
     }
 }
 
-static void _append(symbol_table *table, symbol_table *source) {
+static void _append(symbol_table *table, symbol_table *source, long address_offset) {
     _ensure_capacity(table, table->length + source->length);
 
     for (int i = 0; i < source->length; i++) {
@@ -93,7 +93,7 @@ static void _append(symbol_table *table, symbol_table *source) {
 
         struct symbol_entry *tgt_sym = &table->symbols[table->length];
         tgt_sym->name = strdup(src_sym->name);
-        tgt_sym->address = src_sym->address;
+        tgt_sym->address = src_sym->address + address_offset;
         tgt_sym->base = src_sym->base;
         table->length++;
     }

@@ -50,7 +50,7 @@ struct symbol_table {
     struct symbol_entry *(*find)(symbol_table *table, char *name);
     void (*print)(symbol_table *table);
     void (*offset)(symbol_table *table, enum symbol_base base, long offset);
-    void (*append)(symbol_table *table, symbol_table *source);
+    void (*append)(symbol_table *table, symbol_table *source, long address_offset);
     void (*free)(symbol_table *table);
 };
 

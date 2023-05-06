@@ -523,7 +523,7 @@ void x86_assemble_ir_listing(ir_listing *ir_list, asm_listing *asm_list) {
 
 void x86_encode_asm_into_machine_code(asm_listing *asm_list, enum x86_cpu_mode mode, obj_code *obj) {
     // encode this into intel machine code
-    struct x86_encoder *enc = new_x86_encoder(mode, obj->text_seg, obj->relocations);
+    struct x86_encoder *enc = new_x86_encoder(mode, obj->text->contents, obj->text->relocations);
     asm_instruction *inst;
     struct encoding_info enc_info;
     encoded_instruction enc_inst;
@@ -538,7 +538,7 @@ void x86_encode_asm_into_machine_code(asm_listing *asm_list, enum x86_cpu_mode m
 
         if (inst->label != NULL) {
             // we don't know if this is exported for now
-            obj->symbols->add(obj->symbols, inst->label, obj->text_seg->length, SB_CODE);
+            obj->text->symbols->add(obj->text->symbols, inst->label, obj->text->contents->length, SB_CODE);
         }
 
         if (inst->operation == OC_NONE)
@@ -554,8 +554,8 @@ void x86_encode_asm_into_machine_code(asm_listing *asm_list, enum x86_cpu_mode m
     }
 
     printf("Sample resulting machine code\n");
-    for (int i = 0; i < obj->text_seg->length; i++)
-        printf("%02x ", (unsigned char)obj->text_seg->buffer[i]);
+    for (int i = 0; i < obj->text->contents->length; i++)
+        printf("%02x ", (unsigned char)obj->text->contents->buffer[i]);
     printf("\n");
 }
 

@@ -177,8 +177,8 @@ void generate_machine_code(ir_listing *ir_list) {
     }
 
     char *mod_name = set_extension(options.filename, "");
-    obj_code *mod = new_obj_code_module();
-    mod->ops->set_name(mod, mod_name);
+    obj_code *mod = new_obj_code();
+    mod->vt->set_name(mod, mod_name);
     free(mod_name);
 
     x86_encode_asm_into_machine_code(asm_list, CPU_MODE_PROTECTED, mod);
@@ -192,7 +192,7 @@ void generate_machine_code(ir_listing *ir_list) {
             error(NULL, 0, "cannot open file \"%s\" for writing", obj_filename);
             return;
         }
-        if (!mod->ops->save_object_file(mod, f)) {
+        if (!mod->vt->save_object_file(mod, f)) {
             error(NULL, 0, "error writing to file \"%s\"", obj_filename);
             return;
         }

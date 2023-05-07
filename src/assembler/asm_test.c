@@ -350,7 +350,7 @@ static bool _encode_listing_code(asm_listing *lst, obj_code *mod, enum x86_cpu_m
 
         if (inst->label != NULL) {
             // we don't know if this is exported for now
-            mod->text->symbols->add(mod->text->symbols, inst->label, mod->text->contents->length, SB_CODE);
+            mod->text->symbols->add(mod->text->symbols, inst->label, mod->text->contents->length, 0, ST_FUNCTION, false);
         }
 
         if (!enc->encode_v4(enc, inst)) {
@@ -380,13 +380,16 @@ static bool _link_module(obj_code *mod, u64 code_base_address, char *filename) {
     
     u64 data_base_address;
     u64 bss_base_address;
+    u64 rodata_base_address;
 
     data_base_address = round_up(code_base_address + mod->text->contents->length, 4096);
     bss_base_address = round_up(data_base_address + mod->data->contents->length, 4096);
+    bss_base_address = round_up(bss_base_address + mod->bss->contents->length, 4096);
 
-    mod->text->symbols->offset(mod->text->symbols, SB_CODE, code_base_address);
-    mod->text->symbols->offset(mod->text->symbols, SB_DATA, data_base_address);
-    mod->text->symbols->offset(mod->text->symbols, SB_BSS, bss_base_address);
+    mod->text->symbols->offset(mod->text->symbols, code_base_address);
+    mod->data->symbols->offset(mod->data->symbols, data_base_address);
+    mod->bss->symbols->offset(mod->bss->symbols, bss_base_address);
+    mod->rodata->symbols->offset(mod->rodata->symbols, rodata_base_address);
 
     if (!mod->text->relocations->backfill_buffer(mod->text->relocations, mod->text->symbols, mod->text->contents)) {
         printf("Error resolving references\n");

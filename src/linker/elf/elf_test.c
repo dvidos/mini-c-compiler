@@ -9,7 +9,9 @@ void perform_elf_test() {
     memset(&c, 0, sizeof(c));
 
     read_elf_file("mcc.o", &c);
-    read_elf_file("mcc", &c);
+    // read_elf_file("mcc", &c);
+    // read_elf_file("f1.o", &c);
+    // read_elf_file("f1", &c);
     // read_elf_file("/bin/sh", &c);
     // read_elf_file("./docs/bin/tiny-obj32", &c);
     // read_elf_file("./docs/bin/tiny-obj64", &c);

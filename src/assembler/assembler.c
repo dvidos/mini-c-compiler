@@ -538,7 +538,8 @@ void x86_encode_asm_into_machine_code(asm_listing *asm_list, enum x86_cpu_mode m
 
         if (inst->label != NULL) {
             // we don't know if this is exported for now
-            obj->text->symbols->add(obj->text->symbols, inst->label, obj->text->contents->length, SB_CODE);
+            obj->text->symbols->add(obj->text->symbols, inst->label, 
+                obj->text->contents->length, 0, ST_FUNCTION, false);
         }
 
         if (inst->operation == OC_NONE)

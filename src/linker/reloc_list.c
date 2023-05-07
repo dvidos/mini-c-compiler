@@ -5,7 +5,7 @@
 #include <stdio.h>
 
 
-static void _add(reloc_list *list, u64 address, char *name, enum reloc_type type, long addend);
+static void _add(reloc_list *list, u64 address, char *name, int rel_type, long addend);
 static void _clear(reloc_list *list);
 static bool _backfill_buffer(reloc_list *list, symbol_table *symbols, buffer *buff);
 static void _print(reloc_list *list);
@@ -39,12 +39,12 @@ static void _ensure_capacity(reloc_list *list, int capacity) {
         list->list = realloc(list->list, list->capacity * sizeof(struct relocation));
     }
 }
-static void _add(reloc_list *list, u64 position, char *name, enum reloc_type type, long addend) {
+static void _add(reloc_list *list, u64 position, char *name, int rel_type, long addend) {
     _ensure_capacity(list, list->length + 1);
 
     list->list[list->length].position = position;
     list->list[list->length].name = strdup(name);
-    list->list[list->length].type = type;
+    list->list[list->length].type = rel_type;
     list->list[list->length].addend = addend;
     list->length++;
 }
@@ -82,16 +82,15 @@ static bool _backfill_buffer(reloc_list *list, symbol_table *symbols, buffer *bu
 }
 
 static void _print(reloc_list *list) {
-    printf("  Position    Type      Name\n");
-    //     "  00000000    XXXXXX    XCZXCVzxcvxvxcv....
+    printf("    Position  Name                              Type     Addend\n");
+    //     "    00000000  123456789012345678901234567890  123456  123456789
     for (int i = 0; i < list->length; i++) {
         struct relocation *r = &list->list[i];
-        printf("  %08lx    %-6s    %s\n",
+        printf("    %08lx  %-30s %6d  %9ld\n",
             r->position, 
-            r->type == RT_ABS_32 ? "ABS_32" : (
-                r->type == RT_REL_32 ? "REL_32" : "???"
-            ),
-            r->name
+            r->name,
+            r->type,
+            r->addend
         );
     }
 }

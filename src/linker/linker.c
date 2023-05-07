@@ -34,7 +34,7 @@ static obj_code *create_crt0_code() {
     code->vt->set_name(code, "crt0");
 
     code->text->contents->add_zeros(code->text->contents, 64);
-    code->text->symbols->add(code->text->symbols, "_start", 16, SB_CODE);
+    code->text->symbols->add(code->text->symbols, "_start", 16, 0, ST_FUNCTION, true);
     // we should also have "main" as relocation, in "call main()"
 
     // paste code here or have assembly being encoded.
@@ -177,9 +177,9 @@ static bool resolve_addresses_and_merge(link_map *map) {
     // relocate symbol lists to their new target addresses
     for (i = 0; i < objs_len; i++) {
         info = map->obj_link_infos->v->get(map->obj_link_infos, i);
-        info->module->text->symbols->offset(info->module->text->symbols, SB_CODE, info->text_base_address);
-        info->module->text->symbols->offset(info->module->text->symbols, SB_DATA, info->data_base_address);
-        info->module->text->symbols->offset(info->module->text->symbols, SB_BSS, info->bss_base_address);
+        info->module->text->symbols->offset(info->module->text->symbols, info->text_base_address);
+        info->module->data->symbols->offset(info->module->data->symbols, info->data_base_address);
+        info->module->bss->symbols->offset(info->module->bss->symbols, info->bss_base_address);
     }
 
     // reposition relocations to their new code addresses
@@ -208,7 +208,8 @@ static bool resolve_addresses_and_merge(link_map *map) {
                 error(NULL, 0, "Linker: symbol '%s' already declared", sym->name);
                 return false;
             }
-            map->merged->text->symbols->add(map->merged->text->symbols, sym->name, sym->address, sym->base);
+            map->merged->text->symbols->add(map->merged->text->symbols, 
+                sym->name, sym->address, sym->size, sym->type, sym->global);
         }
 
         // also merge all relocations (ideally only the public ones)
@@ -231,7 +232,6 @@ static bool resolve_addresses_and_merge(link_map *map) {
 
     return true;
 }
-
 
 static void print_link_map(link_map *map, FILE *f) {
     obj_link_info *info;
@@ -286,8 +286,6 @@ static void print_link_map(link_map *map, FILE *f) {
         int j_len = info->module->text->symbols->length;
         for (int j = 0; j < j_len; j++) {
             struct symbol_entry *sym = &info->module->text->symbols->symbols[j];
-            if (sym->base != SB_CODE)
-                continue;
             fprintf(f, "%-7s  %-12s  0x%08lx  %-20s  %-4s\n",
                 section_shown ? "" : ".text",
                 info->module == last_module ? "" : info->module->name,
@@ -303,11 +301,9 @@ static void print_link_map(link_map *map, FILE *f) {
     last_module = NULL;
     for (int i = 0; i < len; i++) {
         info = map->obj_link_infos->v->get(map->obj_link_infos, i);
-        int j_len = info->module->text->symbols->length;
+        int j_len = info->module->data->symbols->length;
         for (int j = 0; j < j_len; j++) {
-            struct symbol_entry *sym = &info->module->text->symbols->symbols[j];
-            if (sym->base != SB_DATA)
-                continue;
+            struct symbol_entry *sym = &info->module->data->symbols->symbols[j];
             fprintf(f, "%-7s  %-12s  0x%08lx  %-20s  %-4s\n",
                 section_shown ? "" : ".data",
                 info->module == last_module ? "" : info->module->name,
@@ -323,11 +319,9 @@ static void print_link_map(link_map *map, FILE *f) {
     last_module = NULL;
     for (int i = 0; i < len; i++) {
         info = map->obj_link_infos->v->get(map->obj_link_infos, i);
-        int j_len = info->module->text->symbols->length;
+        int j_len = info->module->bss->symbols->length;
         for (int j = 0; j < j_len; j++) {
-            struct symbol_entry *sym = &info->module->text->symbols->symbols[j];
-            if (sym->base != SB_BSS)
-                continue;
+            struct symbol_entry *sym = &info->module->bss->symbols->symbols[j];
             fprintf(f, "%-7s  %-12s  0x%08lx  %-20s  %-4s\n",
                 section_shown ? "" : ".bss",
                 info->module == last_module ? "" : info->module->name,

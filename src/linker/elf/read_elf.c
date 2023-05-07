@@ -308,9 +308,14 @@ static bool elf64_load_section(FILE *f, elf64_section_header *sect, buffer *buff
     if (sect == NULL)
         return false;
     
-    fseek(f, sect->file_offset, SEEK_SET);
-    if (!buffer->from_file(buffer, f, sect->size))
-        return false;
+    if (sect->type == SECTION_TYPE_NOBITS) {
+        // this section has no bits in file, just in memory (e.g. bss)
+        buffer->fill(buffer, sect->size, 0);
+    } else {
+        fseek(f, sect->file_offset, SEEK_SET);
+        if (!buffer->from_file(buffer, f, sect->size))
+            return false;
+    }
     
     return true;
 }
@@ -411,32 +416,34 @@ static bool read_elf64_file(FILE *f, elf_contents *contents) {
     for (int i = 0; i < scount; i++) {
         elf64_sym *sym = (elf64_sym *)&symbols_table->buffer[i * sizeof(elf64_sym)];
         elf64_print_symbol(sym, section_headers, section_names_table, symbol_strings_table);
-        if (sym->st_shndx == 0)
-            continue;
         int sym_type = ELF64_ST_TYPE(sym->st_info);
-        if (sym_type != STT_FUNC && sym_type != STT_OBJECT && sym_type != STT_SECTION)
+        if (sym_type != STT_FUNC && sym_type != STT_OBJECT)
             continue;
+        int sym_bind = ELF64_ST_BIND(sym->st_info);
 
         // must distribute these to the various sections of the module
-        elf64_section_header *h = section_headers->v->get(section_headers, sym->st_shndx);
-        if (h == NULL)
+        elf64_section_header *sect = section_headers->v->get(section_headers, sym->st_shndx);
+        if (sect == NULL)
             continue;
-        char *sect_name = section_names_table->buffer + h->name;
+        char *sect_name = section_names_table->buffer + sect->name;
 
+        // find the appropriate section in the module
         section *target = NULL;
-        if (strcmp(sect_name, ".text") == 0)
-            target = code->text;
-        else if (strcmp(sect_name, ".data") == 0)
-            target = code->data;
-        else if (strcmp(sect_name, ".bss") == 0)
-            target = code->bss;
-        else if (strcmp(sect_name, ".rodata") == 0)
-            target = code->rodata;
-        
-        if (target != NULL) {
-            // need to see if global/local and type func/data/etc.
-            target->symbols->add(target->symbols, symbol_strings_table->buffer + sym->st_name, sym->st_value, SB_CODE);
-        }
+        if      (strcmp(sect_name, ".text")   == 0) target = code->text; 
+        else if (strcmp(sect_name, ".data")   == 0) target = code->data;
+        else if (strcmp(sect_name, ".bss")    == 0) target = code->bss;
+        else if (strcmp(sect_name, ".rodata") == 0) target = code->rodata;
+        if (target == NULL)
+            continue;
+
+        enum symbol_type stype = ST_UNKNOWN;
+        if      (sym_type == STT_FUNC) stype = ST_FUNCTION;
+        else if (sym_type == STT_OBJECT) stype = ST_OBJECT;
+        else if (sym_type == STT_SECTION) stype = ST_SECTION;
+
+        target->symbols->add(target->symbols, 
+            symbol_strings_table->buffer + sym->st_name, 
+            sym->st_value, sym->st_size, stype, sym_bind == STB_GLOBAL);
     }
 
     // relocations by convention are named ".rel<section>" and ".rela<section>" to the section they refer to.
@@ -482,7 +489,8 @@ static bool read_elf64_file(FILE *f, elf_contents *contents) {
         }
 
         // we read the ".rela.text" section, we add it to the text section
-        code->text->relocations->add(code->text->relocations, rela->r_offset, sym_name, RT_ABS_32, rela->r_addend);
+        code->text->relocations->add(code->text->relocations, 
+            rela->r_offset, sym_name, rela_type, rela->r_addend);
     }
 
     // for fun, print some section contents

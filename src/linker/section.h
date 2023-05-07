@@ -9,6 +9,7 @@
 
 typedef struct section {
     char *name;
+    u64 address;
 
     // code for .text, or data for .data etc
     buffer *contents;
@@ -24,6 +25,7 @@ typedef struct section {
 
 struct section_vtable {
     void (*set_name)(section *s, char *name);
+    void (*set_address)(section *s, u64 address);
     void (*print)(section *s);
     void (*append)(section *s, section *other);
     void (*free)(section *s);

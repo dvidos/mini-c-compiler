@@ -49,15 +49,14 @@ static void _set_name(obj_code *obj, char *name) {
 }
 
 static void _declare_data(obj_code *obj, char *symbol_name, u64 bytes, void *init_value) {
-    if (init_value == NULL) {
-        u64 address = obj->bss->contents->length;
-        obj->bss->contents->add_zeros(obj->bss->contents, bytes);
-        obj->bss->symbols->add(obj->bss->symbols, symbol_name, address, SB_BSS);
-    } else {
-        u64 address = obj->bss->contents->length;
-        obj->data->contents->add_mem(obj->data->contents, init_value, bytes);
-        obj->data->symbols->add(obj->data->symbols, symbol_name, address, SB_DATA);
-    }
+    section *s = (init_value == NULL) ? obj->bss : obj->data;
+
+    u64 address = s->contents->length;
+    if (init_value == NULL)
+        s->contents->add_zeros(s->contents, bytes);
+    else
+        s->contents->add_mem(s->contents, init_value, bytes);
+    s->symbols->add(s->symbols, symbol_name, address, bytes, ST_OBJECT, true);
 }
 
 static void _reset(obj_code *obj) {
@@ -68,10 +67,17 @@ static void _reset(obj_code *obj) {
 }
 
 static void _print(obj_code *obj) {
-    obj->text->v->print(obj->text);
-    obj->data->v->print(obj->data);
-    obj->bss->v->print(obj->bss);
-    obj->rodata->v->print(obj->rodata);
+    if (obj->text->contents->length > 0 || obj->text->symbols->length > 0 || obj->text->relocations->length > 0)
+        obj->text->v->print(obj->text);
+    
+    if (obj->data->contents->length > 0 || obj->data->symbols->length > 0 || obj->data->relocations->length > 0)
+        obj->data->v->print(obj->data);
+
+    if (obj->bss->contents->length > 0 || obj->bss->symbols->length > 0 || obj->bss->relocations->length > 0)
+        obj->bss->v->print(obj->bss);
+
+    if (obj->rodata->contents->length > 0 || obj->rodata->symbols->length > 0 || obj->rodata->relocations->length > 0)
+        obj->rodata->v->print(obj->rodata);
 }
 
 static bool _save_object_file(obj_code *obj, FILE *f) {

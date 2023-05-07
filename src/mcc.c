@@ -43,7 +43,7 @@ static bool run_unit_tests() {
 }
 #endif 
 
-void load_source_code(char **source_code) {
+static void load_source_code(char **source_code) {
 
     char *p = NULL;
     if (!load_text(options.filename, &p)) {
@@ -60,7 +60,7 @@ void load_source_code(char **source_code) {
     (*source_code) = p;
 }
 
-void parse_file_into_lexer_tokens(char *file_buffer, char *filename, token_list *list) {
+static void parse_file_into_lexer_tokens(char *file_buffer, char *filename, token_list *list) {
     char *p = file_buffer;
     token *token = NULL;
     int err;
@@ -93,7 +93,7 @@ void parse_file_into_lexer_tokens(char *file_buffer, char *filename, token_list 
     }
 }
 
-void parse_abstract_syntax_tree(token_list *list) {
+static void parse_abstract_syntax_tree(token_list *list) {
     init_token_iterator(list);
     init_ast();
 
@@ -118,11 +118,11 @@ void parse_abstract_syntax_tree(token_list *list) {
     }
 }
 
-void perform_semantic_analysis() {
+static void perform_semantic_analysis() {
     perform_module_analysis(get_ast_root_node());
 }
 
-void generate_intermediate_code(ir_listing *listing) {
+static void generate_intermediate_code(ir_listing *listing) {
     code_gen *gen = new_code_generator(listing);
     if (errors_count) return;
     
@@ -149,7 +149,7 @@ void generate_intermediate_code(ir_listing *listing) {
     }
 }
 
-void generate_machine_code(ir_listing *ir_list) {
+static void generate_machine_code(ir_listing *ir_list) {
     // we need something that, given ir_listing       generates asm_listing. (.asm file)
     // then an encoder that,   given the asm_listing, generates machine code (.o file)
     // then a linker that,     given the machine code generates the executable (executable file)

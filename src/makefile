@@ -9,6 +9,7 @@ SRC_FILES = \
 	utils/buffer.c \
 	utils/string.c \
 	utils/list.c \
+	utils/mempool.c \
 	compiler/lexer/token.c \
 	compiler/lexer/token_list.c \
 	compiler/lexer/lexer.c \

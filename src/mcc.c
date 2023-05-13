@@ -30,6 +30,9 @@
 #ifdef INCLUDE_UNIT_TESTS
 static bool run_unit_tests() {
 
+    void mempool_unit_tests();
+    mempool_unit_tests();
+
     void buffer_unit_tests();
     buffer_unit_tests();
 

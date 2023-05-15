@@ -1,0 +1,162 @@
+#pragma once
+#include <stdbool.h>
+#include "data_types.h"
+
+// -------------------------------------------
+
+typedef struct queue queue;
+
+queue *new_queue(mempool *mp);
+int   queue_length(queue *q);
+bool  queue_empty(queue *q);
+void  queue_put(queue *q, void *item);
+void *queue_peek(queue *q);
+void *queue_get(queue *q);
+
+void queue_unit_tests();
+
+// -------------------------------------------
+
+typedef struct stack stack;
+
+stack *new_stack(mempool *mp);
+int   stack_length(stack *s);
+bool  stack_empty(stack *s);
+void  stack_push(stack *s, void *item);
+void *stack_peek(stack *s);
+void *stack_pop(stack *s);
+
+void stack_unit_tests();
+
+// -------------------------------------------
+
+typedef int comparator_function(void *a, void *b);
+typedef bool filterer_function(void *item);
+typedef void *mapper_function(void *item, mempool *mp);
+typedef void *reducer_function(void *item, void *prev_value);
+typedef str *classifier_function(void *item);
+
+// -------------------------------------------
+
+typedef struct llist llist;
+
+llist *new_llist(mempool *mp);
+int   llist_length(llist *l);
+bool  llist_empty(llist *l);
+void *llist_get(llist *l, int index);
+void  llist_add(llist *l, void *item);
+void  llist_push(llist *l, void *item);
+void *llist_peek(llist *l);
+void *llist_pop(llist *l);
+void  llist_insert_head(llist *l, void *item);
+void *llist_extract_head(llist *l);
+bool  llist_contains(llist *l, void *item);
+int   llist_index_of(llist *l, void *item);
+bool  llist_remove_at(llist *l, int index);
+llist *llist_reverse(llist *l);
+llist *llist_sort(llist *l, comparator_function *c);
+llist *llist_unique(llist *l, comparator_function *c);
+llist *llist_filter(llist *l, filterer_function *f);
+llist *llist_map(llist *l, mapper_function *m);
+void *llist_reduce(llist *l, reducer_function *r, void *initial_value);
+iterator *llist_create_iterator(llist *l, mempool *m);
+hashtable *llist_group(llist *l, classifier_function *c);
+
+void llist_unit_tests();
+
+// -------------------------------------------
+
+typedef struct bstree bstree;
+
+bstree *new_bstree(mempool *mp);
+int   bstree_length(bstree *t);
+bool  bstree_empty(bstree *t);
+void *bstree_get(bstree *t, str *key);
+bool  bstree_insert(bstree *t, str *key, void *data);
+bool  bstree_delete(bstree *t, str *key);
+bool  bstree_contains(bstree *t, str *key);
+iterator *bstree_create_iterator(bstree *t, mempool *m);
+
+void bstree_unit_tests();
+
+// -------------------------------------------
+
+typedef struct hashtable hashtable;
+
+hashtable *new_hashtable(mempool *mp);
+int   hashtable_length(hashtable *h);
+bool  hashtable_empty(hashtable *h);
+void  hashtable_set(hashtable *h, str *key, void *data); // O(1)
+void *hashtable_get(hashtable *h, str *key); // O(1)
+bool  hashtable_delete(hashtable *h, str *key); // O(1)
+bool  hashtable_contains(hashtable *h, str *key); // O(1)
+iterator *hashtable_create_iterator(hashtable *h, mempool *m);
+
+void hashtable_unit_tests();
+
+// -------------------------------------------
+
+typedef struct heap heap; // for implementing priority queues
+
+heap *new_heap(mempool *mp, bool max, comparator_function *cmp);
+void  heap_add(heap *h, void *item);  // O(lg N)
+void  heap_delete(heap *h, void *item); // O(1)
+void *heap_peek(heap *h);    // O(1)
+void *heap_extract(heap *h); // O(1)
+
+void heap_unit_tests();
+
+// -------------------------------------------
+
+typedef struct graph graph;
+typedef struct graph_node graph_node;
+
+graph *new_graph(mempool *mp);
+int    graph_length(graph *g);
+bool   graph_empty(graph *g);
+bool   graph_add(graph *g, str *key, void *node_data);
+bool   graph_add_link(graph *g, str *key_from, str *key_to, void *vertex_data);
+void  *graph_get(graph *g, str *key);
+llist *graph_get_neighbors(graph *g, str *node_key);
+bool   graph_acyclic(graph *g);
+int    graph_number_of_trees(graph *g);
+llist *graph_topological_sort(graph *g);
+llist *graph_shortest_path(graph *g, str *from_key, str *to_key);
+iterator *graph_create_bfs_iterator(graph *g, mempool *m, str *first_key);
+iterator *graph_create_dfs_iterator(graph *g, mempool *m, str *first_key);
+
+void   graph_unit_tests();
+
+// -------------------------------------------
+
+// llist, bstree, hashtable, generator, etc
+// we should be able to filter, map, reduce, group, collect in a list, etc using only an iterator!
+// maybe we can chain iterators one on another and create conversions using window functions
+typedef struct iterator {
+    void *reset(struct iterator *i); // reset and return first item, if any
+    bool valid(struct iterator *i);  // was the one last returned valid?
+    void *next(struct iterator *i);  // advance and return item, if any
+    void *private_data;
+} iterator;
+
+#define iterate(type, var, iter)  \
+    for(type *var = (type *)iter->reset(iter);  \
+        iter->valid(iter);                      \
+        var = (type *)iter->next(iter))
+
+// after getting an iterator, we can filter it, map it, sort it, group it,
+// then: take one value of it, or reduce() to a value, or collect to a list
+
+long iterator_count(iterator *it);
+iterator *iterator_filter(iterator *it, filterer_function filter);
+iterator *iterator_map(iterator *it, mapper_function filter);
+hashtable *iterator_group(iterator *it, classifier_function classifier); // hashtable of llists per group
+void *iterator_reduce(iterator *it, reducer_function filter, void *initial_value);
+void *iterator_first(iterator *it);
+void *iterator_last(iterator *it);
+llist *iterator_collect(iterator *it, mempool *mp);
+void iterator_unit_tests();
+
+// ----------------------------------------
+
+void all_data_structs_unit_tests();

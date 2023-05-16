@@ -390,6 +390,30 @@ static int llist_sort_comparator(const void *a, const void *b) {
     return user_sort_comparator(*(const void **)a, *(const void **)b);
 }
 
+int llist_find_first(llist *l, comparator_function *compare, void *item) {
+    llist_node *n = l->head;
+    int index = 0;
+    while (n != NULL) {
+        if (compare(n->data, item) == 0)
+            return index;
+        n = n->next;
+        index++;
+    }
+    return -1;
+}
+
+int llist_find_last(llist *l, comparator_function *compare, void *item) {
+    llist_node *n = l->tail;
+    int index = l->items_count - 1;
+    while (n != NULL) {
+        if (compare(n->data, item) == 0)
+            return index;
+        n = n->prev;
+        index--;
+    }
+    return -1;
+}
+
 llist *llist_sort(llist *l, comparator_function *compare, mempool *mp) {
     // allocate an array with all the pointers, then sort them, then create a new list
 
@@ -418,8 +442,17 @@ llist *llist_sort(llist *l, comparator_function *compare, mempool *mp) {
 }
 
 llist *llist_unique(llist *l, comparator_function *compare, mempool *mp) {
-    // another one, we may need hashtable for this (otherwise this is a O(n^2) ???)
-    return NULL;
+    // simple approach for now, O(n^2 / 2)
+    llist *new_list = new_llist(mp);
+    llist_node *n = l->head;
+    while (n != NULL) {
+        
+        if (llist_find_first(new_list, compare, n->data) == -1)
+            llist_add(new_list, n->data);
+        n = n->next;
+    }
+
+    return new_list;
 }
 
 llist *llist_filter(llist *l, filterer_function *filter, mempool *mp) {
@@ -443,8 +476,8 @@ llist *llist_map(llist *l, mapper_function *map, mempool *mp) {
 
     llist_node *n = l->head;
     while (n != NULL) {
-        if (map(n->data, l->mempool))
-            llist_add(new_list, n->data);
+        void *new_data = map(n->data, l->mempool);
+        llist_add(new_list, new_data);
         n = n->next;
     }
     return new_list;
@@ -501,11 +534,38 @@ hashtable *llist_group(llist *l, classifier_function *classify, mempool *mp) {
 }
 
 #ifdef INCLUDE_UNIT_TESTS
+static bool __llist_unit_test_filter(void *item) {
+    return strcmp((char *)item, "A") == 0;
+}
+static void *__llist_unit_test_map(void *item, mempool *mp) {
+    char *src = (char *)item;
+    char *dst = mempool_alloc(mp, strlen(src) * 2 + 4, "string mapping");
+    strcpy(dst, src);
+    strcat(dst, "-");
+    strcat(dst, src);
+    return dst;
+}
+static void *__llist_unit_test_reduce(void *item, void *prev_value, mempool *mp) {
+    char *reduced = mempool_alloc(mp, strlen((char *)prev_value) + 1 + strlen((char *)item) + 1, "reduced value");
+
+    strcpy(reduced, (char *)prev_value);
+    if (strlen(reduced) > 0)
+        strcat(reduced, ",");
+    strcat(reduced, (char *)item);
+
+    return reduced;
+}
+
 void llist_unit_tests() {
     mempool *mp = new_mempool();
-    char a = 'a';
-    char b = 'b';
-    char c = 'c';
+    char *s;
+
+    void *a = mempool_alloc(mp, 4, "dummy data");
+    void *b = mempool_alloc(mp, 4, "dummy data");
+    void *c = mempool_alloc(mp, 4, "dummy data");
+    strcpy(a, "A");
+    strcpy(b, "B");
+    strcpy(c, "C");
 
     // test initial conditions
     llist *l = new_llist(mp);
@@ -516,18 +576,18 @@ void llist_unit_tests() {
     assert(llist_length(l) == 0);
     assert(llist_empty(l));
     assert(llist_get(l, 0) == NULL);
-    assert(!llist_contains(l, &a));
+    assert(!llist_contains(l, a));
 
     // adding, getting
-    llist_add(l, &a);
-    llist_add(l, &b);
-    llist_add(l, &c);
+    llist_add(l, a);
+    llist_add(l, b);
+    llist_add(l, c);
     assert(l->items_count == 3);
-    assert(l->head != NULL && l->head->data == &a);
-    assert(l->tail != NULL && l->tail->data == &c);
-    assert(llist_get(l, 0) == &a);
-    assert(llist_get(l, 1) == &b);
-    assert(llist_get(l, 2) == &c);
+    assert(l->head != NULL && l->head->data == a);
+    assert(l->tail != NULL && l->tail->data == c);
+    assert(llist_get(l, 0) == a);
+    assert(llist_get(l, 1) == b);
+    assert(llist_get(l, 2) == c);
 
     // test clearing
     llist_clear(l);
@@ -537,94 +597,181 @@ void llist_unit_tests() {
 
     // test contains
     llist_clear(l);
-    llist_add(l, &a);
-    llist_add(l, &b);
-    llist_add(l, &c);
-    assert(llist_contains(l, &b));
+    llist_add(l, a);
+    llist_add(l, b);
+    llist_add(l, c);
+    assert(llist_contains(l, b));
     llist_clear(l);
-    assert(!llist_contains(l, &b));
+    assert(!llist_contains(l, b));
 
     // insert start
     llist_clear(l);
-    llist_add(l, &a);
-    llist_add(l, &b);
-    llist_insert_at(l, 0, &c);
-    assert(llist_get(l, 0) == &c);
-    assert(llist_get(l, 1) == &a);
-    assert(llist_get(l, 2) == &b);
+    llist_add(l, a);
+    llist_add(l, b);
+    llist_insert_at(l, 0, c);
+    assert(llist_get(l, 0) == c);
+    assert(llist_get(l, 1) == a);
+    assert(llist_get(l, 2) == b);
 
     // insert middle
     llist_clear(l);
-    llist_add(l, &a);
-    llist_add(l, &b);
-    llist_insert_at(l, 1, &c);
-    assert(llist_get(l, 0) == &a);
-    assert(llist_get(l, 1) == &c);
-    assert(llist_get(l, 2) == &b);
+    llist_add(l, a);
+    llist_add(l, b);
+    llist_insert_at(l, 1, c);
+    assert(llist_get(l, 0) == a);
+    assert(llist_get(l, 1) == c);
+    assert(llist_get(l, 2) == b);
 
     // insert at end
     llist_clear(l);
-    llist_add(l, &a);
-    llist_add(l, &b);
-    llist_insert_at(l, 2, &c);
-    assert(llist_get(l, 0) == &a);
-    assert(llist_get(l, 1) == &b);
-    assert(llist_get(l, 2) == &c);
+    llist_add(l, a);
+    llist_add(l, b);
+    llist_insert_at(l, 2, c);
+    assert(llist_get(l, 0) == a);
+    assert(llist_get(l, 1) == b);
+    assert(llist_get(l, 2) == c);
 
     // delete from start
     llist_clear(l);
-    llist_add(l, &a);
-    llist_add(l, &b);
-    llist_add(l, &c);
+    llist_add(l, a);
+    llist_add(l, b);
+    llist_add(l, c);
     llist_remove_at(l, 0);
-    assert(llist_get(l, 0) == &b);
-    assert(llist_get(l, 1) == &c);
+    assert(llist_get(l, 0) == b);
+    assert(llist_get(l, 1) == c);
 
     // delete from middle
     llist_clear(l);
-    llist_add(l, &a);
-    llist_add(l, &b);
-    llist_add(l, &c);
+    llist_add(l, a);
+    llist_add(l, b);
+    llist_add(l, c);
     llist_remove_at(l, 1);
-    assert(llist_get(l, 0) == &a);
-    assert(llist_get(l, 1) == &c);
+    assert(llist_get(l, 0) == a);
+    assert(llist_get(l, 1) == c);
 
     // delete from end
     llist_clear(l);
-    llist_add(l, &a);
-    llist_add(l, &b);
-    llist_add(l, &c);
+    llist_add(l, a);
+    llist_add(l, b);
+    llist_add(l, c);
     llist_remove_at(l, 2);
-    assert(llist_get(l, 0) == &a);
-    assert(llist_get(l, 1) == &b);
+    assert(llist_get(l, 0) == a);
+    assert(llist_get(l, 1) == b);
 
     // delete the last one
     llist_clear(l);
-    llist_add(l, &a);
+    llist_add(l, a);
     llist_remove_at(l, 0);
     assert(llist_length(l) == 0);
     assert(l->head == NULL);
     assert(l->tail == NULL);
 
-
     // reverse
+    llist_clear(l);
+    llist_add(l, a);
+    llist_add(l, b);
+    llist_add(l, c);
+    llist *reversed = llist_reverse(l);
+    assert(llist_get(reversed, 0) == c);
+    assert(llist_get(reversed, 1) == b);
+    assert(llist_get(reversed, 2) == a);
+
+    // find first + find last
+    llist_clear(l);
+    llist_add(l, a);
+    llist_add(l, b);
+    llist_add(l, a);
+    assert(llist_find_first(l, (comparator_function *)strcmp, a) == 0);
+    assert(llist_find_first(l, (comparator_function *)strcmp, c) == -1);
+    assert(llist_find_last(l, (comparator_function *)strcmp, a) == 2);
+    assert(llist_find_last(l, (comparator_function *)strcmp, c) == -1);
 
     // sort
+    llist_clear(l);
+    llist_add(l, b);
+    llist_add(l, c);
+    llist_add(l, a);
+    llist *sorted = llist_sort(l, (comparator_function *)strcmp, mp);
+    assert(llist_get(sorted, 0) == a);
+    assert(llist_get(sorted, 1) == b);
+    assert(llist_get(sorted, 2) == c);
 
     // unique
+    llist_clear(l);
+    llist_add(l, a);
+    llist_add(l, b);
+    llist_add(l, b);
+    llist_add(l, a);
+    llist_add(l, c);
+    llist_add(l, a);
+    assert(llist_length(l) == 6);
+    llist *uniq = llist_unique(l, (comparator_function *)strcmp, mp);
+    assert(llist_length(uniq) == 3);
+    assert(llist_get(uniq, 0) == a);
+    assert(llist_get(uniq, 1) == b);
+    assert(llist_get(uniq, 2) == c);
 
     // filter
+    llist_clear(l);
+    llist_add(l, a);
+    llist_add(l, b);
+    llist_add(l, b);
+    llist_add(l, a);
+    llist_add(l, c);
+    llist_add(l, a);
+    assert(llist_length(l) == 6);
+    llist *filtered = llist_filter(l, __llist_unit_test_filter, mp);
+    assert(llist_length(filtered) == 3);
+    assert(llist_get(filtered, 0) == a);
+    assert(llist_get(filtered, 1) == a);
+    assert(llist_get(filtered, 2) == a);
 
     // map
+    llist_clear(l);
+    llist_add(l, a);
+    llist_add(l, b);
+    llist_add(l, c);
+    llist *mapped = llist_map(l, __llist_unit_test_map, mp);
+    assert(llist_length(mapped) == 3);
+    assert(strcmp(llist_get(mapped, 0), "A-A") == 0);
+    assert(strcmp(llist_get(mapped, 1), "B-B") == 0);
+    assert(strcmp(llist_get(mapped, 2), "C-C") == 0);
 
     // reduce
+    llist_clear(l);
+    llist_add(l, a);
+    llist_add(l, b);
+    llist_add(l, c);
+    void *result = llist_reduce(l, __llist_unit_test_reduce, "", mp);
+    assert(result != NULL);
+    assert(strcmp(result, "A,B,C") == 0);
 
     // create_iterator
+    llist_clear(l);
+    llist_add(l, a);
+    llist_add(l, b);
+    llist_add(l, c);
+    iterator *it = llist_create_iterator(l, mp);
+    s = it->reset(it);
+    assert(s != NULL);
+    assert(it->valid(it));
+    assert(strcmp(s, "A") == 0);
+    s = it->next(it);
+    assert(s != NULL);
+    assert(it->valid(it));
+    assert(strcmp(s, "B") == 0);
+    s = it->next(it);
+    assert(s != NULL);
+    assert(it->valid(it));
+    assert(strcmp(s, "C") == 0);
+    s = it->next(it);
+    assert(s == NULL);
+    assert(!it->valid(it));
 
     // group
 
 
-
+    mempool_print_allocations(mp, stdout); // for fun
     mempool_release(mp);
 }
 #endif

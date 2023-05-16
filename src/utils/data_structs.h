@@ -78,6 +78,8 @@ bool  llist_insert_at(llist *l, int index, void *item);
 bool  llist_remove_at(llist *l, int index);
 void  llist_clear(llist *l);
 llist *llist_reverse(llist *l);
+int llist_find_first(llist *l, comparator_function *compare, void *item);
+int llist_find_last(llist *l, comparator_function *compare, void *item);
 llist *llist_sort(llist *l, comparator_function *compare, mempool *mp);
 llist *llist_unique(llist *l, comparator_function *compare, mempool *mp);
 llist *llist_filter(llist *l, filterer_function *filter, mempool *mp);

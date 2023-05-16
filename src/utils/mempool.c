@@ -126,11 +126,14 @@ void mempool_release(mempool *mp) {
     struct mem_bucket *bucket = mp->buckets;
     while (bucket != NULL) {  
         next = bucket->next;
+        memset(bucket->buffer, 0, bucket->capacity);
         free(bucket->buffer);
+        memset(bucket, 0, sizeof(struct mem_bucket));
         free(bucket);
         bucket = next;
     }
 
+    memset(mp, 0, sizeof(mempool));
     free(mp);
 }
 

@@ -1,22 +1,42 @@
 #include <string.h>
-#include "../unit_tests.h"
 #include "data_types.h"
-#include "mempool.h"
 
 
 // --------------------------------------------
 
 typedef struct str str;
 
-struct str {
+typedef struct str {
     char *buff;
     int length;
-};
+    int capacity;
+    mempool *mempool;
+} str;
 
-str *new_str(mempool *mp, const char *str);
+str *new_str(mempool *mp, const char *strz) {
+    if (strz == NULL)
+        strz = "";
+    
+    str *s = mempool_alloc(mp, sizeof(str), "str");
+    s->length = strlen(strz);
+    s->capacity = s->length + 1;
+    s->buff = mempool_alloc(mp, s->capacity, "str_buff");
+    strcpy(s->buff, strz);
+    s->mempool = mp;
+
+    return s;
+}
+
 str *new_strf(mempool *mp, const char *fmt, ...);
-int  str_length(str *s);
-bool str_empty(str *s);
+
+int  str_length(str *s) {
+    return s->length;
+}
+
+bool str_empty(str *s) {
+    return s->length == 0;
+}
+
 bool str_starts_with(str *s, str *fragment);
 bool str_ends_with(str *s, str *fragment);
 bool str_contains(str *s, str *fragment);
@@ -37,9 +57,36 @@ str *str_padr(str *s, int len, char c);
 str *str_padl(str *s, int len, char c);
 str *str_cat(str *s1, str *s2);
 str *str_cat3(str *s1, str *s2, str *s3);
-int  str_cmp(str *s1, str *s2);
-bool str_equals(str *s1, str *s2);
-unsigned long str_hash(str *s);
+
+int  str_cmp(str *s1, str *s2) {
+    return strcmp(s1->buff, s2->buff);
+}
+
+bool str_equals(str *s1, str *s2) {
+    if (s1 == s2)
+        return true;
+    if (s1->length != s2->length)
+        return false;
+    if (strcmp(s1->buff, s2->buff) != 0)
+        return false;
+    
+    return true;
+}
+
+unsigned long str_hash(str *s) {
+    unsigned long hash = 0, nibble;
+
+    char *p = s->buff;
+    while (*p) {
+        hash = (hash << 4) + *p++;
+        if (nibble = (hash & 0xf0000000))
+            hash ^= (nibble >> 24);
+        hash &= 0x0fffffff;
+    }
+
+    return hash;
+}
+
 llist *str_split(str *s, str *delimiter);
 str *str_join(str *delimiter, llist *list);
 str *str_clone(str *s);
@@ -48,6 +95,7 @@ iterator *str_token_iterator(str *s, str *delimiters);
 bool str_save_file(str *s, str *filename);
 str *str_load_file(str *filename, mempool *mp);
 
+#ifdef INCLUDE_UNIT_TESTS
 void str_unit_tests() {
     // test the following:
     // str *new_str(mempool *mp, const char *str);
@@ -85,6 +133,8 @@ void str_unit_tests() {
     // bool str_save_file(str *s, str *filename);
     // str *str_load_file(str *filename, mempool *mp);
 }
+#endif
+
 
 // ------------------------------------------------
 
@@ -100,6 +150,7 @@ binary *binary_extract(binary *b, int offset, int size);
 bool buff_save_file(str *s, str *filename);
 binary *buff_load_file(str *filename, mempool *mp);
 
+#ifdef INCLUDE_UNIT_TESTS
 void binary_unit_tests() {
     // test the following:
     // binary *new_binary(mempool *mp);
@@ -112,10 +163,13 @@ void binary_unit_tests() {
     // bool buff_save_file(str *s, str *filename);
     // binary *buff_load_file(str *filename, mempool *mp);
 }
+#endif
 
 // -------------------------------------
 
+#ifdef INCLUDE_UNIT_TESTS
 void all_data_types_unit_tests() {
     str_unit_tests();
     binary_unit_tests();
 }
+#endif

@@ -42,6 +42,7 @@ mempool *new_mempool() {
     memset(bucket, 0, sizeof(struct mem_bucket));
     bucket->capacity = INITIAL_MEM_POOL_CAPACITY;
     bucket->buffer = malloc(bucket->capacity);
+    memset(bucket->buffer, 0, bucket->capacity); // ensure we shall be handing off clean buffers
 
     mp->buckets = bucket;
     mp->num_buckets = 1;
@@ -61,6 +62,7 @@ static inline struct mem_bucket *mempool_add_new_bucket(mempool *mp, size_t allo
     memset(bucket, 0, sizeof(struct mem_bucket));
     bucket->capacity = capacity;
     bucket->buffer = malloc(bucket->capacity);
+    memset(bucket->buffer, 0, bucket->capacity); // ensure we shall be handing off clean buffers
 
     // insert at start, to make this the first candidate for allocations
     bucket->next = mp->buckets;
@@ -119,7 +121,7 @@ void *__mempool_alloc(mempool *mp, size_t size, char *intent, char *file, int li
     return ptr;
 }
 
-void mempool_free_all(mempool *mp) {
+void mempool_release(mempool *mp) {
     struct mem_bucket *next;
     struct mem_bucket *bucket = mp->buckets;
     while (bucket != NULL) {  
@@ -205,18 +207,28 @@ void mempool_unit_tests() {
     assert(mp->buckets->next == NULL);
 
     // small allocation
-    void *ptr = mempool_alloc(mp, 64, "small alloc");
+    char *ptr = mempool_alloc(mp, 64, "small alloc");
     assert(ptr != NULL);
     assert(mp->allocations_count == 1);
     assert(mp->total_allocated == 64 + ALLOCATION_INFO_SIZE);
     assert(ptr == mp->buckets->buffer + ALLOCATION_INFO_SIZE);
     assert(mp->buckets->allocated == 64 + ALLOCATION_INFO_SIZE);
 
+    char sum = 0;
+    for (int i = 0; i < 64; i++)
+        sum += ptr[i];
+    assert(sum == 0); // ensure the chunk delivered is clean
+
     // check large allocation requires grabbing a new segment
-    void *ptr2 = mempool_alloc(mp, 64 * 1024, "large alloc");
+    char *ptr2 = mempool_alloc(mp, 64 * 1024, "large alloc");
     assert(ptr2 != NULL);
     assert(mp->buckets->next != NULL);
     assert(ptr2 == mp->buckets->buffer + ALLOCATION_INFO_SIZE); // the new segment was inserted at head
+
+    sum = 0;
+    for (int i = 0; i < 64 * 1024; i++)
+        sum += ptr2[i];
+    assert(sum == 0); // ensure the chunk delivered is clean
 
     // mempool_print_allocations(mp, stdout);
     /*
@@ -229,8 +241,7 @@ void mempool_unit_tests() {
     */
 
     // freeing, just to check for segfault
-    mempool_free_all(mp);
-
+    mempool_release(mp);
 
     // large scale experiment: 32K pointers of 64K = 2GB
     int max_pointers = 32 * 10; // * 1024;
@@ -251,6 +262,6 @@ void mempool_unit_tests() {
     assert(mp->allocations_count == max_pointers + 1);
     assert(mp->total_allocated == 
         (sizeof(void *) * max_pointers + ALLOCATION_INFO_SIZE) + (max_pointers * (chunk_size + ALLOCATION_INFO_SIZE)));
-    mempool_free_all(mp);
+    mempool_release(mp);
 }
 #endif

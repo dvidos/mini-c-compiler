@@ -10,6 +10,8 @@ SRC_FILES = \
 	utils/string.c \
 	utils/list.c \
 	utils/mempool.c \
+	utils/data_types.c \
+	utils/data_structs.c \
 	compiler/lexer/token.c \
 	compiler/lexer/token_list.c \
 	compiler/lexer/lexer.c \
@@ -53,7 +55,7 @@ SRC_FILES = \
 	linker/linker.c
 
 # target: $(BINARY)
-target: $(BINARY) unit-tests
+target: $(BINARY) # unit-tests
 
 tested: $(BINARY) unit-tests integration-tests
 

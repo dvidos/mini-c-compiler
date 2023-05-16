@@ -1,10 +1,15 @@
 #pragma once
 #include <stdbool.h>
+#include "mempool.h"
+#include "data_structs.h"
+#include "../unit_tests.h"
 
 
 // ----------------------------------------
 
 typedef struct str str;
+typedef struct llist llist;
+typedef struct iterator iterator;
 
 str *new_str(mempool *mp, const char *str);
 str *new_strf(mempool *mp, const char *fmt, ...);
@@ -41,7 +46,6 @@ iterator *str_token_iterator(str *s, str *delimiters);
 bool str_save_file(str *s, str *filename);
 str *str_load_file(str *filename, mempool *mp);
 
-void str_unit_tests();
 
 // -------------------------------------------
 
@@ -57,8 +61,10 @@ binary *binary_extract(binary *b, int offset, int size);
 bool buff_save_file(str *s, str *filename);
 binary *buff_load_file(str *filename, mempool *mp);
 
-void binary_unit_tests();
 
 // -------------------------------------------
 
+#ifdef INCLUDE_UNIT_TESTS
 void all_data_types_unit_tests();
+#endif
+

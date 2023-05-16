@@ -27,7 +27,7 @@ mempool *new_mempool();
 void *__mempool_alloc(mempool *mempool, size_t size, char *intention, char *file, int line);
 
 // frees all the memory allocated on the pool
-void mempool_free_all(mempool *mempool);
+void mempool_release(mempool *mempool);
 
 #ifdef MEMPOOL_TRACK_ALLOCATIONS
 void mempool_print_allocations(mempool *mempool, FILE *f);

@@ -1,6 +1,16 @@
 #pragma once
 #include "string.h"
-#include "iterator.h"
+
+
+typedef void visitor_func(void *item, void *extra_data);
+typedef bool matcher_func(void *item, void *criteria, void *extra_data);
+typedef int comparer_func(const void *a, const void *b, void *extra_data);
+typedef bool filter_func(void *item, void *extra_data);
+typedef void *mapper_func(void *item, void *extra_data);
+typedef void *reducer_func(void *item, void *running_value, void *extra_data);
+typedef char *to_string_func(void *item);
+typedef unsigned long hasher_func(void *item);
+
 
 struct list_vtable;
 
@@ -32,21 +42,18 @@ struct list_vtable {
     void *(*pop)(list *l); // remove from end (last added)
     void *(*peek)(list *l);  // return last, without removing
 
-    // iterator implementation is private. caller to free iterator
-    iterator *(*create_iterator)(list *l);
-
     // involved operations
-    void (*for_each)(list *l, visitor_func *visitor, void *extra_data);
-    int (*find)(list *l, void *criteria, matcher_func *matcher, void *extra_data); // O(n)
-    void (*append_all)(list *l, list *other);
-    void (*sort)(list *l, comparer_func *comparer, void *extra_data);
-    int (*bin_search)(list *l, void *criteria, comparer_func *comparer, void *extra_data);
-    list *(*filter)(list *l, filter_func *filter, void *extra_data);
-    list *(*map)(list *l, mapper_func *mapper, void *extra_data);
-    void *(*reduce)(list *l, void *init_value, reducer_func *reduce, void *extra_data);
-    list *(*deduplicate)(list *l, matcher_func *matcher, void *extra_data);
-    string *(*join)(list *l, string *separator, to_string_func *to_str);
-    unsigned long (*hash)(list *l, hasher_func *hasher);
+    // void (*for_each)(list *l, visitor_func *visitor, void *extra_data);
+    // int (*find)(list *l, void *criteria, matcher_func *matcher, void *extra_data); // O(n)
+    // void (*append_all)(list *l, list *other);
+    // void (*sort)(list *l, comparer_func *comparer, void *extra_data);
+    // int (*bin_search)(list *l, void *criteria, comparer_func *comparer, void *extra_data);
+    // list *(*filter)(list *l, filter_func *filter, void *extra_data);
+    // list *(*map)(list *l, mapper_func *mapper, void *extra_data);
+    // void *(*reduce)(list *l, void *init_value, reducer_func *reduce, void *extra_data);
+    // list *(*deduplicate)(list *l, matcher_func *matcher, void *extra_data);
+    // string *(*join)(list *l, string *separator, to_string_func *to_str);
+    // unsigned long (*hash)(list *l, hasher_func *hasher);
 
     void (*free)(list *l, visitor_func *free_item); 
 };

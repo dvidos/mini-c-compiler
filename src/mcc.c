@@ -3,6 +3,8 @@
 #include <string.h>
 #include "err_handler.h"
 #include "unit_tests.h"
+#include "utils/data_types.h"
+#include "utils/data_structs.h"
 #include "utils.h"
 #include "options.h"
 #include "compiler/lexer/token_list.h"
@@ -32,6 +34,9 @@ static bool run_unit_tests() {
 
     void mempool_unit_tests();
     mempool_unit_tests();
+
+    all_data_types_unit_tests();
+    all_data_structs_unit_tests();
 
     void buffer_unit_tests();
     buffer_unit_tests();

@@ -21,7 +21,7 @@ static void _remove_at(list *l, int index);
 static void *_dequeue(list *l); // remove from front
 static void *_pop(list *l); // remove from end (last added)
 static void *_peek(list *l);  // return last, without removing
-static iterator *_create_iterator(list *l);
+// static iterator *_create_iterator(list *l);
 static void _for_each(list *l, visitor_func *visitor, void *extra_data);
 static int _find(list *l, void *criteria, matcher_func *matcher, void *extra_data);
 static void _append_all(list *l, list *other);
@@ -50,18 +50,18 @@ static struct list_vtable vtable = {
     .push = _add, // note same signature
     .pop = _pop,
     .peek = _peek,
-    .create_iterator = _create_iterator,
-    .for_each = _for_each,
-    .find = _find,
-    .append_all = _append_all,
-    .sort = _sort,
-    .bin_search = _bin_search,
-    .filter = _filter,
-    .map = _map,
-    .reduce = _reduce,
-    .deduplicate = _deduplicate,
-    .join = _join,
-    .hash = _hash,
+    // .create_iterator = _create_iterator,
+    // .for_each = _for_each,
+    // .find = _find,
+    // .append_all = _append_all,
+    // .sort = _sort,
+    // .bin_search = _bin_search,
+    // .filter = _filter,
+    // .map = _map,
+    // .reduce = _reduce,
+    // .deduplicate = _deduplicate,
+    // .join = _join,
+    // .hash = _hash,
     .free = _free
 };
 
@@ -198,45 +198,45 @@ static void *_peek(list *l) {
 
 
 
-struct list_iterator_priv_data {
-    list *l;
-    int index;
-};
-static void *_list_iterator_reset(iterator *iter) {
-    struct list_iterator_priv_data *data = (struct list_iterator_priv_data *)iter->priv_data;
-    data->index = 0;
-    return _get(data->l, data->index);
-}
-static bool _list_iterator_valid(iterator *iter) {
-    struct list_iterator_priv_data *data = (struct list_iterator_priv_data *)iter->priv_data;
-    return data->index >= 0 && data->index < data->l->v->length(data->l);
-}
-static void *_list_iterator_next(iterator *iter) {
-    struct list_iterator_priv_data *data = (struct list_iterator_priv_data *)iter->priv_data;
-    data->index += 1;
-    return _get(data->l, data->index);
-}
-static void _list_iterator_free(iterator *iter) {
-    free(iter);  // we do not free the list here
-}
-struct iterator_vtable list_iterator_vtable = {
-    .reset = _list_iterator_reset,
-    .valid = _list_iterator_valid,
-    .next = _list_iterator_next,
-    .free = _list_iterator_free
-};
+// struct list_iterator_priv_data {
+//     list *l;
+//     int index;
+// };
+// static void *_list_iterator_reset(iterator *iter) {
+//     struct list_iterator_priv_data *data = (struct list_iterator_priv_data *)iter->priv_data;
+//     data->index = 0;
+//     return _get(data->l, data->index);
+// }
+// static bool _list_iterator_valid(iterator *iter) {
+//     struct list_iterator_priv_data *data = (struct list_iterator_priv_data *)iter->priv_data;
+//     return data->index >= 0 && data->index < data->l->v->length(data->l);
+// }
+// static void *_list_iterator_next(iterator *iter) {
+//     struct list_iterator_priv_data *data = (struct list_iterator_priv_data *)iter->priv_data;
+//     data->index += 1;
+//     return _get(data->l, data->index);
+// }
+// static void _list_iterator_free(iterator *iter) {
+//     free(iter);  // we do not free the list here
+// }
+// struct iterator_vtable list_iterator_vtable = {
+//     .reset = _list_iterator_reset,
+//     .valid = _list_iterator_valid,
+//     .next = _list_iterator_next,
+//     .free = _list_iterator_free
+// };
 
-static iterator *_create_iterator(list *l) {
-    struct list_iterator_priv_data *iter_data = malloc(sizeof(struct list_iterator_priv_data));
-    iter_data->l = l;
-    iter_data->index = 0;
+// static iterator *_create_iterator(list *l) {
+//     struct list_iterator_priv_data *iter_data = malloc(sizeof(struct list_iterator_priv_data));
+//     iter_data->l = l;
+//     iter_data->index = 0;
 
-    iterator *it = malloc(sizeof(iterator));
-    it->priv_data = iter_data;
-    it->v = &list_iterator_vtable;
+//     iterator *it = malloc(sizeof(iterator));
+//     it->priv_data = iter_data;
+//     it->v = &list_iterator_vtable;
 
-    return it;
-}
+//     return it;
+// }
 
 static void _for_each(list *l, visitor_func *visitor, void *extra_data) {
     struct list_priv_data *data = (struct list_priv_data *)l->priv_data;
@@ -581,25 +581,25 @@ void list_unit_tests() {
     assert(l->v->peek(l) == NULL);
     l->v->free(l, NULL);
 
-    l = new_list();
-    l->v->add(l, s1);
-    l->v->add(l, s2);
-    l->v->add(l, s3);
-    iterator *it = l->v->create_iterator(l);
-    r = it->v->reset(it);
-    assert(it->v->valid(it));
-    assert(r == s1);
-    r = it->v->next(it);
-    assert(it->v->valid(it));
-    assert(r == s2);
-    r = it->v->next(it);
-    assert(it->v->valid(it));
-    assert(r == s3);
-    r = it->v->next(it);
-    assert(!it->v->valid(it));
-    assert(r == NULL);
-    it->v->free(it);
-    l->v->free(l, NULL);
+    // l = new_list();
+    // l->v->add(l, s1);
+    // l->v->add(l, s2);
+    // l->v->add(l, s3);
+    // iterator *it = l->v->create_iterator(l);
+    // r = it->v->reset(it);
+    // assert(it->v->valid(it));
+    // assert(r == s1);
+    // r = it->v->next(it);
+    // assert(it->v->valid(it));
+    // assert(r == s2);
+    // r = it->v->next(it);
+    // assert(it->v->valid(it));
+    // assert(r == s3);
+    // r = it->v->next(it);
+    // assert(!it->v->valid(it));
+    // assert(r == NULL);
+    // it->v->free(it);
+    // l->v->free(l, NULL);
 
     // for_each(list *l, visitor_func *visitor);
     // find(list *l, void *criteria, matcher_func *matcher);
@@ -612,31 +612,31 @@ void list_unit_tests() {
     // deduplicate(list *l, comparer_func *comparer);
 
     // find
-    l = new_list();
-    l->v->add(l, s1);
-    l->v->add(l, s2);
-    l->v->add(l, s3);
-    i = l->v->find(l, "WORLD", _match_str_case_sensitive, NULL);
-    assert(i == -1);
-    i = l->v->find(l, "WORLD", _match_str_case_insensitive, NULL);
-    assert(i == 2);
-    i = l->v->find(l, "NOT FOUND", _match_str_case_insensitive, NULL);
-    assert(i == -1);
-    l->v->free(l, NULL);
+    // l = new_list();
+    // l->v->add(l, s1);
+    // l->v->add(l, s2);
+    // l->v->add(l, s3);
+    // i = l->v->find(l, "WORLD", _match_str_case_sensitive, NULL);
+    // assert(i == -1);
+    // i = l->v->find(l, "WORLD", _match_str_case_insensitive, NULL);
+    // assert(i == 2);
+    // i = l->v->find(l, "NOT FOUND", _match_str_case_insensitive, NULL);
+    // assert(i == -1);
+    // l->v->free(l, NULL);
 
-    // join, hash
-    l = new_list();
-    l->v->add(l, s1);
-    l->v->add(l, s2);
-    l->v->add(l, s3);
-    string *separator = new_string_from("-");
-    string *joined = l->v->join(l, separator, _strz_to_strz);
-    assert(strcmp(joined->buffer, "hello-there-world") == 0);
-    joined->v->free(joined);
-    separator->v->free(separator);
-    long h = l->v->hash(l, _strz_hasher);
-    assert(h != 0); // actually 29533034653380 for ["hello", "there", "world"] in current implementation
-    l->v->free(l, NULL);
+    // // join, hash
+    // l = new_list();
+    // l->v->add(l, s1);
+    // l->v->add(l, s2);
+    // l->v->add(l, s3);
+    // string *separator = new_string_from("-");
+    // string *joined = l->v->join(l, separator, _strz_to_strz);
+    // assert(strcmp(joined->buffer, "hello-there-world") == 0);
+    // joined->v->free(joined);
+    // separator->v->free(separator);
+    // long h = l->v->hash(l, _strz_hasher);
+    // assert(h != 0); // actually 29533034653380 for ["hello", "there", "world"] in current implementation
+    // l->v->free(l, NULL);
 }
 
 #endif // UNIT_TESTS

@@ -23,7 +23,7 @@ void unit_tests_assert(bool cond, char *expr, char *filename, int line) {
 
     if (!cond) {
         assertions_failed++;
-        fprintf(stderr, "\nAssertion failed: \"%s\", at %s:%d", expr, filename, line);
+        fprintf(stderr, "\nAssertion failed: \"%s\", at %s:%d ", expr, filename, line);
     }
 }
 

@@ -162,14 +162,8 @@ void *stack_pop(stack *s) {
         return NULL;
 
     stack_node *n = s->top;  // what a joy to not have to free() !!!
-    if (n == s->top) {
-        // was the only item
-        s->top = NULL;
-        s->items_count = 0;
-    } else {
-        s->top = s->top->next;
-        s->items_count--;
-    }
+    s->top = s->top->next;
+    s->items_count--;
 
     return n->item; 
 }
@@ -973,10 +967,8 @@ void *iterator_last(iterator *it) {
 
 llist *iterator_collect(iterator *it, mempool *mp) {
     llist *l = new_llist(mp);
-
     for_iterator(void, ptr, it)
         llist_add(l, ptr);
-
     return l;
 }
 

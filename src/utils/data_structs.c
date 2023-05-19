@@ -28,8 +28,14 @@ int queue_length(queue *q) {
     return q->items_count;
 }
 
-bool queue_empty(queue *q) {
+bool queue_is_empty(queue *q) {
     return q->items_count == 0;
+}
+
+void queue_clear(queue *q) {
+    q->head = NULL;
+    q->tail = NULL;
+    q->items_count = 0;
 }
 
 void queue_put(queue *q, void *item) {
@@ -79,7 +85,7 @@ void queue_unit_tests() {
     assert(q != NULL);
 
     // assert empty, length, get returns NULL
-    assert(queue_empty(q));
+    assert(queue_is_empty(q));
     assert(queue_length(q) == 0);
     assert(queue_peek(q) == NULL);
 
@@ -90,7 +96,7 @@ void queue_unit_tests() {
     queue_put(q, &c2);
 
     // assert non empty, length
-    assert(!queue_empty(q));
+    assert(!queue_is_empty(q));
 
     // assert peek, then get one, peek, then get the other
     assert(queue_length(q) == 2);
@@ -103,9 +109,15 @@ void queue_unit_tests() {
     
     assert(queue_length(q) == 0);
     assert(queue_peek(q) == NULL);
-    assert(queue_empty(q));
+    assert(queue_is_empty(q));
 
-    // free ?
+    // add, clear
+    queue_put(q, &c1);
+    assert(queue_length(q) == 1);
+    queue_clear(q);
+    assert(queue_length(q) == 0);
+
+
     mempool_release(mp);
 }
 #endif
@@ -134,8 +146,13 @@ int stack_length(stack *s) {
     return s->items_count;
 }
 
-bool stack_empty(stack *s) {
+bool stack_is_empty(stack *s) {
     return s->items_count == 0;
+}
+
+void stack_clear(stack *s) {
+    s->top = NULL;
+    s->items_count = 0;
 }
 
 void stack_push(stack *s, void *item) {
@@ -177,7 +194,7 @@ void stack_unit_tests() {
     assert(s != NULL);
 
     // assert empty, length, get returns NULL
-    assert(stack_empty(s));
+    assert(stack_is_empty(s));
     assert(stack_length(s) == 0);
     assert(stack_peek(s) == NULL);
 
@@ -188,7 +205,7 @@ void stack_unit_tests() {
     stack_push(s, &c2);
 
     // assert non empty, length
-    assert(!stack_empty(s));
+    assert(!stack_is_empty(s));
 
     // assert peek, then get one, peek, then get the other
     assert(stack_length(s) == 2);
@@ -201,9 +218,14 @@ void stack_unit_tests() {
     
     assert(stack_length(s) == 0);
     assert(stack_peek(s) == NULL);
-    assert(stack_empty(s));
+    assert(stack_is_empty(s));
 
-    // free ?
+    // add, clear
+    stack_push(s, &c1);
+    assert(stack_length(s) == 1);
+    stack_clear(s);
+    assert(stack_length(s) == 0);
+
     mempool_release(mp);
 }
 #endif
@@ -234,7 +256,7 @@ int llist_length(llist *l) {
     return l->items_count;
 }
 
-bool llist_empty(llist *l) {
+bool llist_is_empty(llist *l) {
     return l->items_count == 0;
 }
 
@@ -574,7 +596,7 @@ void llist_unit_tests() {
     assert(l->head == NULL);
     assert(l->tail == NULL);
     assert(llist_length(l) == 0);
-    assert(llist_empty(l));
+    assert(llist_is_empty(l));
     assert(llist_get(l, 0) == NULL);
     assert(!llist_contains(l, a));
 
@@ -771,7 +793,7 @@ void llist_unit_tests() {
     // group
 
 
-    mempool_print_allocations(mp, stdout); // for fun
+    //mempool_print_allocations(mp, stdout); // for fun
     mempool_release(mp);
 }
 #endif
@@ -819,7 +841,7 @@ bool bstree_contains(bstree *t, str *key) {
     return false;
 }
 
-void *bstree_get(bstree *t, str *key) { // O(lg N) time complexity (1 million entries -> 20 hops)
+void *bstree_get(bstree *t, str *key) { // O(lg N) time complexity (1 million nodes -> 20 hops)
     bstree_node *n = t->root;
     while (n != NULL) {
         int c = str_cmp(key, n->key);
@@ -830,65 +852,199 @@ void *bstree_get(bstree *t, str *key) { // O(lg N) time complexity (1 million en
     return n;
 }
 
-bool bstree_insert(bstree *t, str *key, void *data) {
-    bstree_node *node = mempool_alloc(t->mempool, sizeof(bstree_node), "bstree_node");
-    node->key = key;
-    node->data = data;
+bool bstree_put(bstree *t, str *key, void *data) {
+    bstree_node *new_node = mempool_alloc(t->mempool, sizeof(bstree_node), "bstree_node");
+    memset(new_node, 0, sizeof(bstree_node));
+    new_node->key = key;
+    new_node->data = data;
 
-    // TODO: tree insertion code
+    if (t->root == NULL) {
+        t->root = new_node;
+        t->nodes_count++;
+        return true;
+    }
 
-    // find new parent
-    // insert left or right.
-    t->nodes_count++;
+    bstree_node *n = t->root;
+    while (n != NULL) {
+        int c = str_cmp(key, n->key);
+        if (c == 0)
+            return false; // key already in tree
+        
+        if (c < 0) {
+            if (n->left == NULL) {
+                n->left = new_node;
+                t->nodes_count++;
+                return true;
+            }
+            n = n->left;
+        } else if (c > 0) {
+            if (n->right == NULL) {
+                n->right = new_node;
+                t->nodes_count++;
+                return true;
+            }
+            n = n->right;
+        }
+    }
+
+    // we should not get here
     return false;
 }
 
+static void bstree_remove_node(bstree_node *node, bstree_node **pointer_to_node) {
+    if (node->left == NULL && node->right == NULL) {
+        // node is a leaf, just remove it.
+        *pointer_to_node = NULL;
+
+    } else if (node->left != NULL && node->right == NULL) {
+        // node only has left node, bring it up to parent
+        *pointer_to_node = node->left;
+        node->left = NULL;
+
+    } else if (node->left == NULL && node->right != NULL) {
+        // node only has right node, bring it up to parent
+        *pointer_to_node = node->right;
+        node->right = NULL;
+
+    } else {
+        // node has two child nodes.
+        // from the right subtree, find the smallest key node. this is the successor
+        // put its key & data on the node under deletion
+        // and remove this min node from its parent (it may have at most one node)
+        bstree_node **pointer_to_successor = &node->right;
+        bstree_node *successor = node->right;
+        while (successor->left != NULL) {
+            pointer_to_successor = &successor->left;
+            successor = successor->left;
+        }
+        // copy key & data to the node to be deleted
+        node->key = successor->key;
+        node->data = successor->data;
+        // remove that successor
+        bstree_remove_node(successor, pointer_to_successor);
+    }
+}
+
 bool bstree_delete(bstree *t, str *key) {
-    // find target
-    // adjust children accordingly
 
-    // TODO: tree deletion code
+    // keep a trailing pointer to the pointer that points the node to delete
+    bstree_node *node = t->root;
+    bstree_node **pointer_to_node = &t->root;
+    while (node != NULL) {
+        int c = str_cmp(key, node->key);
+        if (c == 0) {
+            bstree_remove_node(node, pointer_to_node);
+            t->nodes_count--;
+            return true;
+        }
+        else if (c < 0) {
+            if (node->left == NULL)
+                return false; // not found
 
-    t->nodes_count--;
-    return true;
+            pointer_to_node = &node->left;
+            node = node->left;
+        }
+        else if (c > 0) {
+            if (node->right == NULL)
+                return false; // not found
+
+            pointer_to_node = &node->right;
+            node = node->right;
+        }
+    }
+
+    return false;
+}
+
+void bstree_clear(bstree *t) {
+    t->root = NULL;
+    t->nodes_count = 0;
 }
 
 typedef struct bstree_iterator_private_state {
     bstree *tree;
-    bstree_node *curr;
+    stack *stack;  // stack holds bstree_nodes. the stack top is the iterator's current.
     bool last_operation_valid;
 } bstree_iterator_private_state;
 
 static void *bstree_iterator_reset(iterator *it) {
     bstree_iterator_private_state *it_state = (bstree_iterator_private_state *)it->private_data;
 
+    stack_clear(it_state->stack);
+    if (it_state->tree->root == NULL)
+        return NULL;
+    
     // find the smallest node
-    it_state->curr = it_state->tree->root;
-    while (it_state->curr != NULL && it_state->curr->left != NULL)
-        it_state->curr = it_state->curr->left;
-    it_state->last_operation_valid = (it_state->curr != NULL);
+    bstree_node *n = it_state->tree->root;
+    while (n != NULL) {
+        stack_push(it_state->stack, n);
+        n = n->left;
+    }
 
-    return it_state->curr;
+    return ((bstree_node *)stack_peek(it_state->stack))->data;
 }
 
 static bool bstree_iterator_valid(iterator *it) {
     bstree_iterator_private_state *it_state = (bstree_iterator_private_state *)it->private_data;
-    return it_state->last_operation_valid;
+    return stack_peek(it_state->stack) != NULL;
 }
 
 static void *bstree_iterator_next(iterator *it) {
     bstree_iterator_private_state *it_state = (bstree_iterator_private_state *)it->private_data;
 
-    // if there is one on the right, go right,
-    // otherwise, go up, to the first node whose we are the left child.
-    // if there is none, we finished traversing the tree
+    // if there was no node so far, there's nowhere to go from here
+    bstree_node *curr = stack_peek(it_state->stack);
+    if (curr == NULL)
+        return NULL;
+    
+    // if there is a right child, go to the smallest key of the right subtree
+    if (curr->right != NULL) {
+        curr = curr->right;
+        stack_push(it_state->stack, curr);
+        while (curr->left != NULL) {
+            curr = curr->left;
+            stack_push(it_state->stack, curr);
+        }
+        return curr->data;
+    }
 
-    // TODO: tree iterator logic
+    // as there is no right child, we need to move up the tree to find something larger.
+    curr = stack_pop(it_state->stack);
+
+    // if stack is empty, it means we popped the root, and there was no right child.
+    if (stack_is_empty(it_state->stack)) {
+        return NULL;
+    }
+
+    // if we are the left child of the parent, they are the next in order.
+    bstree_node *parent = stack_peek(it_state->stack);
+    if (curr == parent->left) {
+        return parent->data;
+    }
+
+    // so we were the right child of the parent. we are done, they are done as well.  
+    // we must go up, all the way until we find a parent whose we are the left child.
+    // if we find no such parent, it means we were the rightmost node, hence the last one
+    curr = stack_pop(it_state->stack);
+    while (!stack_is_empty(it_state->stack)) {
+        parent = stack_peek(it_state->stack);
+        if (curr == parent->left) {
+            // we were the left child of this parent, they are next in order.
+            return parent->data;
+        }
+        // so we were the right child of this parent, we must continue up
+        curr = stack_pop(it_state->stack);
+    }
+    
+    // we emptied the stack. this means we don't have a parent to go up to.
+    // we must have been the rightmost child of all. this is the end.
+    return NULL;
 }
 
 iterator *bstree_create_iterator(bstree *t, mempool *mp) {
     bstree_iterator_private_state *it_state = mempool_alloc(mp, sizeof(bstree_iterator_private_state), "bstree_iterator_private_it_state");
     it_state->tree = t;
+    it_state->stack = new_stack(mp);
 
     iterator *it = mempool_alloc(mp, sizeof(iterator), "iterator");
     it->private_data = it_state;
@@ -898,17 +1054,153 @@ iterator *bstree_create_iterator(bstree *t, mempool *mp) {
     return it;
 }
 
+static void bstree_print_node(bstree_node *n, int depth, char prefix, FILE *f) {
+    if (n == NULL)
+        return;
+    fprintf(f, "%*s%c: %s\n", depth * 4, "", prefix, str_charptr(n->key));
+    bstree_print_node(n->left, depth + 1, 'L', f);
+    bstree_print_node(n->right, depth + 1, 'R', f);
+}
+
+void bstree_print(bstree *t, FILE *f) {
+    bstree_print_node(t->root, 0, 'R', f);
+}
+
+static void bstree_compact_string_node(bstree_node *n, str *s) {
+    if (n == NULL)
+        return;
+
+    if (n->left == NULL && n->right == NULL) {
+        str_cat(s, n->key);
+    } else {
+        str_cats(s, "(");
+        str_cat(s, n->key);
+        str_cats(s, ",");
+        bstree_compact_string_node(n->left, s);
+        str_cats(s, ",");
+        bstree_compact_string_node(n->right, s);
+        str_cats(s, ")");
+    }
+}
+
+str *bstree_compact_string(bstree *t, mempool *mp) {
+    str *s = new_str(mp, "");
+    bstree_compact_string_node(t->root, s);
+    return s;
+}
+
 #ifdef INCLUDE_UNIT_TESTS
+static bstree *bstree_create_unit_test_tree(mempool *mp) {
+    /*
+        Create the following tree, to be used in testing.
+        
+        |      E
+        |     / \
+        |    B   F
+        |   / \   \
+        |  A   D   G
+        |     /
+        |    C
+    */
+    bstree *t = new_bstree(mp);
+    bstree_put(t, new_str(mp, "E"), "E");
+    bstree_put(t, new_str(mp, "B"), "B");
+    bstree_put(t, new_str(mp, "F"), "F");
+    bstree_put(t, new_str(mp, "A"), "A");
+    bstree_put(t, new_str(mp, "D"), "D");
+    bstree_put(t, new_str(mp, "C"), "C");
+    bstree_put(t, new_str(mp, "G"), "G");
+
+    return t;
+}
+
 void bstree_unit_tests() {
-    // test the following:
-    // bstree *new_bstree(mempool *mp);
-    // int   bstree_length(bstree *t);
-    // bool  bstree_empty(bstree *t);
-    // void *bstree_get(bstree *t, str *key);
-    // bool  bstree_insert(bstree *t, str *key, void *data);
-    // bool  bstree_delete(bstree *t, str *key);
-    // bool  bstree_contains(bstree *t, str *key);
-    // iterator *bstree_create_iterator(bstree *t, mempool *m);
+    mempool *mp = new_mempool();
+
+    str *key_a = new_str(mp, "key a");
+    str *key_b = new_str(mp, "key b");
+    str *key_c = new_str(mp, "key c");
+    char *data_a = "data a";
+    char *data_b = "data b";
+    char *data_c = "data c";
+    str *key_z = new_str(mp, "key z");
+    void *p;
+
+    bstree *t = new_bstree(mp);
+    assert(bstree_length(t) == 0);
+    assert(bstree_empty(t));
+
+    // add root
+    bstree_put(t, key_b, data_b);
+    assert(bstree_length(t) == 1);
+    assert(!bstree_empty(t));
+    assert(strcmp(str_charptr(t->root->key), "key b") == 0);
+
+    // simple addition, make sure left/right
+    bstree_put(t, key_a, data_a);
+    bstree_put(t, key_c, data_c);
+    assert(bstree_length(t) == 3);
+    assert(strcmp(str_charptr(t->root->left->key), "key a") == 0);
+    assert(strcmp(str_charptr(t->root->right->key), "key c") == 0);
+    assert(strcmp(t->root->left->data, "data a") == 0);
+    assert(strcmp(t->root->right->data, "data c") == 0);
+    assert(t->root->left->left == NULL);
+    assert(t->root->left->right == NULL);
+    assert(t->root->left->left == NULL);
+    assert(t->root->right->right == NULL);
+    
+    // verify find / contains
+    assert(bstree_contains(t, key_c));
+    p = bstree_get(t, key_c);
+    assert(p != NULL);
+    assert(strcmp(p, "data c") == 0);
+    assert(!bstree_contains(t, key_z));
+    p = bstree_get(t, key_z);
+    assert(p == NULL);
+
+
+    // test deletion, case 1: delete a leaf node
+    t = bstree_create_unit_test_tree(mp);
+    assert(strcmp(str_charptr(bstree_compact_string(t, mp)), "(E,(B,A,(D,C,)),(F,,G))") == 0);
+    bstree_delete(t, new_str(mp, "C"));
+    assert(strcmp(str_charptr(bstree_compact_string(t, mp)), "(E,(B,A,D),(F,,G))") == 0);
+
+    // test deletion, case 2: delete a node that has only left child
+    t = bstree_create_unit_test_tree(mp);
+    assert(strcmp(str_charptr(bstree_compact_string(t, mp)), "(E,(B,A,(D,C,)),(F,,G))") == 0);
+    bstree_delete(t, new_str(mp, "D"));
+    assert(strcmp(str_charptr(bstree_compact_string(t, mp)), "(E,(B,A,C),(F,,G))") == 0);
+
+    // test deletion, case 3: delete a node that has only right child
+    t = bstree_create_unit_test_tree(mp);
+    assert(strcmp(str_charptr(bstree_compact_string(t, mp)), "(E,(B,A,(D,C,)),(F,,G))") == 0);
+    bstree_delete(t, new_str(mp, "F"));
+    assert(strcmp(str_charptr(bstree_compact_string(t, mp)), "(E,(B,A,(D,C,)),G)") == 0);
+
+    // test deletion, case 4: delete a node that has two children
+    t = bstree_create_unit_test_tree(mp);
+    assert(strcmp(str_charptr(bstree_compact_string(t, mp)), "(E,(B,A,(D,C,)),(F,,G))") == 0);
+    bstree_delete(t, new_str(mp, "B"));
+    assert(strcmp(str_charptr(bstree_compact_string(t, mp)), "(E,(C,A,D),(F,,G))") == 0);
+
+    // test deletion, case 4+: delete root node
+    t = bstree_create_unit_test_tree(mp);
+    assert(strcmp(str_charptr(bstree_compact_string(t, mp)), "(E,(B,A,(D,C,)),(F,,G))") == 0);
+    bstree_delete(t, new_str(mp, "E"));
+    assert(strcmp(str_charptr(bstree_compact_string(t, mp)), "(F,(B,A,(D,C,)),G)") == 0);
+
+
+    // test iterator, traverse the tree, collect payloads
+    t = bstree_create_unit_test_tree(mp);
+    str *series = new_str(mp, "");
+    iterator *it = bstree_create_iterator(t, mp);
+    for_iterator(char, p, it)
+        str_cats(series, p);
+    assert(strcmp(str_charptr(series), "ABCDEFG") == 0);
+
+
+    // in mem pool: 240 allocations, 12K bytes total, and not a single byte leaking!
+    mempool_release(mp);
 }
 #endif
 
@@ -1004,12 +1296,31 @@ void hashtable_set(hashtable *h, str *key, void *data) { // O(1)
 
 bool hashtable_delete(hashtable *h, str *key) { // O(1)
     int slot = (int)(str_hash(key) % h->capacity);
-
-    hashtable_node *n = h->items_arr[slot];
-    if (n == NULL)
+    if (h->items_arr[slot] == NULL)
         return false;
 
-    // TODO: hashtable deletion
+    // if it's the first entry of the chain, bypass it
+    hashtable_node *n = h->items_arr[slot];
+    if (str_cmp(n->key, key) == 0) {
+        h->items_arr[slot] = n->next;
+        h->items_count--;
+        return true;
+    }
+
+    // walk the chain with a trailing pointer to remove the node.
+    hashtable_node *trailing = n;
+    n = n->next;
+    while (n != NULL) {
+        if (str_cmp(n->key, key) == 0) {
+            trailing->next = n->next;
+            h->items_count--;
+            return true;
+        }
+        trailing = n;
+        n = n->next;
+    }
+
+    return false;
 }
 
 iterator *hashtable_create_iterator(hashtable *h, mempool *m) {
@@ -1055,10 +1366,13 @@ typedef struct graph_node graph_node;
 graph *new_graph(mempool *mp);
 int    graph_length(graph *g);
 bool   graph_empty(graph *g);
-bool   graph_add(graph *g, str *key, void *node_data);
+bool   graph_add_node(graph *g, str *key, void *node_data);
 bool   graph_add_link(graph *g, str *key_from, str *key_to, void *vertex_data);
-void  *graph_get(graph *g, str *key);
-llist *graph_get_neighbors(graph *g, str *node_key);
+bool   graph_remove_node(graph *g, str *key_from, str *key_to, void *vertex_data);
+bool   graph_remove_link(graph *g, str *key_from, str *key_to, void *vertex_data);
+void  *graph_get_node(graph *g, str *key);
+llist *graph_get_links_from(graph *g, str *node_key);
+llist *graph_get_links_to(graph *g, str *node_key);
 bool   graph_acyclic(graph *g);
 int    graph_number_of_trees(graph *g);
 llist *graph_topological_sort(graph *g);
@@ -1089,8 +1403,9 @@ long iterator_count(iterator *it) {
 
 iterator *iterator_filter(iterator *it, filterer_function filter);
 iterator *iterator_map(iterator *it, mapper_function filter);
-hashtable *iterator_group(iterator *it, classifier_function classifier); // hashtable of llists per group
 void *iterator_reduce(iterator *it, reducer_function filter, void *initial_value);
+
+hashtable *iterator_group(iterator *it, classifier_function classifier); // hashtable of llists per group
 
 void *iterator_first(iterator *it) {
     void *item = it->reset(it);
@@ -1100,16 +1415,13 @@ void *iterator_first(iterator *it) {
 }
 
 void *iterator_last(iterator *it) {
-    void *item = NULL;
-    void *prev_item = NULL;
-
-    item = it->reset(it);
+    void *valid_item = NULL;
+    void *item = it->reset(it);
     while (it->valid(it)) {
-        prev_item = item;
+        valid_item = item;
         item = it->next(it);
     }
-
-    return prev_item;
+    return valid_item;
 }
 
 llist *iterator_collect(iterator *it, mempool *mp) {

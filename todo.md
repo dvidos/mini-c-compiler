@@ -45,6 +45,14 @@ For when we nail a working v.1...
 * Make a debugger? Where is the limit?
 
 
+Also:
+
+* create solution similar to https://github.com/rxi/log.c
+* i.e. 6 levels of logging,
+* output stdout, stderr and optionally file
+* can use a --gen-log to create an mcc.log file or something.
+
+
 Objects to make:
 
 * token

@@ -33,8 +33,8 @@ str *str_replace_chars(str *s, char c, str *replacement);
 str *str_trim(str *s, str *characters);
 str *str_padr(str *s, int len, char c);
 str *str_padl(str *s, int len, char c);
-str *str_cat(str *s1, str *s2);
-str *str_cat3(str *s1, str *s2, str *s3);
+void str_cat(str *s1, str *s2);
+void str_cats(str *s1, char *s2);
 int  str_cmp(str *s1, str *s2);
 bool str_equals(str *s1, str *s2);
 unsigned long str_hash(str *s);
@@ -45,7 +45,7 @@ iterator *str_char_iterator(str *s);
 iterator *str_token_iterator(str *s, str *delimiters);
 bool str_save_file(str *s, str *filename);
 str *str_load_file(str *filename, mempool *mp);
-
+const char *str_charptr(str *s);
 
 // -------------------------------------------
 

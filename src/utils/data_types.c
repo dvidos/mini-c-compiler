@@ -29,6 +29,22 @@ str *new_str(mempool *mp, const char *strz) {
 
 str *new_strf(mempool *mp, const char *fmt, ...);
 
+static void _ensure_capacity(str *s, int needed_capacity) {
+    if (s->capacity >= needed_capacity)
+        return;
+    
+    // allocate exponentially larger chunks
+    int new_capacity = s->capacity;
+    while (new_capacity < needed_capacity)
+        new_capacity *= 2;
+    
+    // emulate realloc
+    char *new_buff = mempool_alloc(s->mempool, new_capacity, "more str.buff");
+    strcpy(new_buff, s->buff);
+    s->capacity = new_capacity;
+    s->buff = new_buff;
+}
+
 int  str_length(str *s) {
     return s->length;
 }
@@ -55,8 +71,21 @@ str *str_replace_chars(str *s, char c, str *replacement);
 str *str_trim(str *s, str *characters);
 str *str_padr(str *s, int len, char c);
 str *str_padl(str *s, int len, char c);
-str *str_cat(str *s1, str *s2);
-str *str_cat3(str *s1, str *s2, str *s3);
+
+void str_cat(str *s1, str *s2) {
+    _ensure_capacity(s1, s1->length + s2->length + 1);
+    strcat(s1->buff, s2->buff);
+    s1->length += s2->length;
+}
+
+void str_cats(str *s1, char *s2) {
+    if (s2 == NULL)
+        return;
+    
+    _ensure_capacity(s1, s1->length + strlen(s2) + 1);
+    strcat(s1->buff, s2);
+    s1->length += strlen(s2);
+}
 
 int  str_cmp(str *s1, str *s2) {
     return strcmp(s1->buff, s2->buff);
@@ -94,6 +123,10 @@ iterator *str_char_iterator(str *s);
 iterator *str_token_iterator(str *s, str *delimiters);
 bool str_save_file(str *s, str *filename);
 str *str_load_file(str *filename, mempool *mp);
+
+const char *str_charptr(str *s) {
+    return s->buff;
+}
 
 #ifdef INCLUDE_UNIT_TESTS
 void str_unit_tests() {

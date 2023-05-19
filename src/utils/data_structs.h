@@ -47,7 +47,8 @@ typedef struct queue queue;
 
 queue *new_queue(mempool *mp);
 int   queue_length(queue *q);
-bool  queue_empty(queue *q);
+bool  queue_is_empty(queue *q);
+void  queue_clear(queue *q);
 void  queue_put(queue *q, void *item);
 void *queue_peek(queue *q);
 void *queue_get(queue *q);
@@ -58,7 +59,8 @@ typedef struct stack stack;
 
 stack *new_stack(mempool *mp);
 int   stack_length(stack *s);
-bool  stack_empty(stack *s);
+bool  stack_is_empty(stack *s);
+void  stack_clear(stack *s);
 void  stack_push(stack *s, void *item);
 void *stack_peek(stack *s);
 void *stack_pop(stack *s);
@@ -69,7 +71,7 @@ typedef struct llist llist;
 
 llist *new_llist(mempool *mp);
 int   llist_length(llist *l);
-bool  llist_empty(llist *l);
+bool  llist_is_empty(llist *l);
 void *llist_get(llist *l, int index);
 void  llist_add(llist *l, void *item);
 bool  llist_contains(llist *l, void *item);
@@ -97,10 +99,12 @@ bstree *new_bstree(mempool *mp);
 int   bstree_length(bstree *t);
 bool  bstree_empty(bstree *t);
 void *bstree_get(bstree *t, str *key);
-bool  bstree_insert(bstree *t, str *key, void *data);
+bool  bstree_put(bstree *t, str *key, void *data);
 bool  bstree_delete(bstree *t, str *key);
+void  bstree_clear(bstree *t);
 bool  bstree_contains(bstree *t, str *key);
 iterator *bstree_create_iterator(bstree *t, mempool *m);
+void bstree_print(bstree *t, FILE *f);
 
 // -------------------------------------------
 

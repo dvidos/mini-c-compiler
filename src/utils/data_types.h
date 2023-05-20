@@ -13,6 +13,7 @@ typedef struct iterator iterator;
 
 str *new_str(mempool *mp, const char *str);
 str *new_strf(mempool *mp, const char *fmt, ...);
+str *new_str_random(mempool *mp, int min_len, int max_len);
 int  str_length(str *s);
 bool str_empty(str *s);
 bool str_starts_with(str *s, str *fragment);
@@ -36,8 +37,9 @@ str *str_padl(str *s, int len, char c);
 void str_cat(str *s1, str *s2);
 void str_cats(str *s1, char *s2);
 int  str_cmp(str *s1, str *s2);
+int  str_cmps(str *s1, char *s2);
 bool str_equals(str *s1, str *s2);
-unsigned long str_hash(str *s);
+unsigned int str_hash(str *s);
 llist *str_split(str *s, str *delimiter);
 str *str_join(str *delimiter, llist *list);
 str *str_clone(str *s);

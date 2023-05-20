@@ -1,4 +1,6 @@
 #include <string.h>
+#include <stdlib.h>
+#include <stdarg.h>
 #include "data_types.h"
 
 
@@ -28,6 +30,23 @@ str *new_str(mempool *mp, const char *strz) {
 }
 
 str *new_strf(mempool *mp, const char *fmt, ...);
+
+str *new_str_random(mempool *mp, int min_len, int max_len) {
+    static const char allowed[] = "abcdefghijklmnopqrstuvwxyz0123456789";
+
+    str *s = mempool_alloc(mp, sizeof(str), "str");
+
+    int len = min_len + rand() % (max_len - min_len + 1);
+    s->capacity = len + 1;
+    s->buff = mempool_alloc(mp, s->capacity, "str_buff");
+    for (int i = 0; i < len; i++)
+        s->buff[i] = allowed[rand() % (sizeof(allowed) - 1)];
+    s->buff[len] = '\0';
+    s->length = len;
+    s->mempool = mp;
+
+    return s;
+}
 
 static void _ensure_capacity(str *s, int needed_capacity) {
     if (s->capacity >= needed_capacity)
@@ -91,6 +110,10 @@ int  str_cmp(str *s1, str *s2) {
     return strcmp(s1->buff, s2->buff);
 }
 
+int  str_cmps(str *s1, char *s2) {
+    return strcmp(s1->buff, s2);
+}
+
 bool str_equals(str *s1, str *s2) {
     if (s1 == s2)
         return true;
@@ -102,18 +125,54 @@ bool str_equals(str *s1, str *s2) {
     return true;
 }
 
-unsigned long str_hash(str *s) {
-    unsigned long hash = 0, nibble;
-
-    char *p = s->buff;
-    while (*p) {
-        hash = (hash << 4) + *p++;
+static unsigned int simple_hash(const char *ptr, int len) {
+    // from the e-book about the elf format
+    // i think this is also UNIX traditional hash
+    unsigned int hash = 0, nibble;
+    while (len-- > 0) {
+        hash = (hash << 4) + *ptr++;
         if (nibble = (hash & 0xf0000000))
             hash ^= (nibble >> 24);
         hash &= 0x0fffffff;
     }
+    return hash;
+}
+
+static unsigned int murmur_hash(const char *ptr, int len) {
+    // from https://github.com/aappleby/smhasher
+    const unsigned int multiplier = 0xc6a4a793;
+    unsigned int hash = (len * multiplier);
+
+    const unsigned char *p = (const unsigned char *)ptr;
+    while (len >= 4) {
+        unsigned int word = *(unsigned int *)p;
+        hash += word;
+        hash *= multiplier;
+        hash ^= hash >> 16;
+        p += 4;
+        len -= 4;
+    }
+
+    if (len > 2)
+        hash += p[2] << 16;
+    if (len > 1)
+        hash += p[1] << 8;
+    if (len > 0) {
+        hash += p[0];
+        hash *= multiplier;
+        hash ^= hash >> 16;
+    }
+
+    hash *= multiplier;
+    hash ^= hash >> 10;
+    hash *= multiplier;
+    hash ^= hash >> 17;
 
     return hash;
+}
+
+unsigned int str_hash(str *s) {
+    return murmur_hash(s->buff, s->length);
 }
 
 llist *str_split(str *s, str *delimiter);

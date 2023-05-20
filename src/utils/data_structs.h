@@ -9,11 +9,17 @@ typedef struct str str;
 typedef struct hashtable hashtable;
 typedef struct llist llist;
 
+
+// maybe these could be promoted to interfaces, the same way the iterator is an interface
+// we can also crate a data source and a data sink.
+// maybe we are asking from our code to lean onto this framework a little too much...
+
 typedef int comparator_function(const void *a, const void *b);
 typedef bool filterer_function(void *item);
 typedef void *mapper_function(void *item, mempool *mp);
 typedef void *reducer_function(void *item, void *prev_value, mempool *mp);
 typedef str *classifier_function(void *item);
+
 
 // -------------------------------------------
 
@@ -112,11 +118,12 @@ typedef struct hashtable hashtable;
 
 hashtable *new_hashtable(mempool *mp, int capacity);
 int   hashtable_length(hashtable *h);
-bool  hashtable_empty(hashtable *h);
+bool  hashtable_is_empty(hashtable *h);
 void  hashtable_set(hashtable *h, str *key, void *data); // O(1)
 void *hashtable_get(hashtable *h, str *key); // O(1)
 bool  hashtable_delete(hashtable *h, str *key); // O(1)
 bool  hashtable_contains(hashtable *h, str *key); // O(1)
+void  hashtable_clear(hashtable *h);
 iterator *hashtable_create_iterator(hashtable *h, mempool *m);
 
 // -------------------------------------------

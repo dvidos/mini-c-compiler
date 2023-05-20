@@ -1,5 +1,6 @@
 CFLAGS = -g -Werror
 BINARY = mcc
+RUNTIMES = rt32.o rt64.o
 SRC_FILES = \
 	mcc.c \
 	err_handler.c \
@@ -54,10 +55,19 @@ SRC_FILES = \
 	linker/obj_code.c \
 	linker/linker.c
 
-# target: $(BINARY)
-target: $(BINARY) # unit-tests
 
-tested: $(BINARY) unit-tests integration-tests
+
+
+# linker/runtime/runtime64.o: linker/runtime/runtime64.asm
+# 	as -o $@ $<
+
+# linker/runtime/runtime32.o: linker/runtime/runtime32.asm
+# 	as --32 -o $@ $<
+
+
+
+
+target: $(RUNTIMES) $(BINARY) # unit-tests integration-tests
 
 unit-tests:
 	./$(BINARY) --unit-tests
@@ -67,6 +77,12 @@ integration-tests:
 
 $(BINARY): $(SRC_FILES)
 	gcc -o $@ $(CFLAGS) $^
+
+rt32.o: runtimes/rt32.asm
+	as --32 -o $@ $<
+
+rt64.o: runtimes/rt64.asm
+	as --64 -o $@ $<
 
 clean:
 	rm -f mcc

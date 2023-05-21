@@ -33,9 +33,7 @@
 #ifdef INCLUDE_UNIT_TESTS
 static bool run_unit_tests() {
 
-    void mempool_unit_tests();
     mempool_unit_tests();
-
     all_data_types_unit_tests();
     all_data_structs_unit_tests();
     elf_unit_tests();

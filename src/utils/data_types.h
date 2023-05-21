@@ -1,11 +1,16 @@
 #pragma once
+#include <stdint.h>
 #include <stdbool.h>
 #include "mempool.h"
 #include "data_structs.h"
 #include "../unit_tests.h"
 
-
 // ----------------------------------------
+
+typedef uint8_t  u8;
+typedef uint16_t  u16;
+typedef uint32_t  u32;
+typedef uint64_t  u64;
 
 typedef struct str str;
 typedef struct llist llist;
@@ -15,7 +20,8 @@ str *new_str(mempool *mp, const char *str);
 str *new_strf(mempool *mp, const char *fmt, ...);
 str *new_str_random(mempool *mp, int min_len, int max_len);
 int  str_length(str *s);
-bool str_empty(str *s);
+bool str_is_empty(str *s);
+void str_clear(str *s);
 bool str_starts_with(str *s, str *fragment);
 bool str_ends_with(str *s, str *fragment);
 bool str_contains(str *s, str *fragment);
@@ -54,15 +60,46 @@ const char *str_charptr(str *s);
 typedef struct binary binary;
 
 binary *new_binary(mempool *mp);
-int binary_length(binary *b);
-int binary_compare(binary *b1, binary *b2);
-void binary_fill(binary *b, char value, int len);
-binary *binary_cat(binary *b, binary *other);
-binary *binary_clone(binary *b);
-binary *binary_extract(binary *b, int offset, int size);
-bool buff_save_file(str *s, str *filename);
-binary *buff_load_file(str *filename, mempool *mp);
+binary *new_binary_from_mem(mempool *mp, char *address, size_t size);
+binary *new_binary_from_file(mempool *mp, str *filename);
+binary *new_binary_with_zeros(mempool *mp, size_t size);
 
+size_t  binary_length(binary *b);
+void    binary_clear(binary *b);
+int     binary_compare(binary *b1, binary *b2);
+void    binary_cat(binary *b, binary *other);
+binary *binary_clone(binary *b, mempool *mp);
+void    binary_pad(binary *b, char value, size_t target_len);
+void    binary_print_hex(binary *b, FILE *f);
+
+// emulate a file a bit? i think it's useful to maintain internal pointer
+void binary_seek(binary *b, size_t offset);
+
+// all "read" funcs work at current offset, they advance offset
+u8   binary_read_byte(binary *b);
+u16  binary_read_word(binary *b);
+u32  binary_read_dword(binary *b);
+u64  binary_read_qword(binary *b);
+void binary_read_mem(binary *b, void *ptr, size_t length);
+
+// all "write" funcs work at current offset, they advance offset
+void binary_write_byte(binary *b, u8 value);
+void binary_write_word(binary *b, u16 value);
+void binary_write_dword(binary *b, u32 value);
+void binary_write_qword(binary *b, u64 value);
+void binary_write_mem(binary *b, void *ptr, size_t length);
+void binary_write_zeros(binary *b, size_t length);
+
+// these implicitely append data at the end of the buffer
+void binary_add_byte(binary *b, u8 value);
+void binary_add_word(binary *b, u16 value);
+void binary_add_dword(binary *b, u32 value);
+void binary_add_qword(binary *b, u64 value);
+void binary_add_mem(binary *b, void *ptr, size_t length);
+void binary_add_zeros(binary *b, size_t length);
+
+binary *binary_get_slice(binary *b, size_t offset, size_t size, mempool *mp);
+bool binary_save_to_file(binary *b, str *filename);
 
 // -------------------------------------------
 

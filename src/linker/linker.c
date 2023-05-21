@@ -7,8 +7,8 @@
 #include "../utils/list.h"
 #include "../utils.h"
 #include "obj_code.h"
-#include "elf/elf_contents.h"
-#include "elf/elf.h"
+#include "../elf/elf_contents.h"
+#include "../elf/elf.h"
 
 
 obj_code *load_object_file(char *filename) {

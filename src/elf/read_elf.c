@@ -2,12 +2,12 @@
 #include <stdbool.h>
 #include <stdio.h>
 #include <string.h>
-#include "../../utils.h"
-#include "../../utils/buffer.h"
-#include "../../utils/list.h"
+#include "../utils.h"
+#include "../utils/buffer.h"
+#include "../utils/list.h"
 #include "elf_format.h"
 #include "elf_contents.h"
-#include "../obj_code.h"
+#include "../linker/obj_code.h"
 
 char *elf_file_type_names[] = { "NONE", "REL - object code", "EXEC - statically linked executable", "DYN - executable requiring dyn libraries", "CORE" };
 char *elf_class_names[] = { "NONE", "32 bits", "64 bits" };

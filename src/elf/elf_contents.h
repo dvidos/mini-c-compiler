@@ -17,8 +17,6 @@ struct elf_contents {
 
   unsigned long code_entry_point;
   
-  
-  
 
   // address and size in memory
   unsigned long code_address;

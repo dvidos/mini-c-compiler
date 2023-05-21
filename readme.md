@@ -343,4 +343,5 @@ Graphical representation:
 * http://www.c-jump.com/CIS77/CIS77syllabus.htm
 * https://www.cs.princeton.edu/courses/archive/spr03/cs320/notes/IR-trans1.pdf
 * https://www.cs.princeton.edu/courses/archive/spr03/cs320/notes/IR-trans2.pdf
+* https://github.com/ushitora-anqou/aqcc for inspiration and getting me back to simplicity
 

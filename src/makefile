@@ -38,9 +38,6 @@ SRC_FILES = \
 	compiler/codegen/ir_value.c \
 	compiler/codegen/ir_entry.c \
 	compiler/codegen/ir_listing.c \
-	linker/elf/read_elf.c \
-	linker/elf/write_elf.c \
-	linker/elf/elf_test.c \
 	assembler/encoder/encoder.c \
 	assembler/encoder/asm_instruction.c \
 	assembler/encoder/asm_listing.c \
@@ -49,21 +46,15 @@ SRC_FILES = \
 	assembler/encoder/encoding_info.c \
 	assembler/assembler.c \
 	assembler/asm_test.c \
+	elf/elf_tools.c \
+	elf/read_elf.c \
+	elf/write_elf.c \
+	elf/elf_test.c \
 	linker/symbol_table.c \
 	linker/reloc_list.c \
 	linker/section.c \
 	linker/obj_code.c \
 	linker/linker.c
-
-
-
-
-# linker/runtime/runtime64.o: linker/runtime/runtime64.asm
-# 	as -o $@ $<
-
-# linker/runtime/runtime32.o: linker/runtime/runtime32.asm
-# 	as --32 -o $@ $<
-
 
 
 

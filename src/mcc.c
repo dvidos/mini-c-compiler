@@ -24,10 +24,11 @@
 #include "assembler/assembler.h"
 #include "assembler/encoder/asm_listing.h"
 #include "assembler/encoder/encoder.h"
+#include "elf/elf_tools.h"
 #include "linker/linker.h"
 #include "linker/obj_code.h"
-#include "linker/elf/elf.h"
-#include "linker/elf/elf_contents.h"
+#include "elf/elf.h"
+#include "elf/elf_contents.h"
 
 #ifdef INCLUDE_UNIT_TESTS
 static bool run_unit_tests() {
@@ -37,6 +38,7 @@ static bool run_unit_tests() {
 
     all_data_types_unit_tests();
     all_data_structs_unit_tests();
+    elf_unit_tests();
 
     void buffer_unit_tests();
     buffer_unit_tests();

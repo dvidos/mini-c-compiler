@@ -5,7 +5,7 @@
 #include "../options.h"
 #include "../utils/buffer.h"
 #include "../linker/symbol_table.h"
-#include "../linker/elf/elf.h"
+#include "../elf/elf.h"
 #include "../linker/obj_code.h"
 #include "encoder/asm_instruction.h"
 #include "encoder/encoder.h"

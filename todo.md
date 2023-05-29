@@ -69,3 +69,20 @@ Objects to make:
 * asm_listing
 * obj_code_module
 * elf_contents
+
+Another approach:
+
+* Framework objects: mempool, str, binary, list, tree, hashtable, iterator, observer etc
+* Steps to take: 
+  * preprocess the file (preprocessor) -- string and file manipulation: includes, ifdefs, pattern substitution.
+  * parse code into tokens (lexer) -- split into tokens with file/line/column information
+  * parse tokens into AST (parser) -- recursive descend? something expandable... yacc, flex, bison?
+  * generate IR from AST (generator?) -- maybe the easiest thing...
+  * generate asm from IR (??) -- requires register allocator, function call ABI 
+  * encode asm into machine code, generate obj file (assembler) -- encoding intel instructions
+  * link obj files into executable (linker) -- resolve symbols and relocations
+* So, how to proceed?
+
+Resources
+
+* https://tomassetti.me/resources-create-programming-languages/

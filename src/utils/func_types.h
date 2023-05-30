@@ -31,3 +31,30 @@ typedef char *to_string_func(void *item);
 typedef unsigned long hasher_func(void *item);
 
 
+
+
+
+
+typedef struct iterator {
+    void *(*reset)(struct iterator *i); // reset and return first item, if any
+    bool (*valid)(struct iterator *i);  // was the one last returned valid?
+    void *(*next)(struct iterator *i);  // advance and return item, if any
+    void *private_data;
+} iterator;
+
+typedef struct visitor {
+    void (*run)(struct visitor *v, void *data);
+    void *private_data;
+} visitor;
+
+typedef struct comparer {
+    int (*run)(struct comparer *c, void *item_a, void *item_b);
+    void *private_data;
+} comparer;
+
+typedef struct filterer {
+    bool (*run)(struct filterer *f, void *data);
+    void *private_data;
+} filterer;
+
+

@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include "err_handler.h"
-#include "unit_tests.h"
+#include "utils/unit_tests.h"
 #include "utils/data_types.h"
 #include "utils/data_structs.h"
 #include "utils.h"

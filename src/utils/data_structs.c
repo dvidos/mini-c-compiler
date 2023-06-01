@@ -1,6 +1,6 @@
 #include <string.h>
 #include <stdlib.h>
-#include "../unit_tests.h"
+#include "unit_tests.h"
 #include "data_structs.h"
 #include "mempool.h"
 

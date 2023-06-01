@@ -1,7 +1,7 @@
 #pragma once
 #include <stdbool.h>
 #include "data_types.h"
-#include "../unit_tests.h"
+#include "unit_tests.h"
 
 // ----------------------------------------
 

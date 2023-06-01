@@ -1,6 +1,6 @@
 #include <stdlib.h>
 #include <string.h>
-#include "../unit_tests.h"
+#include "unit_tests.h"
 #include "list.h"
 
 struct list_priv_data {

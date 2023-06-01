@@ -1,4 +1,4 @@
-#include "../unit_tests.h"
+#include "unit_tests.h"
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>

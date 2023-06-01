@@ -2,7 +2,7 @@
 #include <stdio.h>
 #include <string.h>
 #include "options.h"
-#include "unit_tests.h"
+#include "utils/unit_tests.h"
 #include "utils.h"
 
 // global read-only variable

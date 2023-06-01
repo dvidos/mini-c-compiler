@@ -4,9 +4,9 @@ RUNTIMES = rt32.o rt64.o
 SRC_FILES = \
 	mcc.c \
 	err_handler.c \
-	unit_tests.c \
 	options.c \
 	utils.c \
+	utils/unit_tests.c \
 	utils/buffer.c \
 	utils/string.c \
 	utils/list.c \

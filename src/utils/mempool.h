@@ -1,5 +1,5 @@
 #pragma once
-#include "../unit_tests.h"
+#include "unit_tests.h"
 #include <stddef.h>
 #include <stdio.h>
 
@@ -7,6 +7,7 @@
 
 // define this to enable tracking of memory allocations
 #define MEMPOOL_TRACK_ALLOCATIONS    1
+
 #ifdef MEMPOOL_TRACK_ALLOCATIONS
     // intention describes intended usage, for tracking purposes
     #define mempool_alloc(mempool, size, intention)    __mempool_alloc(mempool, size, intention, __FILE__, __LINE__)

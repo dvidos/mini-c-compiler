@@ -756,7 +756,6 @@ void str_unit_tests() {
     char *fname = mempool_alloc(mp, 50, "fname");
     strcpy(fname, "/tmp/temp_XXXXXX");
     mkstemp(fname);
-    // char *fname = tmpnam(mempool_alloc(mp, L_tmpnam, "tmpnam"));
     s = new_str(mp, text);
     bool saved = str_save_file(s, new_str(mp, fname));
     assert(saved);
@@ -892,7 +891,7 @@ void binary_pad(binary *b, char value, size_t target_len) {
     
     binary_ensure_capacity(b, target_len);
     int gap = target_len - b->length;
-    memset(b->buffer + b->length, 0, gap);
+    memset(b->buffer + b->length, value, gap);
     b->length += gap;
 }
 
@@ -903,6 +902,10 @@ void binary_seek(binary *b, size_t offset) {
     if (offset > b->length)
         offset = b->length;
     b->position = offset;
+}
+
+size_t  binary_tell(binary *b) {
+    return b->position;
 }
 
 // all "read" funcs work at current offset, they advance offset
@@ -1061,51 +1064,172 @@ bool binary_save_to_file(binary *b, str *filename) {
 
 #ifdef INCLUDE_UNIT_TESTS
 void binary_unit_tests() {
-    assert("binary unit tests must be created" == 0);
+    mempool *mp = new_mempool();
+    binary *b;
+    binary *b1;
 
+    char *bytes32 = mempool_alloc(mp, 32, "bytes32");
+    for (int i = 0; i < 32; i++)
+        bytes32[i] = (char)i;
 
-    // binary *new_binary(mempool *mp);
-    // binary *new_binary_from_mem(mempool *mp, char *address, size_t size);
-    // binary *new_binary_from_file(mempool *mp, str *filename);
-    // binary *new_binary_with_zeros(mempool *mp, size_t size);
+    char *mem = mempool_alloc(mp, 16, "mem");
 
-    // size_t  binary_length(binary *b);
-    // void    binary_clear(binary *b);
-    // int     binary_compare(binary *b1, binary *b2);
-    // void    binary_cat(binary *b, binary *other);
-    // binary *binary_clone(binary *b, mempool *mp);
-    // void    binary_pad(binary *b, char value, size_t target_len);
-    // void    binary_print_hex(binary *b, FILE *f);
+    b = new_binary(mp);
+    assert(b != NULL);
+    assert(binary_length(b) == 0);
 
-    // // emulate a file a bit? i think it's useful to maintain internal pointer
-    // void binary_seek(binary *b, size_t offset);
+    b = new_binary_with_zeros(mp, 6);
+    assert(b != NULL);
+    assert(binary_length(b) == 6);
+    assert(memcmp(b->buffer, "\0\0\0\0\0\0", 6) == 0);
 
-    // // all "read" funcs work at current offset, they advance offset
-    // u8   binary_read_byte(binary *b);
-    // u16  binary_read_word(binary *b);
-    // u32  binary_read_dword(binary *b);
-    // u64  binary_read_qword(binary *b);
-    // void binary_read_mem(binary *b, void *ptr, size_t length);
+    b = new_binary_from_mem(mp, "\x12\x34\x56\x78", 4);
+    assert(b != NULL);
+    assert(binary_length(b) == 4);
+    assert(memcmp(b->buffer, "\x12\x34\x56\x78", 4) == 0);
+    binary_clear(b);
+    assert(binary_length(b) == 0);
 
-    // // all "write" funcs work at current offset, they advance offset
-    // void binary_write_byte(binary *b, u8 value);
-    // void binary_write_word(binary *b, u16 value);
-    // void binary_write_dword(binary *b, u32 value);
-    // void binary_write_qword(binary *b, u64 value);
-    // void binary_write_mem(binary *b, void *ptr, size_t length);
-    // void binary_write_zeros(binary *b, size_t length);
+    binary_clear(b);
+    binary_add_zeros(b, 16);
+    assert(binary_length(b) == 16);
+    assert(memcmp(b->buffer, "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0", 16) == 0);
 
-    // // these implicitely append data at the end of the buffer
-    // void binary_add_byte(binary *b, u8 value);
-    // void binary_add_word(binary *b, u16 value);
-    // void binary_add_dword(binary *b, u32 value);
-    // void binary_add_qword(binary *b, u64 value);
-    // void binary_add_mem(binary *b, void *ptr, size_t length);
-    // void binary_add_zeros(binary *b, size_t length);
+    binary_clear(b);
+    binary_add_byte(b, 0x12);
+    assert(binary_length(b) == 1);
+    assert(memcmp(b->buffer, "\x12", 1) == 0);
 
-    // binary *binary_get_slice(binary *b, size_t offset, size_t size, mempool *mp);
-    // bool binary_save_to_file(binary *b, str *filename);
+    binary_clear(b);
+    binary_add_word(b, 0x1234);
+    assert(binary_length(b) == 2);
+    assert(memcmp(b->buffer, "\x34\x12", 2) == 0);
+
+    binary_clear(b);
+    binary_add_dword(b, 0x12345678);
+    assert(binary_length(b) == 4);
+    assert(memcmp(b->buffer, "\x78\x56\x34\x12", 4) == 0);
+
+    binary_clear(b);
+    binary_add_qword(b, 0x123456789ABCDEF0);
+    assert(binary_length(b) == 8);
+    assert(memcmp(b->buffer, "\xF0\xDE\xBC\x9A\x78\x56\x34\x12", 8) == 0);
+
+    b = new_binary_from_mem(mp, "\x12\x34", 2);
+    b1 = new_binary_from_mem(mp, "\x12\x34", 2);
+    assert(b != b1);
+    assert(memcmp(b->buffer, b1->buffer, 2) == 0);
+    assert(binary_compare(b, b1) == 0);
+
+    binary_cat(b, b1);
+    assert(binary_length(b) == 4);
+    assert(memcmp(b->buffer, "\x12\x34\x12\x34", 4) == 0);
+
+    b1 = binary_clone(b, mp);
+    assert(b != b1);
+    assert(binary_compare(b, b1) == 0);
+
+    b = new_binary_from_mem(mp, "\x12\x34", 2);
+    assert(binary_length(b) == 2);
+    binary_pad(b, 0x55, 4);
+    assert(binary_length(b) == 4);
+    assert(memcmp(b->buffer, "\x12\x34\x55\x55", 4) == 0);
+
+    // get_slice
+    b = new_binary_from_mem(mp, bytes32, 32);
+    b1 = binary_get_slice(b, 4, 5, mp);
+    assert(b1 != NULL);
+    assert(binary_length(b1) == 5);
+    assert(memcmp(b1->buffer, "\x04\x05\x06\x07\x08", 5) == 0);
+
+    // check read/write
+    b = new_binary_from_mem(mp, bytes32, 32);
+    assert(binary_tell(b) == 0);
+
+    binary_seek(b, 10);
+    assert(binary_tell(b) == 10);
+    assert(binary_read_byte(b) == 0x0A);
+    assert(binary_tell(b) == 11);
+    
+    binary_seek(b, 16);
+    assert(binary_tell(b) == 16);
+    assert(binary_read_word(b) == 0x1110);
+    assert(binary_tell(b) == 18);
+    
+    binary_seek(b, 8);
+    assert(binary_tell(b) == 8);
+    assert(binary_read_dword(b) == 0x0b0a0908);
+    assert(binary_tell(b) == 12);
+    
+    binary_seek(b, 4);
+    assert(binary_tell(b) == 4);
+    assert(binary_read_qword(b) == 0x0b0a090807060504);
+    assert(binary_tell(b) == 12);
+    
+    binary_seek(b, 4);
+    assert(binary_tell(b) == 4);
+    binary_read_mem(b, mem, 8);
+    assert(memcmp(mem, "\x04\x05\x06\x07\x08\x09\x0a\x0b", 8) == 0);
+    assert(binary_tell(b) == 12);
+
+    binary_clear(b);
+    binary_add_zeros(b, 16);
+    binary_seek(b, 4);
+    binary_write_byte(b, 0x12);
+    assert(binary_tell(b) == 5);
+    assert(memcmp(b->buffer, "\0\0\0\0\x12\0\0\0\0\0\0\0\0\0\0\0", 16) == 0);
+
+    binary_clear(b);
+    binary_add_zeros(b, 16);
+    binary_seek(b, 4);
+    binary_write_word(b, 0x1234);
+    assert(binary_tell(b) == 6);
+    assert(memcmp(b->buffer, "\0\0\0\0\x34\x12\0\0\0\0\0\0\0\0\0\0", 16) == 0);
+
+    binary_clear(b);
+    binary_add_zeros(b, 16);
+    binary_seek(b, 4);
+    binary_write_dword(b, 0x12345678);
+    assert(binary_tell(b) == 8);
+    assert(memcmp(b->buffer, "\0\0\0\0\x78\x56\x34\x12\0\0\0\0\0\0\0\0", 16) == 0);
+
+    binary_clear(b);
+    binary_add_zeros(b, 16);
+    binary_seek(b, 4);
+    binary_write_qword(b, 0x0123456789abcdef);
+    assert(binary_tell(b) == 12);
+    assert(memcmp(b->buffer, "\0\0\0\0\xef\xcd\xab\x89\x67\x45\x23\x01\0\0\0\0", 16) == 0);
+
+    binary_clear(b);
+    binary_add_zeros(b, 16);
+    binary_seek(b, 4);
+    binary_write_mem(b, bytes32, 5);
+    assert(binary_tell(b) == 9);
+    assert(memcmp(b->buffer, "\0\0\0\0\x00\x01\x02\x03\x04\0\0\0\0\0\0\0", 16) == 0);
+
+    binary_clear(b);
+    binary_pad(b, 0xff, 16);
+    binary_seek(b, 4);
+    binary_write_zeros(b, 5);
+    assert(binary_tell(b) == 9);
+    assert(memcmp(b->buffer, "\xff\xff\xff\xff\0\0\0\0\0\xff\xff\xff\xff\xff\xff\xff", 16) == 0);
+
+    // save, load
+    char *fname = mempool_alloc(mp, 50, "fname");
+    strcpy(fname, "/tmp/temp_XXXXXX");
+    mkstemp(fname);
+    b = new_binary_from_mem(mp, bytes32, 32);
+    bool saved = binary_save_to_file(b, new_str(mp, fname));
+    assert(saved);
+    // one hour later...
+    binary_clear(b);
+    b = new_binary_from_file(mp, new_str(mp, fname));
+    assert(b != NULL);
+    assert(binary_length(b) == 32);
+    assert(memcmp(b->buffer, bytes32, 32) == 0);
+    unlink(fname);
 }
+
 #endif
 
 // -------------------------------------

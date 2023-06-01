@@ -8,10 +8,10 @@ static int assertions_failed = 0;
 
 bool unit_tests_outcome() {
     if (assertions_failed == 0) {
-        fprintf(stderr, "\nUnit Tests:\033[32;1m PASSED!\033[0m (%d assertions)\n", assertions_made);
+        fprintf(stderr, "\nUnit Tests\033[32;1m PASSED!\033[0m (%d assertions)\n", assertions_made);
         return true;
     } else {
-        fprintf(stderr, "\nUnit Tests:\033[31;1m FAILED\033[0m (%d assertions, %d failed)\n", assertions_made, assertions_failed);
+        fprintf(stderr, "\nUnit Tests\033[31;1m FAILED\033[0m (%d assertions, %d failed)\n", assertions_made, assertions_failed);
         return false;
     }
 }
@@ -22,7 +22,7 @@ void unit_tests_assert(bool cond, char *expr, char *filename, int line) {
 
     if (!cond) {
         assertions_failed++;
-        fprintf(stderr, "\nAssertion failed: \"%s\", at %s:%d ", expr, filename, line);
+        fprintf(stderr, "\n%s:%d assertion failed: \"%s\"", filename, line, expr);
     }
 }
 

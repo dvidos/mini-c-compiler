@@ -1,11 +1,6 @@
 #pragma once
 
 
-// the following functions to perform operations in collections
-// - item is the item under operation, 
-// - extra_data is any runtime value to affect the operation
-
-
 // can perform one operation on an item
 typedef void visitor_func(void *item, void *extra_data);
 
@@ -43,18 +38,21 @@ typedef struct iterator {
 } iterator;
 
 typedef struct visitor {
-    void (*run)(struct visitor *v, void *data);
+    void (*visit)(struct visitor *v, void *item);
     void *private_data;
 } visitor;
 
 typedef struct comparer {
-    int (*run)(struct comparer *c, void *item_a, void *item_b);
+    int (*compare)(struct comparer *c, void *item_a, void *item_b);
     void *private_data;
 } comparer;
 
 typedef struct filterer {
-    bool (*run)(struct filterer *f, void *data);
+    bool (*filter)(struct filterer *f, void *item);
     void *private_data;
 } filterer;
 
-
+typedef struct mapper {
+    void *(*map)(struct mapper *m, void *item);
+    void *private_data;
+} mapper;

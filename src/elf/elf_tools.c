@@ -7,8 +7,8 @@
 
 // -------------------------------------------
 
-static elf_section *create_elf_section(mempool *mp) {
-    elf_section *s = mempool_alloc(mp, sizeof(elf_section), "elf_section");
+static elf_contents2_section *create_elf_section(mempool *mp) {
+    elf_contents2_section *s = mempool_alloc(mp, sizeof(elf_contents2_section), "elf_contents2_section");
     s->contents = new_bin(mp);
     s->mem_address = 0;
     return s;
@@ -74,7 +74,7 @@ static elf64_prog_header *create_program_header64(mempool *mp, int type, int fla
     return h;
 }
 
-static elf64_section_header *create_section_header64(int type, char *name, u64 flags, u64 file_offset, u64 size, u64 item_size, u64 link, u64 info, u64 virt_address, binary *sections_names_table, mempool *mp) {
+static elf64_section_header *create_section_header64(int type, char *name, u64 flags, u64 file_offset, u64 size, u64 item_size, u64 link, u64 info, u64 virt_address, bin *sections_names_table, mempool *mp) {
     elf64_section_header *h = mempool_alloc(mp, sizeof(elf64_section_header), "elf64_section_header");
 
     u64 name_offset = bin_len(sections_names_table);
@@ -94,7 +94,7 @@ static elf64_section_header *create_section_header64(int type, char *name, u64 f
     return h;
 }
 
-static binary *prepare_elf64(mempool *mp, elf_contents2 *contents, bool executable, u64 entry_point) {
+static bin *prepare_elf64(mempool *mp, elf_contents2 *contents, bool executable, u64 entry_point) {
     /*
         File structure is as follows
 
@@ -109,8 +109,8 @@ static binary *prepare_elf64(mempool *mp, elf_contents2 *contents, bool executab
         [ section 1   header   ]
         [ section ... header   ]
     */
-    binary *result = new_bin(mp);
-    binary *section_names_table = new_bin(mp);
+    bin *result = new_bin(mp);
+    bin *section_names_table = new_bin(mp);
     
     u64 program_headers_offset = 0;
     u64 program_headers_count = 0;
@@ -165,56 +165,56 @@ Sect#    Name          Notes
         SECTION_TYPE_PROGBITS, ".text", SECTION_FLAGS_ALLOC | SECTION_FLAGS_EXECINSTR, 
         bin_len(result), bin_len(contents->text->contents), 0, 0, 0, 0,
         section_names_table, mp);
-    binary_cat(result, contents->text->contents);
+    bin_cat(result, contents->text->contents);
 
     elf64_section_header *data_header = create_section_header64(
         SECTION_TYPE_PROGBITS, ".data", SECTION_FLAGS_ALLOC | SECTION_FLAGS_WRITE, 
         bin_len(result), bin_len(contents->data->contents), 0, 0, 0, 0,
         section_names_table, mp);
-    binary_cat(result, contents->data->contents);
+    bin_cat(result, contents->data->contents);
 
     elf64_section_header *bss_header = create_section_header64(
         SECTION_TYPE_NOBITS, ".bss", SECTION_FLAGS_ALLOC | SECTION_FLAGS_WRITE, 
         bin_len(result), bin_len(contents->bss->contents), 0, 0, 0, 0,
         section_names_table, mp);
-    // binary_cat(file_buffer, contents->rodata);  no storage for BSS segment
+    // bin_cat(file_buffer, contents->rodata);  no storage for BSS segment
 
     elf64_section_header *rodata_header = create_section_header64(
         SECTION_TYPE_PROGBITS, ".rodata", SECTION_FLAGS_ALLOC, 
         bin_len(result), bin_len(contents->rodata->contents), 0, 0, 0, 0, 
         section_names_table, mp);
-    binary_cat(result, contents->rodata->contents);
+    bin_cat(result, contents->rodata->contents);
 
     elf64_section_header *rela_text_header = create_section_header64(
         SECTION_TYPE_RELA, ".rela.text", 0, 
         bin_len(result), bin_len(contents->rela_text->contents), sizeof(elf64_rela), 6, 1, 0,  
         section_names_table, mp);
-    binary_cat(result, contents->rela_text->contents);
+    bin_cat(result, contents->rela_text->contents);
 
     elf64_section_header *symtab_header = create_section_header64(
         SECTION_TYPE_SYMTAB, ".symtab", 0, 
         bin_len(result), bin_len(contents->symtab->contents), sizeof(elf64_sym), 7, 1, 0, 
         section_names_table, mp);
-    binary_cat(result, contents->symtab->contents);
+    bin_cat(result, contents->symtab->contents);
 
     elf64_section_header *strtab_header = create_section_header64(
         SECTION_TYPE_STRTAB, ".strtab", 0, 
         bin_len(result), bin_len(contents->strtab->contents), 0, 0, 0, 0,
         section_names_table, mp);
-    binary_cat(result, contents->strtab->contents);
+    bin_cat(result, contents->strtab->contents);
 
     elf64_section_header *comment_header = create_section_header64(
         SECTION_TYPE_PROGBITS, ".comment", 0, 
         bin_len(result), bin_len(contents->comment->contents), 0, 0, 0, 0,
         section_names_table, mp);
-    binary_cat(result, contents->comment->contents);
+    bin_cat(result, contents->comment->contents);
 
     // we grab the length of the names table before adding the ".shstrtab" entry, hence the +10.
     elf64_section_header *shstrtab_header = create_section_header64(
         SECTION_TYPE_STRTAB, ".shstrtab", 0, 
         bin_len(result), bin_len(section_names_table) + 10, 0, 0, 0, 0,
         section_names_table, mp);
-    binary_cat(result, section_names_table);
+    bin_cat(result, section_names_table);
 
     section_headers_offset = bin_len(result);
     section_headers_count = 10;
@@ -296,7 +296,7 @@ bool save_elf64_executable(char *filename, elf_contents2 *contents, u64 entry_po
         return false;
 
     mempool *mp = new_mempool();
-    binary *file_contents = prepare_elf64(mp, contents, true, entry_point);
+    bin *file_contents = prepare_elf64(mp, contents, true, entry_point);
     bool saved = bin_save_to_file(file_contents, new_str(mp, filename));
     mempool_release(mp);
 
@@ -307,7 +307,7 @@ bool save_elf64_obj_file(char *filename, elf_contents2 *contents) {
     // we don't care about program headers or alignment
 
     mempool *mp = new_mempool();
-    binary *file_contents = prepare_elf64(mp, contents, false, 0);
+    bin *file_contents = prepare_elf64(mp, contents, false, 0);
     bool saved = bin_save_to_file(file_contents, new_str(mp, filename));
     mempool_release(mp);
 
@@ -316,7 +316,7 @@ bool save_elf64_obj_file(char *filename, elf_contents2 *contents) {
 
 // -----------------------------------------------------------------------------
 
-static bool parse_elf64_obj_header(binary *file_data, u64 *sections_offset, u64 *sections_count, u64 *section_names_table_index) {
+static bool parse_elf64_obj_header(bin *file_data, u64 *sections_offset, u64 *sections_count, u64 *section_names_table_index) {
     elf64_header the_header;
     elf64_header *h = &the_header;
 
@@ -338,8 +338,7 @@ static bool parse_elf64_obj_header(binary *file_data, u64 *sections_offset, u64 
     return true;
 }
 
-static void parse_elf64_section(int section_no, binary *file_data, u64 sections_offset, binary *names_table, 
-    str *out_name, binary *out_content)
+static void parse_elf64_section(int section_no, bin *file_data, u64 sections_offset, bin *names_table, str *out_name, bin *out_content)
 {
     mempool *scratch = new_mempool();
     char two_bytes[2];
@@ -363,8 +362,8 @@ static void parse_elf64_section(int section_no, binary *file_data, u64 sections_
 
     // extract the section content
     bin_clear(out_content);
-    binary *extracted = bin_slice(file_data, section.file_offset, section.size, scratch);
-    binary_cat(out_content, extracted);
+    bin *extracted = bin_slice(file_data, section.file_offset, section.size, scratch);
+    bin_cat(out_content, extracted);
 
     mempool_release(scratch);
 }
@@ -372,7 +371,7 @@ static void parse_elf64_section(int section_no, binary *file_data, u64 sections_
 elf_contents2 *load_elf64_obj_file(mempool *mp, char *filename) {
     mempool *scratch = new_mempool();
 
-    binary *file_data = new_bin_from_file(scratch, new_str(mp, filename));
+    bin *file_data = new_bin_from_file(scratch, new_str(mp, filename));
     if (file_data == NULL)
         return NULL;
 
@@ -384,19 +383,19 @@ elf_contents2 *load_elf64_obj_file(mempool *mp, char *filename) {
         return NULL;
     
     // we need to load the section names
-    binary *names_table = new_bin(scratch);
+    bin *names_table = new_bin(scratch);
     if (section_names_table_index > 0)
         parse_elf64_section(section_names_table_index, file_data, sections_offset, NULL, NULL, names_table);
 
     elf_contents2 *result = new_elf_contents2(mp);
     str *sect_name = new_str(scratch, NULL);
-    binary *sect_content = new_bin(scratch);
+    bin *sect_content = new_bin(scratch);
 
     // read each section, load it into memory
     for (int sect_no = 0; sect_no < sections_count; sect_no++) {
         parse_elf64_section(sect_no, file_data, sections_offset, names_table, sect_name, sect_content);
         
-        elf_section *target = NULL;
+        elf_contents2_section *target = NULL;
         if      (str_cmps(sect_name, ".text")      == 0) target = result->text;
         else if (str_cmps(sect_name, ".data")      == 0) target = result->data;
         else if (str_cmps(sect_name, ".bss")       == 0) target = result->bss;
@@ -407,7 +406,7 @@ elf_contents2 *load_elf64_obj_file(mempool *mp, char *filename) {
         else if (str_cmps(sect_name, ".comment")   == 0) target = result->comment;
         else continue;
 
-        binary_cat(target->contents, sect_content);
+        bin_cat(target->contents, sect_content);
     }
     
     mempool_release(scratch);
@@ -546,7 +545,7 @@ static void elf_unit_test_executable_file(mempool *mp) {
     assert(elf_executable_saved);
 
     // now read it and compare chnks
-    binary *elf_data = new_bin_from_file(mp, new_str(mp, exec_filename));
+    bin *elf_data = new_bin_from_file(mp, new_str(mp, exec_filename));
 
     // we can verify specific bytes, sizes etc.
     bin_seek(elf_data, 0);

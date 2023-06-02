@@ -47,6 +47,7 @@ SRC_FILES = \
 	assembler/assembler.c \
 	assembler/asm_test.c \
 	elf/elf_tools.c \
+	elf/obj_module.c \
 	elf/read_elf.c \
 	elf/write_elf.c \
 	elf/elf_test.c \

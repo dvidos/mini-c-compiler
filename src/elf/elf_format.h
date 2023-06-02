@@ -182,13 +182,13 @@ typedef struct elf64_section_header {
 #define SECTION_FLAGS_EXECINSTR      0x4    // contains executable instructions
 
 // special section indexes
-#define SHN_UNDEF 0
+#define SHN_UNDEF          0
 #define SHN_LORESERVE 0xff00
-#define SHN_LOPROC 0xff00
-#define SHN_HIPROC 0xff1f
+#define SHN_LOPROC    0xff00
+#define SHN_HIPROC    0xff1f
 #define SHN_LIVEPATCH 0xff20
-#define SHN_ABS  0xfff1
-#define SHN_COMMON 0xfff2
+#define SHN_ABS       0xfff1
+#define SHN_COMMON    0xfff2
 #define SHN_HIRESERVE 0xffff
 
 //-----------------------------------------------------------------
@@ -206,12 +206,13 @@ typedef struct elf64_section_header {
 #define STT_COMMON  5
 #define STT_TLS     6
 
-#define ELF_ST_BIND(x)  ((x) >> 4)
-#define ELF_ST_TYPE(x)  ((x) & 0xf)
-#define ELF32_ST_BIND(x) ELF_ST_BIND(x)
-#define ELF32_ST_TYPE(x) ELF_ST_TYPE(x)
-#define ELF64_ST_BIND(x) ELF_ST_BIND(x)
-#define ELF64_ST_TYPE(x) ELF_ST_TYPE(x)
+#define ELF32_ST_BIND(x)           ((x) >> 4)
+#define ELF32_ST_TYPE(x)           ((x) & 0xf)
+#define ELF32_ST_INFO(bind, type)  (((bind) << 4) + ((type) & 0xf) )
+#define ELF64_ST_BIND(x)           ((x) >> 4)
+#define ELF64_ST_TYPE(x)           ((x) & 0xf)
+#define ELF64_ST_INFO(bind, type)  (((bind) << 4) + ((type) & 0xf) )
+
 
 typedef struct elf32_sym {
   elf32_word      st_name;   // Symbol name, index in string tbl
@@ -234,11 +235,13 @@ typedef struct elf64_sym {
 //-----------------------------------------------------------------
 
 // The following are used with relocations
-#define ELF32_R_SYM(x) ((x) >> 8)
-#define ELF32_R_TYPE(x) ((x) & 0xff)
+#define ELF32_R_SYM(x)    ((x) >> 8)
+#define ELF32_R_TYPE(x)   ((x) & 0xff)
+#define ELF32_R_INFO(sym,type) (((sym) << 8) + (unsigned char)(type))
 
 #define ELF64_R_SYM(i)   ((i) >> 32)
 #define ELF64_R_TYPE(i)   ((i) & 0xffffffff)
+#define ELF64_R_INFO(sym, type) ((((elf64_extra_word)(sym)) << 32) + (type & 0xffffffff))
 
 typedef struct elf32_rela {
   elf32_address r_offset;
@@ -251,8 +254,6 @@ typedef struct elf64_rela {
   elf64_extra_word r_info;  // index and type of relocation
   elf64_signed_extra_word r_addend;  // Constant addend used to compute value
 } elf64_rela;
-
-
 
 
 

@@ -774,17 +774,17 @@ void str_unit_tests() {
 
 // ------------------------------------------------
 
-typedef struct binary {
+typedef struct bin {
     char *buffer;
     size_t capacity;
     size_t length;
     size_t position;
     mempool *mempool;
-} binary;
+} bin;
 
-binary *new_bin(mempool *mp) {
-    binary *b = mempool_alloc(mp, sizeof(binary), "binary");
-    memset(b, 0, sizeof(binary));
+bin *new_bin(mempool *mp) {
+    bin *b = mempool_alloc(mp, sizeof(bin), "binary");
+    memset(b, 0, sizeof(bin));
 
     b->capacity = 16;
     b->buffer = mempool_alloc(mp, b->capacity, "binary buffer");
@@ -795,9 +795,9 @@ binary *new_bin(mempool *mp) {
     return b;
 }
 
-binary *new_bin_from_mem(mempool *mp, char *address, size_t size) {
-    binary *b = mempool_alloc(mp, sizeof(binary), "binary");
-    memset(b, 0, sizeof(binary));
+bin *new_bin_from_mem(mempool *mp, char *address, size_t size) {
+    bin *b = mempool_alloc(mp, sizeof(bin), "binary");
+    memset(b, 0, sizeof(bin));
 
     b->capacity = size;
     b->buffer = mempool_alloc(mp, b->capacity, "binary buffer");
@@ -809,7 +809,7 @@ binary *new_bin_from_mem(mempool *mp, char *address, size_t size) {
     return b;
 }
 
-binary *new_bin_from_file(mempool *mp, str *filename) {
+bin *new_bin_from_file(mempool *mp, str *filename) {
     FILE *f = fopen(str_charptr(filename), "rb");
     if (f == NULL)
         return NULL;
@@ -817,8 +817,8 @@ binary *new_bin_from_file(mempool *mp, str *filename) {
     size_t file_length = ftell(f);
     fseek(f, 0, SEEK_SET);
 
-    binary *b = mempool_alloc(mp, sizeof(binary), "binary");
-    memset(b, 0, sizeof(binary));
+    bin *b = mempool_alloc(mp, sizeof(bin), "binary");
+    memset(b, 0, sizeof(bin));
 
     b->capacity = file_length;
     b->buffer = mempool_alloc(mp, b->capacity, "binary buffer");
@@ -833,9 +833,9 @@ binary *new_bin_from_file(mempool *mp, str *filename) {
     return b;
 }
 
-binary *new_bin_from_zeros(mempool *mp, size_t size) {
-    binary *b = mempool_alloc(mp, sizeof(binary), "binary");
-    memset(b, 0, sizeof(binary));
+bin *new_bin_from_zeros(mempool *mp, size_t size) {
+    bin *b = mempool_alloc(mp, sizeof(bin), "binary");
+    memset(b, 0, sizeof(bin));
 
     b->capacity = size;
     b->buffer = mempool_alloc(mp, b->capacity, "binary buffer");
@@ -847,23 +847,27 @@ binary *new_bin_from_zeros(mempool *mp, size_t size) {
     return b;
 }
 
-size_t bin_len(binary *b) {
+size_t bin_len(bin *b) {
     return b->length;
 }
 
-void bin_clear(binary *b) {
+void *bin_ptr_at(bin *b, size_t offset) {
+    return offset < b->length ? b->buffer + offset : NULL;
+}
+
+void bin_clear(bin *b) {
     b->length = 0;
     b->position = 0;
 }
 
-int bin_cmp(binary *b1, binary *b2) {
+int bin_cmp(bin *b1, bin *b2) {
     if (b1->length != b2->length)
         return b2->length - b1->length;
     
     return memcmp(b1->buffer, b2->buffer, b1->length);
 }
 
-static void binary_ensure_capacity(binary *b, size_t capacity) {
+static void binary_ensure_capacity(bin *b, size_t capacity) {
     if (b->capacity >= capacity)
         return;
     
@@ -875,17 +879,17 @@ static void binary_ensure_capacity(binary *b, size_t capacity) {
     memcpy(b->buffer, old_buffer, b->length);
 }
 
-void binary_cat(binary *b, binary *other) {
+void bin_cat(bin *b, bin *other) {
     binary_ensure_capacity(b, b->length + other->length);
     memcpy(b->buffer + b->length, other->buffer, other->length);
     b->length += other->length;
 }
 
-binary *bin_clone(binary *b, mempool *mp) {
+bin *bin_clone(bin *b, mempool *mp) {
     return new_bin_from_mem(mp, b->buffer, b->length);
 }
 
-void bin_pad(binary *b, char value, size_t target_len) {
+void bin_pad(bin *b, char value, size_t target_len) {
     if (b->length >= target_len)
         return;
     
@@ -895,21 +899,21 @@ void bin_pad(binary *b, char value, size_t target_len) {
     b->length += gap;
 }
 
-void bin_print_hex(binary *b, FILE *f);
+void bin_print_hex(bin *b, FILE *f);
 
 // emulate a file a bit? i think it's useful to maintain internal pointer
-void bin_seek(binary *b, size_t offset) {
+void bin_seek(bin *b, size_t offset) {
     if (offset > b->length)
         offset = b->length;
     b->position = offset;
 }
 
-size_t  bin_tell(binary *b) {
+size_t  bin_tell(bin *b) {
     return b->position;
 }
 
 // all "read" funcs work at current offset, they advance offset
-u8 bin_read_byte(binary *b) {
+u8 bin_read_byte(bin *b) {
     if (b->position >= b->length)
         return 0;
     
@@ -921,7 +925,7 @@ u8 bin_read_byte(binary *b) {
     return value;
 }
 
-u16  bin_read_word(binary *b) {
+u16  bin_read_word(bin *b) {
     if (b->position >= b->length)
         return 0;
     
@@ -933,7 +937,7 @@ u16  bin_read_word(binary *b) {
     return value;
 }
 
-u32  bin_read_dword(binary *b) {
+u32  bin_read_dword(bin *b) {
     if (b->position >= b->length)
         return 0;
     
@@ -945,7 +949,7 @@ u32  bin_read_dword(binary *b) {
     return value;
 }
 
-u64  bin_read_qword(binary *b) {
+u64  bin_read_qword(bin *b) {
     if (b->position >= b->length)
         return 0;
     
@@ -957,7 +961,7 @@ u64  bin_read_qword(binary *b) {
     return value;
 }
 
-void bin_read_mem(binary *b, void *ptr, size_t length) {
+void bin_read_mem(bin *b, void *ptr, size_t length) {
     if (b->position >= b->length)
         return;
     
@@ -968,7 +972,7 @@ void bin_read_mem(binary *b, void *ptr, size_t length) {
 }
 
 // all "write" funcs work at current offset, they advance offset
-void bin_write_byte(binary *b, u8 value) {
+void bin_write_byte(bin *b, u8 value) {
     binary_ensure_capacity(b, b->position + 1);
     b->buffer[b->position] = value;
     b->position += 1;
@@ -976,7 +980,7 @@ void bin_write_byte(binary *b, u8 value) {
         b->length = b->position;
 }
 
-void bin_write_word(binary *b, u16 value) {
+void bin_write_word(bin *b, u16 value) {
     binary_ensure_capacity(b, b->position + sizeof(u16));
     *(u16 *)(b->buffer + b->position) = value;
     b->position += sizeof(u16);
@@ -984,7 +988,7 @@ void bin_write_word(binary *b, u16 value) {
         b->length = b->position;
 }
 
-void bin_write_dword(binary *b, u32 value) {
+void bin_write_dword(bin *b, u32 value) {
     binary_ensure_capacity(b, b->position + sizeof(u32));
     *(u32 *)(b->buffer + b->position) = value;
     b->position += sizeof(u32);
@@ -992,7 +996,7 @@ void bin_write_dword(binary *b, u32 value) {
         b->length = b->position;
 }
 
-void bin_write_qword(binary *b, u64 value) {
+void bin_write_qword(bin *b, u64 value) {
     binary_ensure_capacity(b, b->position + sizeof(u64));
     *(u64 *)(b->buffer + b->position) = value;
     b->position += sizeof(u64);
@@ -1000,7 +1004,7 @@ void bin_write_qword(binary *b, u64 value) {
         b->length = b->position;
 }
 
-void bin_write_mem(binary *b, void *ptr, size_t length) {
+void bin_write_mem(bin *b, const void *ptr, size_t length) {
     binary_ensure_capacity(b, b->position + length);
     memcpy(b->buffer + b->position, ptr, length);
     b->position += length;
@@ -1008,7 +1012,7 @@ void bin_write_mem(binary *b, void *ptr, size_t length) {
         b->length = b->position;
 }
 
-void bin_write_zeros(binary *b, size_t length) {
+void bin_write_zeros(bin *b, size_t length) {
     binary_ensure_capacity(b, b->position + length);
     memset(b->buffer + b->position, 0, length);
     b->position += length;
@@ -1017,41 +1021,61 @@ void bin_write_zeros(binary *b, size_t length) {
 }
 
 // these implicitely append data at the end of the buffer
-void bin_add_byte(binary *b, u8 value) {
+void bin_add_byte(bin *b, u8 value) {
     b->position = b->length;
     bin_write_byte(b, value);
 }
 
-void bin_add_word(binary *b, u16 value)  {
+void bin_add_word(bin *b, u16 value)  {
     b->position = b->length;
     bin_write_word(b, value);
 }
 
-void bin_add_dword(binary *b, u32 value) {
+void bin_add_dword(bin *b, u32 value) {
     b->position = b->length;
     bin_write_dword(b, value);
 }
 
-void bin_add_qword(binary *b, u64 value) {
+void bin_add_qword(bin *b, u64 value) {
     b->position = b->length;
     bin_write_qword(b, value);
 }
 
-void bin_add_mem(binary *b, void *ptr, size_t length) {
+void bin_add_mem(bin *b, const void *ptr, size_t length) {
     b->position = b->length;
     bin_write_mem(b, ptr, length);
 }
 
-void bin_add_zeros(binary *b, size_t length) {
+void bin_add_str(bin *b, str *str) {
+    b->position = b->length;
+    bin_write_mem(b, str_charptr(str), str_len(str) + 1);
+}
+
+void bin_add_zeros(bin *b, size_t length) {
     b->position = b->length;
     bin_write_zeros(b, length);
 }
 
-binary *bin_slice(binary *b, size_t offset, size_t size, mempool *mp) {
+int  bin_index_of(bin *b, const void *ptr, size_t size) {
+    // naive approach for now
+    for (int i = 0; i < b->length - size; i++) {
+        if (memcmp(b->buffer + i, ptr, size) == 0)
+            return i;
+    }
+
+    return -1;
+}
+
+bin *bin_slice(bin *b, size_t offset, size_t size, mempool *mp) {
     return new_bin_from_mem(mp, b->buffer + offset, size);
 }
 
-bool bin_save_to_file(binary *b, str *filename) {
+str *bin_str(bin *b, size_t offset, mempool *mp) {
+    // hoping this ends in a zero
+    return new_str(mp, b->buffer + offset);
+}
+
+bool bin_save_to_file(bin *b, str *filename) {
     FILE *f = fopen(str_charptr(filename), "wb");
     if (f == NULL)
         return false;
@@ -1065,8 +1089,9 @@ bool bin_save_to_file(binary *b, str *filename) {
 #ifdef INCLUDE_UNIT_TESTS
 void binary_unit_tests() {
     mempool *mp = new_mempool();
-    binary *b;
-    binary *b1;
+    bin *b;
+    bin *b1;
+    str *s;
 
     char *bytes32 = mempool_alloc(mp, 32, "bytes32");
     for (int i = 0; i < 32; i++)
@@ -1082,6 +1107,9 @@ void binary_unit_tests() {
     assert(b != NULL);
     assert(bin_len(b) == 6);
     assert(memcmp(b->buffer, "\0\0\0\0\0\0", 6) == 0);
+    assert(bin_ptr_at(b, 0) == b->buffer);
+    assert(bin_ptr_at(b, 3) == b->buffer + 3);
+    assert(bin_ptr_at(b, 9999) == NULL);
 
     b = new_bin_from_mem(mp, "\x12\x34\x56\x78", 4);
     assert(b != NULL);
@@ -1115,13 +1143,23 @@ void binary_unit_tests() {
     assert(bin_len(b) == 8);
     assert(memcmp(b->buffer, "\xF0\xDE\xBC\x9A\x78\x56\x34\x12", 8) == 0);
 
+    bin_clear(b);
+    bin_add_mem(b, "\x01\x02", 2);
+    assert(bin_len(b) == 2);
+    assert(memcmp(b->buffer, "\x01\x02", 2) == 0);
+
+    bin_clear(b);
+    bin_add_str(b, new_str(mp, "name"));
+    assert(bin_len(b) == 5);
+    assert(memcmp(b->buffer, "name\0", 5) == 0);
+
     b = new_bin_from_mem(mp, "\x12\x34", 2);
     b1 = new_bin_from_mem(mp, "\x12\x34", 2);
     assert(b != b1);
     assert(memcmp(b->buffer, b1->buffer, 2) == 0);
     assert(bin_cmp(b, b1) == 0);
 
-    binary_cat(b, b1);
+    bin_cat(b, b1);
     assert(bin_len(b) == 4);
     assert(memcmp(b->buffer, "\x12\x34\x12\x34", 4) == 0);
 
@@ -1135,12 +1173,25 @@ void binary_unit_tests() {
     assert(bin_len(b) == 4);
     assert(memcmp(b->buffer, "\x12\x34\x55\x55", 4) == 0);
 
+    // index_of
+    b = new_bin_from_mem(mp, bytes32, 32);
+    assert(bin_index_of(b, "\x06\x07\x08", 3) == 6);
+    assert(bin_index_of(b, "\x06\x06\x06", 3) == -1);
+    assert(bin_index_of(b, "", 0) == 0);
+
     // get_slice
     b = new_bin_from_mem(mp, bytes32, 32);
     b1 = bin_slice(b, 4, 5, mp);
     assert(b1 != NULL);
     assert(bin_len(b1) == 5);
     assert(memcmp(b1->buffer, "\x04\x05\x06\x07\x08", 5) == 0);
+
+    // get_str
+    b = new_bin_from_mem(mp, "\0abc\0def\0ghi\0", 13);
+    s = bin_str(b, 5, mp);
+    assert(s != NULL);
+    assert(str_len(s) == 3);
+    assert(str_cmps(s, "def") == 0);
 
     // check read/write
     b = new_bin_from_mem(mp, bytes32, 32);

@@ -8,9 +8,14 @@
 // ----------------------------------------
 
 typedef uint8_t  u8;
-typedef uint16_t  u16;
-typedef uint32_t  u32;
-typedef uint64_t  u64;
+typedef uint16_t u16;
+typedef uint32_t u32;
+typedef uint64_t u64;
+
+typedef int8_t   s8;
+typedef int16_t  s16;
+typedef int32_t  s32;
+typedef int64_t  s64;
 
 typedef struct str str;
 typedef struct llist llist;
@@ -70,46 +75,50 @@ const char *str_charptr(str *s);
 
 // -------------------------------------------
 
-typedef struct binary binary;
+typedef struct bin bin;
 
-binary *new_bin(mempool *mp);
-binary *new_bin_from_mem(mempool *mp, char *address, size_t size);
-binary *new_bin_from_file(mempool *mp, str *filename);
-binary *new_bin_from_zeros(mempool *mp, size_t size);
+bin *new_bin(mempool *mp);
+bin *new_bin_from_mem(mempool *mp, char *address, size_t size);
+bin *new_bin_from_file(mempool *mp, str *filename);
+bin *new_bin_from_zeros(mempool *mp, size_t size);
 
-size_t  bin_len(binary *b);
-void    bin_clear(binary *b);
-int     bin_cmp(binary *b1, binary *b2);
-void    binary_cat(binary *b, binary *other);
-binary *bin_clone(binary *b, mempool *mp);
-void    bin_pad(binary *b, char value, size_t target_len);
-void    bin_print_hex(binary *b, FILE *f);
+size_t bin_len(bin *b);
+void  *bin_ptr_at(bin *b, size_t offset);
+void   bin_clear(bin *b);
+int    bin_cmp(bin *b1, bin *b2);
+void   bin_cat(bin *b, bin *other);
+bin   *bin_clone(bin *b, mempool *mp);
+void   bin_pad(bin *b, char value, size_t target_len);
+void   bin_print_hex(bin *b, FILE *f);
 // these manipulate the read/write pointer, like a file
-void    bin_seek(binary *b, size_t offset); // emulate 
-size_t  bin_tell(binary *b);
+void   bin_seek(bin *b, size_t offset); // emulate 
+size_t bin_tell(bin *b);
 // all "read" funcs work at current offset, they advance offset
-u8      bin_read_byte(binary *b);
-u16     bin_read_word(binary *b);
-u32     bin_read_dword(binary *b);
-u64     bin_read_qword(binary *b);
-void    bin_read_mem(binary *b, void *ptr, size_t length);
+u8     bin_read_byte(bin *b);
+u16    bin_read_word(bin *b);
+u32    bin_read_dword(bin *b);
+u64    bin_read_qword(bin *b);
+void   bin_read_mem(bin *b, void *ptr, size_t length);
 // all "write" funcs work at current offset, they advance offset
-void    bin_write_byte(binary *b, u8 value);
-void    bin_write_word(binary *b, u16 value);
-void    bin_write_dword(binary *b, u32 value);
-void    bin_write_qword(binary *b, u64 value);
-void    bin_write_mem(binary *b, void *ptr, size_t length);
-void    bin_write_zeros(binary *b, size_t length);
+void   bin_write_byte(bin *b, u8 value);
+void   bin_write_word(bin *b, u16 value);
+void   bin_write_dword(bin *b, u32 value);
+void   bin_write_qword(bin *b, u64 value);
+void   bin_write_mem(bin *b, const void *ptr, size_t length);
+void   bin_write_zeros(bin *b, size_t length);
 // these implicitely append data at the end of the buffer
-void    bin_add_byte(binary *b, u8 value);
-void    bin_add_word(binary *b, u16 value);
-void    bin_add_dword(binary *b, u32 value);
-void    bin_add_qword(binary *b, u64 value);
-void    bin_add_mem(binary *b, void *ptr, size_t length);
-void    bin_add_zeros(binary *b, size_t length);
+void   bin_add_byte(bin *b, u8 value);
+void   bin_add_word(bin *b, u16 value);
+void   bin_add_dword(bin *b, u32 value);
+void   bin_add_qword(bin *b, u64 value);
+void   bin_add_mem(bin *b, const void *ptr, size_t length);
+void   bin_add_str(bin *b, str *str);
+void   bin_add_zeros(bin *b, size_t length);
 
-binary *bin_slice(binary *b, size_t offset, size_t size, mempool *mp);
-bool bin_save_to_file(binary *b, str *filename);
+int  bin_index_of(bin *b, const void *ptr, size_t size);
+bin *bin_slice(bin *b, size_t offset, size_t size, mempool *mp);
+str *bin_str(bin *b, size_t offset, mempool *mp);
+bool bin_save_to_file(bin *b, str *filename);
 
 // -------------------------------------------
 

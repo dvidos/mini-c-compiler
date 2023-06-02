@@ -230,6 +230,7 @@ int main(int argc, char *argv[]) {
 #endif
 
     if (options.elf_test) {
+        void perform_elf_test();
         perform_elf_test();
         return 0;
     }

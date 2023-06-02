@@ -17,6 +17,8 @@ typedef struct elf_contents2_section {
     u64 mem_address;
 } elf_contents2_section;
 
+// maybe we should refactor this to have a list of section headers + contents
+// and a list of program headers... ? that way, we can resolve section indexes (e.g. "link")
 typedef struct elf_contents2 {
     elf_contents2_section *text;      // contains raw code
     elf_contents2_section *data;      // contains initialized data

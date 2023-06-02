@@ -89,7 +89,7 @@ int    bin_cmp(bin *b1, bin *b2);
 void   bin_cat(bin *b, bin *other);
 bin   *bin_clone(bin *b, mempool *mp);
 void   bin_pad(bin *b, char value, size_t target_len);
-void   bin_print_hex(bin *b, FILE *f);
+void   bin_print_hex(bin *b, int indent, size_t offset, size_t length, FILE *f);
 // these manipulate the read/write pointer, like a file
 void   bin_seek(bin *b, size_t offset); // emulate 
 size_t bin_tell(bin *b);

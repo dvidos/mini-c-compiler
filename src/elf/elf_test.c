@@ -13,6 +13,10 @@ void perform_elf_test() {
     mempool *mp = new_mempool();
     elf_contents2 *contents = load_elf64_obj_file(mp, "mcc.o");
     obj_module *mod = unpack_elf64_contents(new_str(mp, "mcc.o"), contents, mp);
+    print_obj_module(mod, stdout);
+
+    // then we should try to merge two or more obj_modules
+
 
     return;
 }

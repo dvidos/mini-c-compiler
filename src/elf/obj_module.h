@@ -1,4 +1,5 @@
 #pragma once
+#include <stdio.h>
 #include "../utils/data_types.h"
 #include "../utils/data_structs.h"
 #include "elf_tools.h"
@@ -6,7 +7,7 @@
 typedef struct obj_section obj_section;
 
 typedef struct obj_module {
-    str *module_name; // e.g. mcc.c
+    str *name; // e.g. mcc.c
     obj_section *text;
     obj_section *data;
     obj_section *bss;
@@ -38,4 +39,6 @@ typedef struct obj_relocation {
 obj_module *new_obj_module(mempool *mp, const char *name);
 elf_contents2 *pack_elf64_contents(obj_module *module, mempool *mp);
 obj_module *unpack_elf64_contents(str *module_name, elf_contents2 *contents, mempool *mp);
+
+void print_obj_module(obj_module *module, FILE *f);
 

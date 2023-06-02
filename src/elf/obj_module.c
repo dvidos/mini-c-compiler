@@ -14,11 +14,11 @@ static obj_section *new_obj_section(mempool *mp, const char *name) {
 
 obj_module *new_obj_module(mempool *mp, const char *name) {
     obj_module *module = mempool_alloc(mp, sizeof(obj_module), "obj_module");
-    module->module_name = new_str(mp, name);
+    module->name = new_str(mp, name);
     module->text = new_obj_section(mp, ".text");
     module->data = new_obj_section(mp, ".data");
     module->bss = new_obj_section(mp, ".bss");
-    module->rodata = new_obj_section(mp, "rodata");
+    module->rodata = new_obj_section(mp, ".rodata");
     return module;
 }
 
@@ -115,7 +115,7 @@ elf_contents2 *pack_elf64_contents(obj_module *module, mempool *mp) {
     add_elf64_symbol(new_str(mp, ""), 0, 0, STT_NOTYPE, false, SHN_UNDEF, c->symtab, c->strtab);
 
     // add symbol for the file name
-    add_elf64_symbol(module->module_name, 0, 0, STT_FILE, false, SHN_ABS, c->symtab, c->strtab);
+    add_elf64_symbol(module->name, 0, 0, STT_FILE, false, SHN_ABS, c->symtab, c->strtab);
 
     // add symbol for each section
     add_elf64_symbol(module->text->name, 0, 0, STT_SECTION, false, ELF_TEXT_SHNDX, c->symtab, c->strtab);
@@ -137,18 +137,28 @@ elf_contents2 *pack_elf64_contents(obj_module *module, mempool *mp) {
     return c;
 }
 
-static obj_symbol *new_obj_symbol(mempool *mp) {
+static obj_symbol *new_obj_symbol(elf64_sym *sym, elf_contents2_section *strtab, mempool *mp) {
     obj_symbol *s = mempool_alloc(mp, sizeof(obj_symbol), "obj_symbol");
 
-    // ...
+    s->name = bin_str(strtab->contents, sym->st_name, mp);
+    s->global = ELF64_ST_BIND(sym->st_info) == STB_GLOBAL;
+    s->value = sym->st_value;
+    s->size = sym->st_size;
 
     return s;
 }
 
-static obj_relocation *new_obj_relocation(mempool *mp) {
+static obj_relocation *new_obj_relocation(elf64_rela *rel, elf_contents2_section *symtab, elf_contents2_section *strtab, mempool *mp) {
     obj_relocation *r = mempool_alloc(mp, sizeof(obj_relocation), "obj_relocation");
 
-    // ...
+    // find the symbol this relocation needs to resolve
+    size_t sym_index = ELF64_R_SYM(rel->r_info);
+    elf64_sym *sym = bin_ptr_at(symtab->contents, sym_index * sizeof(elf64_sym));
+
+    r->symbol_name = bin_str(strtab->contents, sym->st_name, mp);
+    r->offset = rel->r_offset;
+    r->addendum = rel->r_addend;
+    r->type = ELF64_R_TYPE(rel->r_info);
 
     return r;
 }
@@ -162,12 +172,78 @@ obj_module *unpack_elf64_contents(str *module_name, elf_contents2 *contents, mem
     bin_cat(module->rodata->contents, contents->rodata->contents);
 
     // unpack symbols into the relevant index...
+    int num_symbols = bin_len(contents->symtab->contents) / sizeof(elf64_sym);
+    elf64_sym *sym;
+    for (int i = 0; i < num_symbols; i++) {
+        sym = (elf64_sym *)bin_ptr_at(contents->symtab->contents, i * sizeof(elf64_sym));
+        obj_symbol *s = new_obj_symbol(sym, contents->strtab, mp);
+        // must find the relevant section
+        llist_add(module->text->symbols, s);
+    }
     
-     
     // unpack relocations
+    int num_relocations = bin_len(contents->rela_text->contents) / sizeof(elf64_rela);
+    elf64_rela *rela;
+    for (int i = 0; i < num_relocations; i++) {
+        rela = (elf64_rela *)bin_ptr_at(contents->rela_text->contents, i * sizeof(elf64_rela));
+        obj_relocation *r = new_obj_relocation(rela, contents->symtab, contents->strtab, mp);        
+        llist_add(module->text->relocations, r);  // must find the relevant list to add this to.
+    }
 
     return module;
 }
 
+static void print_obj_section(obj_section *s, FILE *f) {
+    mempool *scratch = new_mempool();
+    fprintf(f, "  Section %s\n", str_charptr(s->name));
 
+    if (bin_len(s->contents) > 0) {
+        size_t bytes = bin_len(s->contents) > 64 ? 64 : bin_len(s->contents);
+        fprintf(f, "    Contents (%lu / %lu total bytes)\n", bytes, bin_len(s->contents));
+        bin_print_hex(s->contents, 6, 0, bytes, f);
+    }
 
+    if (llist_length(s->symbols) > 0) {
+        fprintf(f, "    Symbols\n");
+        fprintf(f, "      Num    Value     Size  Vis     Name\n");
+        //                Num    Value     Size  Vis     Name
+        //                123 12345678 12345678  GLOBAL  123456789...
+        iterator *symbols = llist_create_iterator(s->symbols, scratch);
+        int num = 0;
+        for_iterator(obj_symbol, s, symbols) {
+            fprintf(f, "      %3d %08lx %8lu  %-6s  %s\n",
+                num++,
+                s->value,
+                s->size,
+                s->global ? "GLOBAL" : "LOCAL",
+                str_charptr(s->name));
+        }
+    }
+
+    if (llist_length(s->relocations)) {
+        fprintf(f, "    Relocations\n");
+        fprintf(f, "        Offset  Type  Addendum  Symbol\n");
+        //         "        Offset  Type  Addendum  Symbol
+        //         "      12345678  1234  12345678  12345...
+        iterator *relocations = llist_create_iterator(s->relocations, scratch);
+        for_iterator(obj_relocation, r, relocations) {
+            fprintf(f, "      %08lx  %4d  %+8ld  %s\n",
+                r->offset,
+                r->type,
+                r->addendum,
+                str_charptr(r->symbol_name));
+        }
+    }
+
+    mempool_release(scratch);
+}
+
+void print_obj_module(obj_module *module, FILE *f) {
+    // print each section with it's symbols and relocations
+    fprintf(f, "Module %s\n", str_charptr(module->name));
+
+    print_obj_section(module->text, f);
+    print_obj_section(module->data, f);
+    print_obj_section(module->bss, f);
+    print_obj_section(module->rodata, f);
+}

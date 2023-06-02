@@ -899,7 +899,40 @@ void bin_pad(bin *b, char value, size_t target_len) {
     b->length += gap;
 }
 
-void bin_print_hex(bin *b, FILE *f);
+void bin_print_hex(bin *b, int indent, size_t offset, size_t length, FILE *f) {
+    unsigned char *p = b->buffer + offset;
+    char prep[64];
+
+    while (length > 0) {
+        for (int i = 0; i < 16; i++) {
+            if (i < length) {
+                int c = (int)p[i];
+                sprintf(&prep[i * 4], "%02x", c);
+                prep[i*4  + 3] = (c >= ' ' && c <= '~') ? c : '.';
+            } else {
+                strcpy(&prep[i * 4], "  ");
+                prep[i*4  + 3] = ' ';
+            }
+        }
+
+        printf("%*s%08lx   %2s %2s %2s %2s %2s %2s %2s %2s  %2s %2s %2s %2s %2s %2s %2s %2s   %c%c%c%c%c%c%c%c %c%c%c%c%c%c%c%c\n",
+            indent, "", offset,
+            prep +  0, prep +  4, prep +  8, prep + 12, 
+            prep + 16, prep + 20, prep + 24, prep + 28, 
+            prep + 32, prep + 36, prep + 40, prep + 44, 
+            prep + 48, prep + 52, prep + 56, prep + 60, 
+            prep[ 3], prep[ 7], prep[11], prep[15], 
+            prep[19], prep[23], prep[27], prep[31], 
+            prep[35], prep[39], prep[43], prep[47], 
+            prep[51], prep[55], prep[59], prep[63]
+        );
+
+        p += 16;
+        length -= 16;
+        offset += 16;
+    }
+
+}
 
 // emulate a file a bit? i think it's useful to maintain internal pointer
 void bin_seek(bin *b, size_t offset) {

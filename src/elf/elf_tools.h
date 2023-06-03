@@ -1,41 +1,40 @@
 #pragma once
 #include <stdint.h>
+#include "elf_format.h"
 #include "../utils/data_types.h"
 #include "../utils/data_structs.h"
 
 
-// these are needed for symbols referring to sections
-#define ELF_UNDEF_SHNDX    0 // first section is the empty section
-#define ELF_TEXT_SHNDX     1
-#define ELF_DATA_SHNDX     2
-#define ELF_BSS_SHNDX      3
-#define ELF_RODATA_SHNDX   4
 
-
-typedef struct elf_contents2_section {
+typedef struct elf64_section {
+    int index; // e.g. zero section is the empty section
+    str *name; // e.g. ".text"
+    elf64_section_header *header;
     bin *contents;
-    u64 mem_address;
-} elf_contents2_section;
+} elf64_section;
 
-// maybe we should refactor this to have a list of section headers + contents
-// and a list of program headers... ? that way, we can resolve section indexes (e.g. "link")
-typedef struct elf_contents2 {
-    elf_contents2_section *text;      // contains raw code
-    elf_contents2_section *data;      // contains initialized data
-    elf_contents2_section *bss;       // contains non-initialized data
-    elf_contents2_section *rodata;    // contains initialized data, to be read only
-    elf_contents2_section *rela_text; // text relocations
-    elf_contents2_section *rela_data; // data relocations (e.g. pointers to .rodata items)
-    elf_contents2_section *symtab;    // symbols
-    elf_contents2_section *strtab;    // strings table (e.g. symbol names)
-    elf_contents2_section *comment;   // free text?
-} elf_contents2;
+typedef struct elf64_contents {
+    elf64_header *header;
+    llist *sections;       // items are of type "elf64_section"
+    llist *prog_headers;   // items are of type "elf64_prog_header"
 
-elf_contents2 *new_elf_contents2(mempool *mp);
-elf_contents2 *load_elf64_obj_file(mempool *mp, char *filename);
+    mempool *mempool;
+} elf64_contents;
 
-bool save_elf64_executable(char *filename, elf_contents2 *contents, u64 entry_point);
-bool save_elf64_obj_file(char *filename, elf_contents2 *contents);
+elf64_contents *new_elf64_contents(mempool *mp);
+elf64_section *new_elf64_section(mempool *mp);
+elf64_header *new_elf64_file_header(mempool *mp, bool executable, u64 entry_point);
+elf64_prog_header *new_elf64_prog_header(mempool *mp, int type, int flags, int align, u64 file_offset, u64 file_size, u64 mem_addr, u64 mem_size);
+elf64_section_header *new_elf64_section_header(int type, char *name, u64 flags, u64 file_offset, u64 size, u64 item_size, u64 link, u64 info, u64 virt_address, bin *sections_names_table, mempool *mp);
+
+elf64_section *elf64_get_section_by_name(elf64_contents *contents, str *name);
+elf64_section *elf64_get_section_by_index(elf64_contents *contents, int index);
+elf64_section *elf64_get_section_by_type(elf64_contents *contents, int type);
+
+
+
+elf64_contents *elf64_load_file(mempool *mp, char *filename);
+bool            elf64_save_file(char *filename, elf64_contents *contents);
 
 void elf_unit_tests();
 

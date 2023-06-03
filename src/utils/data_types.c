@@ -319,6 +319,11 @@ str *str_padl(str *s, int len, char c) {
     return other;
 }
 
+void str_cpy(str *s1, str *s2) {
+    str_clear(s1);
+    str_cat(s1, s2);
+}
+
 void str_cat(str *s1, str *s2) {
     str_ensure_capacity(s1, s1->length + s2->length + 1);
     strcat(s1->buff, s2->buff);
@@ -684,6 +689,12 @@ void str_unit_tests() {
     s1 = str_padl(s, 6, '-');
     assert(strcmp(s1->buff, "---123") == 0);
 
+    // cpy
+    s = new_str(mp, "test");
+    assert(strcmp(s->buff, "test") == 0);
+    str_cpy(s, new_str(mp, "other"));
+    assert(strcmp(s->buff, "other") == 0);
+
     // cat, cats, catc
     s = new_str(mp, "string");
     str_cat(s, new_str(mp, "ify"));
@@ -877,6 +888,11 @@ static void binary_ensure_capacity(bin *b, size_t capacity) {
     char *old_buffer = b->buffer;
     b->buffer = mempool_alloc(b->mempool, b->capacity, "binary buffer");
     memcpy(b->buffer, old_buffer, b->length);
+}
+
+void bin_cpy(bin *b, bin *source) {
+    bin_clear(b);
+    bin_cat(b, source);
 }
 
 void bin_cat(bin *b, bin *other) {

@@ -17,7 +17,6 @@ typedef struct obj_module {
 typedef struct obj_section {
     str *name;
     bin *contents;
-    u64 mem_address;
     llist *symbols;      // item type is <obj_symbol>
     llist *relocations;  // item type is <obj_relocation>
 } obj_section;
@@ -37,8 +36,9 @@ typedef struct obj_relocation {
 } obj_relocation;
 
 obj_module *new_obj_module(mempool *mp, const char *name);
-elf_contents2 *pack_elf64_contents(obj_module *module, mempool *mp);
-obj_module *unpack_elf64_contents(str *module_name, elf_contents2 *contents, mempool *mp);
+obj_module *unpack_elf64_contents(str *module_name, elf64_contents *contents, mempool *mp);
+elf64_contents *pack_elf64_object_file(obj_module *module, mempool *mp);
+elf64_contents *pack_elf64_executable_file(obj_module *module, mempool *mp);
 
 void print_obj_module(obj_module *module, FILE *f);
 

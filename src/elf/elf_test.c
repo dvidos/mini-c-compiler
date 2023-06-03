@@ -11,7 +11,7 @@ void perform_elf_test() {
     // read_elf_file("mcc.o", &c);
 
     mempool *mp = new_mempool();
-    elf_contents2 *contents = load_elf64_obj_file(mp, "mcc.o");
+    elf64_contents *contents = elf64_load_file(mp, "mcc.o");
     obj_module *mod = unpack_elf64_contents(new_str(mp, "mcc.o"), contents, mp);
     print_obj_module(mod, stdout);
 

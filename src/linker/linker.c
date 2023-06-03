@@ -8,26 +8,8 @@
 #include "../utils.h"
 #include "obj_code.h"
 #include "../elf/elf_contents.h"
-#include "../elf/elf.h"
+#include "../elf/elf64_contents.h"
 
-
-obj_code *load_object_file(char *filename) {
-    elf_contents *contents = malloc(sizeof(elf_contents));
-    read_elf_file(filename, contents);
-    free(contents);
-    // verify obj file
-    // transfer from elf to obj
-    return NULL;
-}
-
-bool save_object_file(obj_code *obj, char *filename) {
-    elf_contents *contents = malloc(sizeof(elf_contents));
-    // transfer from obj to elf
-    
-    return write_elf_file(contents, filename);
-}
-
-// --------------------------------------------------------------
 
 static obj_code *create_crt0_code() {
     obj_code *code = new_obj_code();
@@ -375,10 +357,17 @@ void x86_link(list *obj_codes, u64 base_address, char *executable_filename) {
     elf.data_size        = map->merged->data->contents->length;
     elf.bss_size         = map->merged->bss->contents->length;
     
-    if (!write_elf_file(&elf, executable_filename)) {
+
+
+
+    mempool *mp = new_mempool();
+    elf64_contents *contents = new_elf64_contents(mp);
+    bool saved = elf64_save_file(executable_filename, contents);
+    mempool_release(mp);
+    
+    if (!saved) {
         error(NULL, 0, "Error writing output elf file \"%s\"!\n", executable_filename);
         return;
     }
-
     printf("Wrote file '%s'\n", executable_filename);
 }

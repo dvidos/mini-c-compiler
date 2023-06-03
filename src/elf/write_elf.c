@@ -8,7 +8,6 @@
 #include "elf_format.h"
 
 
-
 /*
     we need to treat sections in a unitform way, in a loop.
     - elf header

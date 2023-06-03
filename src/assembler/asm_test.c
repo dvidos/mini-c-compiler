@@ -5,13 +5,14 @@
 #include "../options.h"
 #include "../utils/buffer.h"
 #include "../linker/symbol_table.h"
-#include "../elf/elf.h"
 #include "../linker/obj_code.h"
 #include "encoder/asm_instruction.h"
 #include "encoder/encoder.h"
 #include "encoder/asm_listing.h"
 #include "assembler.h"
 #include "../linker/linker.h"
+#include "../elf/elf_contents.h"
+#include "../elf/elf64_contents.h"
 
 // static void test_create_hello_world_executable();
 static void test_create_hello_world_executable2();
@@ -305,8 +306,8 @@ static bool verify_single_instruction(enum opcode oc, struct asm_operand *op1, s
 // }
 
 
-static bool _encode_listing_code(asm_listing *lst, obj_code *mod, enum x86_cpu_mode mode);
-static bool _link_module(obj_code *mod, u64 code_base_address, char *filename);
+static bool _test_encode_listing_code(asm_listing *lst, obj_code *mod, enum x86_cpu_mode mode);
+static bool _test_link_module(obj_code *mod, u64 code_base_address, char *filename);
 
 void test_create_hello_world_executable2() {
     asm_listing *lst = new_asm_listing();
@@ -329,18 +330,18 @@ void test_create_hello_world_executable2() {
     lst->ops->print(lst, stdout);
 
     // now we need an assembler to convert the asm_listing into a mod code + labels + relocs
-    if (!_encode_listing_code(lst, mod, CPU_MODE_PROTECTED))
+    if (!_test_encode_listing_code(lst, mod, CPU_MODE_PROTECTED))
         return;
 
     printf("Prepared obj_code:\n");
     mod->vt->print(mod);
     
     // now we need a linker to convert the obj_code into an executable
-    if (!_link_module(mod, 0x8049000, "out2.elf"))
+    if (!_test_link_module(mod, 0x8049000, "out2.elf"))
         return;
 }
 
-static bool _encode_listing_code(asm_listing *lst, obj_code *mod, enum x86_cpu_mode mode) {
+static bool _test_encode_listing_code(asm_listing *lst, obj_code *mod, enum x86_cpu_mode mode) {
     // encode this into intel machine code
     struct x86_encoder *enc = new_x86_encoder(mode, mod->text->contents, mod->text->relocations);
     struct asm_instruction *inst;
@@ -365,7 +366,7 @@ static bool _encode_listing_code(asm_listing *lst, obj_code *mod, enum x86_cpu_m
     return true;
 }
 
-static bool _link_module(obj_code *mod, u64 code_base_address, char *filename) {
+static bool _test_link_module(obj_code *mod, u64 code_base_address, char *filename) {
     // in theory many modules, merge them together, update references and symbol addresses
     // map: code, then data, then bss
     // decide base addresses, resolve references.
@@ -410,6 +411,7 @@ static bool _link_module(obj_code *mod, u64 code_base_address, char *filename) {
     elf.bss_address = bss_base_address;
     elf.bss_size = mod->bss->contents->length;
     
+    bool write_elf_file(elf_contents *prog, char *filename);
     if (!write_elf_file(&elf, filename)) {
         printf("Error writing output elf file!\n");
         return false;

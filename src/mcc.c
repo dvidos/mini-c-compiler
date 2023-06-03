@@ -24,10 +24,9 @@
 #include "assembler/assembler.h"
 #include "assembler/encoder/asm_listing.h"
 #include "assembler/encoder/encoder.h"
-#include "elf/elf_tools.h"
+#include "elf/elf64_contents.h"
 #include "linker/linker.h"
 #include "linker/obj_code.h"
-#include "elf/elf.h"
 #include "elf/elf_contents.h"
 
 #ifdef INCLUDE_UNIT_TESTS

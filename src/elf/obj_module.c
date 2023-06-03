@@ -52,10 +52,14 @@ static void add_elf64_symbol(str *name, size_t value, size_t size, int st_type, 
     bin_add_mem(symtab->contents, &sym, sizeof(elf64_sym));
 }
 
-static void pack_elf64_symbols(llist *symbols_list, int st_type, int st_shndx, mempool *mp, elf64_section *symtab, elf64_section *strtab) {
+static void pack_elf64_symbols(llist *symbols_list, bool want_public, int st_type, int st_shndx, mempool *mp, elf64_section *symtab, elf64_section *strtab) {
     iterator *it = llist_create_iterator(symbols_list, mp);
-    for_iterator(obj_symbol, s, it)
+    for_iterator(obj_symbol, s, it) {
+        if (s->global != want_public) // we add either all private or public ones.
+            continue;
+        
         add_elf64_symbol(s->name, s->value, s->size, st_type, s->global, st_shndx, symtab, strtab);
+    }
 }
 
 static int find_elf64_symbol(const char *name, elf64_section *symtab, elf64_section *strtab) {
@@ -97,12 +101,22 @@ static void pack_elf64_relocations(llist *relocations_list, mempool *mp, elf64_s
     }
 }
 
-static elf64_section *add_elf64_section(elf64_contents *contents, str *name, bin *section_contents, int type, mempool *mp) {
+static elf64_section *add_elf64_section(elf64_contents *contents, str *name, bin *section_contents, 
+            int type, int entry_size, int link, int info, mempool *mp) {
     elf64_section *section = new_elf64_section(mp);
 
     section->index = llist_length(contents->sections);
     section->name = name;
+    // see the SECTION_TYPE_* constants
     section->header->type = type;
+    // for REL and SYM types, size of symbol or relocation entries
+    section->header->entry_size = entry_size;  
+    // for REL types, points to the symbol table
+    // for SYM types, points to the string table
+    section->header->link = link;  
+    // for REL types, points to the section to apply the relocations
+    // for SYM types, index of first global symbol, or one past the last local one
+    section->header->info = info;  
 
     if (section_contents != NULL)
         bin_cpy(section->contents, section_contents);
@@ -119,37 +133,43 @@ elf64_contents *pack_elf64_object_file(obj_module *module, mempool *mp) {
     contents->header->file_type = ELF_TYPE_REL;
 
     // the first is the empty section, always (index 0)
-    add_elf64_section(contents, new_str(mp, ""), NULL, SECTION_TYPE_NULL, mp);
+    add_elf64_section(contents, new_str(mp, ""), NULL, SECTION_TYPE_NULL, 0, 0, 0, mp);
 
     // the next four are fixed sequence (1-4)
-    add_elf64_section(contents, new_str(mp, ".text"), module->text->contents, SECTION_TYPE_PROGBITS, mp);
-    add_elf64_section(contents, new_str(mp, ".data"), module->data->contents, SECTION_TYPE_PROGBITS, mp);
-    add_elf64_section(contents, new_str(mp, ".bss"), module->bss->contents, SECTION_TYPE_NOBITS, mp);
-    add_elf64_section(contents, new_str(mp, ".rodata"), module->rodata->contents, SECTION_TYPE_PROGBITS, mp);
+    add_elf64_section(contents, new_str(mp, ".text"), module->text->contents, SECTION_TYPE_PROGBITS, 0, 0, 0, mp);
+    add_elf64_section(contents, new_str(mp, ".data"), module->data->contents, SECTION_TYPE_PROGBITS, 0, 0, 0, mp);
+    add_elf64_section(contents, new_str(mp, ".bss"), module->bss->contents, SECTION_TYPE_NOBITS, 0, 0, 0, mp);
+    add_elf64_section(contents, new_str(mp, ".rodata"), module->rodata->contents, SECTION_TYPE_PROGBITS, 0, 0, 0, mp);
 
-    // prepare three sections to populate
-    elf64_section *rela_text = add_elf64_section(contents, new_str(mp, ".rela.text"), NULL, SECTION_TYPE_RELA, mp);
-    elf64_section *symtab = add_elf64_section(contents, new_str(mp, ".symtab"), NULL, SECTION_TYPE_SYMTAB, mp);
-    elf64_section *strtab = add_elf64_section(contents, new_str(mp, ".strtab"), NULL, SECTION_TYPE_STRTAB, mp);
+    // prepare three sections to populate (5, 6, 7)
+    elf64_section *rela_text = add_elf64_section(contents, new_str(mp, ".rela.text"), NULL, SECTION_TYPE_RELA, sizeof(elf64_rela), 6, 1, mp);
+    elf64_section *symtab = add_elf64_section(contents, new_str(mp, ".symtab"), NULL, SECTION_TYPE_SYMTAB, sizeof(elf64_sym), 7, 1, mp);
+    elf64_section *strtab = add_elf64_section(contents, new_str(mp, ".strtab"), NULL, SECTION_TYPE_STRTAB, 0, 0, 0, mp);
     mempool *scratch = new_mempool();
 
     // add the empty symbol to the symbol table
     add_elf64_symbol(new_str(mp, ""), 0, 0, STT_NOTYPE, false, SHN_UNDEF, symtab, strtab);
 
-    // add symbol for the file name
+    // add symbol for the module (file) and one for each section entry
     add_elf64_symbol(module->name, 0, 0, STT_FILE, false, SHN_ABS, symtab, strtab);
-
-    // add symbol for each section
     add_elf64_symbol(module->text->name, 0, 0, STT_SECTION, false, 1, symtab, strtab);
     add_elf64_symbol(module->data->name, 0, 0, STT_SECTION, false, 2, symtab, strtab);
     add_elf64_symbol(module->bss->name, 0, 0, STT_SECTION, false, 3, symtab, strtab);
     add_elf64_symbol(module->rodata->name, 0, 0, STT_SECTION, false, 4, symtab, strtab);
 
-    // pack various symbols into songle symtab section (and names into strtab)
-    pack_elf64_symbols(module->text->symbols,   STT_FUNC,   1,   scratch, symtab, strtab);
-    pack_elf64_symbols(module->data->symbols,   STT_OBJECT, 2,   scratch, symtab, strtab);
-    pack_elf64_symbols(module->bss->symbols,    STT_OBJECT, 3,    scratch, symtab, strtab);
-    pack_elf64_symbols(module->rodata->symbols, STT_OBJECT, 4, scratch, symtab, strtab);
+    // all local symbols must precede the global ones.
+    // pack local various symbols into single symtab section (and names into strtab)
+    pack_elf64_symbols(module->text->symbols,   false, STT_FUNC,   1, scratch, symtab, strtab);
+    pack_elf64_symbols(module->data->symbols,   false, STT_OBJECT, 2, scratch, symtab, strtab);
+    pack_elf64_symbols(module->bss->symbols,    false, STT_OBJECT, 3, scratch, symtab, strtab);
+    pack_elf64_symbols(module->rodata->symbols, false, STT_OBJECT, 4, scratch, symtab, strtab);
+    // mark the end of local symbols in the symbol table
+    symtab->header->info = (bin_len(symtab->contents) / sizeof(elf64_sym));
+    // then allow all public symbols
+    pack_elf64_symbols(module->text->symbols,   true, STT_FUNC,   1, scratch, symtab, strtab);
+    pack_elf64_symbols(module->data->symbols,   true, STT_OBJECT, 2, scratch, symtab, strtab);
+    pack_elf64_symbols(module->bss->symbols,    true, STT_OBJECT, 3, scratch, symtab, strtab);
+    pack_elf64_symbols(module->rodata->symbols, true, STT_OBJECT, 4, scratch, symtab, strtab);
 
     // pack relocations as well
     pack_elf64_relocations(module->text->relocations, scratch, rela_text, symtab, strtab);
@@ -488,3 +508,4 @@ void print_obj_module(obj_module *module, FILE *f) {
     print_obj_section(module->bss, f);
     print_obj_section(module->rodata, f);
 }
+

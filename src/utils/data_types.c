@@ -1106,8 +1106,11 @@ void bin_add_zeros(bin *b, size_t length) {
 }
 
 int  bin_index_of(bin *b, const void *ptr, size_t size) {
+    if (size > b->length)
+        return -1;
+    
     // naive approach for now
-    for (int i = 0; i < b->length - size; i++) {
+    for (int i = 0; i <= b->length - size; i++) {
         if (memcmp(b->buffer + i, ptr, size) == 0)
             return i;
     }

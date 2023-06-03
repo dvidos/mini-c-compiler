@@ -2,7 +2,7 @@
 #include <stdio.h>
 #include "../utils/data_types.h"
 #include "../utils/data_structs.h"
-#include "elf_tools.h"
+#include "elf64_contents.h"
 
 typedef struct obj_section obj_section;
 

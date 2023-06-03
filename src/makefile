@@ -46,9 +46,8 @@ SRC_FILES = \
 	assembler/encoder/encoding_info.c \
 	assembler/assembler.c \
 	assembler/asm_test.c \
-	elf/elf_tools.c \
+	elf/elf64_contents.c \
 	elf/obj_module.c \
-	elf/read_elf.c \
 	elf/write_elf.c \
 	elf/elf_test.c \
 	linker/symbol_table.c \

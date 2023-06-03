@@ -1,14 +1,14 @@
 #include <unistd.h>
 #include <string.h>
 #include "elf_format.h"
-#include "elf_tools.h"
+#include "elf64_contents.h"
 
 #define ALIGN_SIZE  0x1000
 
 // -------------------------------------------
 
 elf64_contents *new_elf64_contents(mempool *mp) {
-    elf64_contents *c = mempool_alloc(mp, sizeof(elf64_contents), "elf64_contents");
+    elf64_contents *c = mempool_alloc(mp, sizeof(elf64_contents), "elf64_contents.h");
 
     c->header = new_elf64_file_header(mp, false, 0);
     c->sections = new_llist(mp);
@@ -164,7 +164,7 @@ static bin *flatten_elf64_contents(elf64_contents *contents, mempool *mp) {
     // save curr offset and prog headers stuff
     contents->header->prog_headers_entry_size = sizeof(elf64_prog_header);
     contents->header->prog_headers_entries = llist_length(contents->prog_headers);
-    contents->header->prog_headers_offset = bin_len(file_data);
+    contents->header->prog_headers_offset = llist_length(contents->prog_headers) == 0 ? 0 : bin_len(file_data);
     
     // all program headers first
     it = llist_create_iterator(contents->prog_headers, scratch);
@@ -205,7 +205,7 @@ static bin *flatten_elf64_contents(elf64_contents *contents, mempool *mp) {
     // keep note where the section headers will be
     contents->header->section_headers_entry_size = sizeof(elf64_section_header);
     contents->header->section_headers_entries = llist_length(contents->sections);
-    contents->header->section_headers_offset = bin_len(file_data);
+    contents->header->section_headers_offset = llist_length(contents->sections) == 0 ? 0 : bin_len(file_data);
 
     // write all section headers
     it = llist_create_iterator(contents->sections, scratch);
@@ -322,21 +322,25 @@ static void elf_unit_test_obj_file(mempool *mp) {
 
     s = new_elf64_section(mp);
     s->name = new_str(mp, ".text");
+    s->header->type = SECTION_TYPE_PROGBITS;
     bin_pad(s->contents, 'T', 64);
     llist_add(contents->sections, s);
 
     s = new_elf64_section(mp);
     s->name = new_str(mp, ".data");
+    s->header->type = SECTION_TYPE_PROGBITS;
     bin_pad(s->contents, 'D', 64);
     llist_add(contents->sections, s);
 
     s = new_elf64_section(mp);
     s->name = new_str(mp, ".bss");
+    s->header->type = SECTION_TYPE_NOBITS;
     bin_pad(s->contents, 'B', 64);
     llist_add(contents->sections, s);
 
     s = new_elf64_section(mp);
     s->name = new_str(mp, ".rodata");
+    s->header->type = SECTION_TYPE_PROGBITS;
     bin_pad(s->contents, 'R', 64);
     llist_add(contents->sections, s);
 

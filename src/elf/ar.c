@@ -9,21 +9,20 @@
 archive *ar_open(mempool *mp, str *filename) {
     archive *a = mempool_alloc(mp, sizeof(archive), "archive");
     a->mempool = mp;
+    a->filename = new_str(a->mempool, str_charptr(filename));
 
-    a->file = fopen(str_charptr(filename), "r");
-    if (a->file == NULL)
+    a->handle = fopen(str_charptr(filename), "r");
+    if (a->handle == NULL)
         return NULL;
 
     // validate header
     char file_header[8];
-    size_t read = fread(file_header, 1, sizeof(file_header), a->file);
+    size_t read = fread(file_header, 1, sizeof(file_header), a->handle);
     if (read != sizeof(file_header))
         return NULL;
-
     if (memcmp(file_header, "!<arch>\x0A", 8) != 0)
         return NULL;
 
-    // we are good. 
     return a;
 }
 
@@ -39,11 +38,11 @@ llist *ar_get_entries(archive *a) {
     llist *l = new_llist(a->mempool);
     size_t pos = 8;
     while (true) {
-        fseek(a->file, pos, SEEK_SET);
-        if (feof(a->file))
+        fseek(a->handle, pos, SEEK_SET);
+        if (feof(a->handle))
             break;
 
-        int read = fread(entry_header, 1, sizeof(entry_header), a->file);
+        int read = fread(entry_header, 1, sizeof(entry_header), a->handle);
         if (read != sizeof(entry_header))
             break;
         pos += sizeof(entry_header);
@@ -79,12 +78,29 @@ llist *ar_get_entries(archive *a) {
 }
 
 bin *ar_read_file(archive *a, archive_entry *e) {
-    return new_bin_from_stream(a->mempool, a->file, e->offset, e->size);
+    return new_bin_from_stream(a->mempool, a->handle, e->offset, e->size);
+}
+
+void ar_print_entries(llist *entries, int max_entries, FILE *stream) {
+    mempool *mp = new_mempool();
+
+    iterator *it = llist_create_iterator(entries, mp);
+    fprintf(stream, "   Idx      Offset        Size  File name\n");
+    //              "  1234  1234567890  1234567890  123..."
+
+    int idx = 0;
+    for_iterator(archive_entry, e, it) {
+        fprintf(stream, "  %4d %10ld  %10ld  %s\n", idx++, e->offset, e->size, str_charptr(e->filename));
+        if (max_entries > -1 && idx > max_entries)
+            break;
+    }
+
+    mempool_release(mp);
 }
 
 void ar_close(archive *a) {
-    fclose(a->file);
-    a->file = NULL;
+    fclose(a->handle);
+    a->handle = NULL;
 }
 
 

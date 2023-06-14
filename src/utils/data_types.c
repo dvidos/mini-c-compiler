@@ -951,6 +951,9 @@ void bin_print_hex(bin *b, int indent, size_t offset, size_t length, FILE *f) {
     unsigned char *p = b->buffer + offset;
     char prep[64];
 
+    if (length == -1)
+        length = b->length;
+    
     while (length > 0) {
         for (int i = 0; i < 16; i++) {
             if (i < length) {

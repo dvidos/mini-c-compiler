@@ -3,6 +3,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <stdarg.h>
+#include <string.h>
 #include <ctype.h>
 #include "data_types.h"
 
@@ -27,6 +28,21 @@ str *new_str(mempool *mp, const char *strz) {
     s->capacity = s->length + 1;
     s->buff = mempool_alloc(mp, s->capacity, "str_buff");
     strcpy(s->buff, strz);
+    s->mempool = mp;
+
+    return s;
+}
+
+str *new_str_from_mem(mempool *mp, const char *ptr, int length) {
+    if (ptr == NULL)
+        return new_str(mp, NULL);
+    
+    str *s = mempool_alloc(mp, sizeof(str), "str");
+    s->capacity = length + 1;
+    s->buff = mempool_alloc(mp, s->capacity, "str_buff");
+    s->length = length;
+    memcpy(s->buff, ptr, length);
+    s->buff[s->length] = '\0';
     s->mempool = mp;
 
     return s;
@@ -279,6 +295,7 @@ str *str_replace_chars(str *s, str *characters, str *replacements) {
 }
 
 str *str_trim(str *s, str *characters) {
+    // do we maintain immutability, or do we change in-place?
     str *other = new_str(s->mempool, s->buff);
 
     while (other->length > 0 && str_contains_char(characters, other->buff[0])) {
@@ -291,6 +308,7 @@ str *str_trim(str *s, str *characters) {
         other->length -= 1;
     }
 
+    other->buff[other->length] = '\0';
     return other;
 }
 
@@ -806,6 +824,18 @@ bin *new_bin(mempool *mp) {
     return b;
 }
 
+static void bin_ensure_capacity(bin *b, size_t capacity) {
+    if (b->capacity >= capacity)
+        return;
+    
+    while (b->capacity < capacity)
+        b->capacity *= 2;
+    
+    char *old_buffer = b->buffer;
+    b->buffer = mempool_alloc(b->mempool, b->capacity, "binary buffer");
+    memcpy(b->buffer, old_buffer, b->length);
+}
+
 bin *new_bin_from_mem(mempool *mp, char *address, size_t size) {
     bin *b = mempool_alloc(mp, sizeof(bin), "binary");
     memset(b, 0, sizeof(bin));
@@ -844,6 +874,20 @@ bin *new_bin_from_file(mempool *mp, str *filename) {
     return b;
 }
 
+bin *new_bin_from_stream(mempool *mp, FILE *stream, size_t offset, size_t length) {
+    fseek(stream, offset, SEEK_SET);
+
+    bin *b = new_bin(mp);
+    bin_ensure_capacity(b, length);
+
+    int bytes = fread(b->buffer, 1, length, stream);
+    if (bytes != length)
+        return NULL;
+
+    b->length = length;
+    return b;
+}
+
 bin *new_bin_from_zeros(mempool *mp, size_t size) {
     bin *b = mempool_alloc(mp, sizeof(bin), "binary");
     memset(b, 0, sizeof(bin));
@@ -878,25 +922,13 @@ int bin_cmp(bin *b1, bin *b2) {
     return memcmp(b1->buffer, b2->buffer, b1->length);
 }
 
-static void binary_ensure_capacity(bin *b, size_t capacity) {
-    if (b->capacity >= capacity)
-        return;
-    
-    while (b->capacity < capacity)
-        b->capacity *= 2;
-    
-    char *old_buffer = b->buffer;
-    b->buffer = mempool_alloc(b->mempool, b->capacity, "binary buffer");
-    memcpy(b->buffer, old_buffer, b->length);
-}
-
 void bin_cpy(bin *b, bin *source) {
     bin_clear(b);
     bin_cat(b, source);
 }
 
 void bin_cat(bin *b, bin *other) {
-    binary_ensure_capacity(b, b->length + other->length);
+    bin_ensure_capacity(b, b->length + other->length);
     memcpy(b->buffer + b->length, other->buffer, other->length);
     b->length += other->length;
 }
@@ -909,7 +941,7 @@ void bin_pad(bin *b, char value, size_t target_len) {
     if (b->length >= target_len)
         return;
     
-    binary_ensure_capacity(b, target_len);
+    bin_ensure_capacity(b, target_len);
     int gap = target_len - b->length;
     memset(b->buffer + b->length, value, gap);
     b->length += gap;
@@ -944,8 +976,8 @@ void bin_print_hex(bin *b, int indent, size_t offset, size_t length, FILE *f) {
         );
 
         p += 16;
-        length -= 16;
         offset += 16;
+        length -= (length >= 16) ? 16 : length; // length cannot go negative
     }
 
 }
@@ -1022,7 +1054,7 @@ void bin_read_mem(bin *b, void *ptr, size_t length) {
 
 // all "write" funcs work at current offset, they advance offset
 void bin_write_byte(bin *b, u8 value) {
-    binary_ensure_capacity(b, b->position + 1);
+    bin_ensure_capacity(b, b->position + 1);
     b->buffer[b->position] = value;
     b->position += 1;
     if (b->position > b->length)
@@ -1030,7 +1062,7 @@ void bin_write_byte(bin *b, u8 value) {
 }
 
 void bin_write_word(bin *b, u16 value) {
-    binary_ensure_capacity(b, b->position + sizeof(u16));
+    bin_ensure_capacity(b, b->position + sizeof(u16));
     *(u16 *)(b->buffer + b->position) = value;
     b->position += sizeof(u16);
     if (b->position > b->length)
@@ -1038,7 +1070,7 @@ void bin_write_word(bin *b, u16 value) {
 }
 
 void bin_write_dword(bin *b, u32 value) {
-    binary_ensure_capacity(b, b->position + sizeof(u32));
+    bin_ensure_capacity(b, b->position + sizeof(u32));
     *(u32 *)(b->buffer + b->position) = value;
     b->position += sizeof(u32);
     if (b->position > b->length)
@@ -1046,7 +1078,7 @@ void bin_write_dword(bin *b, u32 value) {
 }
 
 void bin_write_qword(bin *b, u64 value) {
-    binary_ensure_capacity(b, b->position + sizeof(u64));
+    bin_ensure_capacity(b, b->position + sizeof(u64));
     *(u64 *)(b->buffer + b->position) = value;
     b->position += sizeof(u64);
     if (b->position > b->length)
@@ -1054,7 +1086,7 @@ void bin_write_qword(bin *b, u64 value) {
 }
 
 void bin_write_mem(bin *b, const void *ptr, size_t length) {
-    binary_ensure_capacity(b, b->position + length);
+    bin_ensure_capacity(b, b->position + length);
     memcpy(b->buffer + b->position, ptr, length);
     b->position += length;
     if (b->position > b->length)
@@ -1062,7 +1094,7 @@ void bin_write_mem(bin *b, const void *ptr, size_t length) {
 }
 
 void bin_write_zeros(bin *b, size_t length) {
-    binary_ensure_capacity(b, b->position + length);
+    bin_ensure_capacity(b, b->position + length);
     memset(b->buffer + b->position, 0, length);
     b->position += length;
     if (b->position > b->length)

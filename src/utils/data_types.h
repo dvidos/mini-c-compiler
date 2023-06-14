@@ -34,6 +34,7 @@ pair *new_pair(mempool *mp, str *key, void *value);
 // ---------------------------------------------
 
 str *new_str(mempool *mp, const char *str);
+str *new_str_from_mem(mempool *mp, const char *ptr, int length);
 str *new_strf(mempool *mp, const char *fmt, ...);
 str *new_str_random(mempool *mp, int min_len, int max_len);
 int  str_len(str *s);
@@ -81,6 +82,7 @@ typedef struct bin bin;
 bin *new_bin(mempool *mp);
 bin *new_bin_from_mem(mempool *mp, char *address, size_t size);
 bin *new_bin_from_file(mempool *mp, str *filename);
+bin *new_bin_from_stream(mempool *mp, FILE *stream, size_t offset, size_t length);
 bin *new_bin_from_zeros(mempool *mp, size_t size);
 
 size_t bin_len(bin *b);

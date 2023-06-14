@@ -2,6 +2,14 @@
 #include "obj_module.h"
 #include "elf_format.h"
 
+
+
+static struct obj_module_ops module_ops;
+static struct obj_section_ops section_ops;
+static struct obj_symbol_ops symbol_ops;
+static struct obj_relocation_ops relocation_ops;
+
+
 static obj_section *new_obj_section(mempool *mp, const char *name) {
     obj_section *s = mempool_alloc(mp, sizeof(obj_section), "obj_section");
     s->name = new_str(mp, name);
@@ -411,7 +419,7 @@ static obj_relocation *new_obj_relocation(elf64_rela *rel, elf64_section *symtab
     return r;
 }
 
-obj_module *unpack_elf64_contents(str *module_name, elf64_contents *contents, mempool *mp) {
+obj_module *new_obj_module_from_elf64_contents(str *module_name, elf64_contents *contents, mempool *mp) {
     obj_module *module = new_obj_module(mp, str_charptr(module_name));
 
     elf64_section *text      = elf64_get_section_by_name(contents, new_str(mp, ".text"));
@@ -499,7 +507,7 @@ static void print_obj_section(obj_section *s, FILE *f) {
     mempool_release(scratch);
 }
 
-void print_obj_module(obj_module *module, FILE *f) {
+void obj_module_print(obj_module *module, FILE *f) {
     // print each section with it's symbols and relocations
     fprintf(f, "Module %s\n", str_charptr(module->name));
 

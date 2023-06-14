@@ -362,7 +362,7 @@ void x86_link(list *obj_codes, u64 base_address, char *executable_filename) {
 
     mempool *mp = new_mempool();
     elf64_contents *contents = new_elf64_contents(mp);
-    bool saved = elf64_save_file(executable_filename, contents);
+    bool saved = elf64_contents_save(executable_filename, contents);
     mempool_release(mp);
     
     if (!saved) {

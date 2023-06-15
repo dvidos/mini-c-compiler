@@ -234,6 +234,12 @@ int main(int argc, char *argv[]) {
         return 0;
     }
 
+    if (options.link_test) {
+        void link_test();
+        link_test();
+        return 0;
+    }
+
     if (options.asm_test) {
         void perform_asm_test();
         perform_asm_test();

@@ -9,6 +9,7 @@ struct options {
 
     bool unit_tests;
     bool elf_test;
+    bool link_test;
     bool asm_test;
 
     bool generate_ast;

@@ -23,6 +23,7 @@ void show_syntax() {
     printf("\t--unit-tests run unit test\n");
 #endif
     printf("\t--elf-test   run elf test\n");
+    printf("\t--link-test  run link test\n");
     printf("\t--asm-test   run asm test\n");
 }
 
@@ -55,6 +56,8 @@ void parse_options(int argc, char *argv[]) {
             options.unit_tests = true;
         } else if (strcmp(p, "--elf-test") == 0) {
             options.elf_test = true;
+        } else if (strcmp(p, "--link-test") == 0) {
+            options.link_test = true;
         } else if (strcmp(p, "--asm-test") == 0) {
             options.asm_test = true;
         } else if (strcmp(p, "--gen-ast") == 0) {

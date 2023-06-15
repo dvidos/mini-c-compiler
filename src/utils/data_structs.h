@@ -80,6 +80,7 @@ int   llist_length(llist *l);
 bool  llist_is_empty(llist *l);
 void *llist_get(llist *l, int index);
 void  llist_add(llist *l, void *item);
+void  llist_add_all(llist *l, llist *source);
 bool  llist_contains(llist *l, void *item);
 int   llist_index_of(llist *l, void *item);
 bool  llist_insert_at(llist *l, int index, void *item);

@@ -285,6 +285,14 @@ void llist_add(llist *l, void *item) {
     }
 }
 
+void llist_add_all(llist *l, llist *source) {
+    llist_node *n = source->head;
+    while (n != NULL) {
+        llist_add(l, n->data);
+        n = n->next;
+    }
+}
+
 bool llist_contains(llist *l, void *item) {
     llist_node *n = l->head;
     while (n != NULL) {

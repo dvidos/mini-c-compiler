@@ -8,7 +8,7 @@ ELF Header:
   Type:                              EXEC (Executable file)
   Machine:                           Advanced Micro Devices X86-64
   Version:                           0x1
-  Entry point address:               0x40126d
+  Entry point address:               0x401034
   Start of program headers:          64 (bytes into file)
   Start of section headers:          8984 (bytes into file)
   Flags:                             0x0
@@ -62,25 +62,25 @@ Symbol table '.symtab' contains 22 entries:
    Num:    Value          Size Type    Bind   Vis      Ndx Name
      0: 0000000000000000     0 NOTYPE  LOCAL  DEFAULT  UND 
      1: 0000000000000000     0 FILE    LOCAL  DEFAULT  ABS example.c
-     2: 0000000000000000     0 FILE    LOCAL  DEFAULT  ABS libc64_syscalls.c
-     3: 0000000000000000     0 FILE    LOCAL  DEFAULT  ABS libc64_misc.c
-     4: 00000000004010f3    65 FUNC    GLOBAL DEFAULT    1 sys_close
-     5: 000000000040121d    54 FUNC    GLOBAL DEFAULT    1 print
+     2: 0000000000000000     0 FILE    LOCAL  DEFAULT  ABS libc64_misc.c
+     3: 0000000000000000     0 FILE    LOCAL  DEFAULT  ABS libc64_syscalls.c
+     4: 000000000040118b    65 FUNC    GLOBAL DEFAULT    1 sys_close
+     5: 000000000040107c    54 FUNC    GLOBAL DEFAULT    1 print
      6: 0000000000403010     4 OBJECT  GLOBAL DEFAULT    3 stdout
-     7: 0000000000401253     0 NOTYPE  GLOBAL DEFAULT    1 syscall
-     8: 000000000040116d    57 FUNC    GLOBAL DEFAULT    1 sys_fork
-     9: 000000000040101a    71 FUNC    GLOBAL DEFAULT    1 sys_read
-    10: 00000000004010a8    75 FUNC    GLOBAL DEFAULT    1 sys_open
-    11: 0000000000401061    71 FUNC    GLOBAL DEFAULT    1 sys_write
+     7: 000000000040101a     0 NOTYPE  GLOBAL DEFAULT    1 syscall
+     8: 0000000000401205    57 FUNC    GLOBAL DEFAULT    1 sys_fork
+     9: 00000000004010b2    71 FUNC    GLOBAL DEFAULT    1 sys_read
+    10: 0000000000401140    75 FUNC    GLOBAL DEFAULT    1 sys_open
+    11: 00000000004010f9    71 FUNC    GLOBAL DEFAULT    1 sys_write
     12: 0000000000403018     4 OBJECT  GLOBAL DEFAULT    4 stdin
-    13: 000000000040126d     0 NOTYPE  GLOBAL DEFAULT    1 _start
+    13: 0000000000401034     0 NOTYPE  GLOBAL DEFAULT    1 _start
     14: 0000000000403018     0 NOTYPE  GLOBAL DEFAULT    4 __bss_start
     15: 0000000000401000    26 FUNC    GLOBAL DEFAULT    1 main
     16: 0000000000403014     4 OBJECT  GLOBAL DEFAULT    3 stderr
     17: 0000000000403018     0 NOTYPE  GLOBAL DEFAULT    3 _edata
     18: 0000000000403020     0 NOTYPE  GLOBAL DEFAULT    4 _end
-    19: 00000000004011a6    73 FUNC    GLOBAL DEFAULT    1 sys_execve
-    20: 00000000004011ef    46 FUNC    GLOBAL DEFAULT    1 strlen
-    21: 0000000000401134    57 FUNC    GLOBAL DEFAULT    1 sys_getpid
+    19: 000000000040123e    73 FUNC    GLOBAL DEFAULT    1 sys_execve
+    20: 000000000040104e    46 FUNC    GLOBAL DEFAULT    1 strlen
+    21: 00000000004011cc    57 FUNC    GLOBAL DEFAULT    1 sys_getpid
 
 No version information found in this file.

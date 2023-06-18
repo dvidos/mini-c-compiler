@@ -17,10 +17,10 @@ static void demo_obj_file(char *filename) {
     elf64_contents_print(contents, stdout);
 
     obj_module *module = new_obj_module_from_elf64_contents(new_str(mp, "obj.o"), contents, mp);
-    obj_module_print(module, stdout);
-
+    module->ops->print(module, stdout);
+    
     // could / should also pack the module and compare with the original elf contents
-    elf64_contents *new_contents = pack_elf64_object_file(module, mp);
+    elf64_contents *new_contents = module->ops->pack_object_file(module, mp);
     // ...
 
     mempool_release(mp);
@@ -42,56 +42,44 @@ static void demo_lib_entry(archive *a, llist *entries, int entry_no) {
     elf64_contents_print(contents, stdout);
 
     obj_module *module = new_obj_module_from_elf64_contents(new_str(mp, "obj.o"), contents, mp);
-    obj_module_print(module, stdout);
+    module->ops->print(module, stdout);
 
     // could / should also pack the module and compare with the original elf contents
-    elf64_contents *new_contents = pack_elf64_object_file(module, mp);
+    elf64_contents *new_contents = module->ops->pack_object_file(module, mp);
     // ...
 
     mempool_release(mp);
 }
 
+static void demo_lib_file(char *filename) {
+    mempool *mp = new_mempool();
+
+    archive *lib = ar_open(mp, new_str(mp, filename));
+    llist *entries = ar_get_entries(lib);
+    ar_print_entries(entries, 50, stdout);
+
+    demo_lib_entry(lib, entries, 0);
+    demo_lib_entry(lib, entries, 1);
+    demo_lib_entry(lib, entries, 2);
+
+    ar_close(lib);
+    
+    mempool_release(mp);
+}
 
 void perform_elf_test() {
     mempool *mp = new_mempool();
 
-    // load and save a file, then save again, and load again.
-    // both files and both obj_modules should be identical.
-
+    // the object code of our very own compiler
     demo_obj_file("mcc.o");
+    
+    // test std C library and objects
+    demo_lib_file("/usr/lib/x86_64-linux-gnu/libc.a");
     demo_obj_file("/usr/lib/x86_64-linux-gnu/crt1.o");
     demo_obj_file("/usr/lib/x86_64-linux-gnu/crti.o");
     demo_obj_file("/usr/lib/x86_64-linux-gnu/crtn.o");
-    
 
-    // test the C library
-    str *libc_name = new_str(mp, "/usr/lib/x86_64-linux-gnu/libc.a");
-    archive *libc = ar_open(mp, libc_name);
-    llist *entries = ar_get_entries(libc);
-    ar_print_entries(entries, 50, stdout);
-
-    // first file: "/", second file: "//", rest have file names (e.g. "getitimer.o/")
-    // second file + are ELF files
-    demo_lib_entry(libc, entries, 2);
-    demo_lib_entry(libc, entries, 3);
-    demo_lib_entry(libc, entries, 4);
-    demo_lib_entry(libc, entries, 45);
-    demo_lib_entry(libc, entries, 46);
-    demo_lib_entry(libc, entries, 47);
-    demo_lib_entry(libc, entries, 48);
-    demo_lib_entry(libc, entries, 49);
-
-
-    // what about these? what's the format?
-    bin *f0 = ar_read_file(libc, llist_get(entries, 0));
-    printf("---- libc entry 0 ----\n");
-    bin_print_hex(f0, 2, 0, 256, stdout);
-
-    // seems to be a string table, where the end of each string is 0x0A
-    bin *f1 = ar_read_file(libc, llist_get(entries, 1));
-    printf("---- libc entry 1 ----\n");
-    bin_print_hex(f1, 2, 0, 256, stdout);
-
-
-    ar_close(libc);
+    // our runtime library and objects
+    demo_lib_file("./src/runtimes/libruntime.a");
+    demo_obj_file("./src/runtimes/rt64.o");
 }

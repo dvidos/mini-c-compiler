@@ -361,7 +361,7 @@ void str_catc(str *s, char c) {
     if (c == '\0')
         return;
     
-    str_ensure_capacity(s, s->length + 1);
+    str_ensure_capacity(s, s->length + 2);
     s->buff[s->length] = c;
     s->length += 1;
     s->buff[s->length] = '\0';

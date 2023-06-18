@@ -4,27 +4,33 @@
 #include "../utils/data_types.h"
 #include "../utils/data_structs.h"
 
+typedef struct elf64_contents elf64_contents;
+typedef struct elf64_section elf64_section;
 
-
-typedef struct elf64_contents {
+struct elf64_contents {
     elf64_header *header;
     llist *sections;       // items are of type "elf64_section"
     llist *prog_headers;   // items are of type "elf64_prog_header"
     mempool *mempool;
 
     struct elf64_contents_ops { 
+        elf64_section (*create_section)();
+        elf64_prog_header (*create_prog_header)();
     } *ops;
-} elf64_contents;
+};
 
-typedef struct elf64_section {
+struct elf64_section {
     int index; // e.g. zero section is the empty section
     str *name; // e.g. ".text"
     elf64_section_header *header;
     bin *contents;
 
     struct elf64_section_ops {
+        void (*add_symbol)(elf64_section *s, size_t name_offset, size_t value, size_t size, int type);
+        void (*add_relocation)(elf64_section *s, size_t offset, size_t symbol_no, int type);
+        size_t (*add_strz_get_offset)(elf64_section *s, char *str);
     } *ops;
-} elf64_section;
+};
 
 
 elf64_contents *new_elf64_contents(mempool *mp);

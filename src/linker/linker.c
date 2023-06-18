@@ -9,6 +9,7 @@
 #include "obj_code.h"
 #include "../elf/elf_contents.h"
 #include "../elf/elf64_contents.h"
+#include "../elf/obj_module.h"
 
 
 static obj_code *create_crt0_code() {
@@ -370,4 +371,116 @@ void x86_link(list *obj_codes, u64 base_address, char *executable_filename) {
         return;
     }
     printf("Wrote file '%s'\n", executable_filename);
+}
+
+
+// ------------------------------------------------------------------------------------
+
+
+static void merge_module(obj_module *target, obj_module *source) {
+    // append .text, .data etc
+    // re-address the relocations and the symbols
+    printf("Merging module:\n");
+    source->ops->print(source, stdout);
+    target->ops->append(target, source);
+}
+
+static obj_module *find_symbol_in_libraries(str *sym_name, llist *library_file_paths) {
+    // go over all libraries, find the module that defines this symbol, load and return the module
+}
+
+static bool resolve_symbols_use_libraries(obj_module *target, llist *library_file_paths) {
+    bool unknown_symbols_exist;
+    int iterations = 0;
+
+    // while (true) {
+    //     // resolve symbols
+    //     // ...
+    //     // if not unresolved found, success
+
+    //     // check if any unresolved symbol exists
+    //     unknown_symbols_exist = false; 
+    //     if (!unknown_symbols_exist)
+    //         return true;
+
+    //     // find the symbol in any of the libraries, import that module.
+    //     obj_module *lib_module = find_symbol_in_libraries(sym_name, library_file_paths);
+    //     if (lib_module == NULL) {
+    //         printf("Error, symbol '%s' cannot be resolved\n", str_charptr(sym_name));
+    //         return false;
+    //     }
+
+    //     // loop
+    //     iterations++;
+    //     if (iterations > 1000) {
+    //         printf("Error, symbol resolution tries exhausted\n");
+    //         return false;
+    //     }
+    // }
+
+    return false;
+}
+
+bool x86_link_v2(llist *obj_modules, llist *obj_file_paths, llist *library_file_paths, u64 base_address, char *executable_path) {
+    mempool *mp = new_mempool();
+    bool success = false;
+
+    // now the fun begins!
+    obj_module *merged = new_obj_module(mp, "executable");
+
+    // add all raw modules
+    iterator *modules_iterator = llist_create_iterator(obj_modules, mp);
+    for_iterator(obj_module, m, modules_iterator) {
+        merge_module(merged, m);
+    }
+
+    // add all specified modules from files
+    iterator *obj_paths_iterator = llist_create_iterator(obj_file_paths, mp);
+    for_iterator(str, path, obj_paths_iterator) {
+        bin *obj_data = new_bin_from_file(mp, path);
+        elf64_contents *elf_cnt = new_elf64_contents_from_binary(mp, obj_data);
+        obj_module *m = new_obj_module_from_elf64_contents(new_str(mp, "mod"), elf_cnt, mp);
+        merge_module(merged, m);
+    }
+
+    // we need to resolve all symbols, consider all libraries
+    // for each module we add, we need to go around again, 
+    // as the new module may have new unresolved symbols
+    // possible explanation of x86_64 relocations:
+    // https://sourceware.org/git/?p=binutils-gdb.git;a=blob;f=include/elf/x86-64.h;h=60b3c2ad10e66bb14338bd410c3a7566b09c4eb4;hb=e0ce6dde97881435d33652572789b94c846cacde
+    // format of the index is here: https://sourceware.org/git/?p=binutils-gdb.git;a=blob;f=binutils/nm.c;h=f96cfa31cb90ec646ac61a43509806be21e014e2;hb=e0ce6dde97881435d33652572789b94c846cacde#l730
+
+    // in the "/" entries,
+    // 4 bytes big endian the number of symbols (00 00 11 d5 = 4565 symbols)
+    // then, as many sets of 4-bytes follow (4565 * 4 = 18260)
+    // but we also have the 8 bytes of "<arch>" and the 60 bytes of the "/" file entry, and 4 bytes the number of symbols
+    // so we go to 18332. there, a null-terminated string table starts
+    // success = resolve_symbols_use_libraries(target, library_file_paths);
+
+    printf("Merged module:\n");
+    merged->ops->print(merged, stdout);
+
+    if (success) {
+        // finally save the executable... (fingers crossed to be workig)
+        elf64_contents *elf64_cnt = merged->ops->pack_executable_file(merged, mp);
+        success = elf64_contents_save(executable_path, elf64_cnt);
+    }
+
+    mempool_release(mp);
+    return success;
+}
+
+void link_test() {
+    mempool *mp = new_mempool();
+
+    llist *modules = new_llist(mp);
+    llist *obj_file_paths = new_llist(mp);
+    llist *lib_file_paths = new_llist(mp);
+
+    llist_add(obj_file_paths, new_str(mp, "./docs/link-sample/file1.o"));
+    llist_add(obj_file_paths, new_str(mp, "./docs/link-sample/file2.o"));
+
+    x86_link_v2(modules, obj_file_paths, lib_file_paths, 0x80000, "b.out");
+
+    mempool_release(mp);
 }

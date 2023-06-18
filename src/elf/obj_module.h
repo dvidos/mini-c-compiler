@@ -4,10 +4,13 @@
 #include "../utils/data_structs.h"
 #include "elf64_contents.h"
 
-typedef struct obj_section obj_section;
+typedef struct obj_section    obj_section;
+typedef struct obj_module     obj_module;
+typedef struct obj_symbol     obj_symbol;
+typedef struct obj_relocation obj_relocation;
 
 
-typedef struct obj_module {
+struct obj_module {
     str *name; // e.g. mcc.c
     obj_section *text;
     obj_section *data;
@@ -15,24 +18,27 @@ typedef struct obj_module {
     obj_section *rodata;
 
     struct obj_module_ops {
-        void (*print)(struct obj_module *m, FILE *f);
-        // elf64_contents *(*pack_object_code)(struct obj_module *m, mempool *mp);
-        // elf64_contents *(*pack_executable)(struct obj_module *m, mempool *mp);
+        void (*print)(obj_module *m, FILE *f);
+        void (*append)(obj_module *m, struct obj_module *source);
+        elf64_contents *(*pack_object_file)(obj_module *module, mempool *mp);
+        elf64_contents *(*pack_executable_file)(obj_module *module, mempool *mp);
     } *ops;
-} obj_module;
+};
 
-typedef struct obj_section {
+
+struct obj_section {
     str *name;
     bin *contents;
     llist *symbols;      // item type is <obj_symbol>
     llist *relocations;  // item type is <obj_relocation>
-
+    
     struct obj_section_ops {
-        void (*print)(struct obj_section *s, FILE *f);
-        // append another section
-        // rebase offsets to another value
+        void (*print)(obj_section *s, FILE *f);
+        void (*append)(obj_section *s, obj_section *other);
+        void (*relocate)(obj_section *s, long delta);
     } *ops;
-} obj_section;
+};
+
 
 typedef struct obj_symbol {
     str *name;
@@ -41,9 +47,10 @@ typedef struct obj_symbol {
     bool global;    // otherwise it's just local
 
     struct obj_symbol_ops {
-        void (*print)(struct obj_symbol *s, FILE *f);
+        void (*print)(struct obj_symbol *s, int num, FILE *f);
     } *ops;
 } obj_symbol;
+
 
 typedef struct obj_relocation {
     size_t offset;      // where in the section to backfill
@@ -59,9 +66,4 @@ typedef struct obj_relocation {
 
 obj_module *new_obj_module(mempool *mp, const char *name);
 obj_module *new_obj_module_from_elf64_contents(str *module_name, elf64_contents *contents, mempool *mp);
-
-elf64_contents *pack_elf64_object_file(obj_module *module, mempool *mp);
-elf64_contents *pack_elf64_executable_file(obj_module *module, mempool *mp);
-
-void obj_module_print(obj_module *module, FILE *f);
 

@@ -33,10 +33,10 @@ static void demo_lib_entry(archive *a, llist *entries, int entry_no) {
 
     mempool *mp = new_mempool();
 
-    printf("----------- %s : %s (#%d) -----------\n", 
+    printf("----------- Library %s : entry %s (#%d) -----------\n", 
             str_charptr(a->filename), str_charptr(e->filename), entry_no);
 
-    bin *data = ar_read_file(a, e);
+    bin *data = ar_load_file_contents(a, e);
 
     elf64_contents *contents = new_elf64_contents_from_binary(mp, data);
     elf64_contents_print(contents, stdout);
@@ -52,15 +52,21 @@ static void demo_lib_entry(archive *a, llist *entries, int entry_no) {
 }
 
 static void demo_lib_file(char *filename) {
-    mempool *mp = new_mempool();
+    printf("----- Library %s ------\n", filename);
 
+    mempool *mp = new_mempool();
     archive *lib = ar_open(mp, new_str(mp, filename));
-    llist *entries = ar_get_entries(lib);
+
+    llist *entries = ar_get_entries(lib, mp);
+    printf("Entries (%d)\n", llist_length(entries));
     ar_print_entries(entries, 50, stdout);
+
+    llist *symbols = ar_get_symbols(lib, mp);
+    printf("Symbols (%d)\n", llist_length(symbols));
+    ar_print_symbols(symbols, 50, stdout);
 
     demo_lib_entry(lib, entries, 0);
     demo_lib_entry(lib, entries, 1);
-    demo_lib_entry(lib, entries, 2);
 
     ar_close(lib);
     
@@ -75,9 +81,10 @@ void perform_elf_test() {
     
     // test std C library and objects
     demo_lib_file("/usr/lib/x86_64-linux-gnu/libc.a");
+
     demo_obj_file("/usr/lib/x86_64-linux-gnu/crt1.o");
-    demo_obj_file("/usr/lib/x86_64-linux-gnu/crti.o");
-    demo_obj_file("/usr/lib/x86_64-linux-gnu/crtn.o");
+    // demo_obj_file("/usr/lib/x86_64-linux-gnu/crti.o");
+    // demo_obj_file("/usr/lib/x86_64-linux-gnu/crtn.o");
 
     // our runtime library and objects
     demo_lib_file("./src/runtimes/libruntime.a");

@@ -5,7 +5,11 @@
 #include "../utils/data_structs.h"
 #include "ar.h"
 
-#define AR_HEADER_BYTES   8
+#define AR_HEADER_BYTES                  8
+#define AR_HEADER_VALUE                  "!<arch>\x0A"
+#define SYMBOLS_TABLE_ENTRYNAME          "/"
+#define LONG_FILENAMES_TABLE_ENTRYNAME   "//"
+
 
 archive *ar_open(mempool *mp, str *filename) {
     archive *a = mempool_alloc(mp, sizeof(archive), "archive");
@@ -21,13 +25,13 @@ archive *ar_open(mempool *mp, str *filename) {
     size_t read = fread(file_header, 1, sizeof(file_header), a->handle);
     if (read != sizeof(file_header))
         return NULL;
-    if (memcmp(file_header, "!<arch>\x0A", AR_HEADER_BYTES) != 0)
+    if (memcmp(file_header, AR_HEADER_VALUE, AR_HEADER_BYTES) != 0)
         return NULL;
 
     return a;
 }
 
-static bool ar_load_entry_header(archive *a, char *filename_buffer16, size_t *offset_ptr, long *size_ptr) {
+static bool load_entry_header_bytes(archive *a, char *filename_buffer16, size_t *offset_ptr, long *size_ptr) {
     char entry_header[60];
     char size_buffer[10+1];
     size_t offset;
@@ -64,13 +68,14 @@ static bool ar_load_entry_header(archive *a, char *filename_buffer16, size_t *of
     return true;
 }
 
-static bin *ar_load_short_named_entry(archive *a, char *name) {
-    // assuming it's in the first three entries
+static bin *load_short_named_entry_contents(archive *a, char *name) {
     char filename[16+1];
     long offset, size;
+
+    // go over the file and look for the specific entry name
     fseek(a->handle, AR_HEADER_BYTES, SEEK_SET);
     while (true) {
-        if (!ar_load_entry_header(a, filename, &offset, &size))
+        if (!load_entry_header_bytes(a, filename, &offset, &size))
             break;
         if (strcmp(filename, name) == 0)
             return new_bin_from_stream(a->mempool, a->handle, offset, size);
@@ -79,63 +84,85 @@ static bin *ar_load_short_named_entry(archive *a, char *name) {
     return NULL; // not found
 }
 
-static str *get_long_file_name(archive *a, bin *long_names_table, long offset) {
-    char *start = bin_ptr_at(long_names_table, offset);
-    char *end = strchr(start, 0x0A);
-    return new_str_from_mem(a->mempool, start, end - start);
+static str *resolve_entry_filename(char *shortname, bin *long_names_table, mempool *mp) {
+    str *filename;
+
+    // these two are special names, they contain tables and long names
+    if (strcmp(shortname, "/") == 0 || strcmp(shortname, "//") == 0)
+        return new_str(mp, shortname);
+
+    // long filenames are in the form of "/nnn"
+    // this is the offset of the long name in the table.
+    // short filenames end in a slash e.g. "lc-paper.o/"
+    if (long_names_table != NULL 
+        && shortname[0] == '/' 
+        && (shortname[1] >= '0' && shortname[1] <= '9'))
+    {
+        char *start = bin_ptr_at(long_names_table, atol(shortname + 1));
+        char *end = strchr(start, 0x0A);
+        filename = new_str_from_mem(mp, start, end - start);
+    } else {
+        filename = new_str(mp, shortname);
+    }
+
+    if (str_char_at(filename, str_len(filename) - 1) == '/')
+        filename = str_substr(filename, 0, -1);
+
+    // printf(" -- short name '%s',%*s long name '%s'\n", shortname, (int)(16 - strlen(shortname)), "", str_charptr(filename));
+    return filename;
 }
 
-llist *ar_get_entries(archive *a) {
+static archive_entry *get_entry_header_at(archive *a, size_t header_offset, bin *long_names_table, mempool *mp) {
+
     char shortname[16+1];
     long offset;
     long size;
-    str *filename;
-    str *slash;
-    str *empty;
-
-    slash = new_str(a->mempool, "/");
-    empty = new_str(a->mempool, "");
-    bin *long_names_table = ar_load_short_named_entry(a, "//");
-    llist *l = new_llist(a->mempool);
-
-    int i = 0; 
-    fseek(a->handle, AR_HEADER_BYTES, SEEK_SET);
-    while (ar_load_entry_header(a, shortname, &offset, &size)) {
-        if (strcmp(shortname, "/") == 0 || strcmp(shortname, "//") == 0) {
-            fseek(a->handle, size + (size & 1), SEEK_CUR);
-            continue;
-        }
-        
-        // long filenames are in the form of "/nnn"
-        // this is the offset of the long name in the table.
-        // short filenames end in a slash e.g. "lc-paper.o/"
-        if (shortname[0] == '/' && (shortname[1] >= '0' && shortname[1] <= '9'))
-            filename = get_long_file_name(a, long_names_table, atol(shortname + 1));
-        else
-            filename = new_str(a->mempool, shortname);
-        filename = str_replace(filename, slash, empty);
-
-        // printf(" -- short name '%s',%*s long name '%s'\n", shortname, (int)(16 - strlen(shortname)), "", str_charptr(filename));
-        archive_entry *e = mempool_alloc(a->mempool, sizeof(archive_entry), "archive_entry");
-        e->filename = filename;
-        e->offset = offset;
-        e->size = size;
-        llist_add(l, e);
-
-        fseek(a->handle, size + (size & 1), SEEK_CUR);
-    }
-
-    return l;
-}
-
-llist *ar_get_symbols(archive *a) {
-    unsigned char buff[4];
-
-    bin *symbols_table = ar_load_short_named_entry(a, "/");
-    if (symbols_table == NULL)
+    fseek(a->handle, header_offset, SEEK_SET);
+    if (!load_entry_header_bytes(a, shortname, &offset, &size))
         return NULL;
     
-    llist *symbols_list = new_llist(a->mempool);
+    archive_entry *e = mempool_alloc(mp, sizeof(archive_entry), "archive_entry");
+    e->filename = resolve_entry_filename(shortname, long_names_table, mp);
+    e->offset = offset;
+    e->size = size;
+
+    return e;
+}
+
+llist *ar_get_entries(archive *a, mempool *mp) {
+    archive_entry *entry;
+
+    bin *long_names_table = load_short_named_entry_contents(a, LONG_FILENAMES_TABLE_ENTRYNAME);
+    llist *entries = new_llist(mp);
+
+    fseek(a->handle, AR_HEADER_BYTES, SEEK_SET);
+    while ((entry = get_entry_header_at(a, ftell(a->handle), long_names_table, mp)) != NULL) {
+        if (str_cmps(entry->filename, SYMBOLS_TABLE_ENTRYNAME) == 0 || 
+            str_cmps(entry->filename, LONG_FILENAMES_TABLE_ENTRYNAME) == 0)
+        {
+            fseek(a->handle, entry->size + (entry->size & 1), SEEK_CUR);
+            continue;
+        }
+
+        llist_add(entries, entry);
+        fseek(a->handle, entry->size + (entry->size & 1), SEEK_CUR);
+    }
+
+    return entries;
+}
+
+llist *ar_get_symbols(archive *a, mempool *mp) {
+    unsigned char buff[4];
+    unsigned long offset;
+    unsigned long last_offset = -1;
+    archive_entry *last_entry = NULL;
+
+    bin *symbols_table = load_short_named_entry_contents(a, SYMBOLS_TABLE_ENTRYNAME);
+    if (symbols_table == NULL)
+        return NULL; // there is no symbols table
+    
+    bin *long_names_table = load_short_named_entry_contents(a, LONG_FILENAMES_TABLE_ENTRYNAME);
+    llist *symbols_list = new_llist(mp);
 
     // in the "/" entries,
     // 4 bytes big endian the number of symbols (00 00 11 d5 = 4565 symbols)
@@ -150,24 +177,30 @@ llist *ar_get_symbols(archive *a) {
     size_t name_offset = 4 + symbols_count * 4;
     
     // the offsets are the same for all the symbols in the same module,
-    // so they are something like an offset to the archive.
+    // they are the offset to the entry header (e.g. the first would be at byte 8)
     // we are supposed to parse the names in parallel, without a name being pointed by somewhere.
     for (int i = 0; i < symbols_count; i++) {
         bin_seek(symbols_table, 4 + i * 4);
         bin_read_mem(symbols_table, buff, 4); 
 
-        archive_symbol *s = mempool_alloc(a->mempool, sizeof(archive_symbol), "archive_symbol");
+        offset = (buff[0] << 24) + (buff[1] << 16) + (buff[2] << 8) + buff[3];
+        if (offset != last_offset || last_entry == NULL) {
+            last_entry = get_entry_header_at(a, offset, long_names_table, mp);
+        }
+        
+        archive_symbol *s = mempool_alloc(mp, sizeof(archive_symbol), "archive_symbol");
         s->name = bin_str(symbols_table, name_offset, a->mempool);
-        s->entry_header_offset = (buff[0] << 24) + (buff[1] << 16) + (buff[2] << 8) + buff[3];
+        s->entry = last_entry;
 
         llist_add(symbols_list, s);
+        last_offset = offset;
         name_offset += str_len(s->name) + 1;
     }
 
     return symbols_list;
 }
 
-bin *ar_read_file(archive *a, archive_entry *e) {
+bin *ar_load_file_contents(archive *a, archive_entry *e) {
     return new_bin_from_stream(a->mempool, a->handle, e->offset, e->size);
 }
 
@@ -182,6 +215,24 @@ void ar_print_entries(llist *entries, int max_entries, FILE *stream) {
     for_iterator(archive_entry, e, it) {
         fprintf(stream, "  %4d %10ld  %10ld  %s\n", idx++, e->offset, e->size, str_charptr(e->filename));
         if (max_entries > -1 && idx > max_entries)
+            break;
+    }
+
+    mempool_release(mp);
+}
+
+void ar_print_symbols(llist *symbols, int max_symbols, FILE *stream) {
+    mempool *mp = new_mempool();
+
+    iterator *it = llist_create_iterator(symbols, mp);
+    fprintf(stream, "  Symbol name                    File                     Offset       Size\n");
+    //              "  123456789012345678901234567890 12345678901234567890 1234567890 1234567890"
+
+    int idx = 0;
+    for_iterator(archive_symbol, s, it) {
+        fprintf(stream, "  %-30s %-20s %10ld %10ld\n", 
+            str_charptr(s->name), str_charptr(s->entry->filename), s->entry->offset, s->entry->size);
+        if (max_symbols > -1 && ++idx > max_symbols)
             break;
     }
 

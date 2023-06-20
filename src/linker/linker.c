@@ -474,16 +474,13 @@ bool x86_link_v2(llist *obj_modules, llist *obj_file_paths, llist *library_file_
         archive *a = ar_open(mp, path);
         if (a == NULL) // library not found
             return false;
-        llist *symbols = ar_get_symbols(a);
-        for (int i = 0; i < llist_length(symbols); i++) {
-            archive_symbol *sym = (archive_symbol *)llist_get(symbols, i);
-            printf("  %-30s at %ld\n", str_charptr(sym->name), sym->entry_header_offset);
-        }
-        llist *entries = ar_get_entries(a);
-        for (int i = 0; i < llist_length(entries); i++) {
-            archive_entry *e = (archive_entry *)llist_get(entries, i);
-            printf("  %-30s at %ld, size %ld\n", str_charptr(e->filename), e->offset, e->size);
-        }
+        
+        llist *symbols = ar_get_symbols(a, mp);
+        ar_print_symbols(symbols, 10, stdout);
+
+        llist *entries = ar_get_entries(a, mp);
+        ar_print_entries(entries, 10, stdout);
+        
         ar_close(a);
     }
 

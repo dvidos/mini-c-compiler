@@ -1,6 +1,6 @@
 CFLAGS = -g -Werror
 BINARY = mcc
-RUNTIMES = rt32.o rt64.o
+RUNTIME_LIB = src/runtimes/libruntime.a
 SRC_FILES = \
 	mcc.c \
 	err_handler.c \
@@ -59,7 +59,7 @@ SRC_FILES = \
 
 
 
-target: $(RUNTIMES) $(BINARY) # unit-tests integration-tests
+target: $(RUNTIME_LIB) $(BINARY) # unit-tests integration-tests
 
 unit-tests:
 	./$(BINARY) --unit-tests
@@ -70,11 +70,9 @@ integration-tests:
 $(BINARY): $(SRC_FILES)
 	gcc -o $@ $(CFLAGS) $^
 
-rt32.o: runtimes/rt32.asm
-	as --32 -o $@ $<
+$(RUNTIME_LIB):
+	cd runtimes && make
 
-rt64.o: runtimes/rt64.asm
-	as --64 -o $@ $<
 
 clean:
 	rm -f mcc

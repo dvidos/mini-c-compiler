@@ -10,6 +10,7 @@
 #include "../elf/elf_contents.h"
 #include "../elf/elf64_contents.h"
 #include "../elf/obj_module.h"
+#include "../elf/ar.h"
 
 
 static obj_code *create_crt0_code() {
@@ -380,8 +381,8 @@ void x86_link(list *obj_codes, u64 base_address, char *executable_filename) {
 static void merge_module(obj_module *target, obj_module *source) {
     // append .text, .data etc
     // re-address the relocations and the symbols
-    printf("Merging module:\n");
-    source->ops->print(source, stdout);
+    // printf("Merging module:\n");
+    // source->ops->print(source, stdout);
     target->ops->append(target, source);
 }
 
@@ -421,11 +422,30 @@ static bool resolve_symbols_use_libraries(obj_module *target, llist *library_fil
     return false;
 }
 
-bool x86_link_v2(llist *obj_modules, llist *obj_file_paths, llist *library_file_paths, u64 base_address, char *executable_path) {
+// we cannot have everything in lose variables, prepare something
+struct link2_lib_info {
+    str *pathname;
+    archive *archive;
+    llist *ar_symbols;
+    llist *ar_entries;
+};
+struct link2_obj_info {
+    str *pathname;
+    obj_module *loaded_module;
+};
+struct link2_info {
+    u64 base_address;
+    str *executable_path;
+    llist *obj_infos; // item type is link2_obj_info
+    llist *lib_infos; // item type is link2_lib_info
+};
+
+
+bool x86_link_v2(llist *obj_modules, llist *obj_file_paths, llist *library_file_paths, u64 base_address, str *executable_path) {
     mempool *mp = new_mempool();
     bool success = false;
 
-    // now the fun begins!
+    // create the module that will be saved as the executable
     obj_module *merged = new_obj_module(mp, "executable");
 
     // add all raw modules
@@ -438,9 +458,33 @@ bool x86_link_v2(llist *obj_modules, llist *obj_file_paths, llist *library_file_
     iterator *obj_paths_iterator = llist_create_iterator(obj_file_paths, mp);
     for_iterator(str, path, obj_paths_iterator) {
         bin *obj_data = new_bin_from_file(mp, path);
+        if (obj_data == NULL) // failed reading file
+            return false;
         elf64_contents *elf_cnt = new_elf64_contents_from_binary(mp, obj_data);
+        if (elf_cnt == NULL) // not an ELF file
+            return false; 
         obj_module *m = new_obj_module_from_elf64_contents(new_str(mp, "mod"), elf_cnt, mp);
         merge_module(merged, m);
+    }
+
+    // collect lists of symbols from all libraries
+    llist *libs_symbols_lists = new_llist(mp);
+    iterator *libs_paths_iterator = llist_create_iterator(library_file_paths, mp);
+    for_iterator(str, path, libs_paths_iterator) {
+        archive *a = ar_open(mp, path);
+        if (a == NULL) // library not found
+            return false;
+        llist *symbols = ar_get_symbols(a);
+        for (int i = 0; i < llist_length(symbols); i++) {
+            archive_symbol *sym = (archive_symbol *)llist_get(symbols, i);
+            printf("  %-30s at %ld\n", str_charptr(sym->name), sym->entry_header_offset);
+        }
+        llist *entries = ar_get_entries(a);
+        for (int i = 0; i < llist_length(entries); i++) {
+            archive_entry *e = (archive_entry *)llist_get(entries, i);
+            printf("  %-30s at %ld, size %ld\n", str_charptr(e->filename), e->offset, e->size);
+        }
+        ar_close(a);
     }
 
     // we need to resolve all symbols, consider all libraries
@@ -450,20 +494,15 @@ bool x86_link_v2(llist *obj_modules, llist *obj_file_paths, llist *library_file_
     // https://sourceware.org/git/?p=binutils-gdb.git;a=blob;f=include/elf/x86-64.h;h=60b3c2ad10e66bb14338bd410c3a7566b09c4eb4;hb=e0ce6dde97881435d33652572789b94c846cacde
     // format of the index is here: https://sourceware.org/git/?p=binutils-gdb.git;a=blob;f=binutils/nm.c;h=f96cfa31cb90ec646ac61a43509806be21e014e2;hb=e0ce6dde97881435d33652572789b94c846cacde#l730
 
-    // in the "/" entries,
-    // 4 bytes big endian the number of symbols (00 00 11 d5 = 4565 symbols)
-    // then, as many sets of 4-bytes follow (4565 * 4 = 18260)
-    // but we also have the 8 bytes of "<arch>" and the 60 bytes of the "/" file entry, and 4 bytes the number of symbols
-    // so we go to 18332. there, a null-terminated string table starts
-    // success = resolve_symbols_use_libraries(target, library_file_paths);
-
-    printf("Merged module:\n");
-    merged->ops->print(merged, stdout);
+    // success = resolve_relocations(target, library_file_paths);
 
     if (success) {
+        printf("Executable module:\n");
+        merged->ops->print(merged, stdout);
+
         // finally save the executable... (fingers crossed to be workig)
         elf64_contents *elf64_cnt = merged->ops->pack_executable_file(merged, mp);
-        success = elf64_contents_save(executable_path, elf64_cnt);
+        success = elf64_contents_save((char *)str_charptr(executable_path), elf64_cnt);
     }
 
     mempool_release(mp);
@@ -477,10 +516,12 @@ void link_test() {
     llist *obj_file_paths = new_llist(mp);
     llist *lib_file_paths = new_llist(mp);
 
-    llist_add(obj_file_paths, new_str(mp, "./docs/link-sample/file1.o"));
-    llist_add(obj_file_paths, new_str(mp, "./docs/link-sample/file2.o"));
+    // llist_add(obj_file_paths, new_str(mp, "./docs/link-sample/file1.o"));
+    // llist_add(obj_file_paths, new_str(mp, "./docs/link-sample/file2.o"));
+    llist_add(obj_file_paths, new_str(mp, "./src/runtimes/example.o"));
+    llist_add(lib_file_paths, new_str(mp, "./src/runtimes/libruntime.a"));
 
-    x86_link_v2(modules, obj_file_paths, lib_file_paths, 0x80000, "b.out");
+    x86_link_v2(modules, obj_file_paths, lib_file_paths, 0x800000, new_str(mp, "b.out"));
 
     mempool_release(mp);
 }

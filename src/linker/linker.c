@@ -378,127 +378,247 @@ void x86_link(list *obj_codes, u64 base_address, char *executable_filename) {
 // ------------------------------------------------------------------------------------
 
 
-static void merge_module(obj_module *target, obj_module *source) {
-    // append .text, .data etc
-    // re-address the relocations and the symbols
-    // printf("Merging module:\n");
-    // source->ops->print(source, stdout);
-    target->ops->append(target, source);
+
+// we cannot have everything in loose variables, prepare something
+struct linker2_lib_module_id { // identifies a module in a library
+    struct linker2_lib_info *lib_info;
+    archive_entry *entry;
+};
+struct linker2_lib_info {
+    str *pathname;
+    archive *archive;
+    llist *symbols; // items are of type archive_symbol
+    llist *entries; // items are of type archive_entry
+};
+struct linker2_obj_info {
+    str *pathname;
+    obj_module *loaded_module;
+};
+struct linker2_info {
+    // passed into linker call
+    str *executable_path;
+    u64 base_address;
+    llist *obj_modules;
+    llist *obj_file_paths;
+    llist *library_file_paths;
+
+    // generated data
+    obj_module *target_module;
+    llist *obj_infos;     // item type is linker2_obj_info
+    llist    *lib_infos;          // item type is linker2_lib_info
+
+    // unresolved symbols and needed modules
+    llist    *unresolved_symbols;          // item type is str
+    llist    *needed_modules;              // item type is linker2_lib_module_id
+    
+    mempool *mempool;
+    str *error;
+};
+
+
+// ------------------
+
+static bool merge_module(struct linker2_info *info, obj_module *module) {
+    // should be smarter about it.
+    info->target_module->ops->append(info->target_module, module);
+    return true;
 }
 
-static obj_module *find_symbol_in_libraries(str *sym_name, llist *library_file_paths) {
-    // go over all libraries, find the module that defines this symbol, load and return the module
+static bool merge_module_from_file(struct linker2_info *info, str *obj_path) {
+    bin *obj_data = new_bin_from_file(info->mempool, obj_path);
+    if (obj_data == NULL) // failed reading file
+        return false;
+    
+    elf64_contents *elf_cnt = new_elf64_contents_from_binary(info->mempool, obj_data);
+    if (elf_cnt == NULL) // not an ELF file
+        return false; 
+    
+    obj_module *m = new_obj_module_from_elf64_contents(elf_cnt, info->mempool);
+    return merge_module(info, m);
 }
 
-static bool resolve_symbols_use_libraries(obj_module *target, llist *library_file_paths) {
-    bool unknown_symbols_exist;
-    int iterations = 0;
+static bool merge_module_from_library(struct linker2_info *info, struct linker2_lib_module_id *mod_id) {
+    bin *mod_data = ar_load_file_contents(mod_id->lib_info->archive, mod_id->entry);
+    if (mod_data == NULL) // failed reading file
+        return false;
+    
+    elf64_contents *elf_cnt = new_elf64_contents_from_binary(info->mempool, mod_data);
+    if (elf_cnt == NULL) // not an ELF file
+        return false; 
+    
+    obj_module *m = new_obj_module_from_elf64_contents(elf_cnt, info->mempool);
+    return merge_module(info, m);
+}
 
-    // while (true) {
-    //     // resolve symbols
-    //     // ...
-    //     // if not unresolved found, success
+static bool discover_library(struct linker2_info *info, str *library_path) {
+    struct linker2_lib_info *lib_info = mempool_alloc(info->mempool, sizeof(struct linker2_lib_info), "linker2_lib_info");
+    lib_info->pathname = library_path;
+    lib_info->archive = ar_open(info->mempool, library_path);
+    if (lib_info->archive == NULL)
+        return false;
+    lib_info->entries = ar_get_entries(lib_info->archive, info->mempool);
+    lib_info->symbols = ar_get_symbols(lib_info->archive, info->mempool);
+    llist_add(info->lib_infos, lib_info);
 
-    //     // check if any unresolved symbol exists
-    //     unknown_symbols_exist = false; 
-    //     if (!unknown_symbols_exist)
-    //         return true;
+    printf("%s module entries\n", str_charptr(lib_info->pathname));
+    ar_print_entries(lib_info->entries, 50, stdout);
+    printf("%s module symbols\n", str_charptr(lib_info->pathname));
+    ar_print_symbols(lib_info->symbols, 50, stdout);
 
-    //     // find the symbol in any of the libraries, import that module.
-    //     obj_module *lib_module = find_symbol_in_libraries(sym_name, library_file_paths);
-    //     if (lib_module == NULL) {
-    //         printf("Error, symbol '%s' cannot be resolved\n", str_charptr(sym_name));
-    //         return false;
-    //     }
+    return true;
+}
 
-    //     // loop
-    //     iterations++;
-    //     if (iterations > 1000) {
-    //         printf("Error, symbol resolution tries exhausted\n");
-    //         return false;
-    //     }
-    // }
+
+static bool check_symbol_merged(struct linker2_info *info, str *name) {
+    // find the symbol somewhere, anywhere actually.
+    // this should be more sophisticated, actually...
+    bool found = false;
+
+    for_list(info->target_module->text->symbols, obj_symbol, s) {
+        if (str_equals(s->name, name))
+            return true;
+    }
 
     return false;
 }
 
-// we cannot have everything in lose variables, prepare something
-struct link2_lib_info {
-    str *pathname;
-    archive *archive;
-    llist *ar_symbols;
-    llist *ar_entries;
-};
-struct link2_obj_info {
-    str *pathname;
-    obj_module *loaded_module;
-};
-struct link2_info {
-    u64 base_address;
-    str *executable_path;
-    llist *obj_infos; // item type is link2_obj_info
-    llist *lib_infos; // item type is link2_lib_info
-};
-
-
-bool x86_link_v2(llist *obj_modules, llist *obj_file_paths, llist *library_file_paths, u64 base_address, str *executable_path) {
-    mempool *mp = new_mempool();
-    bool success = false;
-
-    // create the module that will be saved as the executable
-    obj_module *merged = new_obj_module(mp, "executable");
-
-    // add all raw modules
-    iterator *modules_iterator = llist_create_iterator(obj_modules, mp);
-    for_iterator(obj_module, m, modules_iterator) {
-        merge_module(merged, m);
+static bool find_list_unresolved_symbols(struct linker2_info *info, llist *obj_relocations) {
+    bool all_found = true;
+    for_list(obj_relocations, obj_relocation, rel) {
+        if (!check_symbol_merged(info, rel->symbol_name)) {
+            llist_add(info->unresolved_symbols, rel->symbol_name);
+            all_found = true;
+        }
     }
+    return all_found;
+}
 
-    // add all specified modules from files
-    iterator *obj_paths_iterator = llist_create_iterator(obj_file_paths, mp);
-    for_iterator(str, path, obj_paths_iterator) {
-        bin *obj_data = new_bin_from_file(mp, path);
-        if (obj_data == NULL) // failed reading file
-            return false;
-        elf64_contents *elf_cnt = new_elf64_contents_from_binary(mp, obj_data);
-        if (elf_cnt == NULL) // not an ELF file
-            return false; 
-        obj_module *m = new_obj_module_from_elf64_contents(new_str(mp, "mod"), elf_cnt, mp);
-        merge_module(merged, m);
-    }
+static bool find_unresolved_symbols(struct linker2_info *info) {
+    bool verified = true;
+    verified &= find_list_unresolved_symbols(info, info->target_module->text->relocations);
+    verified &= find_list_unresolved_symbols(info, info->target_module->data->relocations);
+    verified &= find_list_unresolved_symbols(info, info->target_module->bss->relocations);
+    verified &= find_list_unresolved_symbols(info, info->target_module->rodata->relocations);
+    return verified;
+}
 
-    // collect lists of symbols from all libraries
-    llist *libs_symbols_lists = new_llist(mp);
-    iterator *libs_paths_iterator = llist_create_iterator(library_file_paths, mp);
-    for_iterator(str, path, libs_paths_iterator) {
-        archive *a = ar_open(mp, path);
-        if (a == NULL) // library not found
-            return false;
-        
-        llist *symbols = ar_get_symbols(a, mp);
-        ar_print_symbols(symbols, 10, stdout);
-
-        llist *entries = ar_get_entries(a, mp);
-        ar_print_entries(entries, 10, stdout);
-        
-        ar_close(a);
-    }
-
+static bool backfill_relocations(struct linker2_info *info) {
     // we need to resolve all symbols, consider all libraries
     // for each module we add, we need to go around again, 
     // as the new module may have new unresolved symbols
     // possible explanation of x86_64 relocations:
     // https://sourceware.org/git/?p=binutils-gdb.git;a=blob;f=include/elf/x86-64.h;h=60b3c2ad10e66bb14338bd410c3a7566b09c4eb4;hb=e0ce6dde97881435d33652572789b94c846cacde
     // format of the index is here: https://sourceware.org/git/?p=binutils-gdb.git;a=blob;f=binutils/nm.c;h=f96cfa31cb90ec646ac61a43509806be21e014e2;hb=e0ce6dde97881435d33652572789b94c846cacde#l730
+    // 
+    // put unresolved symbols in info->unresolved symbols
 
-    // success = resolve_relocations(target, library_file_paths);
+    llist_clear(info->unresolved_symbols);
+    
+    // visit each section, visit each relocation note,
+    // look for a symbol in all the other sections.
+    // but we should not trust addresses, until we have resolved all symbols
+    // otherwise, adding a lib module would through addresses off (e.g. rodata)
+    
+}
+
+static int compare_archive_symbol_name(const archive_symbol *s1, const archive_symbol *s2) {
+    return str_cmp(s1->name, s2->name);
+}
+
+static bool find_needed_lib_modules(struct linker2_info *info) {
+    archive_symbol target;
+    bool all_found = true;
+
+    // find modules, put them in info->needed_modules
+    llist_clear(info->needed_modules);
+    for_list(info->unresolved_symbols, str, unresolved_name) {
+        // find the symbol in one of the libraries
+        // if found, create a linker2_lib_module_id and add it to the needed_modules
+        bool found = false;
+        target.name = unresolved_name;
+        for_list(info->lib_infos, struct linker2_lib_info, li) {
+            // find the symbol
+            int index = llist_find_first(li->symbols, (comparator_function*)compare_archive_symbol_name, &target);
+            if (index == -1)
+                continue;
+            
+            // it is found
+            struct linker2_lib_module_id *id = mempool_alloc(info->mempool, sizeof(struct linker2_lib_module_id), "linker2_lib_module_id");
+            id->lib_info = li;
+            id->entry = ((archive_symbol *)llist_get(li->symbols, index))->entry;
+            found = true;
+            break;
+        }
+
+        if (!found) {
+            printf("Unresolved symbol '%s'\n", str_charptr(unresolved_name));
+            all_found = false;
+        }
+    }
+
+    return all_found;
+}
+
+static bool merge_needed_library_modules(struct linker2_info *info) {
+    // for each needed modules, load it and merge it into target.
+    for_list(info->needed_modules, struct linker2_lib_module_id, id) {
+        merge_module_from_library(info, id);
+    }
+}
+
+bool x86_link_v2(llist *obj_modules, llist *obj_file_paths, llist *library_file_paths, u64 base_address, str *executable_path) {
+    mempool *mp = new_mempool();
+    bool success = false;
+
+    struct linker2_info *info = mempool_alloc(mp, sizeof(struct linker2_info), "linker2_info");
+    info->executable_path = executable_path;
+    info->base_address = base_address;
+    info->obj_modules = obj_modules;
+    info->obj_file_paths = obj_file_paths;
+    info->library_file_paths = library_file_paths;
+    info->mempool = mp;
+
+    info->target_module = new_obj_module(mp);
+    info->obj_infos = new_llist(mp);
+    info->lib_infos = new_llist(mp);
+    info->unresolved_symbols = new_llist(mp);
+    info->needed_modules = new_llist(mp);
+    
+    // add all raw modules
+    for_list(obj_modules, obj_module, m)
+        merge_module(info, m);
+
+    // add all specified modules from files
+    for_list(obj_file_paths, str, path)
+        merge_module_from_file(info, path);
+
+    // load all symbols from all libraries
+    for_list(library_file_paths, str, lib_path)
+        discover_library(info, lib_path);
+
+    // // now we can resolve symbols
+    // while (true) {
+    //     if (find_unresolved_symbols(info)) {
+    //         backfill_relocations(info);
+    //         break;
+    //     }
+
+    //     if (!find_needed_lib_modules(info))
+    //         return false;
+    //     if (llist_length(info->needed_modules) == 0)
+    //         return false;
+
+    //     // now bring all the modules and merge them
+    //     for_list(info->needed_modules, struct linker2_lib_module_id, mod_id)
+    //         merge_module_from_library(info, mod_id);
+    // }
 
     if (success) {
         printf("Executable module:\n");
-        merged->ops->print(merged, stdout);
+        info->target_module->ops->print(info->target_module, stdout);
 
         // finally save the executable... (fingers crossed to be workig)
-        elf64_contents *elf64_cnt = merged->ops->pack_executable_file(merged, mp);
+        elf64_contents *elf64_cnt = info->target_module->ops->pack_executable_file(info->target_module, mp);
         success = elf64_contents_save((char *)str_charptr(executable_path), elf64_cnt);
     }
 

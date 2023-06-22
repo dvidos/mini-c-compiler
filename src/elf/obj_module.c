@@ -51,9 +51,9 @@ static obj_section *new_obj_section(mempool *mp, const char *name) {
     return s;
 }
 
-obj_module *new_obj_module(mempool *mp, const char *name) {
+obj_module *new_obj_module(mempool *mp) {
     obj_module *m = mempool_alloc(mp, sizeof(obj_module), "obj_module");
-    m->name = new_str(mp, name);
+    m->name = new_str(mp, "");
     m->text = new_obj_section(mp, ".text");
     m->data = new_obj_section(mp, ".data");
     m->bss = new_obj_section(mp, ".bss");
@@ -94,8 +94,7 @@ static void add_elf64_symbol(str *name, size_t value, size_t size, int st_type, 
 }
 
 static void pack_elf64_symbols(llist *symbols_list, bool want_public, int st_type, int st_shndx, mempool *mp, elf64_section *symtab, elf64_section *strtab) {
-    iterator *it = llist_create_iterator(symbols_list, mp);
-    for_iterator(obj_symbol, s, it) {
+    for_list(symbols_list, obj_symbol, s) {
         if (s->global != want_public) // we add either all private or public ones.
             continue;
         
@@ -452,8 +451,8 @@ static obj_relocation *new_obj_relocation_from_elf_relocation(elf64_rela *rel, e
     return r;
 }
 
-obj_module *new_obj_module_from_elf64_contents(str *module_name, elf64_contents *contents, mempool *mp) {
-    obj_module *module = new_obj_module(mp, str_charptr(module_name));
+obj_module *new_obj_module_from_elf64_contents(elf64_contents *contents, mempool *mp) {
+    obj_module *module = new_obj_module(mp);
 
     // let's go over all the sections and see how we can tackle each one
     printf("Iterating all sections\n");

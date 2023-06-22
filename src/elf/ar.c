@@ -213,7 +213,7 @@ void ar_print_entries(llist *entries, int max_entries, FILE *stream) {
 
     int idx = 0;
     for_iterator(archive_entry, e, it) {
-        fprintf(stream, "  %4d %10ld  %10ld  %s\n", idx++, e->offset, e->size, str_charptr(e->filename));
+        fprintf(stream, "  %4d  %10ld  %10ld  %s\n", idx++, e->offset, e->size, str_charptr(e->filename));
         if (max_entries > -1 && idx > max_entries)
             break;
     }

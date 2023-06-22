@@ -64,6 +64,6 @@ typedef struct obj_relocation {
 } obj_relocation;
 
 
-obj_module *new_obj_module(mempool *mp, const char *name);
-obj_module *new_obj_module_from_elf64_contents(str *module_name, elf64_contents *contents, mempool *mp);
+obj_module *new_obj_module(mempool *mp);
+obj_module *new_obj_module_from_elf64_contents(elf64_contents *contents, mempool *mp);
 

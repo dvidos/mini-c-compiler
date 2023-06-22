@@ -242,6 +242,7 @@ struct llist {
     int items_count;
     struct llist_node *head;
     struct llist_node *tail;
+    iterator *base_iterator;
     mempool *mempool;
 };
 
@@ -249,6 +250,7 @@ llist *new_llist(mempool *mp) {
     llist *l = mempool_alloc(mp, sizeof(llist), "llist");
     memset(l, 0, sizeof(llist));
     l->mempool = mp;
+    l->base_iterator = llist_create_iterator(l, mp);
     return l;
 }
 
@@ -545,6 +547,18 @@ static void *llist_iterator_next(iterator *it) {
     return it_state->curr == NULL ? NULL : it_state->curr->data;
 }
 
+void *llist_iteration_reset(llist *l) {
+    return llist_iterator_reset(l->base_iterator);
+}
+
+bool  llist_iteration_valid(llist *l) {
+    return llist_iterator_valid(l->base_iterator);
+}
+
+void *llist_iteration_next(llist *l) {
+    return llist_iterator_next(l->base_iterator);
+}
+
 iterator *llist_create_iterator(llist *l, mempool *mp) {
     llist_iterator_private_state *it_state = mempool_alloc(mp, sizeof(llist_iterator_private_state), "llist_iterator_private_state");
     memset(it_state, 0, sizeof(llist_iterator_private_state));
@@ -556,6 +570,10 @@ iterator *llist_create_iterator(llist *l, mempool *mp) {
     it->valid = llist_iterator_valid;
     it->next = llist_iterator_next;
     return it;
+}
+
+iterator *llist_base_iterator(llist *l) {
+    return l->base_iterator;
 }
 
 hashtable *llist_group(llist *l, classifier_function *classify, mempool *mp) {

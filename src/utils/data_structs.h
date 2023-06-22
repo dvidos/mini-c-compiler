@@ -75,6 +75,11 @@ void *stack_pop(stack *s);
 
 typedef struct llist llist;
 
+#define for_list(list, type, var)  \
+    for(type *var = (type *)llist_iteration_reset(list);  \
+        llist_iteration_valid(list);                      \
+        var = (type *)llist_iteration_next(list))
+
 llist *new_llist(mempool *mp);
 int   llist_length(llist *l);
 bool  llist_is_empty(llist *l);
@@ -94,6 +99,9 @@ llist *llist_unique(llist *l, comparator_function *compare, mempool *mp);
 llist *llist_filter(llist *l, filterer_function *filter, mempool *mp);
 llist *llist_map(llist *l, mapper_function *map, mempool *mp);
 void *llist_reduce(llist *l, reducer_function *reduce, void *initial_value, mempool *mp);
+void *llist_iteration_reset(llist *l);
+bool  llist_iteration_valid(llist *l);
+void *llist_iteration_next(llist *l);
 iterator *llist_create_iterator(llist *l, mempool *mp);
 hashtable *llist_group(llist *l, classifier_function *classify, mempool *mp);
 

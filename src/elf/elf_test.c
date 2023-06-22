@@ -16,7 +16,7 @@ static void demo_obj_file(char *filename) {
     elf64_contents *contents = new_elf64_contents_from_binary(mp, data);
     elf64_contents_print(contents, stdout);
 
-    obj_module *module = new_obj_module_from_elf64_contents(new_str(mp, "obj.o"), contents, mp);
+    obj_module *module = new_obj_module_from_elf64_contents(contents, mp);
     module->ops->print(module, stdout);
     
     // could / should also pack the module and compare with the original elf contents
@@ -41,7 +41,7 @@ static void demo_lib_entry(archive *a, llist *entries, int entry_no) {
     elf64_contents *contents = new_elf64_contents_from_binary(mp, data);
     elf64_contents_print(contents, stdout);
 
-    obj_module *module = new_obj_module_from_elf64_contents(new_str(mp, "obj.o"), contents, mp);
+    obj_module *module = new_obj_module_from_elf64_contents(contents, mp);
     module->ops->print(module, stdout);
 
     // could / should also pack the module and compare with the original elf contents

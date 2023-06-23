@@ -40,6 +40,7 @@ struct link2_obj_info {
 struct link2_info {
     // passed into linker call
     str *executable_path;
+    str *entry_point_name;
     u64 base_address;
     llist *obj_modules;
     llist *obj_file_paths;
@@ -131,9 +132,11 @@ static bool check_symbol_is_defined(link2_info *info, obj_module *owner, str *na
         return true;
 
     // first look at owner module, include local symbols
-    obj_symbol *sym = owner->ops->find_symbol(owner, name, false);
-    if (sym != NULL)
-        return true;
+    if (owner != NULL) {
+        obj_symbol *sym = owner->ops->find_symbol(owner, name, false);
+        if (sym != NULL)
+            return true;
+    }
 
     // then look at all other participants, global only
     int index = llist_find_first(info->participants, 
@@ -143,6 +146,16 @@ static bool check_symbol_is_defined(link2_info *info, obj_module *owner, str *na
 
     // not found anywhere
     return false;
+}
+
+
+static bool check_mark_unresolved_symbol(link2_info *info, obj_module *owner, str *name) {
+    bool found = check_symbol_is_defined(info, owner, name);
+    if (!found) {
+        if (llist_find_first(info->unresolved_symbols, (comparator_function*)str_cmp, name) == -1)
+            llist_add(info->unresolved_symbols, name);
+    }
+    return found;
 }
 
 static bool find_unresolvable_relocations_in_list(link2_info *info, obj_module *owner, llist *obj_relocations) {
@@ -159,15 +172,28 @@ static bool find_unresolvable_relocations_in_list(link2_info *info, obj_module *
     return all_found;
 }
 
-static bool find_unresolved_symbols(link2_info *info) {
-    bool verified = true;
-    for_list (info->participants, obj_module, m) {
-        verified &= find_unresolvable_relocations_in_list(info, m, m->text->relocations);
-        verified &= find_unresolvable_relocations_in_list(info, m, m->data->relocations);
-        verified &= find_unresolvable_relocations_in_list(info, m, m->bss->relocations);
-        verified &= find_unresolvable_relocations_in_list(info, m, m->rodata->relocations);
+static bool find_unresolved_symbols(link2_info *info, bool check_startup_symbol) {
+    bool all_found = true;
+
+    if (check_startup_symbol) {
+        all_found &= check_mark_unresolved_symbol(info, NULL, info->entry_point_name);
     }
-    return verified;
+
+    for_list (info->participants, obj_module, m) {
+        for_list(m->text->relocations, obj_relocation, r)
+            all_found &= check_mark_unresolved_symbol(info, m, r->symbol_name);
+
+        for_list(m->data->relocations, obj_relocation, r)
+            all_found &= check_mark_unresolved_symbol(info, m, r->symbol_name);
+
+        for_list(m->bss->relocations, obj_relocation, r)
+            all_found &= check_mark_unresolved_symbol(info, m, r->symbol_name);
+
+        for_list(m->rodata->relocations, obj_relocation, r)
+            all_found &= check_mark_unresolved_symbol(info, m, r->symbol_name);
+    }
+
+    return all_found;
 }
 
 static bool backfill_relocations(link2_info *info) {
@@ -254,7 +280,7 @@ static bool do_link2(link2_info *info) {
     int tries = 0;
     while (true) {
         llist_clear(info->unresolved_symbols);
-        find_unresolved_symbols(info);
+        find_unresolved_symbols(info, true);
         if (llist_length(info->unresolved_symbols) == 0)
             break;
         
@@ -279,8 +305,6 @@ static bool do_link2(link2_info *info) {
         }
     }
 
-    // we must also find the "_start" symbol
-    
     printf("If we got here, all symbols are present and relocatable!!!!!\n");
     backfill_relocations(info);
 
@@ -306,6 +330,7 @@ bool x86_link_v2(llist *obj_modules, llist *obj_file_paths, llist *library_file_
 
     link2_info *info = mempool_alloc(mp, sizeof(link2_info), "link2_info");
     info->executable_path = executable_path;
+    info->entry_point_name = new_str(mp, "_start");
     info->base_address = base_address;
     info->obj_modules = obj_modules;
     info->obj_file_paths = obj_file_paths;

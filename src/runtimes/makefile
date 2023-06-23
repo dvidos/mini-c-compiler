@@ -1,6 +1,7 @@
 USERFILE=example
 LIBRARY=runtime
-C_FLAGS=-fno-asynchronous-unwind-tables -nostdlib -nostdinc -fno-builtin
+C_FLAGS=-std=c99 -fno-asynchronous-unwind-tables -nostdlib -nostdinc -fno-builtin
+
 
 target:
 	as --64 -o rt64.o rt64.asm
@@ -10,7 +11,7 @@ target:
 	ar rv lib$(LIBRARY).a rt64.o libc64_syscalls.o libc64_misc.o
 	gcc $(C_FLAGS) -c $(USERFILE).c
 	ld -o $(USERFILE) $(USERFILE).o -L. -l$(LIBRARY)
-	objcopy -R .comment $(USERFILE)
+	# objcopy -R .comment $(USERFILE)
 	readelf -aW $(USERFILE) > $(USERFILE)_elf_contents
 
 clean:

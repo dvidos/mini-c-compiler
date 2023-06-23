@@ -71,7 +71,6 @@ elf64_contents *new_elf64_contents_from_binary(mempool *mp, bin *buffer) {
     
     mempool_release(scratch);
     return contents;
-
 }
 
 elf64_section *new_elf64_section(mempool *mp) {

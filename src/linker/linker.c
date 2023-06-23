@@ -284,18 +284,17 @@ static bool do_link2(link2_info *info) {
         if (llist_length(info->unresolved_symbols) == 0)
             break;
         
-        printf("we need to find the following symbols in libraries\n");
-        for_list(info->unresolved_symbols, str, s)
-            printf("- %s\n", str_charptr(s));
-
+        printf("Symbols required: %s\n",
+            str_charptr(str_join(info->unresolved_symbols, new_str(info->mempool, ", "), info->mempool)));
+        
         llist_clear(info->needed_module_ids);
         if (!find_needed_lib_modules(info)) {
-            printf("Cannot continue, unlinkable symbols...\n");
+            printf("Cannot continue, symbols not resolved...\n");
             return false; // free(mp)
         }
 
         for_list(info->needed_module_ids, link2_lib_module_id, mid) {
-            printf("merging module '%s' from library '%s'\n", str_charptr(mid->entry->filename), str_charptr(mid->lib_info->pathname));
+            printf("Including module %s : %s\n", str_charptr(mid->lib_info->pathname), str_charptr(mid->entry->filename));
             add_participant_from_library(info, mid);
         }
 

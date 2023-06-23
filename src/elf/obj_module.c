@@ -10,16 +10,6 @@ static obj_symbol *obj_module_find_symbol(obj_module *module, str *name, bool ex
 static elf64_contents *obj_module_pack_object_file(obj_module *module, mempool *mp);
 static elf64_contents *obj_module_pack_executable_file(obj_module *module, mempool *mp);
 
-static void obj_section_print(obj_section *s, FILE *f);
-static void obj_section_append(obj_section *s, obj_section *other);
-static void obj_section_relocate(obj_section *s, long delta);
-static obj_symbol *obj_section_find_symbol(obj_section *s, str *name, bool exported);
-
-static void obj_symbol_print(obj_symbol *s, int num, FILE *f);
-
-static void obj_relocation_print(obj_relocation *r, FILE *f);
-
-
 static struct obj_module_ops module_ops = {
     .print = obj_module_print,
     .append = obj_module_append,
@@ -28,43 +18,26 @@ static struct obj_module_ops module_ops = {
     .pack_executable_file = obj_module_pack_executable_file,
 };
 
-static struct obj_section_ops section_ops = {
-    .print = obj_section_print,
-    .append = obj_section_append,
-    .relocate = obj_section_relocate,
-    .find_symbol = obj_section_find_symbol,
-};
-
-static struct obj_symbol_ops symbol_ops = {
-    .print = obj_symbol_print
-};
-
-static struct obj_relocation_ops relocation_ops = {
-    .print = obj_relocation_print
-};
 
 
-
-static obj_section *new_obj_section(mempool *mp, const char *name) {
-    obj_section *s = mempool_alloc(mp, sizeof(obj_section), "obj_section");
-    s->name = new_str(mp, name);
-    s->contents = new_bin(mp);
-    s->relocations = new_llist(mp);
-    s->symbols = new_llist(mp);
-    s->ops = &section_ops;
-    return s;
-}
 
 obj_module *new_obj_module(mempool *mp) {
     obj_module *m = mempool_alloc(mp, sizeof(obj_module), "obj_module");
     m->name = new_str(mp, "");
-    m->text = new_obj_section(mp, ".text");
-    m->data = new_obj_section(mp, ".data");
-    m->bss = new_obj_section(mp, ".bss");
-    m->rodata = new_obj_section(mp, ".rodata");
+    m->sections = new_llist(mp);
+
+    m->text = new_obj_section(mp);
+    m->data = new_obj_section(mp);
+    m->bss = new_obj_section(mp);
+    m->rodata = new_obj_section(mp);
+
     m->ops = &module_ops;
+    m->mempool = mp;
     return m;
 }
+
+
+
 
 static size_t add_to_strtab_and_get_index(str *s, elf64_section *strtab) {
     // the first byte of the strtab is a terminator to allow for empty strings
@@ -86,7 +59,7 @@ static size_t add_to_strtab_and_get_index(str *s, elf64_section *strtab) {
     return index;
 }
 
-static void add_elf64_symbol(str *name, size_t value, size_t size, int st_type, bool global, int st_shndx, elf64_section *symtab, elf64_section *strtab) {
+static void add_elf64_symbol_to_symbol_table_contents(str *name, size_t value, size_t size, int st_type, bool global, int st_shndx, elf64_section *symtab, elf64_section *strtab) {
     elf64_sym sym;
     sym.st_name = add_to_strtab_and_get_index(name, strtab);
     sym.st_value = value;
@@ -102,7 +75,7 @@ static void pack_elf64_symbols(llist *symbols_list, bool want_public, int st_typ
         if (s->global != want_public) // we add either all private or public ones.
             continue;
         
-        add_elf64_symbol(s->name, s->value, s->size, st_type, s->global, st_shndx, symtab, strtab);
+        add_elf64_symbol_to_symbol_table_contents(s->name, s->value, s->size, st_type, s->global, st_shndx, symtab, strtab);
     }
 }
 
@@ -130,7 +103,7 @@ static void pack_elf64_relocations(llist *relocations_list, mempool *mp, elf64_s
         int symbol_num = find_elf64_symbol(str_charptr(r->symbol_name), symtab, strtab);
         if (symbol_num == -1) {
             symbol_num = symbols_table_len;
-            add_elf64_symbol(r->symbol_name, 0, 0, STT_NOTYPE, true, SHN_UNDEF, symtab, strtab);
+            add_elf64_symbol_to_symbol_table_contents(r->symbol_name, 0, 0, STT_NOTYPE, true, SHN_UNDEF, symtab, strtab);
         }
 
         rela.r_offset = r->offset;
@@ -189,14 +162,14 @@ static elf64_contents *obj_module_pack_object_file(obj_module *module, mempool *
     mempool *scratch = new_mempool();
 
     // add the empty symbol to the symbol table
-    add_elf64_symbol(new_str(mp, ""), 0, 0, STT_NOTYPE, false, SHN_UNDEF, symtab, strtab);
+    add_elf64_symbol_to_symbol_table_contents(new_str(mp, ""), 0, 0, STT_NOTYPE, false, SHN_UNDEF, symtab, strtab);
 
     // add symbol for the module (file) and one for each section entry
-    add_elf64_symbol(module->name, 0, 0, STT_FILE, false, SHN_ABS, symtab, strtab);
-    add_elf64_symbol(module->text->name, 0, 0, STT_SECTION, false, 1, symtab, strtab);
-    add_elf64_symbol(module->data->name, 0, 0, STT_SECTION, false, 2, symtab, strtab);
-    add_elf64_symbol(module->bss->name, 0, 0, STT_SECTION, false, 3, symtab, strtab);
-    add_elf64_symbol(module->rodata->name, 0, 0, STT_SECTION, false, 4, symtab, strtab);
+    add_elf64_symbol_to_symbol_table_contents(module->name, 0, 0, STT_FILE, false, SHN_ABS, symtab, strtab);
+    add_elf64_symbol_to_symbol_table_contents(module->text->name, 0, 0, STT_SECTION, false, 1, symtab, strtab);
+    add_elf64_symbol_to_symbol_table_contents(module->data->name, 0, 0, STT_SECTION, false, 2, symtab, strtab);
+    add_elf64_symbol_to_symbol_table_contents(module->bss->name, 0, 0, STT_SECTION, false, 3, symtab, strtab);
+    add_elf64_symbol_to_symbol_table_contents(module->rodata->name, 0, 0, STT_SECTION, false, 4, symtab, strtab);
 
     // all local symbols must precede the global ones.
     // pack local various symbols into single symtab section (and names into strtab)
@@ -410,7 +383,6 @@ static elf64_contents *obj_module_pack_executable_file(obj_module *module, mempo
 
 // ---------------------------------------------------------------------------
 
-
 static obj_symbol *new_obj_symbol_from_elf_symbol(elf64_sym *sym, elf64_section *strtab, llist *sections, mempool *mp) {
     obj_symbol *s = mempool_alloc(mp, sizeof(obj_symbol), "obj_symbol");
     s->name = new_str(mp, "");
@@ -455,16 +427,78 @@ static obj_relocation *new_obj_relocation_from_elf_relocation(elf64_rela *rel, e
     return r;
 }
 
+static bool is_unsupported_elf64_section(elf64_section *s) {
+    // encountering these means we cannot safely load the object file
+    return 
+        (s->header->type == SECTION_TYPE_HASH) ||
+        (s->header->type == SECTION_TYPE_DYNAMIC) ||
+        (s->header->type == SECTION_TYPE_REL) ||
+        (s->header->type == SECTION_TYPE_SHLIB) ||
+        (s->header->type == SECTION_TYPE_DYNSYM) ||
+        (s->header->type == SECTION_TYPE_NUM);
+}
+
+static bool should_ignore_elf64_section(elf64_section *s) {
+    if (s->header->type == SECTION_TYPE_NULL) {
+        return true; // the first section can always be ignored
+    } else if (s->header->type == SECTION_TYPE_NOTE) {
+        if (str_cmps(s->name, ".note.gnu.property") == 0) {
+            // has something to do with special flags the GNU compiler passes,
+            // such as GNU_PROPERTY_X86_FEATURE_1_IBT
+            return true;
+        }
+    } else if (s->header->type == SECTION_TYPE_PROGBITS) {
+        if (str_cmps(s->name, ".comment") == 0) {
+            return true; // gcc compiler / system version
+        } else if (str_cmps(s->name, ".note.GNU-stack") == 0) {
+            // about executable stack, not 100% clear
+            // https://wiki.gentoo.org/wiki/Hardened/GNU_stack_quickstart
+            return true;
+        }
+    } else if (s->header->type == SECTION_TYPE_STRTAB) {
+        if (str_cmps(s->name, ".shstrtab") == 0) {
+            return true; // section names should already be parsed
+        }
+    }
+
+    return false;
+}
+
 obj_module *new_obj_module_from_elf64_contents(elf64_contents *contents, mempool *mp) {
     obj_module *module = new_obj_module(mp);
 
     // let's go over all the sections and see how we can tackle each one
-    // printf("Iterating all sections\n");
+    // printf("Let's see how to import elf64 contents into our obj_sections....\n");
     iterator *sections_it = llist_create_iterator(contents->sections, mp);
     for_iterator(elf64_section, s, sections_it) {
-        if (s->index == 0)
-            continue; // ignore the first.
-        // printf("  - %2d: %s, type %d\n", s->index, str_charptr(s->name), s->header->type);
+        // printf("- %2d: %s, type %d\n", s->index, str_charptr(s->name), s->header->type);
+        if (is_unsupported_elf64_section(s)) {
+            printf("Unsupported section '%s', type %d, aborting", str_charptr(s->name), s->header->type);
+            return NULL;
+        } else if (should_ignore_elf64_section(s)) {
+            continue;
+        }
+
+        if (s->header->type == SECTION_TYPE_PROGBITS) {
+            // we must keep this.
+
+        } else if (s->header->type == SECTION_TYPE_NOBITS) {
+            // we must instantiate this.
+
+        } else if (s->header->type == SECTION_TYPE_RELA) {
+            // we must enrich the appropriate section
+            int target = s->header->info;
+            int relevant_symbol_table = s->header->link;
+        } else if (s->header->type == SECTION_TYPE_SYMTAB) {
+            int relevant_string_table = s->header->link;
+            int index_of_first_global_symbol = s->header->info;
+        } else if (s->header->type == SECTION_TYPE_STRTAB) {
+
+        } else {
+            printf("  Section '%s' is of unknwon type %d, not supported\n", str_charptr(s->name), s->header->type);
+            return NULL;
+        }
+
         // bin_print_hex(s->contents, 2, 0, -1, stdout);
     }
 
@@ -508,7 +542,6 @@ obj_module *new_obj_module_from_elf64_contents(elf64_contents *contents, mempool
             else if (rodata != NULL && sym->st_shndx == rodata->index)
                 target_section = module->rodata;
             
-
             if (target_section == NULL) {
                 elf64_section *sect = elf64_get_section_by_index(contents, sym->st_shndx);
                 printf("Uknown symbol owner (name '%s', section '%s', type %d)\n", 
@@ -539,112 +572,14 @@ obj_module *new_obj_module_from_elf64_contents(elf64_contents *contents, mempool
     return module;
 }
 
-static void obj_symbol_print(obj_symbol *s, int num, FILE *f) {
-    if (s == NULL) {
-        fprintf(f, "    Symbols\n");
-        fprintf(f, "      Num    Value     Size  Scope   Name\n");
-        //                Num    Value     Size  Scope   Name
-        //                123 12345678 12345678  GLOBAL  123456789...
-    } else {
-        fprintf(f, "      %3d %08lx %8lu  %-6s  %s\n",
-            num,
-            s->value,
-            s->size,
-            s->global ? "GLOBAL" : "LOCAL",
-            str_charptr(s->name));
-    }
-}
-
-static void obj_relocation_print(obj_relocation *r, FILE *f) {
-    if (r == NULL) { 
-        fprintf(f, "    Relocations\n");
-        fprintf(f, "        Offset  Type  Addendum  Symbol\n");
-        //         "        Offset  Type  Addendum  Symbol
-        //         "      12345678  1234  12345678  12345...
-    } else {
-        fprintf(f, "      %08lx  %4d  %+8ld  %s\n",
-            r->offset,
-            r->type,
-            r->addendum,
-            str_charptr(r->symbol_name));
-    }
-}
-
-static void obj_section_print(obj_section *s, FILE *f) {
-    mempool *scratch = new_mempool();
-    fprintf(f, "  Section %s\n", str_charptr(s->name));
-
-    if (bin_len(s->contents) > 0) {
-        size_t bytes = bin_len(s->contents) > 64 ? 64 : bin_len(s->contents);
-        fprintf(f, "    Contents (%lu / %lu total bytes)\n", bytes, bin_len(s->contents));
-        bin_print_hex(s->contents, 6, 0, bytes, f);
-    }
-
-    if (llist_length(s->symbols) > 0) {
-        obj_symbol_print(NULL, 0, f);
-        iterator *symbols = llist_create_iterator(s->symbols, scratch);
-        int num = 0;
-        for_iterator(obj_symbol, s, symbols)
-            obj_symbol_print(s, num++, f);
-    }
-
-    if (llist_length(s->relocations)) {
-        obj_relocation_print(NULL, f);
-        iterator *relocations = llist_create_iterator(s->relocations, scratch);
-        for_iterator(obj_relocation, r, relocations)
-            obj_relocation_print(r, f);
-    }
-
-    mempool_release(scratch);
-}
-
-static void obj_section_append(obj_section *s, obj_section *other) {
-    long size = bin_len(s->contents);
-    other->ops->relocate(other, size);
-    bin_cat(s->contents, other->contents);
-
-    llist_add_all(s->symbols, other->symbols);
-    llist_add_all(s->relocations, other->relocations);
-}
-
-static void obj_section_relocate(obj_section *s, long delta) {
-    mempool *mp = new_mempool();
-
-    iterator *syms_iterator = llist_create_iterator(s->symbols, mp);
-    for_iterator(obj_symbol, sym, syms_iterator) {
-        sym->value += delta;
-    }
-
-    iterator *relocs_iterator = llist_create_iterator(s->relocations, mp);
-    for_iterator(obj_relocation, rel, relocs_iterator) {
-        rel->offset += delta;
-    }
-    
-    mempool_release(mp);
-}
-
-static obj_symbol *obj_section_find_symbol(obj_section *s, str *name, bool exported) {
-    for_list (s->symbols, obj_symbol, sym) {
-        if (str_cmp(sym->name, name) != 0)
-            continue;
-        
-        // do we need it to be exported?
-        if (exported && !sym->global)
-            continue;
-        
-        return sym;
-    }
-    return NULL;
-}
-
 static void obj_module_print(obj_module *module, FILE *f) {
     // print each section with it's symbols and relocations
     fprintf(f, "Module %s\n", str_charptr(module->name));
 
-    obj_section_print(module->text, f);
-    obj_section_print(module->data, f);
-    obj_section_print(module->bss, f);
-    obj_section_print(module->rodata, f);
+    if (module->text != NULL) module->text->ops->print(module->text, f);
+    if (module->data != NULL) module->text->ops->print(module->data, f);
+    if (module->bss != NULL) module->text->ops->print(module->bss, f);
+    if (module->rodata != NULL) module->text->ops->print(module->rodata, f);
 }
 
 static void obj_module_append(obj_module *module, obj_module *source) {

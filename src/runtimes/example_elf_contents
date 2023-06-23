@@ -10,14 +10,14 @@ ELF Header:
   Version:                           0x1
   Entry point address:               0x401034
   Start of program headers:          64 (bytes into file)
-  Start of section headers:          8984 (bytes into file)
+  Start of section headers:          9040 (bytes into file)
   Flags:                             0x0
   Size of this header:               64 (bytes)
   Size of program headers:           56 (bytes)
   Number of program headers:         5
   Size of section headers:           64 (bytes)
-  Number of section headers:         8
-  Section header string table index: 7
+  Number of section headers:         9
+  Section header string table index: 8
 
 Section Headers:
   [Nr] Name              Type            Address          Off    Size   ES Flg Lk Inf Al
@@ -26,9 +26,10 @@ Section Headers:
   [ 2] .rodata           PROGBITS        0000000000402000 002000 00000e 00   A  0   0  1
   [ 3] .data             PROGBITS        0000000000403010 002010 000008 00  WA  0   0  4
   [ 4] .bss              NOBITS          0000000000403018 002018 000008 00  WA  0   0  4
-  [ 5] .symtab           SYMTAB          0000000000000000 002018 000210 18      6   4  8
-  [ 6] .strtab           STRTAB          0000000000000000 002228 0000b6 00      0   0  1
-  [ 7] .shstrtab         STRTAB          0000000000000000 0022de 000034 00      0   0  1
+  [ 5] .comment          PROGBITS        0000000000000000 002018 00002d 01  MS  0   0  1
+  [ 6] .symtab           SYMTAB          0000000000000000 002048 000210 18      7   4  8
+  [ 7] .strtab           STRTAB          0000000000000000 002258 0000b6 00      0   0  1
+  [ 8] .shstrtab         STRTAB          0000000000000000 00230e 00003d 00      0   0  1
 Key to Flags:
   W (write), A (alloc), X (execute), M (merge), S (strings), I (info),
   L (link order), O (extra OS processing required), G (group), T (TLS),

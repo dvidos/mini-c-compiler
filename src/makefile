@@ -49,6 +49,7 @@ SRC_FILES = \
 	elf/elf64_contents.c \
 	elf/ar.c \
 	elf/obj_module.c \
+	elf/obj_section.c \
 	elf/write_elf.c \
 	elf/elf_test.c \
 	linker/symbol_table.c \

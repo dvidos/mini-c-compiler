@@ -20,8 +20,9 @@ struct obj_module {
     struct obj_module_ops {
         void (*print)(obj_module *m, FILE *f);
         void (*append)(obj_module *m, struct obj_module *source);
-        elf64_contents *(*pack_object_file)(obj_module *module, mempool *mp);
-        elf64_contents *(*pack_executable_file)(obj_module *module, mempool *mp);
+        obj_symbol *(*find_symbol)(obj_module *m, str *name, bool exported);
+        elf64_contents *(*pack_object_file)(obj_module *m, mempool *mp);
+        elf64_contents *(*pack_executable_file)(obj_module *m, mempool *mp);
     } *ops;
 };
 
@@ -36,6 +37,7 @@ struct obj_section {
         void (*print)(obj_section *s, FILE *f);
         void (*append)(obj_section *s, obj_section *other);
         void (*relocate)(obj_section *s, long delta);
+        obj_symbol *(*find_symbol)(obj_section *s, str *name, bool exported);
     } *ops;
 };
 
@@ -44,7 +46,7 @@ typedef struct obj_symbol {
     str *name;
     size_t value;   // essentially an address or an offset in the contents
     size_t size;    // e.g. functions size in code, or data in bytes
-    bool global;    // otherwise it's just local
+    bool global;    // otherwise it's just local (what about weak symbols?)
 
     struct obj_symbol_ops {
         void (*print)(struct obj_symbol *s, int num, FILE *f);

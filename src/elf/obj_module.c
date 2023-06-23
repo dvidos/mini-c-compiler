@@ -6,12 +6,14 @@
 
 static void obj_module_print(obj_module *module, FILE *f);
 static void obj_module_append(obj_module *module, obj_module *source);
+static obj_symbol *obj_module_find_symbol(obj_module *module, str *name, bool exported);
 static elf64_contents *obj_module_pack_object_file(obj_module *module, mempool *mp);
 static elf64_contents *obj_module_pack_executable_file(obj_module *module, mempool *mp);
 
 static void obj_section_print(obj_section *s, FILE *f);
 static void obj_section_append(obj_section *s, obj_section *other);
 static void obj_section_relocate(obj_section *s, long delta);
+static obj_symbol *obj_section_find_symbol(obj_section *s, str *name, bool exported);
 
 static void obj_symbol_print(obj_symbol *s, int num, FILE *f);
 
@@ -21,6 +23,7 @@ static void obj_relocation_print(obj_relocation *r, FILE *f);
 static struct obj_module_ops module_ops = {
     .print = obj_module_print,
     .append = obj_module_append,
+    .find_symbol = obj_module_find_symbol,
     .pack_object_file = obj_module_pack_object_file,
     .pack_executable_file = obj_module_pack_executable_file,
 };
@@ -29,6 +32,7 @@ static struct obj_section_ops section_ops = {
     .print = obj_section_print,
     .append = obj_section_append,
     .relocate = obj_section_relocate,
+    .find_symbol = obj_section_find_symbol,
 };
 
 static struct obj_symbol_ops symbol_ops = {
@@ -619,6 +623,20 @@ static void obj_section_relocate(obj_section *s, long delta) {
     mempool_release(mp);
 }
 
+static obj_symbol *obj_section_find_symbol(obj_section *s, str *name, bool exported) {
+    for_list (s->symbols, obj_symbol, sym) {
+        if (str_cmp(sym->name, name) != 0)
+            continue;
+        
+        // do we need it to be exported?
+        if (exported && !sym->global)
+            continue;
+        
+        return sym;
+    }
+    return NULL;
+}
+
 static void obj_module_print(obj_module *module, FILE *f) {
     // print each section with it's symbols and relocations
     fprintf(f, "Module %s\n", str_charptr(module->name));
@@ -634,4 +652,22 @@ static void obj_module_append(obj_module *module, obj_module *source) {
     module->data->ops->append(module->data, source->data);
     module->bss->ops->append(module->bss, source->bss);
     module->rodata->ops->append(module->rodata, source->rodata);
+}
+
+static obj_symbol *obj_module_find_symbol(obj_module *m, str *name, bool exported) {
+    obj_symbol *sym;
+
+    sym = m->text->ops->find_symbol(m->text, name, exported);
+    if (sym != NULL) return sym;
+
+    sym = m->data->ops->find_symbol(m->data, name, exported);
+    if (sym != NULL) return sym;
+
+    sym = m->bss->ops->find_symbol(m->bss, name, exported);
+    if (sym != NULL) return sym;
+
+    sym = m->rodata->ops->find_symbol(m->rodata, name, exported);
+    if (sym != NULL) return sym;
+    
+    return NULL;
 }

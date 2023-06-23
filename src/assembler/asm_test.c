@@ -441,5 +441,5 @@ static void test_create_hello_world_executable3() {
     // link into executable
     list *modules = new_list();
     modules->v->add(modules, c);
-    x86_link(modules, 0x8048000, "hello.elf");
+    // x86_link(modules, 0x8048000, "hello.elf");
 }

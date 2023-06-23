@@ -212,7 +212,7 @@ static void generate_machine_code(ir_listing *ir_list) {
     modules->v->add(modules, mod);
 
     char *executable_name = set_extension(options.filename, "");
-    x86_link(modules, 0x8048000, executable_name);
+    // x86_link(modules, 0x8048000, executable_name);
     free(executable_name);
     modules->v->free(modules, NULL);
 }

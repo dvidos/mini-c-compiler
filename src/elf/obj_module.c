@@ -455,12 +455,12 @@ obj_module *new_obj_module_from_elf64_contents(elf64_contents *contents, mempool
     obj_module *module = new_obj_module(mp);
 
     // let's go over all the sections and see how we can tackle each one
-    printf("Iterating all sections\n");
+    // printf("Iterating all sections\n");
     iterator *sections_it = llist_create_iterator(contents->sections, mp);
     for_iterator(elf64_section, s, sections_it) {
         if (s->index == 0)
             continue; // ignore the first.
-        printf("  - %2d: %s, type %d\n", s->index, str_charptr(s->name), s->header->type);
+        // printf("  - %2d: %s, type %d\n", s->index, str_charptr(s->name), s->header->type);
         // bin_print_hex(s->contents, 2, 0, -1, stdout);
     }
 

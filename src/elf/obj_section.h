@@ -16,6 +16,13 @@ struct obj_section {
     llist *symbols;      // item type is <obj_symbol>
     llist *relocations;  // item type is <obj_relocation>
 
+    struct {
+        unsigned int allocate: 1;
+        unsigned int executable: 1;
+        unsigned int writable: 1;
+        unsigned int init_to_zero: 1;
+    } flags;
+
     struct obj_section_ops {
         void (*print)(obj_section *s, FILE *f);
         void (*append)(obj_section *s, obj_section *other);

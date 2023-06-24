@@ -543,7 +543,7 @@ static bool llist_iterator_valid(iterator *it) {
 
 static void *llist_iterator_next(iterator *it) {
     llist_iterator_private_state *it_state = (llist_iterator_private_state *)it->private_data;
-    it_state->curr = it_state->curr->next;
+    it_state->curr = (it_state->curr == NULL) ? NULL : it_state->curr->next;
     return it_state->curr == NULL ? NULL : it_state->curr->data;
 }
 

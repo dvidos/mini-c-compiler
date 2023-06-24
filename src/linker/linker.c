@@ -96,6 +96,8 @@ static bool add_participant_from_library(link2_info *info, link2_lib_module_id *
         return false; 
     
     obj_module *m = new_obj_module_from_elf64_contents(elf_cnt, info->mempool);
+    printf("Module from library:\n");
+    m->ops->print(m, stdout);
     return add_participant(info, m);
 }
 
@@ -109,12 +111,10 @@ static void discover_library_contents(link2_info *info, str *library_path) {
     lib_info->symbols = ar_get_symbols(lib_info->archive, info->mempool);
     llist_add(info->lib_infos, lib_info);
 
-    /*
-        printf("%s module entries\n", str_charptr(lib_info->pathname));
-        ar_print_entries(lib_info->entries, 50, stdout);
-        printf("%s module symbols\n", str_charptr(lib_info->pathname));
-        ar_print_symbols(lib_info->symbols, 50, stdout);
-    */
+    // printf("%s module entries\n", str_charptr(lib_info->pathname));
+    // ar_print_entries(lib_info->entries, 50, stdout);
+    // printf("%s module symbols\n", str_charptr(lib_info->pathname));
+    // ar_print_symbols(lib_info->symbols, 50, stdout);
 }
 
 static int compare_module_and_exported_symbol_name(obj_module *module, str *sym_name) {
@@ -180,6 +180,12 @@ static bool find_unresolved_symbols(link2_info *info, bool check_startup_symbol)
     }
 
     for_list (info->participants, obj_module, m) {
+        for_list (m->sections, obj_section, s) {
+            for_list(s->relocations, obj_relocation, r) {
+                all_found &= check_mark_unresolved_symbol(info, m, r->symbol_name);
+            }
+        }
+
         for_list(m->text->relocations, obj_relocation, r)
             all_found &= check_mark_unresolved_symbol(info, m, r->symbol_name);
 

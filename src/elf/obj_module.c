@@ -403,7 +403,7 @@ static obj_symbol *new_obj_symbol_from_elf_symbol(elf64_sym *sym, elf64_section 
     return s;
 }
 
-static obj_relocation *new_obj_relocation_from_elf_relocation(elf64_rela *rel, elf64_section *symtab, elf64_section *strtab, llist *sections, mempool *mp) {
+static obj_relocation *new_obj_relocation_from_elf_relocation(elf64_rela *rel, elf64_section *symtab, elf64_section *strtab, llist *elf64_sections, mempool *mp) {
     obj_relocation *r = mempool_alloc(mp, sizeof(obj_relocation), "obj_relocation");
 
     // find the symbol this relocation needs to resolve
@@ -413,7 +413,7 @@ static obj_relocation *new_obj_relocation_from_elf_relocation(elf64_rela *rel, e
 
     int sym_type = ELF64_ST_TYPE(sym->st_info);
     if (sym_type == STT_SECTION) {  // section names are not contained in the string table
-        elf64_section *section = llist_get(sections, sym->st_shndx);
+        elf64_section *section = llist_get(elf64_sections, sym->st_shndx);
         if (section != NULL)
             str_cat(r->symbol_name, section->name);
     } else {
@@ -464,8 +464,62 @@ static bool should_ignore_elf64_section(elf64_section *s) {
     return false;
 }
 
+obj_section *create_obj_section_from_elf_section(elf64_section *elf_sect, mempool *mp) {
+    obj_section *obj_sect = new_obj_section(mp);
+
+    obj_sect->name = elf_sect->name;
+    obj_sect->flags.writable     = (elf_sect->header->flags & SECTION_FLAGS_WRITE);
+    obj_sect->flags.allocate     = (elf_sect->header->flags & SECTION_FLAGS_ALLOC);
+    obj_sect->flags.executable   = (elf_sect->header->flags & SECTION_FLAGS_EXECINSTR);
+    obj_sect->flags.init_to_zero = (elf_sect->header->type == SECTION_TYPE_NOBITS);
+    bin_cpy(obj_sect->contents, elf_sect->contents);
+
+    return obj_sect;
+}
+
+void parse_relocations_section(elf64_contents *contents, elf64_section *rela_section, obj_section *target_section, elf64_section *symtab, elf64_section *strtab, mempool *mp) {
+    int num_relocations = bin_len(rela_section->contents) / sizeof(elf64_rela);
+    elf64_rela *rela;
+
+    for (int i = 0; i < num_relocations; i++) {
+        rela = (elf64_rela *)bin_ptr_at(rela_section->contents, i * sizeof(elf64_rela));
+        obj_relocation *r = new_obj_relocation_from_elf_relocation(rela, symtab, strtab, contents->sections, mp);
+        llist_add(target_section->relocations, r);
+    }
+}
+
+bool parse_symbols_table(elf64_section *symtab, elf64_section *strtab, obj_section **obj_sections_per_elf_index, obj_module *module, llist *elf_sections, mempool *mp) {
+    int num_symbols = bin_len(symtab->contents) / sizeof(elf64_sym);
+    elf64_sym *elf_sym;
+
+    for (int i = 0; i < num_symbols; i++) {
+        elf_sym = (elf64_sym *)bin_ptr_at(symtab->contents, i * sizeof(elf64_sym));
+        if (elf_sym->st_shndx == 0)
+            continue;
+
+        obj_symbol *obj_sym = new_obj_symbol_from_elf_symbol(elf_sym, strtab, elf_sections, mp);
+        if (ELF64_ST_TYPE(elf_sym->st_info) == STT_FILE) {
+            module->name = obj_sym->name;
+            continue;
+        }
+
+        obj_section *target_section = obj_sections_per_elf_index[elf_sym->st_shndx];
+        if (target_section == NULL) {
+            // "Uknown symbol owner (name 'msg', section '.data.rel.local', type 1)"
+            printf("Symbol %s refers to elf section %d, which is not parsed\n", str_charptr(obj_sym->name), elf_sym->st_shndx);
+            return false;
+        }
+        llist_add(target_section->symbols, obj_sym);
+    }
+    return true;
+}
+
 obj_module *new_obj_module_from_elf64_contents(elf64_contents *contents, mempool *mp) {
     obj_module *module = new_obj_module(mp);
+
+    // to temporarily store the elf_section <--> obj_section relationship
+    obj_section *obj_sections_per_elf_index[32];
+    memset(obj_sections_per_elf_index, 0, sizeof(obj_sections_per_elf_index));
 
     // let's go over all the sections and see how we can tackle each one
     // printf("Let's see how to import elf64 contents into our obj_sections....\n");
@@ -473,108 +527,124 @@ obj_module *new_obj_module_from_elf64_contents(elf64_contents *contents, mempool
     for_iterator(elf64_section, s, sections_it) {
         // printf("- %2d: %s, type %d\n", s->index, str_charptr(s->name), s->header->type);
         if (is_unsupported_elf64_section(s)) {
-            printf("Unsupported section '%s', type %d, aborting", str_charptr(s->name), s->header->type);
+            printf("Unsupported section '%s' of type %d, aborting", str_charptr(s->name), s->header->type);
             return NULL;
         } else if (should_ignore_elf64_section(s)) {
             continue;
         }
 
-        if (s->header->type == SECTION_TYPE_PROGBITS) {
-            // we must keep this.
-
-        } else if (s->header->type == SECTION_TYPE_NOBITS) {
-            // we must instantiate this.
+        if (s->header->type == SECTION_TYPE_PROGBITS || s->header->type == SECTION_TYPE_NOBITS) {
+            obj_section *os = create_obj_section_from_elf_section(s, mp);
+            llist_add(module->sections, os);
+            obj_sections_per_elf_index[s->index] = os;
 
         } else if (s->header->type == SECTION_TYPE_RELA) {
             // we must enrich the appropriate section
-            int target = s->header->info;
+            int target_section_index = s->header->info;
             int relevant_symbol_table = s->header->link;
+            obj_section *target_obj_section = obj_sections_per_elf_index[target_section_index];
+            if (target_obj_section == NULL) {
+                printf("Relocation section %s points to index %d, not parsed yet\n", str_charptr(s->name), target_section_index);
+                return NULL;
+            }
+            elf64_section *symbols_section = llist_get(contents->sections, relevant_symbol_table);
+            elf64_section *strtab_section = llist_get(contents->sections, symbols_section->header->link);
+            parse_relocations_section(contents, s, target_obj_section, symbols_section, strtab_section, mp);
+            
         } else if (s->header->type == SECTION_TYPE_SYMTAB) {
             int relevant_string_table = s->header->link;
             int index_of_first_global_symbol = s->header->info;
-        } else if (s->header->type == SECTION_TYPE_STRTAB) {
+            elf64_section *strtab_section = llist_get(contents->sections, s->header->link);
+            // parse the symbols, find relevant sections, and distribute them.
+            if (!parse_symbols_table(s, strtab_section, obj_sections_per_elf_index, module, contents->sections, mp))
+                return NULL;
 
+        } else if (s->header->type == SECTION_TYPE_STRTAB) {
+            ; // we don't do anything, symbols should have been parsed already
         } else {
             printf("  Section '%s' is of unknwon type %d, not supported\n", str_charptr(s->name), s->header->type);
             return NULL;
         }
-
-        // bin_print_hex(s->contents, 2, 0, -1, stdout);
     }
 
-    elf64_section *text      = elf64_get_section_by_name(contents, new_str(mp, ".text"));
-    elf64_section *data      = elf64_get_section_by_name(contents, new_str(mp, ".data"));
-    elf64_section *bss       = elf64_get_section_by_name(contents, new_str(mp, ".bss"));
-    elf64_section *rodata    = elf64_get_section_by_name(contents, new_str(mp, ".rodata"));
-    elf64_section *rela_text = elf64_get_section_by_name(contents, new_str(mp, ".rela.text"));
-    elf64_section *symtab    = elf64_get_section_by_name(contents, new_str(mp, ".symtab"));
-    elf64_section *strtab    = elf64_get_section_by_name(contents, new_str(mp, ".strtab"));
 
-    if (text   != NULL) bin_cpy(module->text->contents,   text->contents);
-    if (data   != NULL) bin_cpy(module->data->contents,   data->contents);
-    if (bss    != NULL) bin_cpy(module->bss->contents,    bss->contents);
-    if (rodata != NULL) bin_cpy(module->rodata->contents, rodata->contents);
+    // elf64_section *text      = elf64_get_section_by_name(contents, new_str(mp, ".text"));
+    // elf64_section *data      = elf64_get_section_by_name(contents, new_str(mp, ".data"));
+    // elf64_section *bss       = elf64_get_section_by_name(contents, new_str(mp, ".bss"));
+    // elf64_section *rodata    = elf64_get_section_by_name(contents, new_str(mp, ".rodata"));
+    // elf64_section *rela_text = elf64_get_section_by_name(contents, new_str(mp, ".rela.text"));
+    // elf64_section *symtab    = elf64_get_section_by_name(contents, new_str(mp, ".symtab"));
+    // elf64_section *strtab    = elf64_get_section_by_name(contents, new_str(mp, ".strtab"));
+
+    // if (text   != NULL) bin_cpy(module->text->contents,   text->contents);
+    // if (data   != NULL) bin_cpy(module->data->contents,   data->contents);
+    // if (bss    != NULL) bin_cpy(module->bss->contents,    bss->contents);
+    // if (rodata != NULL) bin_cpy(module->rodata->contents, rodata->contents);
     
-    // unpack symbols into the relevant sections
-    if (symtab != NULL && strtab != NULL) {
-        int num_symbols = bin_len(symtab->contents) / sizeof(elf64_sym);
-        elf64_sym *sym;
-        for (int i = 0; i < num_symbols; i++) {
-            sym = (elf64_sym *)bin_ptr_at(symtab->contents, i * sizeof(elf64_sym));
-            // some symbols to be ignored (e.g. FILE)
+    // // unpack symbols into the relevant sections
+    // if (symtab != NULL && strtab != NULL) {
+    //     int num_symbols = bin_len(symtab->contents) / sizeof(elf64_sym);
+    //     elf64_sym *sym;
+    //     for (int i = 0; i < num_symbols; i++) {
+    //         sym = (elf64_sym *)bin_ptr_at(symtab->contents, i * sizeof(elf64_sym));
+    //         // some symbols to be ignored (e.g. FILE)
 
-            obj_symbol *s = new_obj_symbol_from_elf_symbol(sym, strtab, contents->sections, mp);
-            // must find the relevant section (grab the indexes of the four main sections)
-            obj_section *target_section = NULL;
+    //         obj_symbol *s = new_obj_symbol_from_elf_symbol(sym, strtab, contents->sections, mp);
+    //         // must find the relevant section (grab the indexes of the four main sections)
+    //         obj_section *target_section = NULL;
 
-            if (sym->st_shndx == 0)
-                // the first index is the empty index
-                continue;
-            else if (ELF64_ST_TYPE(sym->st_info) == STT_FILE) {
-                module->name = s->name;
-                continue;
-            } else if (text != NULL && sym->st_shndx == text->index)
-                target_section = module->text;
-            else if (data != NULL && sym->st_shndx == data->index)
-                target_section = module->data;
-            else if (bss != NULL && sym->st_shndx == bss->index)
-                target_section = module->bss;
-            else if (rodata != NULL && sym->st_shndx == rodata->index)
-                target_section = module->rodata;
+    //         if (sym->st_shndx == 0)
+    //             // the first index is the empty index
+    //             continue;
+    //         else if (ELF64_ST_TYPE(sym->st_info) == STT_FILE) {
+    //             module->name = s->name;
+    //             continue;
+    //         } else if (text != NULL && sym->st_shndx == text->index)
+    //             target_section = module->text;
+    //         else if (data != NULL && sym->st_shndx == data->index)
+    //             target_section = module->data;
+    //         else if (bss != NULL && sym->st_shndx == bss->index)
+    //             target_section = module->bss;
+    //         else if (rodata != NULL && sym->st_shndx == rodata->index)
+    //             target_section = module->rodata;
             
-            if (target_section == NULL) {
-                elf64_section *sect = elf64_get_section_by_index(contents, sym->st_shndx);
-                printf("Uknown symbol owner (name '%s', section '%s', type %d)\n", 
-                    str_charptr(s->name),
-                    (sect == NULL) ? "(null)" : str_charptr(sect->name),
-                    ELF64_ST_TYPE(sym->st_info));
-                // Uknown symbol owner (name 'msg', section '.data.rel.local', type 1)
-                // this means we have to take all sections into consideration, the .data.rel.local as well.
-                continue;
-            }
+    //         if (target_section == NULL) {
+    //             elf64_section *sect = elf64_get_section_by_index(contents, sym->st_shndx);
+    //             printf("Uknown symbol owner (name '%s', section '%s', type %d)\n", 
+    //                 str_charptr(s->name),
+    //                 (sect == NULL) ? "(null)" : str_charptr(sect->name),
+    //                 ELF64_ST_TYPE(sym->st_info));
+    //             // Uknown symbol owner (name 'msg', section '.data.rel.local', type 1)
+    //             // this means we have to take all sections into consideration, the .data.rel.local as well.
+    //             continue;
+    //         }
 
-            llist_add(target_section->symbols, s);
-        }
-    }
+    //         llist_add(target_section->symbols, s);
+    //     }
+    // }
     
-    // unpack relocations into relevant sections
-    if (rela_text != NULL && symtab != NULL && strtab != NULL) {
-        int num_relocations = bin_len(rela_text->contents) / sizeof(elf64_rela);
-        elf64_rela *rela;
-        for (int i = 0; i < num_relocations; i++) {
-            rela = (elf64_rela *)bin_ptr_at(rela_text->contents, i * sizeof(elf64_rela));
-            obj_relocation *r = new_obj_relocation_from_elf_relocation(rela, symtab, strtab, contents->sections, mp);
+    // // unpack relocations into relevant sections
+    // if (rela_text != NULL && symtab != NULL && strtab != NULL) {
+    //     int num_relocations = bin_len(rela_text->contents) / sizeof(elf64_rela);
+    //     elf64_rela *rela;
+    //     for (int i = 0; i < num_relocations; i++) {
+    //         rela = (elf64_rela *)bin_ptr_at(rela_text->contents, i * sizeof(elf64_rela));
+    //         obj_relocation *r = new_obj_relocation_from_elf_relocation(rela, symtab, strtab, contents->sections, mp);
 
-            llist_add(module->text->relocations, r);  // must find the relevant list to add this to.
-        }
-    }
+    //         llist_add(module->text->relocations, r);  // must find the relevant list to add this to.
+    //     }
+    // }
 
     return module;
 }
 
 static void obj_module_print(obj_module *module, FILE *f) {
     // print each section with it's symbols and relocations
-    fprintf(f, "Module %s\n", str_charptr(module->name));
+    fprintf(f, "Module '%s'\n", str_charptr(module->name));
+
+    for_list(module->sections, obj_section, s) {
+        s->ops->print(s, f);
+    }
 
     if (module->text != NULL) module->text->ops->print(module->text, f);
     if (module->data != NULL) module->text->ops->print(module->data, f);
@@ -591,6 +661,11 @@ static void obj_module_append(obj_module *module, obj_module *source) {
 
 static obj_symbol *obj_module_find_symbol(obj_module *m, str *name, bool exported) {
     obj_symbol *sym;
+
+    for_list (m->sections, obj_section, s) {
+        sym = s->ops->find_symbol(s, name, exported);
+        if (sym != NULL) return sym;
+    }
 
     sym = m->text->ops->find_symbol(m->text, name, exported);
     if (sym != NULL) return sym;

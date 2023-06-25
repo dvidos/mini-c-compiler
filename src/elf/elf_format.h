@@ -155,8 +155,8 @@ typedef struct elf64_section_header {
   elf64_address     virt_address;
   elf64_offset      file_offset;
   elf64_extra_word  size;
-  elf64_word        link;
-  elf64_word        info;
+  elf64_word        link; // for rela, this is symtab, for symtab, this is strtab, 
+  elf64_word        info; // for rela, this is pointed section, for symtab, first global symbol index
   elf64_extra_word  address_alignment;
   elf64_extra_word  entry_size;
 } elf64_section_header;

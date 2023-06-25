@@ -2,10 +2,9 @@
 #include "obj_module.h"
 #include "elf_format.h"
 
-
-
-static void obj_module_print(obj_module *module, FILE *f);
+static void obj_module_print(obj_module *module, FILE *file);
 static void obj_module_append(obj_module *module, obj_module *source);
+static obj_section *obj_module_get_section_by_name(obj_module *m, str *name);
 static obj_symbol *obj_module_find_symbol(obj_module *module, str *name, bool exported);
 static elf64_contents *obj_module_pack_object_file(obj_module *module, mempool *mp);
 static elf64_contents *obj_module_pack_executable_file(obj_module *module, mempool *mp);
@@ -13,12 +12,11 @@ static elf64_contents *obj_module_pack_executable_file(obj_module *module, mempo
 static struct obj_module_ops module_ops = {
     .print = obj_module_print,
     .append = obj_module_append,
+    .get_section_by_name = obj_module_get_section_by_name,
     .find_symbol = obj_module_find_symbol,
     .pack_object_file = obj_module_pack_object_file,
     .pack_executable_file = obj_module_pack_executable_file,
 };
-
-
 
 
 obj_module *new_obj_module(mempool *mp) {
@@ -26,357 +24,135 @@ obj_module *new_obj_module(mempool *mp) {
     m->name = new_str(mp, "");
     m->sections = new_llist(mp);
 
-    m->text = new_obj_section(mp);
-    m->data = new_obj_section(mp);
-    m->bss = new_obj_section(mp);
-    m->rodata = new_obj_section(mp);
-
     m->ops = &module_ops;
     m->mempool = mp;
     return m;
 }
 
 
+#define PACKING_MAX_SECTIONS  16
 
-
-static size_t add_to_strtab_and_get_index(str *s, elf64_section *strtab) {
-    // the first byte of the strtab is a terminator to allow for empty strings
-    if (str_len(s) == 0) {
-        if (bin_len(strtab->contents) == 0)
-            bin_add_byte(strtab->contents, 0x00);
-        return 0;
-    }
-
-    // in case the name already exists, reuse it
-    int index = bin_index_of(strtab->contents, str_charptr(s), str_len(s) + 1);
-    if (index >= 0)
-        return index;
-
-    // otherwise add it, saving address first
-    index = bin_len(strtab->contents);
-    bin_add_str(strtab->contents, s);
-
-    return index;
-}
-
-static void add_elf64_symbol_to_symbol_table_contents(str *name, size_t value, size_t size, int st_type, bool global, int st_shndx, elf64_section *symtab, elf64_section *strtab) {
-    elf64_sym sym;
-    sym.st_name = add_to_strtab_and_get_index(name, strtab);
-    sym.st_value = value;
-    sym.st_size = size;
-    sym.st_info = ELF64_ST_INFO(global ? STB_GLOBAL : STB_LOCAL, st_type);
-    sym.st_other = 0;
-    sym.st_shndx = st_shndx;
-    bin_add_mem(symtab->contents, &sym, sizeof(elf64_sym));
-}
-
-static void pack_elf64_symbols(llist *symbols_list, bool want_public, int st_type, int st_shndx, mempool *mp, elf64_section *symtab, elf64_section *strtab) {
-    for_list(symbols_list, obj_symbol, s) {
-        if (s->global != want_public) // we add either all private or public ones.
-            continue;
-        
-        add_elf64_symbol_to_symbol_table_contents(s->name, s->value, s->size, st_type, s->global, st_shndx, symtab, strtab);
-    }
-}
-
-static int find_elf64_symbol(const char *name, elf64_section *symtab, elf64_section *strtab) {
-    elf64_sym *sym_ptr;
-    char *sym_name;
-    int total_syms = bin_len(symtab->contents) / sizeof(elf64_sym);
-    for (int i = 0; i < total_syms; i++) {
-        sym_ptr = bin_ptr_at(symtab->contents, i * sizeof(elf64_sym));
-        char *sym_name = bin_ptr_at(strtab->contents, sym_ptr->st_name);
-        if (strcmp(name, sym_name) == 0)
-            return i;
-    }
-    return -1;
+// use this packing_info struct to keep track between obj_modules and elf_modules
+struct packing_info {
+    obj_module *module;
+    elf64_contents *elf;
+    struct section_info {
+        obj_section *obj;
+        elf64_section *elf;
+        elf64_section *elf_rela;
+    } sections[PACKING_MAX_SECTIONS];
+    int sections_len;
+    elf64_section *symtab;
+    elf64_section *strtab;
 };
 
-static void pack_elf64_relocations(llist *relocations_list, mempool *mp, elf64_section *relatab, elf64_section *symtab, elf64_section *strtab) {
-    elf64_rela rela;
-    int symbols_table_len = bin_len(symtab->contents) / sizeof(elf64_sym);
 
-    iterator *it = llist_create_iterator(relocations_list, mp);
-    for_iterator(obj_relocation, r, it) {
-        // we need to find the symbol number, look it up?
-        // if it does not exist, we should include it with the UNDEFINED index, NOTYPE type, GLOBAL visitibilty
-        int symbol_num = find_elf64_symbol(str_charptr(r->symbol_name), symtab, strtab);
-        if (symbol_num == -1) {
-            symbol_num = symbols_table_len;
-            add_elf64_symbol_to_symbol_table_contents(r->symbol_name, 0, 0, STT_NOTYPE, true, SHN_UNDEF, symtab, strtab);
-        }
-
-        rela.r_offset = r->offset;
-        rela.r_info = ELF64_R_INFO(symbol_num, r->type);
-        rela.r_addend = r->addendum;
-
-        // add this relocation
-        bin_add_mem(relatab->contents, &rela, sizeof(elf64_rela));
-    }
-}
-
-static elf64_section *add_elf64_section(elf64_contents *contents, str *name, bin *section_contents, 
-            int type, int entry_size, int link, int info, mempool *mp) {
-    elf64_section *section = new_elf64_section(mp);
-
-    section->index = llist_length(contents->sections);
-    section->name = name;
-    // see the SECTION_TYPE_* constants
-    section->header->type = type;
-    // for REL and SYM types, size of symbol or relocation entries
-    section->header->entry_size = entry_size;  
-    // for REL types, points to the symbol table
-    // for SYM types, points to the string table
-    section->header->link = link;  
-    // for REL types, points to the section to apply the relocations
-    // for SYM types, index of first global symbol, or one past the last local one
-    section->header->info = info;  
-
-    if (section_contents != NULL)
-        bin_cpy(section->contents, section_contents);
-
-    llist_add(contents->sections, section);
-    return section;
-}
 
 static elf64_contents *obj_module_pack_object_file(obj_module *module, mempool *mp) {
-    elf64_contents *contents = new_elf64_contents(mp);
-    iterator *it;
+    // use this packing_info struct to keep track between obj_modules and elf_modules
+    struct packing_info packing_info;
+    struct packing_info *pi = &packing_info;
+
+    // prepare the runtime packing info, to allow us to sync between obj and elf sections.
+    memset(pi, 0, sizeof(struct packing_info));
+    pi->module = module;
+    pi->elf = new_elf64_contents(mp);
+    pi->symtab = pi->elf->ops->create_section(pi->elf, new_str(mp, ".symtab"), SECTION_TYPE_SYMTAB);
+    pi->strtab = pi->elf->ops->create_section(pi->elf, new_str(mp, ".strtab"), SECTION_TYPE_STRTAB);
 
     // mark this as a relocatable file
-    contents->header->file_type = ELF_TYPE_REL;
+    pi->elf->header->file_type = ELF_TYPE_REL;
 
-    // the first is the empty section, always (index 0)
-    add_elf64_section(contents, new_str(mp, ""), NULL, SECTION_TYPE_NULL, 0, 0, 0, mp);
+    // add the empty symbol to the symbol table and the FILE name
+    pi->symtab->ops->add_named_symbol(pi->symtab, NULL, 0, 0, STT_NOTYPE, 0, 0, pi->strtab);
+    pi->symtab->ops->add_named_symbol(pi->symtab, module->name, 0, 0, STT_FILE, STB_LOCAL, SHN_ABS, pi->strtab);
+    
+    // add the empty section first (index 0)
+    pi->elf->ops->add_section(pi->elf, 
+        pi->elf->ops->create_section(pi->elf, NULL, SECTION_TYPE_NULL));
+    
+    // add all sections to elf to get an index
+    for_list(module->sections, obj_section, obj_sect) {
+        elf64_section *elf_sect = pi->elf->ops->create_section(pi->elf, obj_sect->name, 
+            obj_sect->flags.init_to_zero ? SECTION_TYPE_NOBITS : SECTION_TYPE_PROGBITS);
+        pi->elf->ops->add_section(pi->elf, elf_sect);
+        
+        elf64_section *rela_sect = NULL;
+        if (!llist_is_empty(obj_sect->relocations)) {
+            str *rela_name = new_str(pi->elf->mempool, ".rela");
+            str_cat(rela_name, obj_sect->name);
+            rela_sect = pi->elf->ops->create_section(pi->elf, rela_name, SECTION_TYPE_RELA);
+            pi->elf->ops->add_section(pi->elf, rela_sect);
+        }
 
-    // the next four are fixed sequence (1-4)
-    add_elf64_section(contents, new_str(mp, ".text"), module->text->contents, SECTION_TYPE_PROGBITS, 0, 0, 0, mp);
-    add_elf64_section(contents, new_str(mp, ".data"), module->data->contents, SECTION_TYPE_PROGBITS, 0, 0, 0, mp);
-    add_elf64_section(contents, new_str(mp, ".bss"), module->bss->contents, SECTION_TYPE_NOBITS, 0, 0, 0, mp);
-    add_elf64_section(contents, new_str(mp, ".rodata"), module->rodata->contents, SECTION_TYPE_PROGBITS, 0, 0, 0, mp);
+        // note this on pack_info, for later backfilling
+        pi->sections[pi->sections_len].obj = obj_sect;
+        pi->sections[pi->sections_len].elf = elf_sect;
+        pi->sections[pi->sections_len].elf_rela = rela_sect;
+        pi->sections_len += 1;
+    }
 
-    // prepare three sections to populate (5, 6, 7)
-    elf64_section *rela_text = add_elf64_section(contents, new_str(mp, ".rela.text"), NULL, SECTION_TYPE_RELA, sizeof(elf64_rela), 6, 1, mp);
-    elf64_section *symtab = add_elf64_section(contents, new_str(mp, ".symtab"), NULL, SECTION_TYPE_SYMTAB, sizeof(elf64_sym), 7, 1, mp);
-    elf64_section *strtab = add_elf64_section(contents, new_str(mp, ".strtab"), NULL, SECTION_TYPE_STRTAB, 0, 0, 0, mp);
-    mempool *scratch = new_mempool();
+    // after all PROGBITS / NOBITS sections, add the symbol and strings tables
+    pi->elf->ops->add_section(pi->elf, pi->symtab);
+    pi->elf->ops->add_section(pi->elf, pi->strtab);
 
-    // add the empty symbol to the symbol table
-    add_elf64_symbol_to_symbol_table_contents(new_str(mp, ""), 0, 0, STT_NOTYPE, false, SHN_UNDEF, symtab, strtab);
+    // now add all symbols to symtab, since we have indexes on the relevant sections
+    // first only local symbols
+    for (int i = 0; i < pi->sections_len; i++) {
+        for_list(pi->sections[i].obj->symbols, obj_symbol, sym) {
+            if (sym->global) continue;
+            pi->symtab->ops->add_named_symbol(pi->sections[i].elf, 
+                sym->name, sym->value, sym->size, 
+                pi->sections[i].obj->flags.executable ? STT_FUNC : STT_OBJECT,
+                sym->global ? STB_GLOBAL : STB_LOCAL, 
+                pi->sections[i].elf->index, pi->strtab);
+        }
+    }
 
-    // add symbol for the module (file) and one for each section entry
-    add_elf64_symbol_to_symbol_table_contents(module->name, 0, 0, STT_FILE, false, SHN_ABS, symtab, strtab);
-    add_elf64_symbol_to_symbol_table_contents(module->text->name, 0, 0, STT_SECTION, false, 1, symtab, strtab);
-    add_elf64_symbol_to_symbol_table_contents(module->data->name, 0, 0, STT_SECTION, false, 2, symtab, strtab);
-    add_elf64_symbol_to_symbol_table_contents(module->bss->name, 0, 0, STT_SECTION, false, 3, symtab, strtab);
-    add_elf64_symbol_to_symbol_table_contents(module->rodata->name, 0, 0, STT_SECTION, false, 4, symtab, strtab);
+    // save the index of the first global symbol in the symbol table
+    size_t first_global_symbol_index = pi->symtab->ops->count_symbols(pi->symtab);
 
-    // all local symbols must precede the global ones.
-    // pack local various symbols into single symtab section (and names into strtab)
-    pack_elf64_symbols(module->text->symbols,   false, STT_FUNC,   1, scratch, symtab, strtab);
-    pack_elf64_symbols(module->data->symbols,   false, STT_OBJECT, 2, scratch, symtab, strtab);
-    pack_elf64_symbols(module->bss->symbols,    false, STT_OBJECT, 3, scratch, symtab, strtab);
-    pack_elf64_symbols(module->rodata->symbols, false, STT_OBJECT, 4, scratch, symtab, strtab);
-    // mark the end of local symbols in the symbol table
-    symtab->header->info = (bin_len(symtab->contents) / sizeof(elf64_sym));
-    // then allow all public symbols
-    pack_elf64_symbols(module->text->symbols,   true, STT_FUNC,   1, scratch, symtab, strtab);
-    pack_elf64_symbols(module->data->symbols,   true, STT_OBJECT, 2, scratch, symtab, strtab);
-    pack_elf64_symbols(module->bss->symbols,    true, STT_OBJECT, 3, scratch, symtab, strtab);
-    pack_elf64_symbols(module->rodata->symbols, true, STT_OBJECT, 4, scratch, symtab, strtab);
+    // now only global symbols
+    for (int i = 0; i < pi->sections_len; i++) {
+        for_list(pi->sections[i].obj->symbols, obj_symbol, sym) {
+            if (!sym->global) continue;
+            pi->symtab->ops->add_named_symbol(pi->sections[i].elf, 
+                sym->name, sym->value, sym->size, 
+                pi->sections[i].obj->flags.executable ? STT_FUNC : STT_OBJECT,
+                sym->global ? STB_GLOBAL : STB_LOCAL, 
+                pi->sections[i].elf->index, pi->strtab);
+        }
+    }
 
-    // pack relocations as well
-    pack_elf64_relocations(module->text->relocations, scratch, rela_text, symtab, strtab);
+    // now insert all the relocations, allow them to create UNDefined symbols
+    for (int i = 0; i < pi->sections_len; i++) {
+        if (pi->sections[i].elf_rela == NULL) continue;
+        for_list(pi->sections[i].obj->relocations, obj_relocation, rel) {
+            pi->sections[i].elf_rela->ops->add_named_relocation(pi->sections[i].elf_rela,
+                rel->offset, rel->symbol_name, rel->type, rel->addendum, 
+                pi->symtab, pi->strtab);
+        }
+    }
 
-    mempool_release(scratch);
-    return contents;
+    // update sections links and infos:
+    // - for relas, link=sym, info=target
+    // - for syms,  link=str, info=first-global
+    for (int i = 0; i < pi->sections_len; i++) {
+        if (pi->sections[i].elf_rela != NULL) {
+            pi->sections[i].elf_rela->header->link = pi->symtab->index;
+            pi->sections[i].elf_rela->header->info = pi->sections[i].elf->index;
+        }
+    }
+    pi->symtab->header->info = first_global_symbol_index;
+    pi->symtab->header->link = pi->strtab->index;
+
+    // I think we are done!
+    return pi->elf;
 }
 
 static elf64_contents *obj_module_pack_executable_file(obj_module *module, mempool *mp) {
     // the difference is that we need to make program headers as well,
     // also, make all the sections align into page boundaries, the headers portion as well.
-
-    /*
-    // all loadable sections MUST be page aligned (from linker), otherwise they cannot load
-    if (contents->text->header->virt_address & (ALIGN_SIZE - 1)
-        || contents->data->header->virt_address & (ALIGN_SIZE - 1)
-        || contents->bss->header->virt_address & (ALIGN_SIZE - 1)
-        || contents->rodata->header->virt_address & (ALIGN_SIZE - 1))
-        return false;
-    
-    if ((bin_len(contents->text->contents) & (ALIGN_SIZE - 1))
-        || (bin_len(contents->data->contents) & (ALIGN_SIZE - 1))
-        || (bin_len(contents->bss->contents) & (ALIGN_SIZE - 1))
-        || (bin_len(contents->rodata->contents) & (ALIGN_SIZE - 1)))
-        return false;
-
-    bin *result = new_bin(mp);
-    bin *section_names_table = new_bin(mp);
-    
-    u64 program_headers_offset = 0;
-    u64 program_headers_count = 0;
-    u64 section_headers_offset = 0;
-    u64 section_headers_count = 0;
-    u64 section_names_table_index = 0;
-    u64 file_loading_info_length = 0;
-
-    // file header placeholder
-    bin_add_zeros(result, sizeof(elf64_header)); 
-
-    if (executable) {
-        // we shall create 5 loading headers: headers, text, data, bss, rodata
-        program_headers_offset = bin_len(result);
-        program_headers_count = 5;
-
-        bin_add_zeros(result, sizeof(elf64_prog_header) * program_headers_count);
-        
-        // since we are loading the file headers table, pad this to a page size
-        bin_pad(result, 0, round_up(bin_len(result), ALIGN_SIZE));
-        file_loading_info_length = bin_len(result);
-    }
-
-    // do two things for each section:
-    // - prepare header, noting current file offset, append name in names_table
-    // - add content, to advance file offset
-
-    // Sect#    Name          Notes
-    //     0    <null>
-    //     1    .text
-    //     2    .data
-    //     3    .bss
-    //     4    .rodata
-    //     5    .rela_text    link to 6 for str table, info to 1 for relevant code 
-    //     6    .symtab       symbols, link to 7 for strings, info must be "One greater than the symbol table index of the last local symbol (binding STB_LOCAL)"
-    //     7    .strtab       names of symbols
-    //     8    .comment      
-    //     9    .shstrtab     names of sections
-
-    // section 0
-    elf64_section_header *empty_section_header = new_elf64_section_header(
-        0, "", 0, 
-        bin_len(result), 0, 0, 0, 0, 0,
-        section_names_table, mp);
-    // no contents, this is an empty section
-    
-    // section 1
-    elf64_section_header *text_header = new_elf64_section_header(
-        SECTION_TYPE_PROGBITS, ".text", SECTION_FLAGS_ALLOC | SECTION_FLAGS_EXECINSTR, 
-        bin_len(result), bin_len(contents->text->contents), 0, 0, 0, 0,
-        section_names_table, mp);
-    bin_cat(result, contents->text->contents);
-
-    elf64_section_header *data_header = new_elf64_section_header(
-        SECTION_TYPE_PROGBITS, ".data", SECTION_FLAGS_ALLOC | SECTION_FLAGS_WRITE, 
-        bin_len(result), bin_len(contents->data->contents), 0, 0, 0, 0,
-        section_names_table, mp);
-    bin_cat(result, contents->data->contents);
-
-    elf64_section_header *bss_header = new_elf64_section_header(
-        SECTION_TYPE_NOBITS, ".bss", SECTION_FLAGS_ALLOC | SECTION_FLAGS_WRITE, 
-        bin_len(result), bin_len(contents->bss->contents), 0, 0, 0, 0,
-        section_names_table, mp);
-    // bin_cat(file_buffer, contents->rodata);  no storage for BSS segment
-
-    elf64_section_header *rodata_header = new_elf64_section_header(
-        SECTION_TYPE_PROGBITS, ".rodata", SECTION_FLAGS_ALLOC, 
-        bin_len(result), bin_len(contents->rodata->contents), 0, 0, 0, 0, 
-        section_names_table, mp);
-    bin_cat(result, contents->rodata->contents);
-
-    elf64_section_header *rela_text_header = new_elf64_section_header(
-        SECTION_TYPE_RELA, ".rela.text", 0, 
-        bin_len(result), bin_len(contents->rela_text->contents), sizeof(elf64_rela), 6, 1, 0,  
-        section_names_table, mp);
-    bin_cat(result, contents->rela_text->contents);
-
-    elf64_section_header *symtab_header = new_elf64_section_header(
-        SECTION_TYPE_SYMTAB, ".symtab", 0, 
-        bin_len(result), bin_len(contents->symtab->contents), sizeof(elf64_sym), 7, 1, 0, 
-        section_names_table, mp);
-    bin_cat(result, contents->symtab->contents);
-
-    elf64_section_header *strtab_header = new_elf64_section_header(
-        SECTION_TYPE_STRTAB, ".strtab", 0, 
-        bin_len(result), bin_len(contents->strtab->contents), 0, 0, 0, 0,
-        section_names_table, mp);
-    bin_cat(result, contents->strtab->contents);
-
-    elf64_section_header *comment_header = new_elf64_section_header(
-        SECTION_TYPE_PROGBITS, ".comment", 0, 
-        bin_len(result), bin_len(contents->comment->contents), 0, 0, 0, 0,
-        section_names_table, mp);
-    bin_cat(result, contents->comment->contents);
-
-    // we grab the length of the names table before adding the ".shstrtab" entry, hence the +10.
-    elf64_section_header *shstrtab_header = new_elf64_section_header(
-        SECTION_TYPE_STRTAB, ".shstrtab", 0, 
-        bin_len(result), bin_len(section_names_table) + 10, 0, 0, 0, 0,
-        section_names_table, mp);
-    bin_cat(result, section_names_table);
-
-    section_headers_offset = bin_len(result);
-    section_headers_count = 10;
-    section_names_table_index = 9;
-
-    // save all section headers
-    bin_add_mem(result, empty_section_header, sizeof(elf64_section_header));
-    bin_add_mem(result, text_header,          sizeof(elf64_section_header));
-    bin_add_mem(result, data_header,          sizeof(elf64_section_header));
-    bin_add_mem(result, rodata_header,        sizeof(elf64_section_header));
-    bin_add_mem(result, bss_header,           sizeof(elf64_section_header));
-    bin_add_mem(result, rela_text_header,     sizeof(elf64_section_header));
-    bin_add_mem(result, symtab_header,        sizeof(elf64_section_header));
-    bin_add_mem(result, strtab_header,        sizeof(elf64_section_header));
-    bin_add_mem(result, comment_header,       sizeof(elf64_section_header));
-    bin_add_mem(result, shstrtab_header,      sizeof(elf64_section_header));
-
-    // now that we have offsets and sizes, update program headers
-    if (executable) {
-        u64 load_headers_mem_address = contents->text->header->virt_address - round_up(file_loading_info_length, 0x1000);
-        elf64_prog_header *load_headers_pheader = new_elf64_prog_header(mp, 
-            PROG_TYPE_LOAD, PROG_FLAGS_READ, 0x1000,
-            0,                        file_loading_info_length, 
-            load_headers_mem_address, file_loading_info_length);
-        
-        elf64_prog_header *text_pheader = new_elf64_prog_header(mp, 
-            PROG_TYPE_LOAD, PROG_FLAGS_READ | PROG_FLAGS_EXECUTE, 0x1000,
-            text_header->file_offset,    bin_len(contents->text->contents), 
-            contents->text->header->virt_address, bin_len(contents->text->contents));
-        
-        elf64_prog_header *data_pheader = new_elf64_prog_header(mp, 
-            PROG_TYPE_LOAD, PROG_FLAGS_READ | PROG_FLAGS_WRITE, 0x1000,
-            data_header->file_offset,    bin_len(contents->data->contents), 
-            contents->data->header->virt_address, bin_len(contents->data->contents));
-        
-        elf64_prog_header *bss_pheader = new_elf64_prog_header(mp,
-            PROG_TYPE_LOAD, PROG_FLAGS_READ | PROG_FLAGS_WRITE, 0x1000,
-            bss_header->file_offset,    0,
-            contents->bss->header->virt_address, bin_len(contents->bss->contents));
-        
-        elf64_prog_header *rodata_pheader = new_elf64_prog_header(mp,
-            PROG_TYPE_LOAD, PROG_FLAGS_READ, 0x1000,
-            rodata_header->file_offset,    bin_len(contents->rodata->contents), 
-            contents->rodata->header->virt_address, bin_len(contents->rodata->contents));
-        
-        bin_seek(result, program_headers_offset);
-        bin_write_mem(result, load_headers_pheader, sizeof(elf64_prog_header));
-        bin_write_mem(result, text_pheader,         sizeof(elf64_prog_header));
-        bin_write_mem(result, data_pheader,         sizeof(elf64_prog_header));
-        bin_write_mem(result, bss_pheader,          sizeof(elf64_prog_header));
-        bin_write_mem(result, rodata_pheader,       sizeof(elf64_prog_header));
-    }
-
-    // now that we have all offsets, update file header
-    elf64_header *header = new_elf64_file_header(mp, 
-        executable, entry_point,
-        program_headers_count, program_headers_offset, 
-        section_headers_count, section_headers_offset, section_names_table_index);
-    bin_seek(result, 0);
-    bin_write_mem(result, header, sizeof(elf64_header));
-
-    return result;
-    */
-
     return NULL;
 }   
 
@@ -567,96 +343,30 @@ obj_module *new_obj_module_from_elf64_contents(elf64_contents *contents, mempool
         }
     }
 
-
-    // elf64_section *text      = elf64_get_section_by_name(contents, new_str(mp, ".text"));
-    // elf64_section *data      = elf64_get_section_by_name(contents, new_str(mp, ".data"));
-    // elf64_section *bss       = elf64_get_section_by_name(contents, new_str(mp, ".bss"));
-    // elf64_section *rodata    = elf64_get_section_by_name(contents, new_str(mp, ".rodata"));
-    // elf64_section *rela_text = elf64_get_section_by_name(contents, new_str(mp, ".rela.text"));
-    // elf64_section *symtab    = elf64_get_section_by_name(contents, new_str(mp, ".symtab"));
-    // elf64_section *strtab    = elf64_get_section_by_name(contents, new_str(mp, ".strtab"));
-
-    // if (text   != NULL) bin_cpy(module->text->contents,   text->contents);
-    // if (data   != NULL) bin_cpy(module->data->contents,   data->contents);
-    // if (bss    != NULL) bin_cpy(module->bss->contents,    bss->contents);
-    // if (rodata != NULL) bin_cpy(module->rodata->contents, rodata->contents);
-    
-    // // unpack symbols into the relevant sections
-    // if (symtab != NULL && strtab != NULL) {
-    //     int num_symbols = bin_len(symtab->contents) / sizeof(elf64_sym);
-    //     elf64_sym *sym;
-    //     for (int i = 0; i < num_symbols; i++) {
-    //         sym = (elf64_sym *)bin_ptr_at(symtab->contents, i * sizeof(elf64_sym));
-    //         // some symbols to be ignored (e.g. FILE)
-
-    //         obj_symbol *s = new_obj_symbol_from_elf_symbol(sym, strtab, contents->sections, mp);
-    //         // must find the relevant section (grab the indexes of the four main sections)
-    //         obj_section *target_section = NULL;
-
-    //         if (sym->st_shndx == 0)
-    //             // the first index is the empty index
-    //             continue;
-    //         else if (ELF64_ST_TYPE(sym->st_info) == STT_FILE) {
-    //             module->name = s->name;
-    //             continue;
-    //         } else if (text != NULL && sym->st_shndx == text->index)
-    //             target_section = module->text;
-    //         else if (data != NULL && sym->st_shndx == data->index)
-    //             target_section = module->data;
-    //         else if (bss != NULL && sym->st_shndx == bss->index)
-    //             target_section = module->bss;
-    //         else if (rodata != NULL && sym->st_shndx == rodata->index)
-    //             target_section = module->rodata;
-            
-    //         if (target_section == NULL) {
-    //             elf64_section *sect = elf64_get_section_by_index(contents, sym->st_shndx);
-    //             printf("Uknown symbol owner (name '%s', section '%s', type %d)\n", 
-    //                 str_charptr(s->name),
-    //                 (sect == NULL) ? "(null)" : str_charptr(sect->name),
-    //                 ELF64_ST_TYPE(sym->st_info));
-    //             // Uknown symbol owner (name 'msg', section '.data.rel.local', type 1)
-    //             // this means we have to take all sections into consideration, the .data.rel.local as well.
-    //             continue;
-    //         }
-
-    //         llist_add(target_section->symbols, s);
-    //     }
-    // }
-    
-    // // unpack relocations into relevant sections
-    // if (rela_text != NULL && symtab != NULL && strtab != NULL) {
-    //     int num_relocations = bin_len(rela_text->contents) / sizeof(elf64_rela);
-    //     elf64_rela *rela;
-    //     for (int i = 0; i < num_relocations; i++) {
-    //         rela = (elf64_rela *)bin_ptr_at(rela_text->contents, i * sizeof(elf64_rela));
-    //         obj_relocation *r = new_obj_relocation_from_elf_relocation(rela, symtab, strtab, contents->sections, mp);
-
-    //         llist_add(module->text->relocations, r);  // must find the relevant list to add this to.
-    //     }
-    // }
-
     return module;
 }
 
-static void obj_module_print(obj_module *module, FILE *f) {
+static void obj_module_print(obj_module *module, FILE *file) {
     // print each section with it's symbols and relocations
-    fprintf(f, "Module '%s'\n", str_charptr(module->name));
+    fprintf(file, "Module '%s'\n", str_charptr(module->name));
 
     for_list(module->sections, obj_section, s) {
-        s->ops->print(s, f);
+        if (bin_len(s->contents) == 0) continue;
+        s->ops->print(s, file);
     }
-
-    if (module->text != NULL) module->text->ops->print(module->text, f);
-    if (module->data != NULL) module->text->ops->print(module->data, f);
-    if (module->bss != NULL) module->text->ops->print(module->bss, f);
-    if (module->rodata != NULL) module->text->ops->print(module->rodata, f);
 }
 
 static void obj_module_append(obj_module *module, obj_module *source) {
-    module->text->ops->append(module->text, source->text);
-    module->data->ops->append(module->data, source->data);
-    module->bss->ops->append(module->bss, source->bss);
-    module->rodata->ops->append(module->rodata, source->rodata);
+    // need to match sections of one to sections of the other
+}
+
+static int compare_section_and_name(obj_section *s, str *name) {
+    return str_cmp(s->name, name);
+}
+
+static obj_section *obj_module_get_section_by_name(obj_module *m, str *name) {
+    int index = llist_find_first(m->sections, (comparator_function*)compare_section_and_name, name);
+    return index == -1 ? NULL : llist_get(m->sections, index);
 }
 
 static obj_symbol *obj_module_find_symbol(obj_module *m, str *name, bool exported) {
@@ -666,18 +376,6 @@ static obj_symbol *obj_module_find_symbol(obj_module *m, str *name, bool exporte
         sym = s->ops->find_symbol(s, name, exported);
         if (sym != NULL) return sym;
     }
-
-    sym = m->text->ops->find_symbol(m->text, name, exported);
-    if (sym != NULL) return sym;
-
-    sym = m->data->ops->find_symbol(m->data, name, exported);
-    if (sym != NULL) return sym;
-
-    sym = m->bss->ops->find_symbol(m->bss, name, exported);
-    if (sym != NULL) return sym;
-
-    sym = m->rodata->ops->find_symbol(m->rodata, name, exported);
-    if (sym != NULL) return sym;
     
     return NULL;
 }

@@ -14,7 +14,7 @@ static void demo_obj_file(char *filename) {
     bin *data = new_bin_from_file(mp, name);
 
     elf64_contents *contents = new_elf64_contents_from_binary(mp, data);
-    elf64_contents_print(contents, stdout);
+    contents->ops->print(contents, stdout);
 
     obj_module *module = new_obj_module_from_elf64_contents(contents, mp);
     module->ops->print(module, stdout);
@@ -39,7 +39,7 @@ static void demo_lib_entry(archive *a, llist *entries, int entry_no) {
     bin *data = ar_load_file_contents(a, e);
 
     elf64_contents *contents = new_elf64_contents_from_binary(mp, data);
-    elf64_contents_print(contents, stdout);
+    contents->ops->print(contents, stdout);
 
     obj_module *module = new_obj_module_from_elf64_contents(contents, mp);
     module->ops->print(module, stdout);

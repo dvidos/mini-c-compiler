@@ -70,7 +70,6 @@ static void obj_relocation_print(obj_relocation *r, FILE *f) {
 }
 
 static void obj_section_print(obj_section *s, FILE *f) {
-    mempool *scratch = new_mempool();
     fprintf(f, "  Section %s\n", str_charptr(s->name));
 
     if (bin_len(s->contents) > 0) {
@@ -80,21 +79,17 @@ static void obj_section_print(obj_section *s, FILE *f) {
     }
 
     if (llist_length(s->symbols) > 0) {
-        obj_symbol_print(NULL, 0, f);
-        iterator *symbols = llist_create_iterator(s->symbols, scratch);
         int num = 0;
-        for_iterator(obj_symbol, s, symbols)
-            obj_symbol_print(s, num++, f);
+        obj_symbol_print(NULL, 0, f);
+        for_list(s->symbols, obj_symbol, sym)
+            obj_symbol_print(sym, num++, f);
     }
 
     if (llist_length(s->relocations)) {
         obj_relocation_print(NULL, f);
-        iterator *relocations = llist_create_iterator(s->relocations, scratch);
-        for_iterator(obj_relocation, r, relocations)
+        for_list(s->relocations, obj_relocation, r)
             obj_relocation_print(r, f);
     }
-
-    mempool_release(scratch);
 }
 
 static void obj_section_append(obj_section *s, obj_section *other) {

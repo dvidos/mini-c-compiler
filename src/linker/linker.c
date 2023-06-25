@@ -185,18 +185,6 @@ static bool find_unresolved_symbols(link2_info *info, bool check_startup_symbol)
                 all_found &= check_mark_unresolved_symbol(info, m, r->symbol_name);
             }
         }
-
-        for_list(m->text->relocations, obj_relocation, r)
-            all_found &= check_mark_unresolved_symbol(info, m, r->symbol_name);
-
-        for_list(m->data->relocations, obj_relocation, r)
-            all_found &= check_mark_unresolved_symbol(info, m, r->symbol_name);
-
-        for_list(m->bss->relocations, obj_relocation, r)
-            all_found &= check_mark_unresolved_symbol(info, m, r->symbol_name);
-
-        for_list(m->rodata->relocations, obj_relocation, r)
-            all_found &= check_mark_unresolved_symbol(info, m, r->symbol_name);
     }
 
     return all_found;
@@ -322,7 +310,7 @@ static bool do_link2(link2_info *info) {
         printf("Failed generating executable elf\n");
         return false;
     }
-    if (!elf64_contents_save((char *)str_charptr(info->executable_path), elf64_cnt)) {
+    if (!elf64_cnt->ops->save(elf64_cnt, info->executable_path)) {
         printf("Failed saving executable file\n");
         return false;
     }

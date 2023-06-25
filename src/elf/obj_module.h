@@ -14,21 +14,10 @@ struct obj_module {
     str *name;        // e.g. "mcc.c"
     llist *sections;  // item type is obj_section
 
-    /// @deprecated
-    obj_section *text;
-
-    /// @deprecated
-    obj_section *data;
-
-    /// @deprecated
-    obj_section *bss;
-
-    /// @deprecated
-    obj_section *rodata;
-
     struct obj_module_ops {
         void (*print)(obj_module *m, FILE *f);
         void (*append)(obj_module *m, struct obj_module *source);
+        obj_section *(*get_section_by_name)(obj_module *m, str *name);
         obj_symbol *(*find_symbol)(obj_module *m, str *name, bool exported);
         elf64_contents *(*pack_object_file)(obj_module *m, mempool *mp);
         elf64_contents *(*pack_executable_file)(obj_module *m, mempool *mp);

@@ -11,12 +11,22 @@ struct elf64_contents {
     elf64_header *header;
     llist *sections;       // items are of type "elf64_section"
     llist *prog_headers;   // items are of type "elf64_prog_header"
-    mempool *mempool;
 
     struct elf64_contents_ops { 
-        elf64_section (*create_section)();
-        elf64_prog_header (*create_prog_header)();
+        elf64_section *(*create_section)(elf64_contents *contents, str *name, size_t type);
+        elf64_prog_header *(*create_prog_header)(elf64_contents *contents);
+        void (*add_section)(elf64_contents *contents, elf64_section *s);
+        void (*add_prog_header)(elf64_contents *contents, elf64_prog_header *p);
+
+        elf64_section *(*get_section_by_name)(elf64_contents *contents, str *name);
+        elf64_section *(*get_section_by_index)(elf64_contents *contents, int index);
+        elf64_section *(*get_section_by_type)(elf64_contents *contents, int type);
+
+        void (*print)(elf64_contents *contents, FILE *stream);
+        bool (*save)(elf64_contents *contents, str *filename);
     } *ops;
+
+    mempool *mempool;
 };
 
 struct elf64_section {
@@ -26,27 +36,25 @@ struct elf64_section {
     bin *contents;
 
     struct elf64_section_ops {
-        void (*add_symbol)(elf64_section *s, size_t name_offset, size_t value, size_t size, int type);
-        void (*add_relocation)(elf64_section *s, size_t offset, size_t symbol_no, int type);
-        size_t (*add_strz_get_offset)(elf64_section *s, char *str);
+        void (*add_symbol)(elf64_section *s, size_t name_offset, size_t value, size_t size, int type, int binding, int section_index);
+        void (*add_relocation)(elf64_section *s, size_t offset, size_t symbol_no, size_t type, long addendum);
+        size_t (*add_strz_get_offset)(elf64_section *s, str *string);
+        int (*find_named_symbol)(elf64_section *s, str *name, elf64_section *strtab);
+        void (*add_named_symbol)(elf64_section *s, str *name, size_t value, size_t size, int type, int binding, int section_index, elf64_section *strtab);
+        void (*add_named_relocation)(elf64_section *s, size_t offset, str *symbol_name, size_t type, long addend, elf64_section *symtab, elf64_section *strtab);
+        void (*print)(elf64_section *s, FILE *stream);
+        int (*count_symbols)(elf64_section *s);
+        void (*print_symbol)(elf64_section *s, int symbol_no, elf64_section *strtab, FILE *stream);
+        int (*count_relocations)(elf64_section *s);
+        void (*print_relocation)(elf64_section *s, int rel_no, elf64_section *symtab, elf64_section *strtab, FILE *stream);
     } *ops;
+
+    mempool *mempool;
 };
 
 
 elf64_contents *new_elf64_contents(mempool *mp);
 elf64_contents *new_elf64_contents_from_binary(mempool *mp, bin *buffer);
-
-elf64_section *new_elf64_section(mempool *mp);
-elf64_header *new_elf64_file_header(mempool *mp, bool executable, u64 entry_point);
-elf64_prog_header *new_elf64_prog_header(mempool *mp, int type, int flags, int align, u64 file_offset, u64 file_size, u64 mem_addr, u64 mem_size);
-elf64_section_header *new_elf64_section_header(int type, char *name, u64 flags, u64 file_offset, u64 size, u64 item_size, u64 link, u64 info, u64 virt_address, bin *sections_names_table, mempool *mp);
-
-elf64_section *elf64_get_section_by_name(elf64_contents *contents, str *name);
-elf64_section *elf64_get_section_by_index(elf64_contents *contents, int index);
-elf64_section *elf64_get_section_by_type(elf64_contents *contents, int type);
-
-void elf64_contents_print(elf64_contents *contents, FILE *stream);
-bool elf64_contents_save(char *filename, elf64_contents *contents);
 
 void elf_unit_tests();
 

@@ -75,9 +75,14 @@ static void obj_section_print(obj_section *s, FILE *f) {
     fprintf(f, "  Section %s - at 0x%lx\n", str_charptr(s->name), s->address);
 
     if (bin_len(s->contents) > 0) {
-        size_t bytes = bin_len(s->contents) > 64 ? 64 : bin_len(s->contents);
-        fprintf(f, "    Contents (%lu / %lu total bytes)\n", bytes, bin_len(s->contents));
-        bin_print_hex(s->contents, 6, 0, bytes, f);
+        if (s->flags.init_to_zero) {
+            // in zero init, all the buffer's contents would be reset to zero.
+            fprintf(f, "    Contents is %lu bytes, initialized to zero\n", bin_len(s->contents));
+        } else {
+            size_t bytes = bin_len(s->contents) > 64 ? 64 : bin_len(s->contents);
+            fprintf(f, "    Contents (%lu / %lu total bytes)\n", bytes, bin_len(s->contents));
+            bin_print_hex(s->contents, 6, 0, bytes, f);
+        }
     }
 
     if (llist_length(s->symbols) > 0) {

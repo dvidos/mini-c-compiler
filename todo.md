@@ -3,6 +3,7 @@
 * ~~implement the IR RETURN command to return a temp reg, to abstract away calling conventions~~
 * ~~asm encoding using the new instruction structure~~
 * make the first executable, damn it! <------ THIS
+
 * save some symbols in elf, to help disassembly and debugging
 * find a way to save/load .o files, to allow read(), write(), exit()
 * make register names & capacities confront to size, e.g. AL, AX, EAX, RAX.

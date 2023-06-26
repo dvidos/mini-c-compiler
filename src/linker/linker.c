@@ -12,7 +12,7 @@
 #include "../elf/obj_module.h"
 #include "../elf/ar.h"
 
-#define SECTION_ROUNDING_VALUE     8  // e.g. between data of different modules
+#define SECTION_ROUNDING_VALUE     1  // e.g. between data of different modules
 #define GROUP_ROUNDING_VALUE    4096  // e.g. between .text and .data 
 
 // we cannot have everything in loose variables, prepare a hierarchy
@@ -293,7 +293,7 @@ bool include_library_modules_as_needed(link2_info *info) {
     return true;
 }
 
-static void populate_grouping_map(link2_info *info) {
+static void prepare_grouping_map(link2_info *info) {
     info->grouping_keys = new_llist(info->mempool);
     info->sections_per_group = new_hashtable(info->mempool, 16);
 
@@ -317,34 +317,55 @@ static void populate_grouping_map(link2_info *info) {
     }
 }
 
-bool resolve_relocations(link2_info *info) {
+void distribute_address_to_group(link2_info *info, str *group_key, size_t *address) {
+    llist *group_sections = hashtable_get(info->sections_per_group, group_key);
+    for_list(group_sections, obj_section, section) {
+        section->ops->change_address(section, (long)(*address));
+        (*address) += bin_len(section->contents);
+        (*address) = round_up(*address, SECTION_ROUNDING_VALUE);
+    }
+}
+
+bool resolve_relocation(link2_info *info, obj_section *sect, obj_relocation *rel, obj_symbol *sym) {
+    // we can do better next time
     // possible explanation of x86_64 relocations:
     // https://sourceware.org/git/?p=binutils-gdb.git;a=blob;f=include/elf/x86-64.h;h=60b3c2ad10e66bb14338bd410c3a7566b09c4eb4;hb=e0ce6dde97881435d33652572789b94c846cacde
+    // let's say this is very simple for now.
 
+    bin_seek(sect->contents, rel->offset);
+    bin_write_dword(sect->contents, sym->value + rel->addendum);
+}
+
+bool resolve_relocations(link2_info *info) {
     for_list(info->participants, obj_module, participant) {
         for_list(participant->sections, obj_section, sect) {
             for_list(sect->relocations, obj_relocation, rel) {
-                // what if ".rodata" is requested?
-                if (str_cmps(rel->symbol_name, ".rodata") == 0) {
-                    ; // we'll figure it out
-                } else {
-                    obj_symbol *sym = find_symbol(info, participant, rel->symbol_name);
-                    if (sym == NULL) {
-                        printf("Failed finding symbol '%s', that should no happen...\n", str_charptr(rel->symbol_name));
-                        return false;
-                    }
-                    // let's say this is very simple for now.
-                    bin_seek(sect->contents, rel->offset);
-                    bin_write_dword(sect->contents, sym->value + rel->addendum);
+                obj_symbol *sym = find_symbol(info, participant, rel->symbol_name);
+                if (sym == NULL) {
+                    printf("Failed finding symbol '%s', that should no happen...\n", str_charptr(rel->symbol_name));
+                    return false;
                 }
+                if (!resolve_relocation(info, sect, rel, sym))
+                    return false;
             }
-
-            // we are done with these relocations, avoid noise
+            // we are done with these relocations, clear list to avoid noise
             llist_clear(sect->relocations);
         }
     }
-
     return true;
+}
+
+static obj_section *merge_grouped_sections(link2_info *info, str *grouping_key) {
+    llist *group_sections = hashtable_get(info->sections_per_group, grouping_key);
+    obj_section *first = llist_get(group_sections, 0);
+
+    obj_section *target_section = new_obj_section(info->mempool);
+    target_section->name = first->name;
+    target_section->flags = first->flags;
+    target_section->address = first->address;
+
+    for_list(group_sections, obj_section, sect)
+        target_section->ops->append(target_section, sect, SECTION_ROUNDING_VALUE);
 }
 
 static bool do_link2(link2_info *info) {
@@ -367,54 +388,33 @@ static bool do_link2(link2_info *info) {
 
     // being here it means we have no unresolved symbols!
     // create a hashmap of similar groups of sections (e.g. all .text's from 3 modules)
-    populate_grouping_map(info);
+    prepare_grouping_map(info);
     
-    // depending on the sections grouping, distribute addresses
-    long address = info->base_address;
+    // now that grouping is defined, distribute final addresses
+    size_t address = info->base_address;
     for_list(info->grouping_keys, str, key) {
-        llist *group_sections = hashtable_get(info->sections_per_group, key);
-        for_list(group_sections, obj_section, section) {
-            section->ops->change_address(section, address);
-            address += bin_len(section->contents);
-            address = round_up(address, SECTION_ROUNDING_VALUE);
-        }
+        distribute_address_to_group(info, key, &address);
         address = round_up(address, GROUP_ROUNDING_VALUE);
     }
 
     // since we have addresses, resolve relocations for all modules / sections
+    // keep individual modules intact, to allow private / public symbol resolution.
     if (!resolve_relocations(info))
         return false;
 
+    // now that individual module visibility is not needed,
     // merge all the participating sections together (e.g all .text's and all .data's)
-    for_list(info->grouping_keys, str, key) {
-        llist *group_sections = hashtable_get(info->sections_per_group, key);
-        obj_section *first_section = llist_get(group_sections, 0);
-        obj_section *target_section = new_obj_section(info->mempool);
-        target_section->name = first_section->name;
-        target_section->flags = first_section->flags;
-        target_section->address = first_section->address;
-        for_list(group_sections, obj_section, group_section) {
-            target_section->ops->append(target_section, group_section, SECTION_ROUNDING_VALUE);
-        }
-        llist_add(info->target_module->sections, target_section);
-    }
+    for_list(info->grouping_keys, str, key)
+        llist_add(info->target_module->sections, merge_grouped_sections(info, key));
 
-
-    // we should now reposition in memory and address all sections
-
-    // no, we cannot!, we have to honor module-level visibility
-    // i think we have to find addresses for everything,
-    // after we have grouped the sections,
-    // then resolve relocations, then merge them.
-
-
-    printf("Executable module:\n");
+    // debugging purposes
+    printf("Merged and rellocated executable module:\n");
     info->target_module->ops->print(info->target_module, stdout);
 
-    // finally save the executable... (fingers crossed to be working)
+    // finally convert to executable ELF and save
     elf64_contents *elf64_cnt = info->target_module->ops->pack_executable_file(info->target_module, info->mempool);
     if (elf64_cnt == NULL) {
-        printf("Failed generating executable elf\n");
+        printf("Failed generating executable elf contents\n");
         return false;
     }
     if (!elf64_cnt->ops->save(elf64_cnt, info->executable_path)) {

@@ -12,7 +12,8 @@
 #include "../elf/obj_module.h"
 #include "../elf/ar.h"
 
-
+#define SECTION_ROUNDING_VALUE     8  // e.g. between data of different modules
+#define GROUP_ROUNDING_VALUE    4096  // e.g. between .text and .data 
 
 // we cannot have everything in loose variables, prepare a hierarchy
 typedef struct link2_lib_module_id link2_lib_module_id;
@@ -55,6 +56,10 @@ struct link2_info {
     llist *unresolved_symbols;  // item type is str
     llist *needed_module_ids;   // item type is link2_lib_module_id
     
+    // map for loading / merging similar sections of multiple modules
+    llist *grouping_keys;                 // item is str
+    hashtable *sections_per_group; // item is llist[obj_section]
+
     mempool *mempool;
     str *error;
 };
@@ -121,6 +126,29 @@ static int compare_module_and_exported_symbol_name(obj_module *module, str *sym_
     obj_symbol *sym = module->ops->find_symbol(module, sym_name, true);
     return (sym != NULL) ? 0 : -1; // 0=equals, i.e. found.
 }
+static obj_symbol *find_symbol(link2_info *info, obj_module *owner, str *name) {
+    // find the symbol somewhere, anywhere actually.
+    // this should be more sophisticated, actually...
+    mempool *scratch = new_mempool();
+
+    // first look at owner module, include local symbols
+    if (owner != NULL) {
+        obj_symbol *sym = owner->ops->find_symbol(owner, name, false);
+        if (sym != NULL)
+            return sym;
+    }
+
+    // then look at all other participants, global only
+    iterator *participants_it = llist_create_iterator(info->participants, scratch);
+    for_iterator(obj_module, part, participants_it) {
+        obj_symbol *sym = part->ops->find_symbol(part, name, true);
+        if (sym != NULL)
+            return sym;
+    }
+
+    mempool_release(scratch);
+    return NULL;
+}
 
 static bool check_symbol_is_defined(link2_info *info, obj_module *owner, str *name) {
     // find the symbol somewhere, anywhere actually.
@@ -131,23 +159,8 @@ static bool check_symbol_is_defined(link2_info *info, obj_module *owner, str *na
         str_cmps(name, ".bss")  == 0 || str_cmps(name, ".rodata") == 0)
         return true;
 
-    // first look at owner module, include local symbols
-    if (owner != NULL) {
-        obj_symbol *sym = owner->ops->find_symbol(owner, name, false);
-        if (sym != NULL)
-            return true;
-    }
-
-    // then look at all other participants, global only
-    int index = llist_find_first(info->participants, 
-        (comparator_function*)compare_module_and_exported_symbol_name, name);
-    if (index != -1)
-        return true;
-
-    // not found anywhere
-    return false;
+    return find_symbol(info, owner, name) != NULL;
 }
-
 
 static bool check_mark_unresolved_symbol(link2_info *info, obj_module *owner, str *name) {
     bool found = check_symbol_is_defined(info, owner, name);
@@ -190,15 +203,6 @@ static bool find_unresolved_symbols(link2_info *info, bool check_startup_symbol)
     return all_found;
 }
 
-static bool backfill_relocations(link2_info *info) {
-    // possible explanation of x86_64 relocations:
-    // https://sourceware.org/git/?p=binutils-gdb.git;a=blob;f=include/elf/x86-64.h;h=60b3c2ad10e66bb14338bd410c3a7566b09c4eb4;hb=e0ce6dde97881435d33652572789b94c846cacde
-
-    // if using the "tagret" module, should go over all sections, 
-    // find the symbols, and update relocation.
-    // but I think we should have a collection of modules,
-    // to be able to resolve local and lobal symbols.
-}
 
 static int compare_archive_symbol_name(const archive_symbol *s1, str *name) {
     return str_cmp(s1->name, name);
@@ -258,25 +262,13 @@ static bool find_needed_lib_modules(link2_info *info) {
     return all_found;
 }
 
-static bool do_link2(link2_info *info) {
-    // add all raw modules
-    for_list(info->obj_modules, obj_module, m)
-        add_participant(info, m);
-
-    // add all specified modules from files
-    for_list(info->obj_file_paths, str, path)
-        add_participant_from_file(info, path);
-
-    // load all symbols from all libraries
-    for_list(info->library_file_paths, str, lib_path)
-        discover_library_contents(info, lib_path);
-
+bool include_library_modules_as_needed(link2_info *info) {
     int tries = 0;
     while (true) {
         llist_clear(info->unresolved_symbols);
         find_unresolved_symbols(info, true);
         if (llist_length(info->unresolved_symbols) == 0)
-            break;
+            break; // no unresolvable symbols!!
         
         printf("Symbols required: %s\n",
             str_charptr(str_join(info->unresolved_symbols, new_str(info->mempool, ", "), info->mempool)));
@@ -298,8 +290,123 @@ static bool do_link2(link2_info *info) {
         }
     }
 
-    printf("If we got here, all symbols are present and relocatable!!!!!\n");
-    backfill_relocations(info);
+    return true;
+}
+
+static void populate_grouping_map(link2_info *info) {
+    info->grouping_keys = new_llist(info->mempool);
+    info->sections_per_group = new_hashtable(info->mempool, 16);
+
+    for_list(info->participants, obj_module, participant) {
+        for_list(participant->sections, obj_section, section) {
+            // derive key (verbose for debugging / educational  purposes)
+            str *key = new_strf(info->mempool, "%s%s%s%s",
+                section->flags.init_to_zero ? "NOBITS" : "PROGBITS",
+                section->flags.allocate ? "-A" : "",
+                section->flags.writable ? "-W" : "",
+                section->flags.executable ? "-X" : "");
+            printf("Module %s, section %s, key is %s\n", str_charptr(participant->name), str_charptr(section->name), str_charptr(key));
+            
+            // add to keys, add to sections-per-key, add to target-per-key
+            if (!hashtable_contains(info->sections_per_group, key)) {
+                llist_add(info->grouping_keys, key);
+                hashtable_set(info->sections_per_group, key, new_llist(info->mempool));
+            }
+            llist_add(hashtable_get(info->sections_per_group, key), section);
+        }
+    }
+}
+
+bool resolve_relocations(link2_info *info) {
+    // possible explanation of x86_64 relocations:
+    // https://sourceware.org/git/?p=binutils-gdb.git;a=blob;f=include/elf/x86-64.h;h=60b3c2ad10e66bb14338bd410c3a7566b09c4eb4;hb=e0ce6dde97881435d33652572789b94c846cacde
+
+    for_list(info->participants, obj_module, participant) {
+        for_list(participant->sections, obj_section, sect) {
+            for_list(sect->relocations, obj_relocation, rel) {
+                // what if ".rodata" is requested?
+                if (str_cmps(rel->symbol_name, ".rodata") == 0) {
+                    ; // we'll figure it out
+                } else {
+                    obj_symbol *sym = find_symbol(info, participant, rel->symbol_name);
+                    if (sym == NULL) {
+                        printf("Failed finding symbol '%s', that should no happen...\n", str_charptr(rel->symbol_name));
+                        return false;
+                    }
+                    // let's say this is very simple for now.
+                    bin_seek(sect->contents, rel->offset);
+                    bin_write_dword(sect->contents, sym->value + rel->addendum);
+                }
+            }
+
+            // we are done with these relocations, avoid noise
+            llist_clear(sect->relocations);
+        }
+    }
+
+    return true;
+}
+
+static bool do_link2(link2_info *info) {
+
+    // add all raw modules
+    for_list(info->obj_modules, obj_module, m)
+        add_participant(info, m);
+
+    // add all specified modules from files
+    for_list(info->obj_file_paths, str, path)
+        add_participant_from_file(info, path);
+
+    // load all symbols from all libraries
+    for_list(info->library_file_paths, str, lib_path)
+        discover_library_contents(info, lib_path);
+
+    // find undefined symbols, look them up in libaries
+    if (!include_library_modules_as_needed(info))
+        return false;
+
+    // being here it means we have no unresolved symbols!
+    // create a hashmap of similar groups of sections (e.g. all .text's from 3 modules)
+    populate_grouping_map(info);
+    
+    // depending on the sections grouping, distribute addresses
+    long address = info->base_address;
+    for_list(info->grouping_keys, str, key) {
+        llist *group_sections = hashtable_get(info->sections_per_group, key);
+        for_list(group_sections, obj_section, section) {
+            section->ops->change_address(section, address);
+            address += bin_len(section->contents);
+            address = round_up(address, SECTION_ROUNDING_VALUE);
+        }
+        address = round_up(address, GROUP_ROUNDING_VALUE);
+    }
+
+    // since we have addresses, resolve relocations for all modules / sections
+    if (!resolve_relocations(info))
+        return false;
+
+    // merge all the participating sections together (e.g all .text's and all .data's)
+    for_list(info->grouping_keys, str, key) {
+        llist *group_sections = hashtable_get(info->sections_per_group, key);
+        obj_section *first_section = llist_get(group_sections, 0);
+        obj_section *target_section = new_obj_section(info->mempool);
+        target_section->name = first_section->name;
+        target_section->flags = first_section->flags;
+        target_section->address = first_section->address;
+        for_list(group_sections, obj_section, group_section) {
+            target_section->ops->append(target_section, group_section, SECTION_ROUNDING_VALUE);
+        }
+        llist_add(info->target_module->sections, target_section);
+    }
+
+
+    // we should now reposition in memory and address all sections
+
+    // no, we cannot!, we have to honor module-level visibility
+    // i think we have to find addresses for everything,
+    // after we have grouped the sections,
+    // then resolve relocations, then merge them.
+
 
     printf("Executable module:\n");
     info->target_module->ops->print(info->target_module, stdout);
@@ -353,7 +460,7 @@ void link_test() {
     llist_add(obj_file_paths, new_str(mp, "./src/runtimes/example.o"));
     llist_add(lib_file_paths, new_str(mp, "./src/runtimes/libruntime.a"));
 
-    x86_link_v2(modules, obj_file_paths, lib_file_paths, 0x800000, new_str(mp, "b.out"));
+    x86_link_v2(modules, obj_file_paths, lib_file_paths, 0x400000, new_str(mp, "b.out"));
 
     mempool_release(mp);
 }

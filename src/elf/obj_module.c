@@ -244,9 +244,9 @@ obj_section *create_obj_section_from_elf_section(elf64_section *elf_sect, mempoo
     obj_section *obj_sect = new_obj_section(mp);
 
     obj_sect->name = elf_sect->name;
-    obj_sect->flags.writable     = (elf_sect->header->flags & SECTION_FLAGS_WRITE);
-    obj_sect->flags.allocate     = (elf_sect->header->flags & SECTION_FLAGS_ALLOC);
-    obj_sect->flags.executable   = (elf_sect->header->flags & SECTION_FLAGS_EXECINSTR);
+    obj_sect->flags.writable     = (elf_sect->header->flags & SECTION_FLAGS_WRITE) != 0;
+    obj_sect->flags.allocate     = (elf_sect->header->flags & SECTION_FLAGS_ALLOC) != 0;
+    obj_sect->flags.executable   = (elf_sect->header->flags & SECTION_FLAGS_EXECINSTR) != 0;
     obj_sect->flags.init_to_zero = (elf_sect->header->type == SECTION_TYPE_NOBITS);
     bin_cpy(obj_sect->contents, elf_sect->contents);
 
@@ -379,3 +379,10 @@ static obj_symbol *obj_module_find_symbol(obj_module *m, str *name, bool exporte
     
     return NULL;
 }
+
+
+static int compare_str_str(str *a, str *b) {
+    return str_cmp(a, b);
+}
+
+

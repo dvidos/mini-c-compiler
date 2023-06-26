@@ -5,8 +5,9 @@
 
 
 static void obj_section_print(obj_section *s, FILE *f);
-static void obj_section_append(obj_section *s, obj_section *other);
-static void obj_section_relocate(obj_section *s, long delta);
+static void obj_section_append(obj_section *s, obj_section *other, size_t rounding_value);
+static void obj_section_change_address(obj_section *s, long delta);
+static void obj_section_rebase(obj_section *s, long delta);
 static obj_symbol *obj_section_find_symbol(obj_section *s, str *name, bool exported);
 
 static void obj_symbol_print(obj_symbol *s, int num, FILE *f);
@@ -16,7 +17,8 @@ static void obj_relocation_print(obj_relocation *r, FILE *f);
 static struct obj_section_ops section_ops = {
     .print = obj_section_print,
     .append = obj_section_append,
-    .relocate = obj_section_relocate,
+    .change_address = obj_section_change_address,
+    .rebase = obj_section_rebase,
     .find_symbol = obj_section_find_symbol,
 };
 
@@ -70,7 +72,7 @@ static void obj_relocation_print(obj_relocation *r, FILE *f) {
 }
 
 static void obj_section_print(obj_section *s, FILE *f) {
-    fprintf(f, "  Section %s\n", str_charptr(s->name));
+    fprintf(f, "  Section %s - at 0x%lx\n", str_charptr(s->name), s->address);
 
     if (bin_len(s->contents) > 0) {
         size_t bytes = bin_len(s->contents) > 64 ? 64 : bin_len(s->contents);
@@ -92,29 +94,35 @@ static void obj_section_print(obj_section *s, FILE *f) {
     }
 }
 
-static void obj_section_append(obj_section *s, obj_section *other) {
-    long size = bin_len(s->contents);
-    other->ops->relocate(other, size);
-    bin_cat(s->contents, other->contents);
+static void obj_section_append(obj_section *s, obj_section *other, size_t rounding_value) {
+    // let's up this one to the size of a long (64 bits, or 8 bytes)
+    size_t size = bin_len(s->contents);
+    if (rounding_value > 0)
+        size = ((size + (rounding_value - 1)) / rounding_value) * rounding_value;
+    bin_pad(s->contents, 0, size);
 
+    // size will now be the new base of relocations and symbols.
+    bin_cat(s->contents, other->contents);
+    other->ops->rebase(other, (long)size);
     llist_add_all(s->symbols, other->symbols);
     llist_add_all(s->relocations, other->relocations);
 }
 
-static void obj_section_relocate(obj_section *s, long delta) {
-    mempool *mp = new_mempool();
-
-    iterator *syms_iterator = llist_create_iterator(s->symbols, mp);
-    for_iterator(obj_symbol, sym, syms_iterator) {
+static void obj_section_change_address(obj_section *s, long delta) {
+    s->address += delta;
+    for_list(s->symbols, obj_symbol, sym) {
         sym->value += delta;
     }
+}
 
-    iterator *relocs_iterator = llist_create_iterator(s->relocations, mp);
-    for_iterator(obj_relocation, rel, relocs_iterator) {
+static void obj_section_rebase(obj_section *s, long delta) {
+    s->address += delta;
+    for_list(s->symbols, obj_symbol, sym) {
+        sym->value += delta;
+    }
+    for_list(s->relocations, obj_relocation, rel) {
         rel->offset += delta;
     }
-    
-    mempool_release(mp);
 }
 
 static obj_symbol *obj_section_find_symbol(obj_section *s, str *name, bool exported) {

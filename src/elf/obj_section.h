@@ -13,6 +13,7 @@ typedef struct obj_relocation obj_relocation;
 struct obj_section {
     str *name;           // e.g. ".text"
     bin *contents;       // binary contents
+    size_t address;      // e.g. 0x800000
     llist *symbols;      // item type is <obj_symbol>
     llist *relocations;  // item type is <obj_relocation>
 
@@ -25,8 +26,9 @@ struct obj_section {
 
     struct obj_section_ops {
         void (*print)(obj_section *s, FILE *f);
-        void (*append)(obj_section *s, obj_section *other);
-        void (*relocate)(obj_section *s, long delta);
+        void (*append)(obj_section *s, obj_section *other, size_t rounding_value);
+        void (*change_address)(obj_section *s, long delta);
+        void (*rebase)(obj_section *s, long delta);
         obj_symbol *(*find_symbol)(obj_section *s, str *name, bool exported);
     } *ops;
 

@@ -2,20 +2,17 @@
 #include "obj_module.h"
 #include "elf_format.h"
 
-static void obj_module_print(obj_module *module, FILE *file);
+static void obj_module_print(obj_module *module, bool show_details, FILE *file);
 static void obj_module_append(obj_module *module, obj_module *source);
 static obj_section *obj_module_get_section_by_name(obj_module *m, str *name);
 static obj_symbol *obj_module_find_symbol(obj_module *module, str *name, bool exported);
-static elf64_contents *obj_module_pack_object_file(obj_module *module, mempool *mp);
-static elf64_contents *obj_module_pack_executable_file(obj_module *module, mempool *mp);
+static elf64_contents *obj_module_prepare_elf_contents(obj_module *module, int elf_type, mempool *mp);
 
 static struct obj_module_ops module_ops = {
     .print = obj_module_print,
-    .append = obj_module_append,
     .get_section_by_name = obj_module_get_section_by_name,
     .find_symbol = obj_module_find_symbol,
-    .pack_object_file = obj_module_pack_object_file,
-    .pack_executable_file = obj_module_pack_executable_file,
+    .prepare_elf_contents = obj_module_prepare_elf_contents,
 };
 
 
@@ -44,14 +41,16 @@ struct packing_info {
     int sections_len;
     elf64_section *symtab;
     elf64_section *strtab;
+    elf64_section *shstrtab;
 };
 
 
-
-static elf64_contents *obj_module_pack_object_file(obj_module *module, mempool *mp) {
+static elf64_contents *obj_module_prepare_elf_contents(obj_module *module, int elf_type, mempool *mp) {
     // use this packing_info struct to keep track between obj_modules and elf_modules
     struct packing_info packing_info;
     struct packing_info *pi = &packing_info;
+
+
 
     // prepare the runtime packing info, to allow us to sync between obj and elf sections.
     memset(pi, 0, sizeof(struct packing_info));
@@ -59,24 +58,31 @@ static elf64_contents *obj_module_pack_object_file(obj_module *module, mempool *
     pi->elf = new_elf64_contents(mp);
     pi->symtab = pi->elf->ops->create_section(pi->elf, new_str(mp, ".symtab"), SECTION_TYPE_SYMTAB);
     pi->strtab = pi->elf->ops->create_section(pi->elf, new_str(mp, ".strtab"), SECTION_TYPE_STRTAB);
+    pi->shstrtab = pi->elf->ops->create_section(pi->elf, new_str(mp, ".shstrtab"), SECTION_TYPE_STRTAB);
 
-    // mark this as a relocatable file
-    pi->elf->header->file_type = ELF_TYPE_REL;
+    // mark this as a relocatable or executable file
+    pi->elf->header->file_type = elf_type;
 
     // add the empty symbol to the symbol table and the FILE name
-    pi->symtab->ops->add_named_symbol(pi->symtab, NULL, 0, 0, STT_NOTYPE, 0, 0, pi->strtab);
+    pi->symtab->ops->add_named_symbol(pi->symtab, new_str(mp, ""), 0, 0, STT_NOTYPE, 0, 0, pi->strtab);
     pi->symtab->ops->add_named_symbol(pi->symtab, module->name, 0, 0, STT_FILE, STB_LOCAL, SHN_ABS, pi->strtab);
     
     // add the empty section first (index 0)
     pi->elf->ops->add_section(pi->elf, 
-        pi->elf->ops->create_section(pi->elf, NULL, SECTION_TYPE_NULL));
+        pi->elf->ops->create_section(pi->elf, new_str(mp, ""), SECTION_TYPE_NULL));
     
     // add all sections to elf to get an index
     for_list(module->sections, obj_section, obj_sect) {
         elf64_section *elf_sect = pi->elf->ops->create_section(pi->elf, obj_sect->name, 
             obj_sect->flags.init_to_zero ? SECTION_TYPE_NOBITS : SECTION_TYPE_PROGBITS);
+        elf_sect->header->flags = 
+            (obj_sect->flags.allocate ? SECTION_FLAGS_ALLOC : 0) |
+            (obj_sect->flags.writable ? SECTION_FLAGS_WRITE : 0) |
+            (obj_sect->flags.executable ? SECTION_FLAGS_EXECINSTR : 0);
+        elf_sect->header->virt_address = obj_sect->address; // needed for program_headers
+        bin_cpy(elf_sect->contents, obj_sect->contents);
         pi->elf->ops->add_section(pi->elf, elf_sect);
-        
+
         elf64_section *rela_sect = NULL;
         if (!llist_is_empty(obj_sect->relocations)) {
             str *rela_name = new_str(pi->elf->mempool, ".rela");
@@ -95,13 +101,19 @@ static elf64_contents *obj_module_pack_object_file(obj_module *module, mempool *
     // after all PROGBITS / NOBITS sections, add the symbol and strings tables
     pi->elf->ops->add_section(pi->elf, pi->symtab);
     pi->elf->ops->add_section(pi->elf, pi->strtab);
+    pi->elf->ops->add_section(pi->elf, pi->shstrtab);
+
+    // now that we have all sections added, populate the header names table
+    for_list(pi->elf->sections, elf64_section, sect) {
+        sect->header->name = pi->shstrtab->ops->add_strz_get_offset(pi->shstrtab, sect->name);
+    }
 
     // now add all symbols to symtab, since we have indexes on the relevant sections
     // first only local symbols
     for (int i = 0; i < pi->sections_len; i++) {
         for_list(pi->sections[i].obj->symbols, obj_symbol, sym) {
             if (sym->global) continue;
-            pi->symtab->ops->add_named_symbol(pi->sections[i].elf, 
+            pi->symtab->ops->add_named_symbol(pi->symtab,
                 sym->name, sym->value, sym->size, 
                 pi->sections[i].obj->flags.executable ? STT_FUNC : STT_OBJECT,
                 sym->global ? STB_GLOBAL : STB_LOCAL, 
@@ -116,7 +128,7 @@ static elf64_contents *obj_module_pack_object_file(obj_module *module, mempool *
     for (int i = 0; i < pi->sections_len; i++) {
         for_list(pi->sections[i].obj->symbols, obj_symbol, sym) {
             if (!sym->global) continue;
-            pi->symtab->ops->add_named_symbol(pi->sections[i].elf, 
+            pi->symtab->ops->add_named_symbol(pi->symtab,
                 sym->name, sym->value, sym->size, 
                 pi->sections[i].obj->flags.executable ? STT_FUNC : STT_OBJECT,
                 sym->global ? STB_GLOBAL : STB_LOCAL, 
@@ -133,7 +145,6 @@ static elf64_contents *obj_module_pack_object_file(obj_module *module, mempool *
                 pi->symtab, pi->strtab);
         }
     }
-
     // update sections links and infos:
     // - for relas, link=sym, info=target
     // - for syms,  link=str, info=first-global
@@ -143,19 +154,22 @@ static elf64_contents *obj_module_pack_object_file(obj_module *module, mempool *
             pi->sections[i].elf_rela->header->info = pi->sections[i].elf->index;
         }
     }
+
     pi->symtab->header->info = first_global_symbol_index;
     pi->symtab->header->link = pi->strtab->index;
+
+    if (elf_type == ELF_TYPE_EXEC) {
+        obj_symbol *start = obj_module_find_symbol(pi->module, new_str(mp, "_start"), true);
+        if (start == NULL) {
+            printf("Symbol _start not found\n");
+            return NULL;
+        }
+        pi->elf->header->entry_point = start->value;
+    }
 
     // I think we are done!
     return pi->elf;
 }
-
-static elf64_contents *obj_module_pack_executable_file(obj_module *module, mempool *mp) {
-    // the difference is that we need to make program headers as well,
-    // also, make all the sections align into page boundaries, the headers portion as well.
-    return NULL;
-}   
-
 
 // ---------------------------------------------------------------------------
 
@@ -346,18 +360,14 @@ obj_module *new_obj_module_from_elf64_contents(elf64_contents *contents, mempool
     return module;
 }
 
-static void obj_module_print(obj_module *module, FILE *file) {
+static void obj_module_print(obj_module *module, bool show_details, FILE *file) {
     // print each section with it's symbols and relocations
     fprintf(file, "Module '%s'\n", str_charptr(module->name));
 
     for_list(module->sections, obj_section, s) {
         if (bin_len(s->contents) == 0) continue;
-        s->ops->print(s, file);
+        s->ops->print(s, show_details, file);
     }
-}
-
-static void obj_module_append(obj_module *module, obj_module *source) {
-    // need to match sections of one to sections of the other
 }
 
 static int compare_section_and_name(obj_section *s, str *name) {
@@ -380,9 +390,5 @@ static obj_symbol *obj_module_find_symbol(obj_module *m, str *name, bool exporte
     return NULL;
 }
 
-
-static int compare_str_str(str *a, str *b) {
-    return str_cmp(a, b);
-}
 
 

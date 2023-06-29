@@ -4,7 +4,7 @@
 
 
 
-static void obj_section_print(obj_section *s, FILE *f);
+static void obj_section_print(obj_section *s, bool show_details, FILE *f);
 static void obj_section_append(obj_section *s, obj_section *other, size_t rounding_value);
 static void obj_section_change_address(obj_section *s, long delta);
 static void obj_section_rebase(obj_section *s, long delta);
@@ -71,10 +71,10 @@ static void obj_relocation_print(obj_relocation *r, FILE *f) {
     }
 }
 
-static void obj_section_print(obj_section *s, FILE *f) {
-    fprintf(f, "  Section %s - at 0x%lx\n", str_charptr(s->name), s->address);
+static void obj_section_print(obj_section *s, bool show_details, FILE *f) {
+    fprintf(f, "  Section %-10s %ld bytes at 0x%lx\n", str_charptr(s->name), bin_len(s->contents), s->address);
 
-    if (bin_len(s->contents) > 0) {
+    if (show_details && bin_len(s->contents) > 0) {
         if (s->flags.init_to_zero) {
             // in zero init, all the buffer's contents would be reset to zero.
             fprintf(f, "    Contents is %lu bytes, initialized to zero\n", bin_len(s->contents));
@@ -85,14 +85,14 @@ static void obj_section_print(obj_section *s, FILE *f) {
         }
     }
 
-    if (llist_length(s->symbols) > 0) {
+    if (show_details && llist_length(s->symbols) > 0) {
         int num = 0;
         obj_symbol_print(NULL, 0, f);
         for_list(s->symbols, obj_symbol, sym)
             obj_symbol_print(sym, num++, f);
     }
 
-    if (llist_length(s->relocations)) {
+    if (show_details && llist_length(s->relocations)) {
         obj_relocation_print(NULL, f);
         for_list(s->relocations, obj_relocation, r)
             obj_relocation_print(r, f);
@@ -102,9 +102,10 @@ static void obj_section_print(obj_section *s, FILE *f) {
 static void obj_section_append(obj_section *s, obj_section *other, size_t rounding_value) {
     // let's up this one to the size of a long (64 bits, or 8 bytes)
     size_t size = bin_len(s->contents);
-    if (rounding_value > 0)
+    if (rounding_value > 1) {
         size = ((size + (rounding_value - 1)) / rounding_value) * rounding_value;
-    bin_pad(s->contents, 0, size);
+        bin_pad(s->contents, 0, size);
+    }
 
     // size will now be the new base of relocations and symbols.
     bin_cat(s->contents, other->contents);

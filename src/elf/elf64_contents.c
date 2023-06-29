@@ -63,6 +63,7 @@ static elf64_section *elf64_contents_create_section(elf64_contents *contents, st
     s->index = 0;
     s->name = name;
     s->header = mempool_alloc(contents->mempool, sizeof(elf64_section_header), "elf64_section_header");
+    s->header->type = type;
     s->contents = new_bin(contents->mempool);
     s->ops = &elf64_section_ops;
 
@@ -120,7 +121,7 @@ static void elf64_contents_print(elf64_contents *contents, FILE *stream) {
         fprintf(stream, "    Type         Offset    Virt Addr    Phys Addr  FileSize   MemSiz Flg Align\n");
         //              "    1234567890 12345678 123456789012 123456789012  12345678 12345678 XXX 12345678"
         for_list(contents->prog_headers, elf64_prog_header, h) {
-            fprintf(stream, "    %-10s %08lx %012lx %012lx %08lx %08lx %c%c%c %ld\n",
+            fprintf(stream, "    %-10s %08lx %012lx %012lx  %08lx %08lx %c%c%c %ld\n",
                 h->type >= 0 && h->type < (sizeof(prog_types)/sizeof(prog_types[0])) ? prog_types[h->type] : "?",
                 h->file_offset,
                 h->virt_address,
@@ -198,7 +199,6 @@ static size_t elf64_section_add_strz_get_offset(elf64_section *s, str *string) {
     bin_add_str(s->contents, string);
 
     return index;
-
 }
 
 static int elf64_section_find_named_symbol(elf64_section *s, str *name, elf64_section *strtab) {
@@ -234,10 +234,10 @@ static void elf64_section_print(elf64_section *s, FILE *stream) {
     char *section_types[] = { "NULL", "PROGBITS", "SYMTAB", "STRTAB", "RELA", "HASH", "DYNAMIC", "NOTE", "NOBITS", "REL", "SHLIB", "DYNSYM", "NUM" };    
 
     if (s == NULL) {
-        fprintf(stream, "    Num Name                 Type        Address   Offset     Size Flg Lk Inf Al\n");
-        //              "    123 12345678901234567890 12345678 1234567890 12345678 12345678 123 12 123 12"
+        fprintf(stream, "    Num Name             Type        Address   Offset     Size Flg Lk Inf Al  Cont\n");
+        //              "    123 1234567890123456 12345678 1234567890 12345678 12345678 123 12 123 12  1234"
     } else {
-        fprintf(stream, "    %3d %-20s %-8s %10ld %08lx %08lx %c%c%c %2d %3d %2ld\n",
+        fprintf(stream, "    %3d %-16s %-8s %010lx %08lx %08lx %c%c%c %2d %3d %2ld  %4ld\n",
             s->index,
             str_charptr(s->name),
             s->header->type >= 0 && s->header->type < (sizeof(section_types)/sizeof(section_types[0])) ? section_types[s->header->type] : "?",
@@ -247,9 +247,10 @@ static void elf64_section_print(elf64_section *s, FILE *stream) {
             s->header->flags & SECTION_FLAGS_ALLOC ? 'A' : ' ',
             s->header->flags & SECTION_FLAGS_WRITE ? 'W' : ' ',
             s->header->flags & SECTION_FLAGS_EXECINSTR ? 'X' : ' ',
-            s->header->info,
             s->header->link,
-            s->header->address_alignment
+            s->header->info,
+            s->header->address_alignment,
+            s->contents == NULL ? 0L : bin_len(s->contents)
         );
     }
 }
@@ -320,55 +321,129 @@ static elf64_section_header *new_elf64_section_header(int type, char *name, u64 
     return h;
 }
 
-static bin *flatten_elf64_contents(elf64_contents *contents, mempool *mp) {
-    bin *file_data = new_bin(mp);
-    iterator *it;
+static elf64_prog_header *generate_prog_header(mempool *mp, size_t file_offset, size_t file_size, size_t mem_address, size_t mem_size, unsigned flags) {
+    elf64_prog_header *prog = mempool_alloc(mp, sizeof(elf64_prog_header), "elf64_prog_header");
+    memset(prog, 0, sizeof(elf64_prog_header));
 
+    prog->type = PROG_TYPE_LOAD;
+    prog->file_offset = file_offset;
+    prog->file_size = file_size;
+    prog->phys_address = mem_address;
+    prog->virt_address = mem_address;
+    prog->memory_size = mem_size;
+    prog->flags = flags;
+    prog->align = 1; // should do something smarter
+
+    return prog;
+}
+
+static void generate_program_headers(elf64_contents *contents) {
+    // go over sections, see what should be loaded (and how) and create needed program headers
+    mempool *scratch = new_mempool();
+    size_t curr_filepos = sizeof(elf64_header);
+    size_t prog_file_offset;
+    size_t prog_file_size;
+    size_t prog_memory_address;
+    size_t prog_memory_size;
+    int prog_flags = -1;
+
+    llist_clear(contents->prog_headers);
+
+    // keep a running group, group similar sections together
+    str *last_group_key = new_str(scratch, NULL);
+    for_list(contents->sections, elf64_section, sect) {
+        if (sect->header->type != SECTION_TYPE_PROGBITS && sect->header->type != SECTION_TYPE_NOBITS) {
+            curr_filepos += bin_len(sect->contents);
+            continue;
+        }
+        
+        str *prog_group_key = new_strf(scratch, "%s-%s%s%s",
+            sect->header->type == SECTION_TYPE_PROGBITS ? "PROGBITS" : "NOBITS",
+            sect->header->flags & SECTION_FLAGS_ALLOC ? "A" : "-",
+            sect->header->flags & SECTION_FLAGS_WRITE ? "W" : "-",
+            sect->header->flags & SECTION_FLAGS_EXECINSTR ? "X" : "-");
+
+        // new group, finish last if applicable
+        if (!str_equals(prog_group_key, last_group_key)) {
+            if (!str_is_empty(last_group_key)) {
+                // add prev program header
+                llist_add(contents->prog_headers, generate_prog_header(contents->mempool,
+                    prog_file_offset, prog_file_size, prog_memory_address, prog_memory_size, prog_flags));
+            }
+            
+            // new program header, reset group totals
+            prog_file_offset = curr_filepos;
+            prog_file_size = 0;
+            prog_memory_address = sect->header->virt_address;
+            prog_memory_size = 0;
+            prog_flags = (sect->header->flags & SECTION_FLAGS_ALLOC     ? PROG_FLAGS_READ    : 0) |
+                    (sect->header->flags & SECTION_FLAGS_WRITE     ? PROG_FLAGS_WRITE   : 0) |
+                    (sect->header->flags & SECTION_FLAGS_EXECINSTR ? PROG_FLAGS_EXECUTE : 0); 
+            str_cpy(last_group_key, prog_group_key);
+        }
+
+        // update group totals
+        prog_file_size += sect->header->type == SECTION_TYPE_NOBITS ? 0 : bin_len(sect->contents);
+        prog_memory_size += bin_len(sect->contents);
+
+        // update running values
+        curr_filepos += bin_len(sect->contents);
+    }
+
+    if (!str_is_empty(last_group_key)) {
+        // finish last group as applicable
+        llist_add(contents->prog_headers, generate_prog_header(contents->mempool,
+            prog_file_offset, prog_file_size, prog_memory_address, prog_memory_size, prog_flags));
+    }
+}
+
+static bin *flatten_elf64_contents(elf64_contents *contents, mempool *mp) {
     /*
         File structure is as follows
         ----------------------------------------
         [ elf file header      ]
-        [ program header 0     ]  <-- skipped for .o files
-        [ program header 1     ]
-        [ program header ...   ]
         [ section 1   contents ]  <-- these are text, data, bss, etc contents
         [ section 2   contents ]
         [ section ... contents ]
         [ section 0   header   ]  <-- section headers
         [ section 1   header   ]
         [ section ... header   ]
+        [ program header 0     ]  <-- skipped for .o files
+        [ program header 1     ]
+        [ program header ...   ]
     */
 
+    // recalculate sections location and size, to make sure our program headers are accurate
+    size_t file_offset = sizeof(elf64_header);
+    for_list(contents->sections, elf64_section, sect) {
+        sect->header->file_offset = file_offset;
+        sect->header->size = bin_len(sect->contents);
+        file_offset += bin_len(sect->contents);
+    }
+
+    // if we are creating an executable, calculate the program headers now
+    // this could not happen from the obj_module, it does not know file offsets
+    if (contents->header->file_type == ELF_TYPE_EXEC) {
+        generate_program_headers(contents);
+        contents->ops->print(contents, stdout);
+    }
+
+    bin *file_data = new_bin(mp);
     bin_add_mem(file_data, contents->header, sizeof(elf64_header));
+
+    // keep note where the section headers will be
+    contents->header->section_headers_entry_size = sizeof(elf64_section_header);
+    contents->header->section_headers_entries = llist_length(contents->sections);
 
     // save curr offset and prog headers stuff
     contents->header->prog_headers_entry_size = sizeof(elf64_prog_header);
     contents->header->prog_headers_entries = llist_length(contents->prog_headers);
-    contents->header->prog_headers_offset = llist_length(contents->prog_headers) == 0 ? 0 : bin_len(file_data);
-    
-    // all program headers first
-    for_list(contents->prog_headers, elf64_prog_header, h)
-        bin_add_mem(file_data, h, sizeof(elf64_prog_header));
-    
 
-    // find or create a header names section
-    elf64_section *header_names_section = NULL;
-    if (contents->header->section_headers_strings_entry > 0) {
-        header_names_section = llist_get(contents->sections, contents->header->section_headers_strings_entry);
-    } else {
-        contents->header->section_headers_strings_entry = llist_length(contents->sections);
-        header_names_section = contents->ops->create_section(
-                contents, new_str(contents->mempool, ".shstrtab"), SECTION_TYPE_STRTAB);
-        contents->ops->add_section(contents, header_names_section);
-    }
-    bin_clear(header_names_section->contents);
-    bin_add_byte(header_names_section->contents, 0);
-
+    // hope caller has created the section header names
+    contents->header->section_headers_strings_entry = llist_length(contents->sections) - 1;
 
     // write all section contents
     for_list(contents->sections, elf64_section, s) {
-        s->header->name = bin_len(header_names_section->contents);
-        bin_add_str(header_names_section->contents, s->name); // add name before calculating size
         s->header->file_offset = bin_len(file_data);
         s->header->size = (s->header->type == SECTION_TYPE_NOBITS) ? 0 : bin_len(s->contents);
         
@@ -379,14 +454,18 @@ static bin *flatten_elf64_contents(elf64_contents *contents, mempool *mp) {
         bin_cat(file_data, s->contents);
     }
 
-    // keep note where the section headers will be
-    contents->header->section_headers_entry_size = sizeof(elf64_section_header);
-    contents->header->section_headers_entries = llist_length(contents->sections);
-    contents->header->section_headers_offset = llist_length(contents->sections) == 0 ? 0 : bin_len(file_data);
-
     // write all section headers
+    contents->header->section_headers_offset = llist_length(contents->sections) == 0 ? 0 : bin_len(file_data);
     for_list(contents->sections, elf64_section, s)
         bin_add_mem(file_data, s->header, sizeof(elf64_section_header));
+    
+    // write all program headers
+    contents->header->prog_headers_offset = llist_length(contents->prog_headers) == 0 ? 0 : bin_len(file_data);
+    for_list(contents->prog_headers, elf64_prog_header, h)
+        bin_add_mem(file_data, h, sizeof(elf64_prog_header));
+
+    // find entry point, if applicable
+    
 
     // finally, rewrite header, to update the offsets of the various tables
     bin_seek(file_data, 0);

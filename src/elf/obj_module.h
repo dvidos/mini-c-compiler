@@ -15,12 +15,10 @@ struct obj_module {
     llist *sections;  // item type is obj_section
 
     struct obj_module_ops {
-        void (*print)(obj_module *m, FILE *f);
-        void (*append)(obj_module *m, struct obj_module *source);
+        void (*print)(obj_module *m, bool show_details, FILE *f);
         obj_section *(*get_section_by_name)(obj_module *m, str *name);
         obj_symbol *(*find_symbol)(obj_module *m, str *name, bool exported);
-        elf64_contents *(*pack_object_file)(obj_module *m, mempool *mp);
-        elf64_contents *(*pack_executable_file)(obj_module *m, mempool *mp);
+        elf64_contents *(*prepare_elf_contents)(obj_module *m, int elf_type, mempool *mp);
     } *ops;
 
     mempool *mempool;

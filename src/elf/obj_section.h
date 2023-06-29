@@ -25,7 +25,7 @@ struct obj_section {
     } flags;
 
     struct obj_section_ops {
-        void (*print)(obj_section *s, FILE *f);
+        void (*print)(obj_section *s, bool show_details, FILE *f);
         void (*append)(obj_section *s, obj_section *other, size_t rounding_value);
         void (*change_address)(obj_section *s, long delta);
         void (*rebase)(obj_section *s, long delta);

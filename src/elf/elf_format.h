@@ -69,8 +69,8 @@ typedef struct elf64_header {
 
 // elf file type
 #define ELF_TYPE_NONE   0
-#define ELF_TYPE_REL    1
-#define ELF_TYPE_EXEC   2
+#define ELF_TYPE_REL    1  // this means object code
+#define ELF_TYPE_EXEC   2  // this is static executable
 #define ELF_TYPE_DYN    3
 #define ELF_TYPE_CORE   4
 

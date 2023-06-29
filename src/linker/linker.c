@@ -101,8 +101,9 @@ static bool add_participant_from_library(link2_info *info, link2_lib_module_id *
         return false; 
     
     obj_module *m = new_obj_module_from_elf64_contents(elf_cnt, info->mempool);
-    printf("Module from library:\n");
-    m->ops->print(m, stdout);
+    // printf("Module from library:\n");
+    // m->ops->print(m, stdout);
+
     return add_participant(info, m);
 }
 
@@ -270,8 +271,10 @@ bool include_library_modules_as_needed(link2_info *info) {
         if (llist_length(info->unresolved_symbols) == 0)
             break; // no unresolvable symbols!!
         
-        printf("Symbols required: %s\n",
-            str_charptr(str_join(info->unresolved_symbols, new_str(info->mempool, ", "), info->mempool)));
+        if (options.verbose) {
+            printf("Symbols required: %s\n",
+                str_charptr(str_join(info->unresolved_symbols, new_str(info->mempool, ", "), info->mempool)));
+        }
         
         llist_clear(info->needed_module_ids);
         if (!find_needed_lib_modules(info)) {
@@ -280,12 +283,14 @@ bool include_library_modules_as_needed(link2_info *info) {
         }
 
         for_list(info->needed_module_ids, link2_lib_module_id, mid) {
-            printf("Including module %s : %s\n", str_charptr(mid->lib_info->pathname), str_charptr(mid->entry->filename));
+            if (options.verbose)
+                printf("Including module %s : %s\n", str_charptr(mid->lib_info->pathname), str_charptr(mid->entry->filename));
+            
             add_participant_from_library(info, mid);
         }
 
         if (++tries > 1000) {
-            printf("Too many symbol resolution efforts, aborting...\n");
+            printf("Too many symbol resolution efforts, giving up...\n");
             return false;
         }
     }
@@ -300,12 +305,14 @@ static void prepare_grouping_map(link2_info *info) {
     for_list(info->participants, obj_module, participant) {
         for_list(participant->sections, obj_section, section) {
             // derive key (verbose for debugging / educational  purposes)
-            str *key = new_strf(info->mempool, "%s%s%s%s",
+            str *key = new_strf(info->mempool, "%s-%s%s%s%s",
+                str_charptr(section->name),
                 section->flags.init_to_zero ? "NOBITS" : "PROGBITS",
-                section->flags.allocate ? "-A" : "",
-                section->flags.writable ? "-W" : "",
-                section->flags.executable ? "-X" : "");
-            printf("Module %s, section %s, key is %s\n", str_charptr(participant->name), str_charptr(section->name), str_charptr(key));
+                section->flags.allocate ? "A" : "-",
+                section->flags.writable ? "W" : "-",
+                section->flags.executable ? "X" : "-");
+            
+            // printf("Module %s, section %s, key is %s\n", str_charptr(participant->name), str_charptr(section->name), str_charptr(key));
             
             // add to keys, add to sections-per-key, add to target-per-key
             if (!hashtable_contains(info->sections_per_group, key)) {
@@ -317,13 +324,17 @@ static void prepare_grouping_map(link2_info *info) {
     }
 }
 
-void distribute_address_to_group(link2_info *info, str *group_key, size_t *address) {
+void distribute_address_to_group(link2_info *info, str *group_key, size_t *address, size_t rounding_value) {
     llist *group_sections = hashtable_get(info->sections_per_group, group_key);
     for_list(group_sections, obj_section, section) {
         section->ops->change_address(section, (long)(*address));
         (*address) += bin_len(section->contents);
         (*address) = round_up(*address, SECTION_ROUNDING_VALUE);
     }
+
+    if (rounding_value > 1)
+        (*address) = round_up(*address, GROUP_ROUNDING_VALUE);
+
 }
 
 bool resolve_relocation(link2_info *info, obj_section *sect, obj_relocation *rel, obj_symbol *sym) {
@@ -332,8 +343,14 @@ bool resolve_relocation(link2_info *info, obj_section *sect, obj_relocation *rel
     // https://sourceware.org/git/?p=binutils-gdb.git;a=blob;f=include/elf/x86-64.h;h=60b3c2ad10e66bb14338bd410c3a7566b09c4eb4;hb=e0ce6dde97881435d33652572789b94c846cacde
     // let's say this is very simple for now.
 
+    // readelf gives the following types:
+    // R_X86_64_PLT32
+    // R_X86_64_PC32
+
     bin_seek(sect->contents, rel->offset);
     bin_write_dword(sect->contents, sym->value + rel->addendum);
+
+    return true;
 }
 
 bool resolve_relocations(link2_info *info) {
@@ -355,7 +372,7 @@ bool resolve_relocations(link2_info *info) {
     return true;
 }
 
-static obj_section *merge_grouped_sections(link2_info *info, str *grouping_key) {
+static obj_section *merge_grouped_sections(link2_info *info, str *grouping_key, size_t rounding_value) {
     llist *group_sections = hashtable_get(info->sections_per_group, grouping_key);
     obj_section *first = llist_get(group_sections, 0);
 
@@ -366,6 +383,14 @@ static obj_section *merge_grouped_sections(link2_info *info, str *grouping_key) 
 
     for_list(group_sections, obj_section, sect)
         target_section->ops->append(target_section, sect, SECTION_ROUNDING_VALUE);
+
+    size_t len = bin_len(target_section->contents);
+    if (rounding_value > 1) {
+        len = round_up(len, rounding_value);
+        bin_pad(target_section->contents, 0, len);
+    }
+
+    return target_section;
 }
 
 static bool do_link2(link2_info *info) {
@@ -392,10 +417,8 @@ static bool do_link2(link2_info *info) {
     
     // now that grouping is defined, distribute final addresses
     size_t address = info->base_address;
-    for_list(info->grouping_keys, str, key) {
-        distribute_address_to_group(info, key, &address);
-        address = round_up(address, GROUP_ROUNDING_VALUE);
-    }
+    for_list(info->grouping_keys, str, key)
+        distribute_address_to_group(info, key, &address, GROUP_ROUNDING_VALUE);
 
     // since we have addresses, resolve relocations for all modules / sections
     // keep individual modules intact, to allow private / public symbol resolution.
@@ -405,18 +428,27 @@ static bool do_link2(link2_info *info) {
     // now that individual module visibility is not needed,
     // merge all the participating sections together (e.g all .text's and all .data's)
     for_list(info->grouping_keys, str, key)
-        llist_add(info->target_module->sections, merge_grouped_sections(info, key));
+        llist_add(info->target_module->sections, merge_grouped_sections(info, key, GROUP_ROUNDING_VALUE));
 
     // debugging purposes
-    printf("Merged and rellocated executable module:\n");
-    info->target_module->ops->print(info->target_module, stdout);
+    if (options.verbose) {
+        printf("Merged and rellocated executable module:\n");
+        info->target_module->ops->print(info->target_module, true, stdout);
+    }
 
     // finally convert to executable ELF and save
-    elf64_contents *elf64_cnt = info->target_module->ops->pack_executable_file(info->target_module, info->mempool);
+    elf64_contents *elf64_cnt = info->target_module->ops->prepare_elf_contents(info->target_module, ELF_TYPE_EXEC, info->mempool);
     if (elf64_cnt == NULL) {
         printf("Failed generating executable elf contents\n");
         return false;
     }
+
+    if (options.verbose) {
+        printf("Generated ELF contents from module:\n");
+        elf64_cnt->ops->print(elf64_cnt, stdout);
+    }
+
+
     if (!elf64_cnt->ops->save(elf64_cnt, info->executable_path)) {
         printf("Failed saving executable file\n");
         return false;

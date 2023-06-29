@@ -17,10 +17,10 @@ static void demo_obj_file(char *filename) {
     contents->ops->print(contents, stdout);
 
     obj_module *module = new_obj_module_from_elf64_contents(contents, mp);
-    module->ops->print(module, stdout);
+    module->ops->print(module, true, stdout);
     
     // could / should also pack the module and compare with the original elf contents
-    elf64_contents *new_contents = module->ops->pack_object_file(module, mp);
+    elf64_contents *new_contents = module->ops->prepare_elf_contents(module, ELF_TYPE_REL, mp);
     // ...
 
     mempool_release(mp);
@@ -42,10 +42,10 @@ static void demo_lib_entry(archive *a, llist *entries, int entry_no) {
     contents->ops->print(contents, stdout);
 
     obj_module *module = new_obj_module_from_elf64_contents(contents, mp);
-    module->ops->print(module, stdout);
+    module->ops->print(module, true, stdout);
 
     // could / should also pack the module and compare with the original elf contents
-    elf64_contents *new_contents = module->ops->pack_object_file(module, mp);
+    elf64_contents *new_contents = module->ops->prepare_elf_contents(module, ELF_TYPE_REL, mp);
     // ...
 
     mempool_release(mp);

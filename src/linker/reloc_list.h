@@ -15,8 +15,6 @@ enum reloc_type {
     RT_UNKOWN,
     RT_ABS_32,   // just copy the address of the symbol using 4 bytes
     RT_REL_32,   // increase the value of position by the relative distance to the symbol (for code jumps)
-    
-    R_X86_64_PLT32, // in general relocation types are ABI and CPU dependent
 };
 
 struct relocation {

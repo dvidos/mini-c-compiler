@@ -28,7 +28,6 @@ struct obj_section {
         void (*print)(obj_section *s, bool show_details, FILE *f);
         void (*append)(obj_section *s, obj_section *other, size_t rounding_value);
         void (*change_address)(obj_section *s, long delta);
-        void (*rebase)(obj_section *s, long delta);
         obj_symbol *(*find_symbol)(obj_section *s, str *name, bool exported);
     } *ops;
 

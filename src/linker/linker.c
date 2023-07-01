@@ -15,6 +15,9 @@
 #define SECTION_ROUNDING_VALUE     1  // e.g. between data of different modules
 #define GROUP_ROUNDING_VALUE    4096  // e.g. between .text and .data 
 
+#define R_X86_64_PC32   2
+#define R_X86_64_PLT32  4
+
 // we cannot have everything in loose variables, prepare a hierarchy
 typedef struct link2_lib_module_id link2_lib_module_id;
 typedef struct link2_lib_info link2_lib_info;
@@ -324,31 +327,47 @@ static void prepare_grouping_map(link2_info *info) {
     }
 }
 
-void distribute_address_to_group(link2_info *info, str *group_key, size_t *address, size_t rounding_value) {
+void distribute_address_to_group(link2_info *info, str *group_key, size_t *address, size_t section_rounding, size_t group_rounding) {
     llist *group_sections = hashtable_get(info->sections_per_group, group_key);
     for_list(group_sections, obj_section, section) {
         section->ops->change_address(section, (long)(*address));
         (*address) += bin_len(section->contents);
-        (*address) = round_up(*address, SECTION_ROUNDING_VALUE);
+        if (section_rounding > 1)
+            (*address) = round_up(*address, section_rounding);
     }
 
-    if (rounding_value > 1)
-        (*address) = round_up(*address, GROUP_ROUNDING_VALUE);
+    if (group_rounding > 1)
+        (*address) = round_up(*address, group_rounding);
 
 }
 
 bool resolve_relocation(link2_info *info, obj_section *sect, obj_relocation *rel, obj_symbol *sym) {
-    // we can do better next time
-    // possible explanation of x86_64 relocations:
-    // https://sourceware.org/git/?p=binutils-gdb.git;a=blob;f=include/elf/x86-64.h;h=60b3c2ad10e66bb14338bd410c3a7566b09c4eb4;hb=e0ce6dde97881435d33652572789b94c846cacde
-    // let's say this is very simple for now.
+    /*  From https://intezer.com/blog/malware-analysis/executable-and-linkable-format-101-part-3-relocations/
+        Num   Name             Size     Calculation
+          2   R_X86_64_PC32    dword    S + A - P
+          4   R_X86_64_PLT32   dword    L + A - P
+        A: Addend of Elfxx_Rela entries.
+        L: Section offset or address of the procedure linkage table (PLT, .got.plt).
+        P: The section offset or address of the storage unit being relocated, retrieved via r_offset relocation entry’s field.
+        S: Relocation entry’s correspondent symbol value.
+    */
 
-    // readelf gives the following types:
-    // R_X86_64_PLT32
-    // R_X86_64_PC32
+    if (rel->type == R_X86_64_PC32) {
+        u32 value = sym->value + rel->addendum - (sect->address + rel->offset);
+        bin_seek(sect->contents, rel->offset);
+        bin_write_dword(sect->contents, value);
 
-    bin_seek(sect->contents, rel->offset);
-    bin_write_dword(sect->contents, sym->value + rel->addendum);
+    } else if (rel->type == R_X86_64_PLT32) {
+        u32 value = sym->value + rel->addendum - (sect->address + rel->offset);
+        bin_seek(sect->contents, rel->offset);
+        bin_write_dword(sect->contents, value);
+
+    } else {
+        printf("Unknown relocation type, symbol: '%s', type=%d, addend=%ld\n",
+            str_charptr(sym->name), rel->type, rel->addendum);
+        return false;
+    }
+
 
     return true;
 }
@@ -418,7 +437,7 @@ static bool do_link2(link2_info *info) {
     // now that grouping is defined, distribute final addresses
     size_t address = info->base_address;
     for_list(info->grouping_keys, str, key)
-        distribute_address_to_group(info, key, &address, GROUP_ROUNDING_VALUE);
+        distribute_address_to_group(info, key, &address, SECTION_ROUNDING_VALUE, GROUP_ROUNDING_VALUE);
 
     // since we have addresses, resolve relocations for all modules / sections
     // keep individual modules intact, to allow private / public symbol resolution.
@@ -492,7 +511,7 @@ void link_test() {
     llist_add(obj_file_paths, new_str(mp, "./src/runtimes/example.o"));
     llist_add(lib_file_paths, new_str(mp, "./src/runtimes/libruntime.a"));
 
-    x86_link_v2(modules, obj_file_paths, lib_file_paths, 0x400000, new_str(mp, "b.out"));
+    x86_link_v2(modules, obj_file_paths, lib_file_paths, 0x401000, new_str(mp, "b.out"));
 
     mempool_release(mp);
 }

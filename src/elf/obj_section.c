@@ -7,7 +7,6 @@
 static void obj_section_print(obj_section *s, bool show_details, FILE *f);
 static void obj_section_append(obj_section *s, obj_section *other, size_t rounding_value);
 static void obj_section_change_address(obj_section *s, long delta);
-static void obj_section_rebase(obj_section *s, long delta);
 static obj_symbol *obj_section_find_symbol(obj_section *s, str *name, bool exported);
 
 static void obj_symbol_print(obj_symbol *s, int num, FILE *f);
@@ -18,7 +17,6 @@ static struct obj_section_ops section_ops = {
     .print = obj_section_print,
     .append = obj_section_append,
     .change_address = obj_section_change_address,
-    .rebase = obj_section_rebase,
     .find_symbol = obj_section_find_symbol,
 };
 
@@ -100,35 +98,16 @@ static void obj_section_print(obj_section *s, bool show_details, FILE *f) {
 }
 
 static void obj_section_append(obj_section *s, obj_section *other, size_t rounding_value) {
-    // let's up this one to the size of a long (64 bits, or 8 bytes)
-    size_t size = bin_len(s->contents);
-    if (rounding_value > 1) {
-        size = ((size + (rounding_value - 1)) / rounding_value) * rounding_value;
-        bin_pad(s->contents, 0, size);
-    }
-
-    // size will now be the new base of relocations and symbols.
+    // any relocations or adjustments are considered already done.
     bin_cat(s->contents, other->contents);
-    other->ops->rebase(other, (long)size);
     llist_add_all(s->symbols, other->symbols);
     llist_add_all(s->relocations, other->relocations);
 }
 
 static void obj_section_change_address(obj_section *s, long delta) {
     s->address += delta;
-    for_list(s->symbols, obj_symbol, sym) {
+    for_list(s->symbols, obj_symbol, sym)
         sym->value += delta;
-    }
-}
-
-static void obj_section_rebase(obj_section *s, long delta) {
-    s->address += delta;
-    for_list(s->symbols, obj_symbol, sym) {
-        sym->value += delta;
-    }
-    for_list(s->relocations, obj_relocation, rel) {
-        rel->offset += delta;
-    }
 }
 
 static obj_symbol *obj_section_find_symbol(obj_section *s, str *name, bool exported) {

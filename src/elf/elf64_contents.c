@@ -143,15 +143,14 @@ static void elf64_contents_print(elf64_contents *contents, FILE *stream) {
     for_list(contents->sections, elf64_section, s)
         s->ops->print(s, stream);
 
-    fprintf(stream, "  Symbols\n");
-    elf64_section *strtab = elf64_contents_get_section_by_name(contents, new_str(contents->mempool, ".strtab"));
-    elf64_section *symtab = elf64_contents_get_section_by_name(contents, new_str(contents->mempool, ".symtab"));
-    if (strtab != NULL && symtab != NULL) {
-        int symbols_count = symtab->ops->count_symbols(symtab);
-        for (int i = 0; i < symbols_count; i++)
-            symtab->ops->print_symbol(symtab, i, strtab, stream);
-    }
-
+    // elf64_section *strtab = elf64_contents_get_section_by_name(contents, new_str(contents->mempool, ".strtab"));
+    // elf64_section *symtab = elf64_contents_get_section_by_name(contents, new_str(contents->mempool, ".symtab"));
+    // if (strtab != NULL && symtab != NULL) {
+    //     fprintf(stream, "  Symbols\n");
+    //     int symbols_count = symtab->ops->count_symbols(symtab);
+    //     for (int i = 0; i < symbols_count; i++)
+    //         symtab->ops->print_symbol(symtab, i, strtab, stream);
+    // }
 }
 
 static bool elf64_contents_save(elf64_contents *contents, str *filename) {

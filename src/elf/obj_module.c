@@ -80,6 +80,7 @@ static elf64_contents *obj_module_prepare_elf_contents(obj_module *module, int e
             (obj_sect->flags.writable ? SECTION_FLAGS_WRITE : 0) |
             (obj_sect->flags.executable ? SECTION_FLAGS_EXECINSTR : 0);
         elf_sect->header->virt_address = obj_sect->address; // needed for program_headers
+        elf_sect->header->address_alignment = 4;
         bin_cpy(elf_sect->contents, obj_sect->contents);
         pi->elf->ops->add_section(pi->elf, elf_sect);
 
@@ -155,6 +156,7 @@ static elf64_contents *obj_module_prepare_elf_contents(obj_module *module, int e
         }
     }
 
+    pi->symtab->header->entry_size = sizeof(elf64_sym);
     pi->symtab->header->info = first_global_symbol_index;
     pi->symtab->header->link = pi->strtab->index;
 

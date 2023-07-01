@@ -157,13 +157,41 @@ static void generate_intermediate_code(ir_listing *listing) {
     }
 }
 
-static void generate_machine_code(mempool *mp, ir_listing *ir_list) {
+static void process_one_file(mempool *mp, str *filename, obj_module *mod) {
+    // process one file (load, parse, generate obj module)
+    init_operators();
+    init_lexer();
+
+    char *source_code;
+    load_source_code(&source_code);
+    if (errors_count)
+        return;
+
+    token_list *token_list = new_token_list();
+    parse_file_into_lexer_tokens(source_code, options.filename, token_list);
+    free(source_code);
+    if (errors_count)
+        return;
+
+    parse_abstract_syntax_tree(token_list);
+    if (errors_count)
+        return;
+
+    perform_semantic_analysis();
+    if (errors_count)
+        return;
+    
+    ir_listing *ir_listing = new_ir_listing();
+    generate_intermediate_code(ir_listing);
+    if (errors_count)
+        return;
+
     // we need something that, given ir_listing       generates asm_listing. (.asm file)
     // then an encoder that,   given the asm_listing, generates machine code (.o file)
     // then a linker that,     given the machine code generates the executable (executable file)
 
     asm_listing *asm_list = new_asm_listing();
-    x86_assemble_ir_listing(ir_list, asm_list);
+    x86_assemble_ir_listing(ir_listing, asm_list);
     if (errors_count)
         return;
 
@@ -184,7 +212,7 @@ static void generate_machine_code(mempool *mp, ir_listing *ir_list) {
         free(asm_filename);
     }
 
-    char *mod_name = set_extension(options.filename, "");
+    char *mod_name = set_extension(options.filename, "o");
     obj_code *cod = new_obj_code();
     cod->vt->set_name(cod, mod_name);
     free(mod_name);
@@ -209,15 +237,25 @@ static void generate_machine_code(mempool *mp, ir_listing *ir_list) {
     }
 
     // prepare a real module, like real men do.
-    obj_module *mod = new_obj_module(mp);
     mod->name = new_str(mp, options.filename);
     encode_asm_into_machine_code_x86_64(asm_list, mod);
     if (errors_count)
         return;
+}
 
-    // link into executable (one or more modules)src/mcc.c
+static void process_all_files(mempool *mp) {
+    // for each file, we need to convert into an obj file.
+    // then we need to link them all together
     llist *obj_modules = new_llist(mp);
-    llist_add(obj_modules, mod);
+    iterator *source_files_it = llist_create_iterator(options.filenames, mp);
+    for_iterator(str, filename, source_files_it) {
+        obj_module *mod = new_obj_module(mp);
+        process_one_file(mp, filename, mod);
+        if (errors_count)
+            return;
+        
+        llist_add(obj_modules, mod);
+    }
     
     // default runtime files
     llist *obj_files = new_llist(mp);
@@ -228,45 +266,9 @@ static void generate_machine_code(mempool *mp, ir_listing *ir_list) {
     str *executable = str_change_extension(first_mod, NULL);
 
     x86_link_v2(obj_modules, obj_files, lib_files, 0x400000, executable);
+
+    return;
 }
-
-
-static int run_all_operations(mempool *mp) {
-    init_operators();
-    init_lexer();
-
-    char *source_code;
-    load_source_code(&source_code);
-    if (errors_count)
-        return 1;
-
-    token_list *token_list = new_token_list();
-    parse_file_into_lexer_tokens(source_code, options.filename, token_list);
-    free(source_code);
-    if (errors_count)
-        return 1;
-
-    parse_abstract_syntax_tree(token_list);
-    if (errors_count)
-        return 1;
-
-    perform_semantic_analysis();
-    if (errors_count)
-        return 1;
-    
-    ir_listing *listing = new_ir_listing();
-    generate_intermediate_code(listing);
-    if (errors_count)
-        return 1;
-
-    generate_machine_code(mp, listing);
-    if (errors_count)
-        return 1;
-
-    printf("Done!\n");
-    return 0;
-}
-
 
 int main(int argc, char *argv[]) {
     printf("mini-c-compiler, v0.01\n");
@@ -303,8 +305,9 @@ int main(int argc, char *argv[]) {
         return 1;
     }
 
-    int exit_code = run_all_operations(mp);
+    process_all_files(mp);
     mempool_release(mp);
-    return exit_code;
+
+    return errors_count ? 1 : 0;
 }
 

@@ -320,7 +320,7 @@ static elf64_section_header *new_elf64_section_header(int type, char *name, u64 
     return h;
 }
 
-static elf64_prog_header *generate_prog_header(mempool *mp, size_t file_offset, size_t file_size, size_t mem_address, size_t mem_size, unsigned flags) {
+static elf64_prog_header *generate_prog_header(mempool *mp, size_t file_offset, size_t file_size, size_t mem_address, size_t mem_size, unsigned flags, unsigned align) {
     elf64_prog_header *prog = mempool_alloc(mp, sizeof(elf64_prog_header), "elf64_prog_header");
     memset(prog, 0, sizeof(elf64_prog_header));
 
@@ -331,7 +331,7 @@ static elf64_prog_header *generate_prog_header(mempool *mp, size_t file_offset, 
     prog->virt_address = mem_address;
     prog->memory_size = mem_size;
     prog->flags = flags;
-    prog->align = 1; // should do something smarter
+    prog->align = align;
 
     return prog;
 }
@@ -345,6 +345,7 @@ static void generate_program_headers(elf64_contents *contents) {
     size_t prog_memory_address;
     size_t prog_memory_size;
     int prog_flags = -1;
+    int align = 4096;
 
     llist_clear(contents->prog_headers);
 
@@ -367,7 +368,7 @@ static void generate_program_headers(elf64_contents *contents) {
             if (!str_is_empty(last_group_key)) {
                 // add prev program header
                 llist_add(contents->prog_headers, generate_prog_header(contents->mempool,
-                    prog_file_offset, prog_file_size, prog_memory_address, prog_memory_size, prog_flags));
+                    prog_file_offset, prog_file_size, prog_memory_address, prog_memory_size, prog_flags, align));
             }
             
             // new program header, reset group totals
@@ -392,7 +393,7 @@ static void generate_program_headers(elf64_contents *contents) {
     if (!str_is_empty(last_group_key)) {
         // finish last group as applicable
         llist_add(contents->prog_headers, generate_prog_header(contents->mempool,
-            prog_file_offset, prog_file_size, prog_memory_address, prog_memory_size, prog_flags));
+            prog_file_offset, prog_file_size, prog_memory_address, prog_memory_size, prog_flags, align));
     }
 }
 

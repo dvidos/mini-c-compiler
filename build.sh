@@ -3,5 +3,6 @@
 set -e  # exit on fail
 cd src
 make -B
-cp mcc rt32.o rt64.o ..
+cp mcc ..
+cp runtimes/libruntime64.a ..
 cd ..

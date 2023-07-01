@@ -3,6 +3,7 @@
 #include <string.h>
 #include "options.h"
 #include "utils/unit_tests.h"
+#include "utils/mempool.h"
 #include "utils.h"
 
 // global read-only variable
@@ -27,11 +28,12 @@ void show_syntax() {
     printf("\t--asm-test   run asm test\n");
 }
 
-void parse_options(int argc, char *argv[]) {
+void parse_options(mempool *mp, int argc, char *argv[]) {
 
     // defaults
     memset(&options, 0, sizeof(options));
     options.is_32_bits = true; // the default
+    options.filenames = new_llist(mp);
 
     char *p;
     for (int i = 1; i < argc; i++) {
@@ -39,7 +41,11 @@ void parse_options(int argc, char *argv[]) {
 
         // first letter not a minus
         if (p[0] != '-') {
-            options.filename = p;
+            str *filename = new_str(mp, p);
+            llist_add(options.filenames, filename);
+
+            if (options.filename == NULL) // also the first
+                options.filename = p;
             continue;
         }
 

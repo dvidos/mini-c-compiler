@@ -534,6 +534,28 @@ const char *str_charptr(str *s) {
     return s->buff;
 }
 
+str *str_change_extension(str *filename, char *new_extension) {
+    int pos = str_last_char_pos(filename, '.');
+    if (pos == -1 && (new_extension == NULL || strlen(new_extension) == 0))
+        return filename;
+
+    str *result;
+    if (pos == -1) {
+        // no extension present, add new extension
+        result = str_clone(filename);
+        str_catc(result, '.');
+        str_cat(result, new_str(filename->mempool, new_extension));
+    } else {
+        result = str_substr(filename, 0, pos);
+        if (new_extension != NULL && strlen(new_extension) > 0) {
+            str_catc(result, '.');
+            str_cat(result, new_str(filename->mempool, new_extension));
+        }
+    }
+
+    return result;
+}
+
 #ifdef INCLUDE_UNIT_TESTS
 void str_unit_tests() {
     mempool *mp = new_mempool();

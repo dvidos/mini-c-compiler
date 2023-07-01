@@ -467,7 +467,6 @@ static bool do_link2(link2_info *info) {
         elf64_cnt->ops->print(elf64_cnt, stdout);
     }
 
-
     if (!elf64_cnt->ops->save(elf64_cnt, info->executable_path)) {
         printf("Failed saving executable file\n");
         return false;

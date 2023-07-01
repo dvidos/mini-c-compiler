@@ -1,5 +1,7 @@
 #pragma once
 #include <stdbool.h>
+#include "utils/data_structs.h"
+
 
 struct options {
     // flags passed in command line
@@ -19,6 +21,7 @@ struct options {
     bool generate_map;
 
     char *filename;
+    llist *filenames;
     
     // derived values to aid execution
     int pointer_size_bytes;   
@@ -28,5 +31,5 @@ struct options {
 extern struct options options;
 
 void show_syntax();
-void parse_options(int argc, char *argv[]);
+void parse_options(mempool *mp, int argc, char *argv[]);
 

@@ -1,6 +1,6 @@
 CFLAGS = -g -Werror
 BINARY = mcc
-RUNTIME_LIB = src/runtimes/libruntime.a
+RUNTIME_LIB = runtimes/libruntime64.a
 SRC_FILES = \
 	mcc.c \
 	err_handler.c \

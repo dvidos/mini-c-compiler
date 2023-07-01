@@ -405,7 +405,7 @@ static void generate_program_headers(elf64_contents *contents, size_t lowest_loa
     str *last_group_key = new_str(scratch, NULL);
     for_list(contents->sections, elf64_section, sect) {
         if (sect->header->type != SECTION_TYPE_PROGBITS && sect->header->type != SECTION_TYPE_NOBITS) {
-            curr_filepos += bin_len(sect->contents);
+            curr_filepos += sect->header->type == SECTION_TYPE_NOBITS ? 0 : bin_len(sect->contents);
             continue;
         }
         
@@ -476,7 +476,7 @@ static bin *flatten_elf64_contents(elf64_contents *contents, mempool *mp) {
     size_t offset = first_section_offset;
     for_list(contents->sections, elf64_section, sect) {
         sect->header->file_offset = sect->header->type == SECTION_TYPE_NULL ? 0 : offset;
-        sect->header->size = sect->header->type == SECTION_TYPE_NOBITS ? 0 : bin_len(sect->contents);
+        sect->header->size = bin_len(sect->contents);
         offset += sect->header->type == SECTION_TYPE_NOBITS ? 0 : bin_len(sect->contents);
     }
 

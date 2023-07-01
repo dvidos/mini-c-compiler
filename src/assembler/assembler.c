@@ -13,6 +13,8 @@
 #include "encoder/asm_allocator.h"
 #include "encoder/asm_instruction.h"
 #include "../utils/string.h"
+#include "../utils/data_structs.h"
+#include "../elf/obj_module.h"
 
 
 static struct asm_operand *resolve_ir_value_to_asm_operand(ir_value *v);
@@ -558,5 +560,9 @@ void x86_encode_asm_into_machine_code(asm_listing *asm_list, enum x86_cpu_mode m
     for (int i = 0; i < obj->text->contents->length; i++)
         printf("%02x ", (unsigned char)obj->text->contents->buffer[i]);
     printf("\n");
+}
+
+void encode_asm_into_machine_code_x86_64(mempool *mp, asm_listing *asm_list, obj_module *mod) {
+    // we need an x86_64_encoder()
 }
 

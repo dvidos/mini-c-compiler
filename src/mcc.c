@@ -27,6 +27,7 @@
 #include "elf/elf64_contents.h"
 #include "linker/linker.h"
 #include "linker/obj_code.h"
+#include "elf/obj_module.h"
 #include "elf/elf_contents.h"
 
 #ifdef INCLUDE_UNIT_TESTS
@@ -156,7 +157,7 @@ static void generate_intermediate_code(ir_listing *listing) {
     }
 }
 
-static void generate_machine_code(ir_listing *ir_list) {
+static void generate_machine_code(mempool *mp, ir_listing *ir_list) {
     // we need something that, given ir_listing       generates asm_listing. (.asm file)
     // then an encoder that,   given the asm_listing, generates machine code (.o file)
     // then a linker that,     given the machine code generates the executable (executable file)
@@ -184,11 +185,11 @@ static void generate_machine_code(ir_listing *ir_list) {
     }
 
     char *mod_name = set_extension(options.filename, "");
-    obj_code *mod = new_obj_code();
-    mod->vt->set_name(mod, mod_name);
+    obj_code *cod = new_obj_code();
+    cod->vt->set_name(cod, mod_name);
     free(mod_name);
 
-    x86_encode_asm_into_machine_code(asm_list, CPU_MODE_PROTECTED, mod);
+    x86_encode_asm_into_machine_code(asm_list, CPU_MODE_PROTECTED, cod);
     if (errors_count)
         return;
 
@@ -199,7 +200,7 @@ static void generate_machine_code(ir_listing *ir_list) {
             error(NULL, 0, "cannot open file \"%s\" for writing", obj_filename);
             return;
         }
-        if (!mod->vt->save_object_file(mod, f)) {
+        if (!cod->vt->save_object_file(cod, f)) {
             error(NULL, 0, "error writing to file \"%s\"", obj_filename);
             return;
         }
@@ -207,50 +208,30 @@ static void generate_machine_code(ir_listing *ir_list) {
         free(obj_filename);
     }
 
-    // link into executable (one or more modules)
-    list *modules = new_list();
-    modules->v->add(modules, mod);
+    // prepare a real module, like real men do.
+    obj_module *mod = new_obj_module(mp);
+    mod->name = new_str(mp, options.filename);
+    encode_asm_into_machine_code_x86_64(asm_list, mod);
+    if (errors_count)
+        return;
 
-    char *executable_name = set_extension(options.filename, "");
-    // x86_link(modules, 0x8048000, executable_name);
-    free(executable_name);
-    modules->v->free(modules, NULL);
+    // link into executable (one or more modules)src/mcc.c
+    llist *obj_modules = new_llist(mp);
+    llist_add(obj_modules, mod);
+    
+    // default runtime files
+    llist *obj_files = new_llist(mp);
+    llist *lib_files = new_llist(mp);
+    llist_add(lib_files, new_str(mp, "libruntime64.a"));
+
+    str *first_mod = llist_get(options.filenames, 0);
+    str *executable = str_change_extension(first_mod, NULL);
+
+    x86_link_v2(obj_modules, obj_files, lib_files, 0x400000, executable);
 }
 
-int main(int argc, char *argv[]) {
-    printf("mini-c-compiler, v0.01\n");
 
-    parse_options(argc, argv);
-
-#ifdef INCLUDE_UNIT_TESTS
-    if (options.unit_tests) {
-        return run_unit_tests() ? 0 : 1;
-    }
-#endif
-
-    if (options.elf_test) {
-        void perform_elf_test();
-        perform_elf_test();
-        return 0;
-    }
-
-    if (options.link_test) {
-        void link_test();
-        link_test();
-        return 0;
-    }
-
-    if (options.asm_test) {
-        void perform_asm_test();
-        perform_asm_test();
-        return 0;
-    }
-
-    if (options.filename == NULL) {
-        show_syntax();
-        return 1;
-    }
-
+static int run_all_operations(mempool *mp) {
     init_operators();
     init_lexer();
 
@@ -278,10 +259,52 @@ int main(int argc, char *argv[]) {
     if (errors_count)
         return 1;
 
-    generate_machine_code(listing);
+    generate_machine_code(mp, listing);
     if (errors_count)
         return 1;
 
     printf("Done!\n");
     return 0;
 }
+
+
+int main(int argc, char *argv[]) {
+    printf("mini-c-compiler, v0.01\n");
+
+    mempool *mp = new_mempool();
+    parse_options(mp, argc, argv);
+
+    #ifdef INCLUDE_UNIT_TESTS
+    if (options.unit_tests) {
+        return run_unit_tests() ? 0 : 1;
+    }
+    #endif
+
+    if (options.elf_test) {
+        void perform_elf_test();
+        perform_elf_test();
+        return 0;
+    }
+
+    if (options.link_test) {
+        void link_test();
+        link_test();
+        return 0;
+    }
+
+    if (options.asm_test) {
+        void perform_asm_test();
+        perform_asm_test();
+        return 0;
+    }
+
+    if (options.filename == NULL) {
+        show_syntax();
+        return 1;
+    }
+
+    int exit_code = run_all_operations(mp);
+    mempool_release(mp);
+    return exit_code;
+}
+

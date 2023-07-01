@@ -387,7 +387,7 @@ static void generate_program_headers(elf64_contents *contents) {
         prog_memory_size += bin_len(sect->contents);
 
         // update running values
-        curr_filepos += bin_len(sect->contents);
+        curr_filepos += sect->header->type == SECTION_TYPE_NOBITS ? 0 : bin_len(sect->contents);
     }
 
     if (!str_is_empty(last_group_key)) {

@@ -336,10 +336,58 @@ static elf64_prog_header *generate_prog_header(mempool *mp, size_t file_offset, 
     return prog;
 }
 
-static void generate_program_headers(elf64_contents *contents) {
+static size_t find_lowest_loading_address(elf64_contents *contents) {
+    size_t lowest = -1;
+    for_list(contents->sections, elf64_section, s) {
+        if (s->header->virt_address == 0) // this may not be a loadable section
+            continue; 
+
+        if (lowest == -1 || s->header->virt_address < lowest)
+            lowest = s->header->virt_address;
+    }
+
+    return lowest == -1 ? 0 : lowest;
+}
+
+static str *generate_loading_group_key(mempool *mp, elf64_section *s) {
+    return new_strf(mp, "%s-%s%s%s",
+        s->header->type == SECTION_TYPE_PROGBITS ? "PROGBITS" : "NOBITS",
+        s->header->flags & SECTION_FLAGS_ALLOC ? "A" : "-",
+        s->header->flags & SECTION_FLAGS_WRITE ? "W" : "-",
+        s->header->flags & SECTION_FLAGS_EXECINSTR ? "X" : "-");    
+};
+
+static int count_loading_groups(mempool *mp, elf64_contents *contents) {
+
+    // loading groups are only for executables
+    if (contents->header->file_type != ELF_TYPE_EXEC)
+        return 0;
+    
+    int count = 1; // the first group is for the file header
+    str *last_group_key = new_str(mp, NULL);
+    
+    for_list(contents->sections, elf64_section, s) {
+        if (s->header->type != SECTION_TYPE_PROGBITS && s->header->type != SECTION_TYPE_NOBITS)
+            continue;
+        
+        str *sect_key = generate_loading_group_key(mp, s);
+        if (!str_equals(sect_key, last_group_key)) {
+            count++;
+            str_cpy(last_group_key, sect_key);
+        }
+    }
+
+    return count;
+}
+
+static void generate_program_headers(elf64_contents *contents, size_t lowest_loading_address, size_t first_section_offset) {
+    // only meaningful for executable programs
+    if (contents->header->file_type != ELF_TYPE_EXEC)
+        return;
+    
     // go over sections, see what should be loaded (and how) and create needed program headers
     mempool *scratch = new_mempool();
-    size_t curr_filepos = sizeof(elf64_header);
+    size_t curr_filepos;
     size_t prog_file_offset;
     size_t prog_file_size;
     size_t prog_memory_address;
@@ -347,9 +395,13 @@ static void generate_program_headers(elf64_contents *contents) {
     int prog_flags = -1;
     int align = 4096;
 
+    // generate the first prog header, to load the top of the file
     llist_clear(contents->prog_headers);
+    llist_add(contents->prog_headers, generate_prog_header(contents->mempool,
+        0, first_section_offset, lowest_loading_address - 4096, 4096, PROG_FLAGS_READ, 0x1000));
 
     // keep a running group, group similar sections together
+    curr_filepos = first_section_offset;
     str *last_group_key = new_str(scratch, NULL);
     for_list(contents->sections, elf64_section, sect) {
         if (sect->header->type != SECTION_TYPE_PROGBITS && sect->header->type != SECTION_TYPE_NOBITS) {
@@ -357,11 +409,7 @@ static void generate_program_headers(elf64_contents *contents) {
             continue;
         }
         
-        str *prog_group_key = new_strf(scratch, "%s-%s%s%s",
-            sect->header->type == SECTION_TYPE_PROGBITS ? "PROGBITS" : "NOBITS",
-            sect->header->flags & SECTION_FLAGS_ALLOC ? "A" : "-",
-            sect->header->flags & SECTION_FLAGS_WRITE ? "W" : "-",
-            sect->header->flags & SECTION_FLAGS_EXECINSTR ? "X" : "-");
+        str *prog_group_key = generate_loading_group_key(scratch, sect);
 
         // new group, finish last if applicable
         if (!str_equals(prog_group_key, last_group_key)) {
@@ -402,71 +450,69 @@ static bin *flatten_elf64_contents(elf64_contents *contents, mempool *mp) {
         File structure is as follows
         ----------------------------------------
         [ elf file header      ]
+        [ program header 0     ]  <-- skipped for .o files
+        [ program header 1     ]
+        [ program header ...   ]  <-- padded to 1024, if program headers exist
         [ section 1   contents ]  <-- these are text, data, bss, etc contents
         [ section 2   contents ]
         [ section ... contents ]
         [ section 0   header   ]  <-- section headers
         [ section 1   header   ]
         [ section ... header   ]
-        [ program header 0     ]  <-- skipped for .o files
-        [ program header 1     ]
-        [ program header ...   ]
     */
 
-    // recalculate sections location and size, to make sure our program headers are accurate
-    size_t file_offset = sizeof(elf64_header);
+    // find where to load the file header
+    size_t lowest_loading_address = find_lowest_loading_address(contents);
+
+    // count loading groups to calculate accurate offsets
+    int loading_groups = count_loading_groups(mp, contents);
+
+    // if we are generating an executable, leave first page to be loaded by loader
+    size_t first_section_offset = sizeof(elf64_header);
+    if (contents->header->file_type == ELF_TYPE_EXEC)
+        first_section_offset = round_up(sizeof(elf64_header) + loading_groups * sizeof(elf64_prog_header), 4096);
+
+    // recalculate sections file offset and size, to make sure our program headers are accurate
+    size_t offset = first_section_offset;
     for_list(contents->sections, elf64_section, sect) {
-        sect->header->file_offset = file_offset;
-        sect->header->size = bin_len(sect->contents);
-        file_offset += bin_len(sect->contents);
+        sect->header->file_offset = sect->header->type == SECTION_TYPE_NULL ? 0 : offset;
+        sect->header->size = sect->header->type == SECTION_TYPE_NOBITS ? 0 : bin_len(sect->contents);
+        offset += sect->header->type == SECTION_TYPE_NOBITS ? 0 : bin_len(sect->contents);
     }
 
     // if we are creating an executable, calculate the program headers now
-    // this could not happen from the obj_module, it does not know file offsets
-    if (contents->header->file_type == ELF_TYPE_EXEC) {
-        generate_program_headers(contents);
-        contents->ops->print(contents, stdout);
-    }
+    generate_program_headers(contents, lowest_loading_address, first_section_offset);
 
-    bin *file_data = new_bin(mp);
-    bin_add_mem(file_data, contents->header, sizeof(elf64_header));
-
-    // keep note where the section headers will be
-    contents->header->section_headers_entry_size = sizeof(elf64_section_header);
-    contents->header->section_headers_entries = llist_length(contents->sections);
-
-    // save curr offset and prog headers stuff
+    // update file header contents
     contents->header->prog_headers_entry_size = sizeof(elf64_prog_header);
     contents->header->prog_headers_entries = llist_length(contents->prog_headers);
-
-    // hope caller has created the section header names
+    contents->header->section_headers_entry_size = sizeof(elf64_section_header);
+    contents->header->section_headers_entries = llist_length(contents->sections);
     contents->header->section_headers_strings_entry = llist_length(contents->sections) - 1;
 
+    // start a buffer and save space for header
+    bin *file_data = new_bin(mp);
+    bin_add_zeros(file_data, sizeof(elf64_header));
+
+    // save program headers if neded
+    contents->header->prog_headers_offset = 0;
+    if (contents->header->file_type == ELF_TYPE_EXEC) {
+        contents->header->prog_headers_offset = bin_len(file_data);
+        for_list(contents->prog_headers, elf64_prog_header, ph)
+            bin_add_mem(file_data, ph, sizeof(elf64_prog_header));
+        bin_pad(file_data, 0, round_up(bin_len(file_data), 4096));
+    } 
+
     // write all section contents
-    for_list(contents->sections, elf64_section, s) {
-        s->header->file_offset = bin_len(file_data);
-        s->header->size = (s->header->type == SECTION_TYPE_NOBITS) ? 0 : bin_len(s->contents);
-        
-        // contents of NOBITS sections should not be saved
-        if (s->header->type == SECTION_TYPE_NOBITS)
-            continue;
+    for_list(contents->sections, elf64_section, s)
+        if (s->header->type != SECTION_TYPE_NOBITS)
+            bin_cat(file_data, s->contents);
 
-        bin_cat(file_data, s->contents);
-    }
-
-    // write all section headers
-    contents->header->section_headers_offset = llist_length(contents->sections) == 0 ? 0 : bin_len(file_data);
+    // save section headers
+    contents->header->section_headers_offset = llist_is_empty(contents->sections) ? 0 : bin_len(file_data);
     for_list(contents->sections, elf64_section, s)
         bin_add_mem(file_data, s->header, sizeof(elf64_section_header));
     
-    // write all program headers
-    contents->header->prog_headers_offset = llist_length(contents->prog_headers) == 0 ? 0 : bin_len(file_data);
-    for_list(contents->prog_headers, elf64_prog_header, h)
-        bin_add_mem(file_data, h, sizeof(elf64_prog_header));
-
-    // find entry point, if applicable
-    
-
     // finally, rewrite header, to update the offsets of the various tables
     bin_seek(file_data, 0);
     bin_write_mem(file_data, contents->header, sizeof(elf64_header));

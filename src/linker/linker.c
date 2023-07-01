@@ -473,6 +473,11 @@ static bool do_link2(link2_info *info) {
         return false;
     }
 
+    if (options.verbose) {
+        printf("ELF contents as savaed in file:\n");
+        elf64_cnt->ops->print(elf64_cnt, stdout);
+    }
+
     return true;
 }
 

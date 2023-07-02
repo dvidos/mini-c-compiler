@@ -1,6 +1,7 @@
 #pragma once
 #include <stdio.h>
 #include <stdbool.h>
+#include "../../utils/data_structs.h"
 #include "asm_instruction.h"
 
 typedef struct asm_listing asm_listing;
@@ -14,6 +15,8 @@ typedef struct asm_listing {
     int capacity;
     int length;
 
+    mempool *mempool;
+
     struct asm_listing_ops *ops;
 } asm_listing;
 
@@ -25,7 +28,7 @@ struct asm_listing_ops {
     void (*add)(asm_listing *lst, asm_instruction *instr);
 };
 
-asm_listing *new_asm_listing();
+asm_listing *new_asm_listing(mempool *mp);
 struct asm_operand *new_asm_operand_imm(int value);
 struct asm_operand *new_asm_operand_reg(enum gp_reg reg_no);
 struct asm_operand *new_asm_operand_mem_by_sym(char *symbol_name);

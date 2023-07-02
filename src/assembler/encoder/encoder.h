@@ -3,6 +3,7 @@
 #include "encoder.h"
 #include "asm_instruction.h"
 #include "../../utils/buffer.h"
+#include "../../utils/data_structs.h"
 #include "../../linker/reloc_list.h"
 #include "../../linker/obj_code.h"
 #include "asm_listing.h"
@@ -23,12 +24,13 @@ struct x86_encoder {
 
     buffer *output;
     reloc_list *relocations; // symbol relocations to be backfilled
+    mempool *mempool;
 
     bool (*encode_v4)(x86_encoder *encoder, asm_instruction *instr);
     void (*reset)(x86_encoder *encoder);
     void (*free)(x86_encoder *encoder);
 };
 
-x86_encoder *new_x86_encoder(enum x86_cpu_mode mode, buffer *code_out, reloc_list *relocations_out);
+x86_encoder *new_x86_encoder(mempool *mp, enum x86_cpu_mode mode, buffer *code_out, reloc_list *relocations_out);
 
 

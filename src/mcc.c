@@ -158,7 +158,6 @@ static void generate_intermediate_code(ir_listing *listing) {
 
 static void process_one_file(mempool *mp, file_run_info *fi) {
     // process one file (load, parse, generate obj module)
-    init_operators();
     init_lexer();
 
     char *source_code;
@@ -189,8 +188,8 @@ static void process_one_file(mempool *mp, file_run_info *fi) {
     // then an encoder that,   given the asm_listing, generates machine code (.o file)
     // then a linker that,     given the machine code generates the executable (executable file)
 
-    asm_listing *asm_list = new_asm_listing();
-    x86_assemble_ir_listing(ir_listing, asm_list);
+    asm_listing *asm_list = new_asm_listing(mp);
+    x86_assemble_ir_listing(mp, ir_listing, asm_list);
     if (errors_count)
         return;
 
@@ -211,12 +210,14 @@ static void process_one_file(mempool *mp, file_run_info *fi) {
         free(asm_filename);
     }
 
+    // ---- old, i386 code ----
+    
     char *mod_name = set_extension(str_charptr(fi->source_filename), "o");
     obj_code *cod = new_obj_code();
     cod->vt->set_name(cod, mod_name);
     free(mod_name);
 
-    x86_encode_asm_into_machine_code(asm_list, CPU_MODE_PROTECTED, cod);
+    x86_encode_asm_into_machine_code(mp, asm_list, CPU_MODE_PROTECTED, cod);
     if (errors_count)
         return;
 
@@ -235,17 +236,27 @@ static void process_one_file(mempool *mp, file_run_info *fi) {
         free(obj_filename);
     }
 
+    // ---- new, x86_64 code ----
+
     // prepare a real module, like real men do.
     obj_module *mod = new_obj_module(mp);
-    mod->name = new_str(mp, str_charptr(fi->source_filename));
+    mod->name = fi->source_filename;
     encode_asm_into_machine_code_x86_64(mp, asm_list, mod);
-    fi->module = mod;
     if (errors_count)
         return;
+    fi->module = mod;
+    
+    // save if requested
+    if (run_info->options->generate_obj) {
+        elf64_contents *elf64 = mod->ops->prepare_elf_contents(mod, ELF_TYPE_REL, mp);
+        elf64->ops->save(elf64, str_change_extension(fi->source_filename, "o64"));
+    }
 }
 
 static void process_all_files(mempool *mp) {
     
+    init_operators();
+
     // for each file, we need to convert into an obj file.
     // then we need to link them all together
     llist *obj_modules = new_llist(mp);
@@ -305,6 +316,7 @@ int main(int argc, char *argv[]) {
         return 1;
     }
 
+    // process each file, then link them all together
     process_all_files(mp);
 
     // mempool_print_allocations(mp, stdout);

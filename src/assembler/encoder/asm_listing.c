@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include "../../utils/data_structs.h"
 #include "asm_instruction.h"
 #include "asm_listing.h"
 
@@ -23,17 +24,18 @@ static struct asm_listing_ops ops = {
     .add = _add,
 };
 
-asm_listing *new_asm_listing() {
-    asm_listing *p = malloc(sizeof(asm_listing));
+asm_listing *new_asm_listing(mempool *mp) {
+    asm_listing *l = mempool_alloc(mp, sizeof(asm_listing), "asm_listing");
 
-    p->capacity = 10;
-    p->instruction_ptrs = malloc(sizeof(asm_instruction *) * p->capacity);
-    p->length = 0;
-    p->next_label = NULL;
-    p->next_comment = NULL;
-    p->ops = &ops;
+    l->capacity = 10;
+    l->instruction_ptrs = malloc(sizeof(asm_instruction *) * l->capacity);
+    l->length = 0;
+    l->next_label = NULL;
+    l->next_comment = NULL;
+    l->ops = &ops;
+    l->mempool = mp;
 
-    return p;
+    return l;
 }
 
 // for working with specific values, e.g. SUB SP, <bytes>

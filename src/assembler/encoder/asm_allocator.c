@@ -22,6 +22,8 @@ struct asm_allocator_data {
         struct storage value; 
     } *temp_storage_arr;
     int temp_storage_arr_len;
+
+    mempool *mempool;
 };
 
 
@@ -48,12 +50,14 @@ static struct storage_allocator_ops ops = {
     .storage_to_str = _storage_to_str
 };
 
-asm_allocator *new_asm_allocator(asm_listing *listing) {
-    asm_allocator *a = malloc(sizeof(asm_allocator));
-    struct asm_allocator_data *data = malloc(sizeof(struct asm_allocator_data));
+asm_allocator *new_asm_allocator(mempool *mp, asm_listing *listing) {
+
+    asm_allocator *a = mempool_alloc(mp, sizeof(asm_allocator), "asm_allocator");
+    struct asm_allocator_data *data = mempool_alloc(mp, sizeof(struct asm_allocator_data), "asm_allocator_data");
     memset(data, 0, sizeof(struct asm_allocator_data));
 
     data->listing = listing;
+    data->mempool = mp;
 
     a->private_data = data;
     a->ops = &ops;

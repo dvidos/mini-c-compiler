@@ -150,6 +150,7 @@ static bool verify_instructions() {
 }
 
 static bool verify_single_instruction(enum opcode oc, struct asm_operand *op1, struct asm_operand *op2, char *expected_bytes, int expected_len) {
+    mempool *mp = new_mempool();
 
     asm_instruction *instr;
     if (op1 == NULL && op2 == NULL)
@@ -164,7 +165,7 @@ static bool verify_single_instruction(enum opcode oc, struct asm_operand *op1, s
 
     buffer *b = new_buffer();
     reloc_list *relocs = new_reloc_list();
-    x86_encoder *enc = new_x86_encoder(CPU_MODE_PROTECTED, b, relocs);
+    x86_encoder *enc = new_x86_encoder(mp, CPU_MODE_PROTECTED, b, relocs);
     if (!enc->encode_v4(enc, instr)) {
         printf("  Could not encode instruction '%s'\n", s->buffer);
         enc->free(enc);
@@ -310,7 +311,8 @@ static bool _test_encode_listing_code(asm_listing *lst, obj_code *mod, enum x86_
 static bool _test_link_module(obj_code *mod, u64 code_base_address, char *filename);
 
 void test_create_hello_world_executable2() {
-    asm_listing *lst = new_asm_listing();
+    mempool *mp = new_mempool();
+    asm_listing *lst = new_asm_listing(mp);
     obj_code *mod = new_obj_code();
     
     mod->vt->declare_data(mod, "hello_msg", 13 + 1, "Hello World!\n");
@@ -343,7 +345,8 @@ void test_create_hello_world_executable2() {
 
 static bool _test_encode_listing_code(asm_listing *lst, obj_code *mod, enum x86_cpu_mode mode) {
     // encode this into intel machine code
-    struct x86_encoder *enc = new_x86_encoder(mode, mod->text->contents, mod->text->relocations);
+    mempool *mp = new_mempool();
+    struct x86_encoder *enc = new_x86_encoder(mp, mode, mod->text->contents, mod->text->relocations);
     struct asm_instruction *inst;
 
     for (int i = 0; i < lst->length; i++) {
@@ -422,7 +425,9 @@ static bool _test_link_module(obj_code *mod, u64 code_base_address, char *filena
 
 static void test_create_hello_world_executable3() {
 
-    asm_listing *l = new_asm_listing();
+    mempool *mp = new_mempool();
+
+    asm_listing *l = new_asm_listing(mp);
     l->ops->set_next_label(l, "_start");
     l->ops->add(l, new_asm_instruction_with_operands(OC_MOV, new_asm_operand_reg(REG_AX), new_asm_operand_imm(4)));
     l->ops->add(l, new_asm_instruction_with_operands(OC_MOV, new_asm_operand_reg(REG_BX), new_asm_operand_imm(1)));
@@ -436,7 +441,7 @@ static void test_create_hello_world_executable3() {
 
     obj_code *c = new_obj_code();
     c->vt->declare_data(c, "hello_msg", 13 + 1, "Hello World!\n");
-    x86_encode_asm_into_machine_code(l, CPU_MODE_PROTECTED, c);
+    x86_encode_asm_into_machine_code(mp, l, CPU_MODE_PROTECTED, c);
 
     // link into executable
     // list *modules = new_list();

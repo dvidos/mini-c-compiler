@@ -497,9 +497,10 @@ static void assemble_function(ir_listing *ir, int start, int end) {
 
 
 // given an Intemediate Representation listing, generate an assembly listing.
-void x86_assemble_ir_listing(ir_listing *ir_list, asm_listing *asm_list) {
+void x86_assemble_ir_listing(mempool *mp, ir_listing *ir_list, asm_listing *asm_list) {
+
     // prepare our things
-    ad.allocator = new_asm_allocator(asm_list);
+    ad.allocator = new_asm_allocator(mp, asm_list);
     ad.listing = asm_list;
 
     // calculate temp register usage and last mention
@@ -524,10 +525,10 @@ void x86_assemble_ir_listing(ir_listing *ir_list, asm_listing *asm_list) {
     }
 }
 
-void x86_encode_asm_into_machine_code(asm_listing *asm_list, enum x86_cpu_mode mode, obj_code *obj) {
+void x86_encode_asm_into_machine_code(mempool *mp, asm_listing *asm_list, enum x86_cpu_mode mode, obj_code *obj) {
 
     // encode this into intel machine code
-    struct x86_encoder *enc = new_x86_encoder(mode, obj->text->contents, obj->text->relocations);
+    struct x86_encoder *enc = new_x86_encoder(mp, mode, obj->text->contents, obj->text->relocations);
     asm_instruction *inst;
     struct encoding_info enc_info;
     encoded_instruction enc_inst;

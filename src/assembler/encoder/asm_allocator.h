@@ -1,6 +1,7 @@
 #include <stdbool.h>
 #include "asm_listing.h"
 #include "../../utils/string.h"
+#include "../../utils/data_structs.h"
 
 
 struct storage_allocator_ops;
@@ -10,7 +11,7 @@ typedef struct asm_allocator {
     struct storage_allocator_ops *ops;
 } asm_allocator;
 
-asm_allocator *new_asm_allocator(asm_listing *listing);
+asm_allocator *new_asm_allocator(mempool *mp, asm_listing *listing);
 
 
 // one storage unit, can be either on a register or on stack

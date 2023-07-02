@@ -4,7 +4,7 @@
 
 int errors_count = 0;
 
-void error(char *filename, int line_no, char *msg, ...) {
+void error(const char *filename, int line_no, char *msg, ...) {
     errors_count++;
     
     if (filename != NULL)

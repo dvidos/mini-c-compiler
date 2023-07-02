@@ -2,7 +2,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include "asm_instruction.h"
-#include "../../options.h"
+#include "../../run_info.h"
 #include "../../err_handler.h"
 
 
@@ -16,9 +16,9 @@ static void append_operand_instruction(struct asm_operand *op, char *buffer, int
     if (op->type == OT_IMMEDIATE) {
         snprintf(pos, len, "0x%lx", op->immediate);
     } else if (op->type == OT_REGISTER) {
-        snprintf(pos, len, "%c%s", options.register_prefix, gp_reg_name(op->reg));
+        snprintf(pos, len, "%c%s", run_info->options->register_prefix, gp_reg_name(op->reg));
     } else if (op->type == OT_MEM_POINTED_BY_REG) {
-        snprintf(pos, len, "[%c%s%+ld]", options.register_prefix, gp_reg_name(op->reg), op->offset);
+        snprintf(pos, len, "[%c%s%+ld]", run_info->options->register_prefix, gp_reg_name(op->reg), op->offset);
     } else if (op->type == OT_MEM_OF_SYMBOL) {
         snprintf(pos, len, "%s", op->symbol_name);
     }

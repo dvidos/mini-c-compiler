@@ -2,7 +2,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include "../utils.h"
-#include "../options.h"
+#include "../run_info.h"
 #include "../utils/buffer.h"
 #include "../linker/symbol_table.h"
 #include "../linker/obj_code.h"

@@ -6,7 +6,7 @@
 #include "utils/data_types.h"
 #include "utils/data_structs.h"
 #include "utils.h"
-#include "options.h"
+#include "run_info.h"
 #include "compiler/lexer/token_list.h"
 #include "compiler/lexer/token.h"
 #include "compiler/lexer/lexer.h"
@@ -53,13 +53,13 @@ static bool run_unit_tests() {
 static void load_source_code(char **source_code) {
 
     char *p = NULL;
-    if (!load_text(options.filename, &p)) {
-        error(options.filename, 0, "Failed loading source code");
+    if (!load_text(run_info->options->filename, &p)) {
+        error(run_info->options->filename, 0, "Failed loading source code");
         return;
     }
     
-    printf("Loaded %ld bytes from file \"%s\"\n", strlen(p), options.filename);
-    if (options.verbose) {
+    printf("Loaded %ld bytes from file \"%s\"\n", strlen(p), run_info->options->filename);
+    if (run_info->options->verbose) {
         printf("------- Source code -------\n");
         printf("%s\n", p);
     }
@@ -67,7 +67,7 @@ static void load_source_code(char **source_code) {
     (*source_code) = p;
 }
 
-static void parse_file_into_lexer_tokens(char *file_buffer, char *filename, token_list *list) {
+static void parse_file_into_lexer_tokens(char *file_buffer, const char *filename, token_list *list) {
     char *p = file_buffer;
     token *token = NULL;
     int err;
@@ -94,7 +94,7 @@ static void parse_file_into_lexer_tokens(char *file_buffer, char *filename, toke
         return;
     }
 
-    if (options.verbose) {
+    if (run_info->options->verbose) {
         printf("---- File tokens ----\n");
         list->print(list, "  ", false);
     }
@@ -108,13 +108,13 @@ static void parse_abstract_syntax_tree(token_list *list) {
     if (errors_count)
         return;
 
-    if (options.verbose) {
+    if (run_info->options->verbose) {
         printf("---------- Abstract Syntax Tree ----------\n");
         print_ast(stdout);
     }
 
-    if (options.generate_ast) {
-        char *ast_filename = set_extension(options.filename, "ast");
+    if (run_info->options->generate_ast) {
+        char *ast_filename = set_extension(run_info->options->filename, "ast");
         FILE *f = fopen(ast_filename, "w");
         if (f == NULL) {
             error(NULL, 0, "cannot open file \"%s\" for writing", ast_filename);
@@ -136,7 +136,7 @@ static void generate_intermediate_code(ir_listing *listing) {
     gen->ops->generate_for_module(gen, get_ast_root_node());
     if (errors_count) return;
 
-    if (options.verbose) {
+    if (run_info->options->verbose) {
         printf("--------- Generated Intermediate Representation ---------\n");
         listing->ops->print(listing, stdout);
     }
@@ -144,8 +144,8 @@ static void generate_intermediate_code(ir_listing *listing) {
     // we could run IR optimizations here
 
     // save result, if required
-    if (options.generate_ir) {
-        char *ir_filename = set_extension(options.filename, "ir");
+    if (run_info->options->generate_ir) {
+        char *ir_filename = set_extension(run_info->options->filename, "ir");
         FILE *f = fopen(ir_filename, "w");
         if (f == NULL) {
             error(NULL, 0, "cannot open file \"%s\" for writing", ir_filename);
@@ -156,7 +156,7 @@ static void generate_intermediate_code(ir_listing *listing) {
     }
 }
 
-static void process_one_file(mempool *mp, str *filename, obj_module *mod) {
+static void process_one_file(mempool *mp, file_run_info *fi) {
     // process one file (load, parse, generate obj module)
     init_operators();
     init_lexer();
@@ -167,7 +167,7 @@ static void process_one_file(mempool *mp, str *filename, obj_module *mod) {
         return;
 
     token_list *token_list = new_token_list();
-    parse_file_into_lexer_tokens(source_code, options.filename, token_list);
+    parse_file_into_lexer_tokens(source_code, str_charptr(fi->source_filename), token_list);
     free(source_code);
     if (errors_count)
         return;
@@ -194,13 +194,13 @@ static void process_one_file(mempool *mp, str *filename, obj_module *mod) {
     if (errors_count)
         return;
 
-    if (options.verbose) {
+    if (run_info->options->verbose) {
         printf("--------- Generated Assembly Code ---------\n");
         asm_list->ops->print(asm_list, stdout);
     }
 
-    if (options.generate_asm) {
-        char *asm_filename = set_extension(options.filename, "asm");
+    if (run_info->options->generate_asm) {
+        char *asm_filename = set_extension(str_charptr(fi->source_filename), "asm");
         FILE *f = fopen(asm_filename, "w");
         if (f == NULL) {
             error(NULL, 0, "cannot open file \"%s\" for writing", asm_filename);
@@ -211,7 +211,7 @@ static void process_one_file(mempool *mp, str *filename, obj_module *mod) {
         free(asm_filename);
     }
 
-    char *mod_name = set_extension(options.filename, "o");
+    char *mod_name = set_extension(str_charptr(fi->source_filename), "o");
     obj_code *cod = new_obj_code();
     cod->vt->set_name(cod, mod_name);
     free(mod_name);
@@ -220,8 +220,8 @@ static void process_one_file(mempool *mp, str *filename, obj_module *mod) {
     if (errors_count)
         return;
 
-    if (options.generate_obj) {
-        char *obj_filename = set_extension(options.filename, "obj");
+    if (run_info->options->generate_obj) {
+        char *obj_filename = set_extension(str_charptr(fi->source_filename), "obj");
         FILE *f = fopen(obj_filename, "w");
         if (f == NULL) {
             error(NULL, 0, "cannot open file \"%s\" for writing", obj_filename);
@@ -236,8 +236,10 @@ static void process_one_file(mempool *mp, str *filename, obj_module *mod) {
     }
 
     // prepare a real module, like real men do.
-    mod->name = new_str(mp, options.filename);
+    obj_module *mod = new_obj_module(mp);
+    mod->name = new_str(mp, str_charptr(fi->source_filename));
     encode_asm_into_machine_code_x86_64(mp, asm_list, mod);
+    fi->module = mod;
     if (errors_count)
         return;
 }
@@ -247,14 +249,14 @@ static void process_all_files(mempool *mp) {
     // for each file, we need to convert into an obj file.
     // then we need to link them all together
     llist *obj_modules = new_llist(mp);
-    iterator *source_files_it = llist_create_iterator(options.filenames, mp);
-    for_iterator(str, filename, source_files_it) {
-        obj_module *mod = new_obj_module(mp);
-        process_one_file(mp, filename, mod);
+
+    iterator *run_files_it = llist_create_iterator(run_info->files, mp);
+    for_iterator(file_run_info, fi, run_files_it) {
+        process_one_file(mp, fi);
         if (errors_count)
             return;
         
-        llist_add(obj_modules, mod);
+        llist_add(obj_modules, fi->module);
     }
     
     // default runtime files
@@ -262,8 +264,8 @@ static void process_all_files(mempool *mp) {
     llist *lib_files = new_llist(mp);
     llist_add(lib_files, new_str(mp, "libruntime64.a"));
 
-    str *first_mod = llist_get(options.filenames, 0);
-    str *executable = str_change_extension(first_mod, NULL);
+    file_run_info *first_file = llist_get(run_info->files, 0);
+    str *executable = str_change_extension(first_file->source_filename, NULL);
 
     x86_64_link(obj_modules, obj_files, lib_files, 0x400000, executable);
 }
@@ -272,38 +274,40 @@ int main(int argc, char *argv[]) {
     printf("mini-c-compiler, v0.01\n");
 
     mempool *mp = new_mempool();
-    parse_options(mp, argc, argv);
+    initialize_run_info(mp, argc, argv);
 
     #ifdef INCLUDE_UNIT_TESTS
-    if (options.unit_tests) {
+    if (run_info->options->unit_tests) {
         return run_unit_tests() ? 0 : 1;
     }
     #endif
 
-    if (options.elf_test) {
+    if (run_info->options->elf_test) {
         void perform_elf_test();
         perform_elf_test();
         return 0;
     }
 
-    if (options.link_test) {
+    if (run_info->options->link_test) {
         void link_test();
         link_test();
         return 0;
     }
 
-    if (options.asm_test) {
+    if (run_info->options->asm_test) {
         void perform_asm_test();
         perform_asm_test();
         return 0;
     }
 
-    if (options.filename == NULL) {
+    if (run_info->options->filename == NULL || llist_is_empty(run_info->files)) {
         show_syntax();
         return 1;
     }
 
     process_all_files(mp);
+
+    // mempool_print_allocations(mp, stdout);
     mempool_release(mp);
 
     return errors_count ? 1 : 0;

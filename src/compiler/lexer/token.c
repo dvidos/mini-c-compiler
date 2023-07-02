@@ -23,7 +23,7 @@ char *keywords[] = {
     "false"
 };
 
-token *create_token(token_type type, char *value, char *filename, int line_no) {
+token *create_token(token_type type, char *value, const char *filename, int line_no) {
 
     // see if identifier is a reserved word
     if (type == TOK_IDENTIFIER && value != NULL) {

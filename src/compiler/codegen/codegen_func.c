@@ -3,7 +3,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdarg.h>
-#include "../../options.h"
+#include "../../run_info.h"
 #include "../../err_handler.h"
 #include "../lexer/token.h"
 #include "../expression.h"

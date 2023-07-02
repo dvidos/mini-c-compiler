@@ -2,7 +2,7 @@
 #include "stdio.h"
 #include "stdarg.h"
 #include "../../err_handler.h"
-#include "../../options.h"
+#include "../../run_info.h"
 #include "../lexer/token_list.h"
 
 // iteration for our parser
@@ -49,7 +49,7 @@ bool lookahead_is(int times, token_type type) {
 // advances to the next token
 void consume() {
     if (current_index < list->length && list->tokens[current_index]->type != TOK_EOF) {
-        if (options.verbose) {
+        if (run_info->options->verbose) {
             if (list->tokens[current_index]->value == NULL)
                 printf("  Parsing AST, at line %d, consumed %s\n", list->tokens[current_index]->line_no, token_type_name(list->tokens[current_index]->type));
             else 

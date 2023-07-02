@@ -105,7 +105,7 @@ unsigned long round_up(unsigned long value, unsigned threshold) {
     return (((value + threshold - 1) / threshold) * threshold);
 }
 
-char *set_extension(char *path, char *extension) {
+char *set_extension(const char *path, char *extension) {
 
     char *last_dot = strrchr(path, '.');
     int len = (last_dot == NULL) ? strlen(path) : (last_dot - path);

@@ -1,7 +1,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
-#include "../options.h"
+#include "../run_info.h"
 #include "data_type.h"
 
 static int _size_of(data_type *type);
@@ -46,7 +46,7 @@ data_type *new_data_type(type_family family, data_type *nested) {
 static int _size_of(data_type *type) {
     switch (type->family) {
         case TF_INT:
-            return options.is_32_bits ? 4 : 8;
+            return run_info->options->is_32_bits ? 4 : 8;
         case TF_FLOAT:
             return 8;
         case TF_CHAR:
@@ -56,7 +56,7 @@ static int _size_of(data_type *type) {
         case TF_VOID:
             return 0;
         case TF_POINTER:
-            return options.is_32_bits ? 4 : 8;
+            return run_info->options->is_32_bits ? 4 : 8;
         case TF_ARRAY:
             return type->array_size * _size_of(type->nested);
     }

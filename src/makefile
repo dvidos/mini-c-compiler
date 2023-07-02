@@ -4,7 +4,7 @@ RUNTIME_LIB = runtimes/libruntime64.a
 SRC_FILES = \
 	mcc.c \
 	err_handler.c \
-	options.c \
+	run_info.c \
 	utils.c \
 	utils/unit_tests.c \
 	utils/buffer.c \

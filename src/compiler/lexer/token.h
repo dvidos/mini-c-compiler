@@ -87,10 +87,10 @@ struct token {
     int entry;  // if specific keyword or data type
 
     // helping with troubleshooting
-    char *filename;
+    const char *filename;
     int line_no;
 };
 
-token *create_token(token_type type, char *value, char *filename, int line_no);
+token *create_token(token_type type, char *value, const char *filename, int line_no);
 char *token_type_name(token_type type);
 

@@ -2,7 +2,7 @@
 #include <stddef.h>
 #include <string.h>
 #include "../err_handler.h"
-#include "../options.h"
+#include "../run_info.h"
 #include "../utils/string.h"
 #include "../compiler/codegen/ir_listing.h"
 #include "../linker/obj_code.h"
@@ -144,7 +144,7 @@ static void code_function_call(struct ir_entry *e) {
     for (int i = c->args_len - 1; i >= 0; i--) {
         struct asm_operand *op = resolve_ir_value_to_asm_operand(c->args_arr[i]);
         ad.listing->ops->add(ad.listing, new_asm_instruction_with_operand(OC_PUSH, op));
-        bytes_pushed += options.pointer_size_bytes; // how can we be sure?
+        bytes_pushed += run_info->options->pointer_size_bytes; // how can we be sure?
     }
 
     struct asm_operand *addr = resolve_ir_value_to_asm_operand(c->func_addr);
@@ -417,7 +417,7 @@ static void assemble_function(ir_listing *ir, int start, int end) {
     //   BP - 4 = first local variable
     //   BP - n = local variable
 
-    int bp_offset = options.pointer_size_bytes * 2; // skip pushed EBP and return address
+    int bp_offset = run_info->options->pointer_size_bytes * 2; // skip pushed EBP and return address
     for (int i = 0; i < ad.func_def->args_len; i++) {
         ad.allocator->ops->declare_local_symbol(ad.allocator, 
             ad.func_def->args_arr[i].name, ad.func_def->args_arr[i].size,

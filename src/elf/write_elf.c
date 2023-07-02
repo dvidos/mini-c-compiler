@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include <stddef.h>
 #include <string.h>
-#include "../options.h"
+#include "../run_info.h"
 #include "../utils.h"
 #include "elf_contents.h"
 #include "elf_format.h"

@@ -162,7 +162,7 @@ static int parse_char(char **p) {
         (*p) += 2;                          \
     }
 
-void parse_lexer_token_at_pointer(char **p, char *filename, int *line_no, struct token **token) {
+void parse_lexer_token_at_pointer(char **p, const char *filename, int *line_no, struct token **token) {
 
     (*token) = NULL;
     skip_whitespace(p, line_no);

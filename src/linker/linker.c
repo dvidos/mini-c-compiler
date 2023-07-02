@@ -3,7 +3,7 @@
 #include <stdio.h>
 #include <string.h>
 #include "../err_handler.h"
-#include "../options.h"
+#include "../run_info.h"
 #include "../utils.h"
 #include "obj_code.h"
 #include "../elf/elf_contents.h"
@@ -273,7 +273,7 @@ bool include_library_modules_as_needed(link2_info *info) {
         if (llist_length(info->unresolved_symbols) == 0)
             break; // no unresolvable symbols!!
         
-        if (options.verbose) {
+        if (run_info->options->verbose) {
             printf("Symbols required: %s\n",
                 str_charptr(str_join(info->unresolved_symbols, new_str(info->mempool, ", "), info->mempool)));
         }
@@ -285,7 +285,7 @@ bool include_library_modules_as_needed(link2_info *info) {
         }
 
         for_list(info->needed_module_ids, link2_lib_module_id, mid) {
-            if (options.verbose)
+            if (run_info->options->verbose)
                 printf("Including module %s : %s\n", str_charptr(mid->lib_info->pathname), str_charptr(mid->entry->filename));
             
             add_participant_from_library(info, mid);
@@ -449,7 +449,7 @@ static bool do_link2(link2_info *info) {
         llist_add(info->target_module->sections, merge_grouped_sections(info, key, GROUP_ROUNDING_VALUE));
 
     // debugging purposes
-    if (options.verbose) {
+    if (run_info->options->verbose) {
         printf("Merged and rellocated executable module:\n");
         info->target_module->ops->print(info->target_module, true, stdout);
     }
@@ -461,7 +461,7 @@ static bool do_link2(link2_info *info) {
         return false;
     }
 
-    if (options.verbose) {
+    if (run_info->options->verbose) {
         printf("Generated ELF contents from module:\n");
         elf64_cnt->ops->print(elf64_cnt, stdout);
     }
@@ -471,7 +471,7 @@ static bool do_link2(link2_info *info) {
         return false;
     }
 
-    if (options.verbose) {
+    if (run_info->options->verbose) {
         printf("ELF contents as savaed in file:\n");
         elf64_cnt->ops->print(elf64_cnt, stdout);
     }

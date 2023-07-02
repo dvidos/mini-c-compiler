@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include <stddef.h>
 #include <string.h>
-#include "../options.h"
+#include "../run_info.h"
 #include "scope.h"
 #include "src_symbol.h"
 #include "declaration.h"
@@ -32,7 +32,7 @@ void scope_exited() {
     scope *top = scopes_stack_top;
     scopes_stack_top = top->higher;
 
-    // if (options.verbose)
+    // if (run_info->options->verbose)
     //     print_symbol_table(top);
 
     // maybe we should also free all symbols???

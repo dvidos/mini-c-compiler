@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include "asm_allocator.h"
-#include "../../options.h"
+#include "../../run_info.h"
 
 
 struct asm_allocator_data {
@@ -126,7 +126,7 @@ static void _generate_stack_info_comments(asm_allocator *a) {
 
     for (int i = 0; i < data->named_storage_arr_len; i++) {
         data->listing->ops->add_comment(data->listing, "[%cBP%+3d] %s \"%s\", %d bytes",
-            options.register_prefix,
+            run_info->options->register_prefix,
             data->named_storage_arr[i].value.bp_offset,
             data->named_storage_arr[i].value.bp_offset < 0 ? "local var" : "argument",
             data->named_storage_arr[i].symbol_name,
@@ -172,7 +172,7 @@ static void _get_temp_reg_storage(asm_allocator *a, int temp_reg_no, storage *ta
 
     // take more space from stack, add one more slot, allocate it.
     // temp registers have the size of the architecture (32 or 64 bits)
-    int size = options.pointer_size_bytes;
+    int size = run_info->options->pointer_size_bytes;
     data->lowest_bp_offset -= size;
     data->listing->ops->set_next_comment(data->listing, "grab some space for temp register");
 

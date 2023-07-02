@@ -4,7 +4,6 @@
 #include <string.h>
 #include "../err_handler.h"
 #include "../options.h"
-#include "../utils/list.h"
 #include "../utils.h"
 #include "obj_code.h"
 #include "../elf/elf_contents.h"
@@ -480,7 +479,7 @@ static bool do_link2(link2_info *info) {
     return true;
 }
 
-bool x86_link_v2(llist *obj_modules, llist *obj_file_paths, llist *library_file_paths, u64 base_address, str *executable_path) {
+bool x86_64_link(llist *obj_modules, llist *obj_file_paths, llist *library_file_paths, u64 base_address, str *executable_path) {
     mempool *mp = new_mempool();
 
     link2_info *info = mempool_alloc(mp, sizeof(link2_info), "link2_info");
@@ -515,7 +514,7 @@ void link_test() {
     llist_add(obj_file_paths, new_str(mp, "./src/runtimes/example.o"));
     llist_add(lib_file_paths, new_str(mp, "./src/runtimes/libruntime.a"));
 
-    x86_link_v2(modules, obj_file_paths, lib_file_paths, 0x401000, new_str(mp, "b.out"));
+    x86_64_link(modules, obj_file_paths, lib_file_paths, 0x401000, new_str(mp, "b.out"));
 
     mempool_release(mp);
 }

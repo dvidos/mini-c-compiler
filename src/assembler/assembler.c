@@ -15,6 +15,7 @@
 #include "../utils/string.h"
 #include "../utils/data_structs.h"
 #include "../elf/obj_module.h"
+#include "../utils/data_types.h"
 
 
 static struct asm_operand *resolve_ir_value_to_asm_operand(ir_value *v);
@@ -524,16 +525,12 @@ void x86_assemble_ir_listing(ir_listing *ir_list, asm_listing *asm_list) {
 }
 
 void x86_encode_asm_into_machine_code(asm_listing *asm_list, enum x86_cpu_mode mode, obj_code *obj) {
+
     // encode this into intel machine code
     struct x86_encoder *enc = new_x86_encoder(mode, obj->text->contents, obj->text->relocations);
     asm_instruction *inst;
     struct encoding_info enc_info;
     encoded_instruction enc_inst;
-    string *s;
-    buffer *b;
-
-    s = new_string();
-    b = new_buffer();
 
     for (int i = 0; i < asm_list->length; i++) {
         inst = asm_list->instruction_ptrs[i];

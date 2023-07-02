@@ -9,7 +9,6 @@ SRC_FILES = \
 	utils/unit_tests.c \
 	utils/buffer.c \
 	utils/string.c \
-	utils/list.c \
 	utils/mempool.c \
 	utils/data_types.c \
 	utils/data_structs.c \

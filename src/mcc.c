@@ -30,6 +30,8 @@
 #include "elf/obj_module.h"
 #include "elf/elf_contents.h"
 
+
+
 #ifdef INCLUDE_UNIT_TESTS
 static bool run_unit_tests() {
 
@@ -44,9 +46,6 @@ static bool run_unit_tests() {
     void string_unit_tests();
     string_unit_tests();
     
-    void list_unit_tests();
-    list_unit_tests();
-
     return unit_tests_outcome(); // prints results and returns success flag
 }
 #endif 
@@ -238,12 +237,13 @@ static void process_one_file(mempool *mp, str *filename, obj_module *mod) {
 
     // prepare a real module, like real men do.
     mod->name = new_str(mp, options.filename);
-    encode_asm_into_machine_code_x86_64(asm_list, mod);
+    encode_asm_into_machine_code_x86_64(mp, asm_list, mod);
     if (errors_count)
         return;
 }
 
 static void process_all_files(mempool *mp) {
+    
     // for each file, we need to convert into an obj file.
     // then we need to link them all together
     llist *obj_modules = new_llist(mp);
@@ -265,9 +265,7 @@ static void process_all_files(mempool *mp) {
     str *first_mod = llist_get(options.filenames, 0);
     str *executable = str_change_extension(first_mod, NULL);
 
-    x86_link_v2(obj_modules, obj_files, lib_files, 0x400000, executable);
-
-    return;
+    x86_64_link(obj_modules, obj_files, lib_files, 0x400000, executable);
 }
 
 int main(int argc, char *argv[]) {

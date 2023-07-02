@@ -439,7 +439,7 @@ static void test_create_hello_world_executable3() {
     x86_encode_asm_into_machine_code(l, CPU_MODE_PROTECTED, c);
 
     // link into executable
-    list *modules = new_list();
-    modules->v->add(modules, c);
+    // list *modules = new_list();
+    // modules->v->add(modules, c);
     // x86_link(modules, 0x8048000, "hello.elf");
 }

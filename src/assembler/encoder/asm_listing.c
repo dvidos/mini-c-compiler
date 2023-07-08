@@ -8,28 +8,26 @@
 #include "asm_listing.h"
 
 
-static void _print(asm_listing *lst, FILE *stream);
-static void _ensure_capacity(asm_listing *lst, int extra);
-static void _set_next_label(asm_listing *lst, char *label, ...);
-static void _set_next_comment(asm_listing *lst, char *comment, ...);
-static void _add_comment(asm_listing *lst, char *comment, ...);
-static void _add(asm_listing *lst, asm_instruction *instr);
+static void asm_listing_print(asm_listing *lst, FILE *stream);
+static void asm_listing_ensure_capacity(asm_listing *lst, int extra);
+static void asm_listing_set_next_label(asm_listing *lst, char *label, ...);
+static void asm_listing_set_next_comment(asm_listing *lst, char *comment, ...);
+static void asm_listing_add_comment(asm_listing *lst, char *comment, ...);
+static void asm_listing_add_instruction(asm_listing *lst, asm_instruction *instr);
 
 
 static struct asm_listing_ops ops = {
-    .print = _print,
-    .set_next_label = _set_next_label,
-    .set_next_comment = _set_next_comment,
-    .add_comment = _add_comment,
-    .add = _add,
+    .print = asm_listing_print,
+    .set_next_label = asm_listing_set_next_label,
+    .set_next_comment = asm_listing_set_next_comment,
+    .add_comment = asm_listing_add_comment,
+    .add_instruction = asm_listing_add_instruction,
 };
 
 asm_listing *new_asm_listing(mempool *mp) {
     asm_listing *l = mempool_alloc(mp, sizeof(asm_listing), "asm_listing");
 
-    l->capacity = 10;
-    l->instruction_ptrs = malloc(sizeof(asm_instruction *) * l->capacity);
-    l->length = 0;
+    l->asm_lines = new_llist(mp);
     l->next_label = NULL;
     l->next_comment = NULL;
     l->ops = &ops;
@@ -69,13 +67,13 @@ struct asm_operand *new_asm_operand_mem_by_reg(enum gp_reg gp_reg_no, int offset
     return op;
 }
 
-static void _print(asm_listing *lst, FILE *stream) {
+static void asm_listing_print(asm_listing *lst, FILE *stream) {
     string *str = new_string();
     
     struct asm_instruction *inst;
 
-    for (int i = 0; i < lst->length; i++) {
-        inst = lst->instruction_ptrs[i];
+    for_list(lst->asm_lines, asm_line, line) {
+        inst = line->per_type.instruction;
 
         if (inst->label != NULL)
             fprintf(stream, "%s:\n", inst->label);
@@ -92,16 +90,7 @@ static void _print(asm_listing *lst, FILE *stream) {
     str->v->free(str);
 }
 
-static void _ensure_capacity(asm_listing *lst, int extra) {
-    if (lst->length + extra < lst->capacity)
-        return;
-
-    while (lst->length + extra >= lst->capacity)
-        lst->capacity *= 2;
-    lst->instruction_ptrs = realloc(lst->instruction_ptrs, lst->capacity * sizeof(asm_instruction *));
-}
-
-static void _set_next_label(asm_listing *lst, char *label, ...) {
+static void asm_listing_set_next_label(asm_listing *lst, char *label, ...) {
     char buffer[128];
 
     va_list vl;
@@ -113,7 +102,7 @@ static void _set_next_label(asm_listing *lst, char *label, ...) {
     lst->next_label = strdup(buffer);
 }
 
-static void _set_next_comment(asm_listing *lst, char *comment, ...) {
+static void asm_listing_set_next_comment(asm_listing *lst, char *comment, ...) {
     char buffer[128];
 
     va_list vl;
@@ -126,7 +115,7 @@ static void _set_next_comment(asm_listing *lst, char *comment, ...) {
     lst->next_comment = strdup(buffer);
 }
 
-static void _add_comment(asm_listing *lst, char *comment, ...) {
+static void asm_listing_add_comment(asm_listing *lst, char *comment, ...) {
     char buffer[128];
 
     va_list vl;
@@ -137,17 +126,18 @@ static void _add_comment(asm_listing *lst, char *comment, ...) {
 
     // add it as a standalone thing
     lst->next_comment = strdup(buffer);
-    _add(lst, new_asm_instruction(OC_NONE));
+    asm_listing_add_instruction(lst, new_asm_instruction(OC_NONE));
 }
 
-void _add(asm_listing *lst, asm_instruction *instr) {
+void asm_listing_add_instruction(asm_listing *lst, asm_instruction *instr) {
     instr->label = lst->next_label; // either null or not
     instr->comment = lst->next_comment; // null or not
 
-    _ensure_capacity(lst, 1);
-    lst->instruction_ptrs[lst->length] = instr;
-    lst->length++;
+    asm_line *line = mempool_alloc(lst->mempool, sizeof(asm_line), "asm_line");
+    line->type = ALT_INSTRUCTION;
+    line->per_type.instruction = instr;
 
     lst->next_label = NULL;
     lst->next_comment = NULL;
 }
+

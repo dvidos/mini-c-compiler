@@ -141,15 +141,17 @@ typedef struct asm_data_definition {
     bin *initial_value;   // in bytes
 } asm_data_definition;
 
+enum asm_line_type {
+    ALT_SECTION,  // e.g. ".section data"
+    ALT_EXTERN,   // e.g. ".extern <name>"
+    ALT_GLOBAL,   // e.g. ".global <name>"
+    ALT_DATA,     // e.g. "<name:> db, dw, dd, dq <name> value [, value [,...]]"
+    ALT_INSTRUCTION,  // MOV RAX, 0x1234
+};
+
 typedef struct asm_line {
     str *label;
-    enum asm_line_type {
-        ALT_SECTION,  // e.g. ".section data"
-        ALT_EXTERN,   // e.g. ".extern <name>"
-        ALT_GLOBAL,   // e.g. ".global <name>"
-        ALT_DATA,     // e.g. "<name:> db, dw, dd, dq <name> value [, value [,...]]"
-        ALT_INSTRUCTION,  // MOV RAX, 0x1234
-    } type;
+    enum asm_line_type type;
     union {
         asm_named_definition *named_definition;
         asm_data_definition *data_definition;

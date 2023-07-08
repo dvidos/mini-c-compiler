@@ -11,11 +11,8 @@ typedef struct asm_listing {
     char *next_label;
     char *next_comment;
 
-    struct asm_instruction **instruction_ptrs;
-    int capacity;
-    int length;
-
     mempool *mempool;
+    llist *asm_lines; // item is asm_line
 
     struct asm_listing_ops *ops;
 } asm_listing;
@@ -25,7 +22,7 @@ struct asm_listing_ops {
     void (*set_next_label)(asm_listing *lst, char *label, ...);
     void (*set_next_comment)(asm_listing *lst, char *comment, ...);
     void (*add_comment)(asm_listing *lst, char *comment, ...);
-    void (*add)(asm_listing *lst, asm_instruction *instr);
+    void (*add_instruction)(asm_listing *lst, asm_instruction *instr);
 };
 
 asm_listing *new_asm_listing(mempool *mp);

@@ -318,16 +318,16 @@ void test_create_hello_world_executable2() {
     mod->vt->declare_data(mod, "hello_msg", 13 + 1, "Hello World!\n");
 
     lst->ops->set_next_label(lst, "_start");
-    lst->ops->add(lst, new_asm_instruction_with_operands(OC_MOV, new_asm_operand_reg(REG_AX), new_asm_operand_imm(4)));
-    lst->ops->add(lst, new_asm_instruction_with_operands(OC_MOV, new_asm_operand_reg(REG_BX), new_asm_operand_imm(1)));
-    lst->ops->add(lst, new_asm_instruction_with_operands(OC_MOV, new_asm_operand_reg(REG_CX), new_asm_operand_mem_by_sym("hello_msg")));
-    lst->ops->add(lst, new_asm_instruction_with_operands(OC_MOV, new_asm_operand_reg(REG_DX), new_asm_operand_imm(13)));
-    lst->ops->add(lst, new_asm_instruction_with_operand(OC_INT, new_asm_operand_imm(0x80)));
+    lst->ops->add_instruction(lst, new_asm_instruction_with_operands(OC_MOV, new_asm_operand_reg(REG_AX), new_asm_operand_imm(4)));
+    lst->ops->add_instruction(lst, new_asm_instruction_with_operands(OC_MOV, new_asm_operand_reg(REG_BX), new_asm_operand_imm(1)));
+    lst->ops->add_instruction(lst, new_asm_instruction_with_operands(OC_MOV, new_asm_operand_reg(REG_CX), new_asm_operand_mem_by_sym("hello_msg")));
+    lst->ops->add_instruction(lst, new_asm_instruction_with_operands(OC_MOV, new_asm_operand_reg(REG_DX), new_asm_operand_imm(13)));
+    lst->ops->add_instruction(lst, new_asm_instruction_with_operand(OC_INT, new_asm_operand_imm(0x80)));
 
     lst->ops->set_next_label(lst, "_exit");
-    lst->ops->add(lst, new_asm_instruction_with_operands(OC_MOV, new_asm_operand_reg(REG_AX), new_asm_operand_imm(1)));
-    lst->ops->add(lst, new_asm_instruction_with_operands(OC_MOV, new_asm_operand_reg(REG_BX), new_asm_operand_imm(0)));
-    lst->ops->add(lst, new_asm_instruction_with_operand(OC_INT, new_asm_operand_imm(0x80)));
+    lst->ops->add_instruction(lst, new_asm_instruction_with_operands(OC_MOV, new_asm_operand_reg(REG_AX), new_asm_operand_imm(1)));
+    lst->ops->add_instruction(lst, new_asm_instruction_with_operands(OC_MOV, new_asm_operand_reg(REG_BX), new_asm_operand_imm(0)));
+    lst->ops->add_instruction(lst, new_asm_instruction_with_operand(OC_INT, new_asm_operand_imm(0x80)));
 
     lst->ops->print(lst, stdout);
 
@@ -349,8 +349,8 @@ static bool _test_encode_listing_code(asm_listing *lst, obj_code *mod, enum x86_
     struct x86_encoder *enc = new_x86_encoder(mp, mode, mod->text->contents, mod->text->relocations);
     struct asm_instruction *inst;
 
-    for (int i = 0; i < lst->length; i++) {
-        inst = lst->instruction_ptrs[i];
+    for_list(lst->asm_lines, asm_line, line) {
+        inst = line->per_type.instruction;
 
         if (inst->label != NULL) {
             // we don't know if this is exported for now
@@ -429,15 +429,15 @@ static void test_create_hello_world_executable3() {
 
     asm_listing *l = new_asm_listing(mp);
     l->ops->set_next_label(l, "_start");
-    l->ops->add(l, new_asm_instruction_with_operands(OC_MOV, new_asm_operand_reg(REG_AX), new_asm_operand_imm(4)));
-    l->ops->add(l, new_asm_instruction_with_operands(OC_MOV, new_asm_operand_reg(REG_BX), new_asm_operand_imm(1)));
-    l->ops->add(l, new_asm_instruction_with_operands(OC_MOV, new_asm_operand_reg(REG_CX), new_asm_operand_mem_by_sym("hello_msg")));
-    l->ops->add(l, new_asm_instruction_with_operands(OC_MOV, new_asm_operand_reg(REG_DX), new_asm_operand_imm(13)));
-    l->ops->add(l, new_asm_instruction_with_operand(OC_INT, new_asm_operand_imm(0x80)));
+    l->ops->add_instruction(l, new_asm_instruction_with_operands(OC_MOV, new_asm_operand_reg(REG_AX), new_asm_operand_imm(4)));
+    l->ops->add_instruction(l, new_asm_instruction_with_operands(OC_MOV, new_asm_operand_reg(REG_BX), new_asm_operand_imm(1)));
+    l->ops->add_instruction(l, new_asm_instruction_with_operands(OC_MOV, new_asm_operand_reg(REG_CX), new_asm_operand_mem_by_sym("hello_msg")));
+    l->ops->add_instruction(l, new_asm_instruction_with_operands(OC_MOV, new_asm_operand_reg(REG_DX), new_asm_operand_imm(13)));
+    l->ops->add_instruction(l, new_asm_instruction_with_operand(OC_INT, new_asm_operand_imm(0x80)));
     l->ops->set_next_label(l, "_exit");
-    l->ops->add(l, new_asm_instruction_with_operands(OC_MOV, new_asm_operand_reg(REG_AX), new_asm_operand_imm(1)));
-    l->ops->add(l, new_asm_instruction_with_operands(OC_MOV, new_asm_operand_reg(REG_BX), new_asm_operand_imm(0)));
-    l->ops->add(l, new_asm_instruction_with_operand(OC_INT, new_asm_operand_imm(0x80)));
+    l->ops->add_instruction(l, new_asm_instruction_with_operands(OC_MOV, new_asm_operand_reg(REG_AX), new_asm_operand_imm(1)));
+    l->ops->add_instruction(l, new_asm_instruction_with_operands(OC_MOV, new_asm_operand_reg(REG_BX), new_asm_operand_imm(0)));
+    l->ops->add_instruction(l, new_asm_instruction_with_operand(OC_INT, new_asm_operand_imm(0x80)));
 
     obj_code *c = new_obj_code();
     c->vt->declare_data(c, "hello_msg", 13 + 1, "Hello World!\n");

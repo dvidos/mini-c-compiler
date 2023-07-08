@@ -36,11 +36,11 @@ void perform_statement_analysis(statement *stmt) {
         perform_expression_analysis(stmt->expr);
         func_declaration *curr_func = get_scope_owning_function();
         if (curr_func == NULL) {
-            error(stmt->token->filename, stmt->token->line_no, "return outside of a function is not supported");
+            error_at(stmt->token->filename, stmt->token->line_no, "return outside of a function is not supported");
         } else if (curr_func->return_type->family == TF_VOID && stmt->expr != NULL) {
-            error(stmt->token->filename, stmt->token->line_no, "cannot return a value in this function");
+            error_at(stmt->token->filename, stmt->token->line_no, "cannot return a value in this function");
         } else if (curr_func->return_type->family != TF_VOID && stmt->expr == NULL) {
-            error(stmt->token->filename, stmt->token->line_no, "return needs to provide a value in this function");
+            error_at(stmt->token->filename, stmt->token->line_no, "return needs to provide a value in this function");
         } else if (curr_func->return_type->family == TF_VOID && stmt->expr == NULL) {
             ; // we are good, returning no value on a void function
         } else {

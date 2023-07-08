@@ -11,7 +11,7 @@
 void validate_function_call_argument_type(var_declaration *arg_decl, expression *arg_expr, func_declaration *func) {
     data_type *expr_type = arg_expr->ops->get_data_type(arg_expr);
     if (!arg_decl->data_type->ops->equals(arg_decl->data_type, expr_type)) {
-        error(arg_expr->token->filename, arg_expr->token->line_no,
+        error_at(arg_expr->token->filename, arg_expr->token->line_no,
             "argument '%s' of function '%s' needs to be of type '%s', but type '%s' was given",
             arg_decl->var_name,
             func->func_name,
@@ -26,18 +26,18 @@ void perform_function_call_analysis(expression *call_expr) {
     if (call_expr == NULL)
         return;
     if (call_expr->arg1 == NULL) {
-        error(call_expr->token->filename, call_expr->token->line_no, "call expression without arg1");
+        error_at(call_expr->token->filename, call_expr->token->line_no, "call expression without arg1");
         return;
     }
     if (call_expr->arg1->op != OP_SYMBOL_NAME) {
         // we'll support pointers later
-        error(call_expr->token->filename, call_expr->token->line_no, 
+        error_at(call_expr->token->filename, call_expr->token->line_no, 
             "call expression arg1 expected symbol, got %s", oper_debug_name(call_expr->arg1->op));
         return;
     }
     src_symbol *sym = scope_lookup(call_expr->arg1->value.str);
     if (sym == NULL) {
-        error(call_expr->token->filename, call_expr->token->line_no,
+        error_at(call_expr->token->filename, call_expr->token->line_no,
             "called function '%s' not found", call_expr->arg1->value.str);
         return;
     }
@@ -50,7 +50,7 @@ void perform_function_call_analysis(expression *call_expr) {
 
     // ensure at least the required arguments are provided
     if (provided_args < required_args) {
-        error(call_expr->token->filename, call_expr->token->line_no,
+        error_at(call_expr->token->filename, call_expr->token->line_no,
             "function '%s' requires %d arguments, but only %d was/were given",
             sym->func->func_name, required_args, provided_args);
     }
@@ -82,7 +82,7 @@ void perform_expression_analysis(expression *expr) {
         case OP_SYMBOL_NAME:
             src_symbol *s = scope_lookup(expr->value.str);
             if (s == NULL) {
-                error(expr->token->filename, expr->token->line_no,
+                error_at(expr->token->filename, expr->token->line_no,
                     "symbol \"%s\" not declared", expr->value.str);
             }
             break;
@@ -144,12 +144,12 @@ void perform_expression_analysis(expression *expr) {
 void verify_expression_result_type(expression *expr, data_type *needed_type) {
     data_type *expr_result = expr->ops->get_data_type(expr);
     if (expr_result == NULL) {
-        error(expr->token->filename, expr->token->line_no, "expression returned type could not be calculated");
+        error_at(expr->token->filename, expr->token->line_no, "expression returned type could not be calculated");
         return;
     }
 
     if (!expr_result->ops->equals(expr_result, needed_type)) {
-        error(
+        error_at(
             expr->token->filename, 
             expr->token->line_no,
             "expression returns a '%s', but a type of '%s' is required",
@@ -164,7 +164,7 @@ void verify_expr_result_integer(expression *expr) {
         return;
     data_type *type = expr->ops->get_data_type(expr);
     if (type->family != TF_INT || type->nested != NULL) {
-        error(expr->token->filename, expr->token->line_no,
+        error_at(expr->token->filename, expr->token->line_no,
             "expression needs to produce integer type, instead of '%s'",
             type->ops->to_string(type));
     }
@@ -175,7 +175,7 @@ void verify_expr_result_integer_or_pointer(expression *expr) {
         return;
     data_type *type = expr->ops->get_data_type(expr);
     if (!(type->family == TF_INT || type->family == TF_POINTER)) {
-        error(expr->token->filename, expr->token->line_no,
+        error_at(expr->token->filename, expr->token->line_no,
             "expression needs to produce integer or pointer type, instead of '%s'",
             type->ops->to_string(type));
     }
@@ -186,7 +186,7 @@ void verify_expr_result_array_or_pointer(expression *expr) {
         return;
     data_type *type = expr->ops->get_data_type(expr);
     if (!(type->family == TF_INT || type->family == TF_POINTER)) {
-        error(expr->token->filename, expr->token->line_no,
+        error_at(expr->token->filename, expr->token->line_no,
             "expression needs to produce array or pointer type, instead of '%s'",
             type->ops->to_string(type));
     }
@@ -197,7 +197,7 @@ void verify_expr_result_boolean(expression *expr) {
         return;
     data_type *type = expr->ops->get_data_type(expr);
     if (type->family != TF_BOOL || type->nested != NULL) {
-        error(expr->token->filename, expr->token->line_no,
+        error_at(expr->token->filename, expr->token->line_no,
             "expression needs to produce boolean type, instead of '%s'",
             type->ops->to_string(type));
     }
@@ -207,21 +207,21 @@ void verify_expr_same_data_types(expression *expr1, expression *expr2, token *to
     if (expr1 == NULL && expr2 == NULL)
         return;
     if (expr1 == NULL || expr2 == NULL) {
-        error(token->filename, token->line_no, "both operands need to be of same type, but one is missing");
+        error_at(token->filename, token->line_no, "both operands need to be of same type, but one is missing");
         return;
     }
     data_type *type1 = expr1->ops->get_data_type(expr1);
     if (type1 == NULL) {
-        error(expr1->token->filename, expr1->token->line_no, "cannot determine expression's data type");
+        error_at(expr1->token->filename, expr1->token->line_no, "cannot determine expression's data type");
         return;
     }
     data_type *type2 = expr2->ops->get_data_type(expr2);
     if (type2 == NULL) {
-        error(expr2->token->filename, expr2->token->line_no, "cannot determine expression's data type");
+        error_at(expr2->token->filename, expr2->token->line_no, "cannot determine expression's data type");
         return;
     }
     if (!type1->ops->equals(type1, type2)) {
-        error(token->filename, token->line_no, 
+        error_at(token->filename, token->line_no, 
             "operands need to be of same type, but first is '%s' and second is '%s'",
             type1->ops->to_string(type1),
             type2->ops->to_string(type2));

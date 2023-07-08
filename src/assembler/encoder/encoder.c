@@ -45,7 +45,7 @@ static bool _encode_v4(x86_encoder *encoder, asm_instruction *instr) {
     str *s;
 
     if (!load_encoding_info(instr, &enc_info)) {
-        error(NULL, 0, "Failed loading encoding info for operation '%s'\n", opcode_name(instr->operation));
+        error("Failed loading encoding info for operation '%s'\n", opcode_name(instr->operation));
         return false;
     }
 
@@ -53,7 +53,7 @@ static bool _encode_v4(x86_encoder *encoder, asm_instruction *instr) {
     if (!encode_asm_instruction(instr, &enc_info, &enc_instr)) {
         str *s = new_str(mp, NULL);
         asm_instruction_to_str(instr, s, false);
-        error(NULL, 0, "Failed encoding instruction: '%s'\n", str_charptr(s));
+        error("Failed encoding instruction: '%s'\n", str_charptr(s));
         mempool_release(mp);
         return false;
     }

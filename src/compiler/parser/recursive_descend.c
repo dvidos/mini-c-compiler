@@ -208,7 +208,7 @@ static func_declaration *accept_function_declaration() {
         body = parse_statements_list_in_block();
         expect(TOK_BLOCK_END);
     } else {
-        error(next()->filename, next()->line_no,
+        error_at(next()->filename, next()->line_no,
             "expecting either ';' or '{' for function %s", name);
     }
 
@@ -346,7 +346,7 @@ static void parse_file_level_element() {
         ast_add_function(n);
     }
     else {
-        error(
+        error_at(
             next()->filename,
             next()->line_no,
             "expecting variable or function declaration"

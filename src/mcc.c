@@ -32,6 +32,8 @@
 #include "elf/elf_contents.h"
 
 
+static void perform_end_to_end_test();
+
 
 #ifdef INCLUDE_UNIT_TESTS
 static bool run_unit_tests() {
@@ -55,7 +57,7 @@ static void load_source_code(char **source_code) {
 
     char *p = NULL;
     if (!load_text(run_info->options->filename, &p)) {
-        error(run_info->options->filename, 0, "Failed loading source code");
+        error_at(run_info->options->filename, 0, "Failed loading source code");
         return;
     }
     
@@ -90,7 +92,7 @@ static void parse_file_into_lexer_tokens(char *file_buffer, const char *filename
     // one final token, to allow us to always peek at the subsequent token
     list->add(list, create_token(TOK_EOF, NULL, filename, 999999));
     if (list->unknown_tokens_exist(list)) {
-        error(filename, 0, "Unknown tokens detected, cannot continue...\n");
+        error_at(filename, 0, "Unknown tokens detected, cannot continue...\n");
         list->print(list, "  ", true);
         return;
     }
@@ -118,7 +120,7 @@ static void parse_abstract_syntax_tree(token_list *list) {
         char *ast_filename = set_extension(run_info->options->filename, "ast");
         FILE *f = fopen(ast_filename, "w");
         if (f == NULL) {
-            error(NULL, 0, "cannot open file \"%s\" for writing", ast_filename);
+            error("cannot open file \"%s\" for writing", ast_filename);
         }
         print_ast(f);
         fclose(f);
@@ -149,7 +151,7 @@ static void generate_intermediate_code(ir_listing *listing) {
         char *ir_filename = set_extension(run_info->options->filename, "ir");
         FILE *f = fopen(ir_filename, "w");
         if (f == NULL) {
-            error(NULL, 0, "cannot open file \"%s\" for writing", ir_filename);
+            error("cannot open file \"%s\" for writing", ir_filename);
         }
         listing->ops->print(listing, f);
         fclose(f);
@@ -203,7 +205,7 @@ static void process_one_file(mempool *mp, file_run_info *fi) {
         char *asm_filename = set_extension(str_charptr(fi->source_filename), "asm");
         FILE *f = fopen(asm_filename, "w");
         if (f == NULL) {
-            error(NULL, 0, "cannot open file \"%s\" for writing", asm_filename);
+            error("cannot open file \"%s\" for writing", asm_filename);
             return;
         }
         asm_list->ops->print(asm_list, f);
@@ -226,11 +228,11 @@ static void process_one_file(mempool *mp, file_run_info *fi) {
         char *obj_filename = set_extension(str_charptr(fi->source_filename), "obj");
         FILE *f = fopen(obj_filename, "w");
         if (f == NULL) {
-            error(NULL, 0, "cannot open file \"%s\" for writing", obj_filename);
+            error("cannot open file \"%s\" for writing", obj_filename);
             return;
         }
         if (!cod->vt->save_object_file(cod, f)) {
-            error(NULL, 0, "error writing to file \"%s\"", obj_filename);
+            error("error writing to file \"%s\"", obj_filename);
             return;
         }
         fclose(f);
@@ -271,7 +273,7 @@ static void process_all_files(mempool *mp) {
         llist_add(obj_modules, fi->module);
     }
     
-    // default runtime files
+    // proceeding to link - default runtime files
     llist *obj_files = new_llist(mp);
     llist *lib_files = new_llist(mp);
     llist_add(lib_files, new_str(mp, "libruntime64.a"));
@@ -280,6 +282,15 @@ static void process_all_files(mempool *mp) {
     str *executable = str_change_extension(first_file->source_filename, NULL);
 
     x86_64_link(obj_modules, obj_files, lib_files, 0x400000, executable);
+}
+
+static void perform_end_to_end_test() {
+    // try to run all the stages, checking at each level.
+    // we can start from the end, actually
+    // - preprocess -> .i file
+    // - compile -> .asm file
+    // - assemble -> .obj file
+    // - link -> elf file
 }
 
 int main(int argc, char *argv[]) {
@@ -298,18 +309,16 @@ int main(int argc, char *argv[]) {
         void perform_elf_test();
         perform_elf_test();
         return 0;
-    }
-
-    if (run_info->options->link_test) {
+    } else if (run_info->options->link_test) {
         void link_test();
         link_test();
         return 0;
-    }
-
-    if (run_info->options->asm_test) {
+    } else if (run_info->options->asm_test) {
         void perform_asm_test();
         perform_asm_test();
         return 0;
+    } else if (run_info->options->e2e_test) {
+        perform_end_to_end_test();
     }
 
     if (run_info->options->filename == NULL || llist_is_empty(run_info->files)) {

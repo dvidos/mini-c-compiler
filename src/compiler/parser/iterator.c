@@ -77,7 +77,7 @@ token *accepted() {
 // verifies next token is of specified type, otherwise fail
 bool expect(token_type type) {
     if (!next_is(type)) {
-        error(
+        error_at(
             list->tokens[current_index]->filename,
             list->tokens[current_index]->line_no,
             "was expecting \"%s\", but got \"%s\"", 

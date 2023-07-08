@@ -43,6 +43,7 @@ void show_syntax() {
     printf("\t--elf-test   run elf test\n");
     printf("\t--link-test  run link test\n");
     printf("\t--asm-test   run asm test\n");
+    printf("\t--e2e-test   run end-to-end test\n");
 }
 
 static void parse_options(mempool *mp, int argc, char *argv[]) {
@@ -83,6 +84,9 @@ static void parse_options(mempool *mp, int argc, char *argv[]) {
             run_info->options->link_test = true;
         } else if (strcmp(p, "--asm-test") == 0) {
             run_info->options->asm_test = true;
+        } else if (strcmp(p, "--e2e-test") == 0) {
+            run_info->options->e2e_test = true;
+
         } else if (strcmp(p, "--gen-ast") == 0) {
             run_info->options->generate_ast = true;
         } else if (strcmp(p, "--gen-ir") == 0) {

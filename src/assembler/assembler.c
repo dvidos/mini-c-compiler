@@ -40,7 +40,7 @@ void assemble_listing_into_i386_code(mempool *mp, asm_listing *asm_list, obj_cod
         if (!enc->encode_v4(enc, inst)) {
             str *s = new_str(mp, NULL);
             asm_instruction_to_str(inst, s, false);
-            error(NULL, 0, "Failed encoding instruction: '%s'\n", str_charptr(s));
+            error("Failed encoding instruction: '%s'\n", str_charptr(s));
             continue;
         }
     }
@@ -55,7 +55,16 @@ void assemble_listing_into_i386_code(mempool *mp, asm_listing *asm_list, obj_cod
 // ------------------------------------------------
 
 static void encode_instruction_x86_64(asm_instruction *instr, obj_section *section) {
-    // ...
+    // encode into bytes and add relocation. what can go wrong?
+
+    // bin_add_byte(section->contents, 0x12);
+    // bin_add_byte(section->contents, 0x34);
+    // bin_add_byte(section->contents, 0x56);
+    // size_t offset = bin_len(section->contents);
+    // bin_add_zeros(section->contents, 4);
+    // str *sym_name = NULL;
+    // section->ops->add_relocation(section, offset, sym_name, 2, -4);
+    // section->ops->add_symbol(section, sym_name, offset, ?, true);
 }
 
 static int compare_str(const void *a, const void *b) {
@@ -67,6 +76,7 @@ void assemble_listing_into_x86_64_code(mempool *mp, asm_listing *asm_list, obj_m
     llist *externs = new_llist(mp); // item is str
     llist *globals = new_llist(mp); // item is str
     asm_named_definition *named_def;
+    hashtable *symbol_table; // item is ?
     
     // by default we are in code
     str *text_name = new_str(mp, ".text");
@@ -106,7 +116,7 @@ void assemble_listing_into_x86_64_code(mempool *mp, asm_listing *asm_list, obj_m
                 asm_data_definition *data_def = line->per_type.data_definition;
                 obj_symbol *sym = curr_sect->ops->find_symbol(curr_sect, data_def->name, false);
                 if (sym != NULL) {
-                    error(NULL, 0, "Symbol '%s' already defined!", str_charptr(data_def->name));
+                    error("Symbol '%s' already defined!", str_charptr(data_def->name));
                     return;
                 }
                 bool is_global = llist_find_first(globals, compare_str, data_def->name) != -1;
@@ -123,9 +133,14 @@ void assemble_listing_into_x86_64_code(mempool *mp, asm_listing *asm_list, obj_m
                 break;
 
             default:
-                error(NULL, 0, "Unsupported assembly line type %d", line->type);
+                error("Unsupported assembly line type %d", line->type);
                 return;
         }
     }
+
+    // now that we assembled all the module, one optimization might be,
+    // to go back and resolve local relocations (e.g. if/else end labels)
+    // these can be local jumps to offset relative to the end of the instruction,
+    // or to function label + offset
 }
 

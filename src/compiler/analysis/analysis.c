@@ -19,7 +19,7 @@
 void perform_declaration_analysis(var_declaration *decl, int arg_no) {
 
     if (scope_symbol_declared_at_curr_level(decl->var_name)) {
-        error(
+        error_at(
             decl->token->filename,
             decl->token->line_no,
             "symbol \"%s\" already defined in this scope",
@@ -40,7 +40,7 @@ void perform_function_analysis(func_declaration *func) {
 
     // functions are declared at their parent scope
     if (scope_symbol_declared_at_curr_level(func->func_name)) {
-        error(
+        error_at(
             func->token->filename,
             func->token->line_no,
             "function \"%s\" already defined", 

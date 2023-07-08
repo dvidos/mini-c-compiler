@@ -17,6 +17,7 @@ struct prog_run_options {
     bool elf_test;
     bool link_test;
     bool asm_test;
+    bool e2e_test;
 
     bool generate_ast;
     bool generate_ir;

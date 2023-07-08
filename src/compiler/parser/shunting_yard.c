@@ -96,13 +96,13 @@ expression *accept_terminal() {
 
 oper operators_stack[MAX_STACK_SIZE];
 int operators_stack_len = 0;
-static inline void push_operator(oper op) { operators_stack[operators_stack_len++] = op; if (operators_stack_len >= MAX_STACK_SIZE) error(NULL, 0, "op stack overflow"); }
+static inline void push_operator(oper op) { operators_stack[operators_stack_len++] = op; if (operators_stack_len >= MAX_STACK_SIZE) error("op stack overflow"); }
 static inline oper pop_operator() { return operators_stack[--operators_stack_len]; }
 static inline oper peek_operator() { return operators_stack[operators_stack_len - 1]; }
 
 expression *operands_stack[MAX_STACK_SIZE];
 int operands_stack_len = 0;
-static inline void push_operand(expression *n) { operands_stack[operands_stack_len++] = n; if (operands_stack_len >= MAX_STACK_SIZE) error(NULL, 0, "expr stack overflow"); }
+static inline void push_operand(expression *n) { operands_stack[operands_stack_len++] = n; if (operands_stack_len >= MAX_STACK_SIZE) error("expr stack overflow"); }
 static inline expression *pop_operand() { return operands_stack[--operands_stack_len]; }
 static inline expression *peek_operand() { return operands_stack[operands_stack_len - 1]; }
 
@@ -146,7 +146,7 @@ static void parse_operand() {
         parse_operand();
 
     } else {
-        error(next()->filename, next()->line_no, "expected '(', unary operator, or terminal token");
+        error_at(next()->filename, next()->line_no, "expected '(', unary operator, or terminal token");
     }
 
     while (next_is_postfix_operator()) {

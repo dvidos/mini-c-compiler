@@ -92,18 +92,18 @@ static data_type *get_data_type(expression *expr) {
         // result will be whatever type the symbol is
         src_symbol *sym = scope_lookup(expr->value.str);
         if (sym == NULL)
-            error(expr->token->filename, expr->token->line_no, "symbol \"%s\" not defined in current scope", expr->arg1);
+            error_at(expr->token->filename, expr->token->line_no, "symbol \"%s\" not defined in current scope", expr->arg1);
         else
             expr->result_type = sym->data_type->ops->clone(sym->data_type);
     } else if (op == OP_FUNC_CALL) {
         // result will be whatever type the function returns
         if (!expr->arg1->op == OP_SYMBOL_NAME) {
             // for now we support symbols, lvalues (pointers) later
-            error(expr->token->filename, expr->token->line_no, "func call expression did not have the symbol as arg1");
+            error_at(expr->token->filename, expr->token->line_no, "func call expression did not have the symbol as arg1");
         } else {
             src_symbol *sym = scope_lookup(expr->arg1->value.str);
             if (sym == NULL) {
-                error(expr->token->filename, expr->token->line_no, "symbol \"%s\" not defined in current scope", expr->arg1->value.str);
+                error_at(expr->token->filename, expr->token->line_no, "symbol \"%s\" not defined in current scope", expr->arg1->value.str);
             } else {
                 expr->result_type = sym->data_type->ops->clone(sym->data_type);
             }
@@ -124,21 +124,21 @@ static data_type *get_data_type(expression *expr) {
     if (op == OP_POINTED_VALUE) {
         // return the nested type of arg1 type, i.e. *(of a char*) is a char
         if (arg1_type == NULL || arg1_type->nested == NULL) {
-            error(expr->token->filename, expr->token->line_no, "pointer dereference, but pointee nested data type undefined");
+            error_at(expr->token->filename, expr->token->line_no, "pointer dereference, but pointee nested data type undefined");
         } else {
             expr->result_type = arg1_type->nested->ops->clone(arg1_type->nested);
         }
     } else if (op == OP_ARRAY_SUBSCRIPT) {
         // return the nested type of arg1 type, e.g. "int[]" will become int
         if (arg1_type == NULL || arg1_type->nested == NULL) {
-            error(expr->token->filename, expr->token->line_no, "array element operation, but array item data type undefined");
+            error_at(expr->token->filename, expr->token->line_no, "array element operation, but array item data type undefined");
         } else {
             expr->result_type = arg1_type->nested->ops->clone(arg1_type->nested);
         }
     } else if (op == OP_ADDRESS_OF) {
         // return a pointer to the type of arg1
         if (arg1_type == NULL) {
-            error(expr->token->filename, expr->token->line_no, "address of opration, but target data type undefined");
+            error_at(expr->token->filename, expr->token->line_no, "address of opration, but target data type undefined");
         } else {
             expr->result_type = new_data_type(TF_POINTER, arg1_type->ops->clone(arg1_type));
         }
@@ -164,7 +164,7 @@ static data_type *get_data_type(expression *expr) {
     
     // could be a warning
     if (expr->result_type == NULL)
-        error(expr->token->filename, expr->token->line_no, 
+        error_at(expr->token->filename, expr->token->line_no, 
             "could not derive returned data type of expression with operator %s", 
             oper_debug_name(op)
         );
@@ -184,7 +184,7 @@ static void flatten_func_call_args_to_array(expression *call_expr, expression *a
         if (node->op != OP_COMMA) {
             // finding a non comma on arg2 means we are done!
             if (i >= arr_size) {
-                error(call_expr->token->filename, call_expr->token->line_no, "function calls flattening supports up to %d args for now", arr_size);
+                error_at(call_expr->token->filename, call_expr->token->line_no, "function calls flattening supports up to %d args for now", arr_size);
                 break;
             }
             arr[i++] = node;
@@ -194,7 +194,7 @@ static void flatten_func_call_args_to_array(expression *call_expr, expression *a
         // the left node is definitely a value, not a comma
         if (node->arg1 != NULL) {
             if (i >= arr_size) {
-                error(call_expr->token->filename, call_expr->token->line_no, "function calls flattening supports up to %d args for now", arr_size);
+                error_at(call_expr->token->filename, call_expr->token->line_no, "function calls flattening supports up to %d args for now", arr_size);
                 break;
             }
 

@@ -61,7 +61,7 @@ void code_gen_generate_for_statement(code_gen *cg, statement *stmt) {
             // global vars are done, we only care about init value of locals
             // ideally, we should have one variable for each scope but...
             if (cg->ops->get_curr_func_name(cg) == NULL) {
-                error(stmt->token->filename, stmt->token->line_no, "function name not found, when generating var decl for statement");
+                error_at(stmt->token->filename, stmt->token->line_no, "function name not found, when generating var decl for statement");
                 return;
             }
             if (stmt->expr != NULL)
@@ -100,7 +100,7 @@ void code_gen_generate_for_statement(code_gen *cg, statement *stmt) {
         case ST_CONTINUE:
             num = cg->ops->curr_loop_num(cg);
             if (num == 0) {
-                error(stmt->token->filename, stmt->token->line_no, "break without while");
+                error_at(stmt->token->filename, stmt->token->line_no, "break without while");
                 return;
             }
             cg->ir->ops->add(cg->ir, new_ir_unconditional_jump("while_%d_begin", num));
@@ -109,7 +109,7 @@ void code_gen_generate_for_statement(code_gen *cg, statement *stmt) {
         case ST_BREAK:
             num = cg->ops->curr_loop_num(cg);
             if (num == 0) {
-                error(stmt->token->filename, stmt->token->line_no, "break without while");
+                error_at(stmt->token->filename, stmt->token->line_no, "break without while");
                 return;
             }
             cg->ir->ops->add(cg->ir, new_ir_unconditional_jump("while_%d_end", num));
@@ -117,7 +117,7 @@ void code_gen_generate_for_statement(code_gen *cg, statement *stmt) {
 
         case ST_RETURN:
             if (cg->ops->get_curr_func_name(cg) == NULL) {
-                error(stmt->token->filename, stmt->token->line_no, "return without a function context");
+                error_at(stmt->token->filename, stmt->token->line_no, "return without a function context");
                 return;
             }
             ir_value *ret_val = NULL;

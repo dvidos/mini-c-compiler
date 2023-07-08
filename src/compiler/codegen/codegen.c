@@ -97,7 +97,7 @@ static int _next_label_num(code_gen *cg) {
 
 static int _curr_loop_num(code_gen *cg) {
     if (cg->loops_stack_len == 0) {
-        error(NULL, 0, "loop number requested by no loops in sight");
+        error("loop number requested by no loops in sight");
         return 0;
     }
     return cg->loops_stack[cg->loops_stack_len - 1];
@@ -105,7 +105,7 @@ static int _curr_loop_num(code_gen *cg) {
 
 static void _begin_loop_generation(code_gen *cg) {
     if (cg->loops_stack_len >= CODE_GEN_MAX_NESTED_LOOPS) {
-        error(NULL, 0, "cannot generate deeper than %d nested loops", CODE_GEN_MAX_NESTED_LOOPS);
+        error("cannot generate deeper than %d nested loops", CODE_GEN_MAX_NESTED_LOOPS);
         return;
     }
     cg->label_num += 1;
@@ -115,7 +115,7 @@ static void _begin_loop_generation(code_gen *cg) {
 
 static void _end_loop_generation(code_gen *cg) {
     if (cg->loops_stack_len == 0) {
-        error(NULL, 0, "finishing a loop that has not started");
+        error("finishing a loop that has not started");
         return;
     }
     cg->loops_stack_len -= 1;

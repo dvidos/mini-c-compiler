@@ -154,11 +154,11 @@ asm_instruction *new_asm_instruction_with_operands(enum opcode op, asm_operand *
     // operations memory to memory, or any to immediate, are not supported
     if ((source->type == OT_MEM_OF_SYMBOL || source->type == OT_MEM_POINTED_BY_REG) &&
         (target->type == OT_MEM_OF_SYMBOL || target->type == OT_MEM_POINTED_BY_REG)) {
-        error(NULL, 0, "mem-to-mem operations cannot be codified, use of register needed");
+        error("mem-to-mem operations cannot be codified, use of register needed");
         return NULL;
     }
     if (target->type == OT_IMMEDIATE) {
-        error(NULL, 0, "operations towards immediates cannot be codified, use of register needed");
+        error("operations towards immediates cannot be codified, use of register needed");
         return NULL;
     }
     
@@ -198,7 +198,7 @@ asm_instruction *new_asm_instruction_with_operands(enum opcode op, asm_operand *
         o->operand1.is_mem_addr_by_symbol = true;
         o->operand1.per_type.mem.displacement_symbol_name = strdup(operand1->symbol_name);
     } else {
-        error(NULL, 0, "possible bug, expected register or memory for operand 1");
+        error("possible bug, expected register or memory for operand 1");
         return NULL;
     }
 
@@ -210,7 +210,7 @@ asm_instruction *new_asm_instruction_with_operands(enum opcode op, asm_operand *
         o->operand2.is_immediate = true;
         o->operand2.per_type.immediate = operand2->immediate;
     } else {
-        error(NULL, 0, "possible bug, expected register or immediate for operand 2");
+        error("possible bug, expected register or immediate for operand 2");
         return NULL;
     }
 

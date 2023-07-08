@@ -32,7 +32,7 @@ static void gen_global_var(code_gen *cg, var_declaration *decl, expression *init
         } else if (init_expr->op == OP_BOOL_LITERAL) {
             init_value = &init_expr->value.bln;
         } else {
-            error(init_expr->token->filename, init_expr->token->line_no,
+            error_at(init_expr->token->filename, init_expr->token->line_no,
                 "sorry, only literal initial values supported for now");
             return;
         }
@@ -92,7 +92,7 @@ void code_gen_generate_for_module(code_gen *cg, ast_module_node *module) {
     statement *stmt = module->statements_list;
     while (stmt != NULL) {
         if (stmt->stmt_type != ST_VAR_DECL) {
-            error(stmt->token->filename, stmt->token->line_no, "only var declarations are supported in code generation");
+            error_at(stmt->token->filename, stmt->token->line_no, "only var declarations are supported in code generation");
             return;
         }
 

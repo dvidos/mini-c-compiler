@@ -30,7 +30,7 @@ static ir_value *resolve_addr(code_gen *cg, expression *expr) {
         return lvalue;
 
     } else {
-        error(expr->token->filename, expr->token->line_no, 
+        error_at(expr->token->filename, expr->token->line_no, 
             "invalid lvalue expression \"%s\", expecting symbol, pointer or array element", 
             oper_debug_name(expr->op)
         );
@@ -55,7 +55,7 @@ static void gen_func_call(code_gen *cg, ir_value *lvalue, expression *expr) {
     int argc = 0;
     expr->ops->flatten_func_call_args_to_array(expr, arg_expressions, MAX_FUNC_ARGS, &argc);
     if (argc >= MAX_FUNC_ARGS) {
-        error(expr->token->filename, expr->token->line_no, "only %d function arguments are supported, found %d", MAX_FUNC_ARGS, argc);
+        error_at(expr->token->filename, expr->token->line_no, "only %d function arguments are supported, found %d", MAX_FUNC_ARGS, argc);
         return;
     }
 
@@ -89,7 +89,7 @@ static void gen_binary_op(code_gen *cg, ir_value *lvalue, expression *expr) {
         case OP_BITWISE_XOR: op = IR_XOR; break;
         case OP_BITWISE_NOT: op = IR_NOT; break;
         default:
-            error(expr->token->filename, expr->token->line_no,
+            error_at(expr->token->filename, expr->token->line_no,
                 "internal error, not a binary operation (%d, %s)", 
                 expr->op, oper_debug_name(expr->op));
             break;

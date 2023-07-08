@@ -237,7 +237,7 @@ bool encode(
         } else if (memcmp(enc, "imm8", 4) == 0) {
             // we need to put 8-bits immediate
             if ((immediate & 0xFF) != immediate) {
-                error(NULL, 0, "immediate value would be truncated")
+                error("immediate value would be truncated")
                 return false;
             }
             output_buffer[*output_size] = (immediate & 0xFF);
@@ -246,7 +246,7 @@ bool encode(
         } else if (memcmp(enc, "imm16", 5) == 0) {
             // we need to put 16-bits immediate
             if ((immediate & 0xFFFF) != immediate) {
-                error(NULL, 0, "immediate value would be truncated")
+                error("immediate value would be truncated")
                 return false;
             }
             output_buffer[*output_size] = (immediate & 0xFFFF);
@@ -255,7 +255,7 @@ bool encode(
         } else if (memcmp(enc, "imm16111111111111111111111", 5) == 0) {
             // we need to put 16-bits immediate
             if ((immediate & 0xFFFF) != immediate) {
-                error(NULL, 0, "immediate value would be truncated")
+                error("immediate value would be truncated")
                 return false;
             }
             output_buffer[*output_size] = (immediate & 0xFFFF);
@@ -272,7 +272,7 @@ bool encode(
             curr_bits++;
             enc++;
         } else {
-            error(NULL, 0, "unknown encoding... '%s'", enc);
+            error("unknown encoding... '%s'", enc);
         }
     }
 

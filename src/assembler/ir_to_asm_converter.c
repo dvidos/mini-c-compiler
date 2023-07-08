@@ -54,7 +54,7 @@ asm_operand *resolve_ir_value_to_asm_operand(ir_value *v) {
         // could be a local or global symbol
         if (ad.allocator->ops->get_named_storage(ad.allocator, v->val.symbol_name, &s)) {
             if (!s.is_stack_var) {
-                error(NULL, 0, "named symbols ('%s') are expected to be stack oriented", v->val.symbol_name);
+                error("named symbols ('%s') are expected to be stack oriented", v->val.symbol_name);
                 return NULL;
             }
             o->type = OT_MEM_POINTED_BY_REG;
@@ -166,7 +166,7 @@ static void code_conditional_jump(ir_entry *e) {
 
     // this version does not support immediates in op1 (e.g. "if (1 == a)")
     if (op1->type == OT_IMMEDIATE) {
-        error(NULL, 0, "comparison op1 cannot be an immediate");
+        error("comparison op1 cannot be an immediate");
         return;
     }
 
@@ -283,7 +283,7 @@ static void code_unary_operation(ir_entry *e, ir_value *lvalue, ir_operation op,
             ad.listing->ops->add_instruction(ad.listing, new_asm_instruction_with_operands(OC_MOV, lop, ptr));
             break;
         default:
-            error(NULL, 0, "Unsupported IR unary operator %d", op);
+            error("Unsupported IR unary operator %d", op);
             break;
     }
 }
@@ -345,7 +345,7 @@ static void code_binary_operation(ir_entry *e, ir_value *lvalue, ir_value *rvalu
             ad.listing->ops->add_instruction(ad.listing, new_asm_instruction_with_operands(OC_SHR, ax, cx));
             break;
         default:
-            error(NULL, 0, "Unsupported 3-code-addr binary operator %d", op);
+            error("Unsupported 3-code-addr binary operator %d", op);
             break;
     }
 
@@ -382,7 +382,7 @@ static void assemble_function(ir_listing *ir, int start, int end) {
     // for each IR instruction, find appropriate assembly instruction(s)
 
     if (ir->entries_arr[start]->type != IR_FUNCTION_DEFINITION) {
-        error(NULL, 0, "internal bug, function declaration IR was expected");
+        error("internal bug, function declaration IR was expected");
         return;
     }
 

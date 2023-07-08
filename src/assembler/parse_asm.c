@@ -56,7 +56,7 @@ void parse_asm_line(char **stream, char *label, char *opcode, char *op1, char *o
         *placeholders[part] = '\0';
         grab_token(stream, placeholders[part], 64);
         if (part == 0 && strlen(placeholders[part]) > 0 && !is_label(**stream)) {
-            error(NULL, 0, "was expecting a color after label at start of line");
+            error("was expecting a color after label at start of line");
             return;
         }
 

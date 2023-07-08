@@ -560,7 +560,83 @@ void x86_encode_asm_into_machine_code(mempool *mp, asm_listing *asm_list, enum x
     printf("\n");
 }
 
-void encode_asm_into_machine_code_x86_64(mempool *mp, asm_listing *asm_list, obj_module *mod) {
-    // we need an x86_64_encoder()
+
+// ------------------------------------------------
+
+static void encode_instruction_x86_64(asm_instruction *instr, obj_section *section) {
+    // ...
+}
+
+static int compare_str(const void *a, const void *b) {
+    return str_cmp((str *)a, (str *)b);
+}
+
+void encode_asm_listing_into_machine_code_x86_64(mempool *mp, asm_listing *asm_list, obj_module *target) {
+
+    llist *externs = new_llist(mp); // item is str
+    llist *globals = new_llist(mp); // item is str
+    
+    // by default we are in code
+    str *text_name = new_str(mp, ".text");
+    obj_section *curr_sect = target->ops->get_section_by_name(target, text_name);
+    if (curr_sect == NULL)
+        curr_sect = target->ops->add_section(target, text_name);
+    
+
+    asm_named_definition *named_def;
+
+    
+    for (int i = 0; i < asm_list->length; i++) {
+        asm_line *line; // assume our assembly is encoded in a line.
+
+        switch (line->type) {
+            case ALT_SECTION:  // e.g. ".section .data"
+                // find or create section
+                named_def = line->per_type.named_definition;
+                curr_sect = target->ops->get_section_by_name(target, named_def->name);
+                if (curr_sect == NULL)
+                    curr_sect = target->ops->add_section(target, named_def->name);
+                break;
+
+            case ALT_EXTERN:   // e.g. ".extern <name>"
+                // add to externs if not already there
+                named_def = line->per_type.named_definition;
+                if (llist_find_first(externs, compare_str, named_def->name) == -1)
+                    llist_add(externs, named_def->name);
+                break;
+
+            case ALT_GLOBAL:   // e.g. ".global <name>"
+                // add to globals if not already there
+                named_def = line->per_type.named_definition;
+                if (llist_find_first(globals, compare_str, named_def->name) == -1)
+                    llist_add(globals, named_def->name);
+                break;
+
+            case ALT_DATA:    // "<name:> db, dw, dd, dq value [, value [, ...]]"
+                // add to symbols of current section, see if it is extern or glonal
+                asm_data_definition *data_def = line->per_type.data_definition;
+                obj_symbol *sym = curr_sect->ops->find_symbol(curr_sect, data_def->name, false);
+                if (sym != NULL) {
+                    error(NULL, 0, "Symbol '%s' already defined!", str_charptr(data_def->name));
+                    return;
+                }
+                bool is_global = llist_find_first(globals, compare_str, data_def->name) != -1;
+                bool is_extern = llist_find_first(externs, compare_str, data_def->name) != -1;
+                size_t value = bin_len(curr_sect->contents);
+                bin_cat(curr_sect->contents, data_def->initial_value);
+                sym = curr_sect->ops->add_symbol(curr_sect, data_def->name, value, data_def->length_bytes, is_global);
+                break;
+                
+            case ALT_INSTRUCTION:  // MOV RAX, 0x1234
+                asm_instruction *instr = line->per_type.instruction;
+                encode_instruction_x86_64(instr, curr_sect);
+                if (errors_count) return;
+                break;
+
+            default:
+                error(NULL, 0, "Unsupported assembly line type %d", line->type);
+                return;
+        }
+    }
 }
 

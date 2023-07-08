@@ -5,12 +5,14 @@
 static void obj_module_print(obj_module *module, bool show_details, FILE *file);
 static void obj_module_append(obj_module *module, obj_module *source);
 static obj_section *obj_module_get_section_by_name(obj_module *m, str *name);
+static obj_section *obj_module_add_section(obj_module *m, str *name);
 static obj_symbol *obj_module_find_symbol(obj_module *module, str *name, bool exported);
 static elf64_contents *obj_module_prepare_elf_contents(obj_module *module, int elf_type, mempool *mp);
 
 static struct obj_module_ops module_ops = {
     .print = obj_module_print,
     .get_section_by_name = obj_module_get_section_by_name,
+    .add_section = obj_module_add_section,
     .find_symbol = obj_module_find_symbol,
     .prepare_elf_contents = obj_module_prepare_elf_contents,
 };
@@ -379,6 +381,13 @@ static int compare_section_and_name(obj_section *s, str *name) {
 static obj_section *obj_module_get_section_by_name(obj_module *m, str *name) {
     int index = llist_find_first(m->sections, (comparator_function*)compare_section_and_name, name);
     return index == -1 ? NULL : llist_get(m->sections, index);
+}
+
+static obj_section *obj_module_add_section(obj_module *m, str *name) {
+    obj_section *section = new_obj_section(m->mempool);
+    section->name = name;
+    llist_add(m->sections, section);
+    return section;
 }
 
 static obj_symbol *obj_module_find_symbol(obj_module *m, str *name, bool exported) {

@@ -29,6 +29,8 @@ struct obj_section {
         void (*append)(obj_section *s, obj_section *other, size_t rounding_value);
         void (*change_address)(obj_section *s, long delta);
         obj_symbol *(*find_symbol)(obj_section *s, str *name, bool exported);
+        obj_symbol *(*add_symbol)(obj_section *s, str *name, size_t value, size_t size, bool exported);
+        obj_relocation *(*add_relocation)(obj_section *s, size_t offset, str *sym_name, int type, long addendum);
     } *ops;
 
     mempool *mempool;

@@ -8,6 +8,9 @@ static void obj_section_print(obj_section *s, bool show_details, FILE *f);
 static void obj_section_append(obj_section *s, obj_section *other, size_t rounding_value);
 static void obj_section_change_address(obj_section *s, long delta);
 static obj_symbol *obj_section_find_symbol(obj_section *s, str *name, bool exported);
+static obj_symbol *obj_section_add_symbol(obj_section *s, str *name, size_t value, size_t size, bool global);
+static obj_relocation *obj_section_add_relocation(obj_section *s, size_t offset, str *sym_name, int type, long addendum);
+
 
 static void obj_symbol_print(obj_symbol *s, int num, FILE *f);
 
@@ -18,6 +21,8 @@ static struct obj_section_ops section_ops = {
     .append = obj_section_append,
     .change_address = obj_section_change_address,
     .find_symbol = obj_section_find_symbol,
+    .add_symbol = obj_section_add_symbol,
+    .add_relocation = obj_section_add_relocation,
 };
 
 static struct obj_symbol_ops symbol_ops = {
@@ -124,4 +129,28 @@ static obj_symbol *obj_section_find_symbol(obj_section *s, str *name, bool expor
     return NULL;
 }
 
+static obj_symbol *obj_section_add_symbol(obj_section *s, str *name, size_t value, size_t size, bool global) {
+    obj_symbol *sym = mempool_alloc(s->mempool, sizeof(obj_symbol), "obj_symbol");
+    
+    sym->name = name;
+    sym->value = value;
+    sym->size = size;
+    sym->global = global;
+    sym->ops = &symbol_ops;
+    llist_add(s->symbols, sym);
 
+    return sym;
+}
+
+
+static obj_relocation *obj_section_add_relocation(obj_section *s, size_t offset, str *sym_name, int type, long addendum) {
+    obj_relocation *rela = mempool_alloc(s->mempool, sizeof(obj_relocation), "obj_relocation");
+
+    rela->offset = offset;
+    rela->symbol_name = sym_name;
+    rela->type = type;
+    rela->addendum = addendum;
+    llist_add(s->relocations, rela);
+
+    return rela;
+}

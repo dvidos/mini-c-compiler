@@ -241,7 +241,7 @@ static void process_one_file(mempool *mp, file_run_info *fi) {
     // prepare a real module, like real men do.
     obj_module *mod = new_obj_module(mp);
     mod->name = fi->source_filename;
-    encode_asm_into_machine_code_x86_64(mp, asm_list, mod);
+    encode_asm_listing_into_machine_code_x86_64(mp, asm_list, mod);
     if (errors_count)
         return;
     fi->module = mod;

@@ -37,7 +37,7 @@ struct symbol_table {
     int length;
 
     void (*clear)(symbol_table *table);
-    void (*add)(symbol_table *table, char *name, u64 address, u64 size, enum symbol_type type, bool global);
+    void (*add)(symbol_table *table, const char *name, u64 address, u64 size, enum symbol_type type, bool global);
     struct symbol_entry *(*find)(symbol_table *table, char *name);
     void (*print)(symbol_table *table);
     void (*offset)(symbol_table *table, long offset);

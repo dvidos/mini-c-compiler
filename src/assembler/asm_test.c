@@ -6,7 +6,7 @@
 #include "../utils/buffer.h"
 #include "../linker/symbol_table.h"
 #include "../linker/obj_code.h"
-#include "encoder/asm_instruction.h"
+#include "encoder/asm_line.h"
 #include "encoder/encoder.h"
 #include "encoder/asm_listing.h"
 #include "assembler.h"
@@ -18,7 +18,7 @@
 static void test_create_hello_world_executable2();
 static void test_create_hello_world_executable3();
 static bool verify_instructions();
-static bool verify_single_instruction(enum opcode oc, struct asm_operand *op1, struct asm_operand *op2, char *expected_bytes, int expected_len);
+static bool verify_single_instruction(enum opcode oc, asm_operand *op1, asm_operand *op2, char *expected_bytes, int expected_len);
 
 
 
@@ -149,7 +149,7 @@ static bool verify_instructions() {
     return true;
 }
 
-static bool verify_single_instruction(enum opcode oc, struct asm_operand *op1, struct asm_operand *op2, char *expected_bytes, int expected_len) {
+static bool verify_single_instruction(enum opcode oc, asm_operand *op1, asm_operand *op2, char *expected_bytes, int expected_len) {
     mempool *mp = new_mempool();
 
     asm_instruction *instr;
@@ -165,7 +165,7 @@ static bool verify_single_instruction(enum opcode oc, struct asm_operand *op1, s
 
     buffer *b = new_buffer();
     reloc_list *relocs = new_reloc_list();
-    x86_encoder *enc = new_x86_encoder(mp, CPU_MODE_PROTECTED, b, relocs);
+    x86_encoder *enc = new_x86_encoder(mp, b, relocs);
     if (!enc->encode_v4(enc, instr)) {
         printf("  Could not encode instruction '%s'\n", s->buffer);
         enc->free(enc);
@@ -307,7 +307,7 @@ static bool verify_single_instruction(enum opcode oc, struct asm_operand *op1, s
 // }
 
 
-static bool _test_encode_listing_code(asm_listing *lst, obj_code *mod, enum x86_cpu_mode mode);
+static bool _test_encode_listing_code(asm_listing *lst, obj_code *mod);
 static bool _test_link_module(obj_code *mod, u64 code_base_address, char *filename);
 
 void test_create_hello_world_executable2() {
@@ -332,7 +332,7 @@ void test_create_hello_world_executable2() {
     lst->ops->print(lst, stdout);
 
     // now we need an assembler to convert the asm_listing into a mod code + labels + relocs
-    if (!_test_encode_listing_code(lst, mod, CPU_MODE_PROTECTED))
+    if (!_test_encode_listing_code(lst, mod))
         return;
 
     printf("Prepared obj_code:\n");
@@ -343,18 +343,19 @@ void test_create_hello_world_executable2() {
         return;
 }
 
-static bool _test_encode_listing_code(asm_listing *lst, obj_code *mod, enum x86_cpu_mode mode) {
+static bool _test_encode_listing_code(asm_listing *lst, obj_code *mod) {
     // encode this into intel machine code
     mempool *mp = new_mempool();
-    struct x86_encoder *enc = new_x86_encoder(mp, mode, mod->text->contents, mod->text->relocations);
+    struct x86_encoder *enc = new_x86_encoder(mp, mod->text->contents, mod->text->relocations);
     struct asm_instruction *inst;
 
-    for_list(lst->asm_lines, asm_line, line) {
+    for_list(lst->lines, asm_line, line) {
         inst = line->per_type.instruction;
 
-        if (inst->label != NULL) {
+        if (line->label != NULL) {
             // we don't know if this is exported for now
-            mod->text->symbols->add(mod->text->symbols, inst->label, mod->text->contents->length, 0, ST_FUNCTION, false);
+            mod->text->symbols->add(mod->text->symbols, str_charptr(line->label), 
+                mod->text->contents->length, 0, ST_FUNCTION, false);
         }
 
         if (!enc->encode_v4(enc, inst)) {
@@ -441,7 +442,7 @@ static void test_create_hello_world_executable3() {
 
     obj_code *c = new_obj_code();
     c->vt->declare_data(c, "hello_msg", 13 + 1, "Hello World!\n");
-    x86_encode_asm_into_machine_code(mp, l, CPU_MODE_PROTECTED, c);
+    assemble_listing_into_i386_code(mp, l, c);
 
     // link into executable
     // list *modules = new_list();

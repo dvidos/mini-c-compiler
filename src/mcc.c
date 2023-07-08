@@ -21,6 +21,7 @@
 #include "compiler/analysis/analysis.h"
 #include "compiler/codegen/codegen.h"
 #include "compiler/codegen/ir_listing.h"
+#include "assembler/ir_to_asm_converter.h"
 #include "assembler/assembler.h"
 #include "assembler/encoder/asm_listing.h"
 #include "assembler/encoder/encoder.h"
@@ -189,7 +190,7 @@ static void process_one_file(mempool *mp, file_run_info *fi) {
     // then a linker that,     given the machine code generates the executable (executable file)
 
     asm_listing *asm_list = new_asm_listing(mp);
-    x86_assemble_ir_listing(mp, ir_listing, asm_list);
+    convert_ir_listing_to_asm_listing(mp, ir_listing, asm_list);
     if (errors_count)
         return;
 
@@ -217,7 +218,7 @@ static void process_one_file(mempool *mp, file_run_info *fi) {
     cod->vt->set_name(cod, mod_name);
     free(mod_name);
 
-    x86_encode_asm_into_machine_code(mp, asm_list, CPU_MODE_PROTECTED, cod);
+    assemble_listing_into_i386_code(mp, asm_list, cod);
     if (errors_count)
         return;
 
@@ -241,7 +242,7 @@ static void process_one_file(mempool *mp, file_run_info *fi) {
     // prepare a real module, like real men do.
     obj_module *mod = new_obj_module(mp);
     mod->name = fi->source_filename;
-    encode_asm_listing_into_machine_code_x86_64(mp, asm_list, mod);
+    assemble_listing_into_x86_64_code(mp, asm_list, mod);
     if (errors_count)
         return;
     fi->module = mod;

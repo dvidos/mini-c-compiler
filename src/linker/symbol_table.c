@@ -5,7 +5,7 @@
 #include "symbol_table.h"
 
 static void _clear(symbol_table *table);
-static void _add(symbol_table *table, char *name, u64 address, u64 size, enum symbol_type type, bool global);
+static void _add(symbol_table *table, const char *name, u64 address, u64 size, enum symbol_type type, bool global);
 static struct symbol_entry *_find(symbol_table *table, char *name);
 static void _print(symbol_table *table);
 static void _offset(symbol_table *table, long offset);
@@ -38,7 +38,7 @@ static void _ensure_capacity(symbol_table *table, int capacity) {
     }
 }
 
-static void _add(symbol_table *table, char *name, u64 address, u64 size, enum symbol_type type, bool global) {
+static void _add(symbol_table *table, const char *name, u64 address, u64 size, enum symbol_type type, bool global) {
     _ensure_capacity(table, table->length + 1);
 
     struct symbol_entry *sym = &table->symbols[table->length];

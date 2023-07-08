@@ -4,6 +4,12 @@
 #include "../../utils/string.h"
 #include "../../utils/data_structs.h"
 
+typedef struct asm_operand asm_operand;
+typedef struct asm_instruction asm_instruction;
+typedef struct asm_line asm_line;
+typedef struct asm_named_definition asm_named_definition;
+typedef struct asm_data_definition asm_data_definition;
+
 
 enum operand_type {
     OT_NONE = 0,              // this operand is not to be used
@@ -72,7 +78,7 @@ enum opcode {
     OC_INT,
 };
 
-typedef struct asm_instruction {
+struct asm_instruction {
     char *label;
     enum opcode operation; // ADD, SUB, etc. no sign cognizance
     int operands_size_bits; // 8,16,32,64 (width bit for 8bits, 0x66 prefix for 16bits)
@@ -107,24 +113,25 @@ typedef struct asm_instruction {
             enum gp_reg reg;
         } per_type;
     } operand2; 
-} asm_instruction;
+};
 
 
 char *gp_reg_name(enum gp_reg r); // don't free the returned string
 char *opcode_name(enum opcode code); // don't free the returned string
 
 asm_instruction *new_asm_instruction(enum opcode op);
-asm_instruction *new_asm_instruction_with_operand(enum opcode op, struct asm_operand *target);
-asm_instruction *new_asm_instruction_with_operands(enum opcode op, struct asm_operand *target, struct asm_operand *source);
+asm_instruction *new_asm_instruction_with_operand(enum opcode op, asm_operand *target);
+asm_instruction *new_asm_instruction_with_operands(enum opcode op, asm_operand *target, asm_operand *source);
 asm_instruction *new_asm_instruction_for_reserving_stack_space(int size);
 asm_instruction *new_asm_instruction_for_register(enum opcode op, enum gp_reg gp_reg);
 asm_instruction *new_asm_instruction_for_registers(enum opcode op, enum gp_reg target_reg, enum gp_reg source_reg);
 
 void asm_instruction_to_str(asm_instruction *instr, string *str, bool with_comment);
 
-typedef struct asm_named_definition {
+// for section name, .global, .extern etc
+struct asm_named_definition {
     str *name;
-} asm_named_definition;
+};
 
 typedef enum data_size {
     DATA_BYTE,
@@ -133,15 +140,16 @@ typedef enum data_size {
     DATA_QWORD
 } data_size;
 
-typedef struct asm_data_definition {
+struct asm_data_definition {
     str *name;
     int length_units;     // in units e.g. 24 bytes, 3 words etc.
     data_size unit_size;  // e.g. operand size (used to define scale in ModRmReg)
     int length_bytes;     // in bytes
     bin *initial_value;   // in bytes
-} asm_data_definition;
+};
 
 enum asm_line_type {
+    ALT_EMPTY,     // e.g. empty line or single comment
     ALT_SECTION,  // e.g. ".section data"
     ALT_EXTERN,   // e.g. ".extern <name>"
     ALT_GLOBAL,   // e.g. ".global <name>"
@@ -149,14 +157,15 @@ enum asm_line_type {
     ALT_INSTRUCTION,  // MOV RAX, 0x1234
 };
 
+// e.g. see https://en.wikibooks.org/wiki/X86_Assembly/NASM_Syntax#Hello_World_(Linux)
 typedef struct asm_line {
     str *label;
+    str *comment;
     enum asm_line_type type;
     union {
         asm_named_definition *named_definition;
         asm_data_definition *data_definition;
         asm_instruction *instruction;
     } per_type;
-    str *comment;
 } asm_line;
 

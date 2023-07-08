@@ -1,4 +1,4 @@
-#include "asm_instruction.h"
+#include "asm_line.h"
 
 /*
     Based on http://aturing.umcs.maine.edu/~meadow/courses/cos335/Asm07-MachineLanguage.pdf

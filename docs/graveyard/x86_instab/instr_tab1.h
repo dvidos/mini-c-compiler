@@ -1,5 +1,5 @@
 #pragma once
-#include "asm_instruction.h"
+#include "asm_line.h"
 
 enum operand_type {
     NONE = 0,

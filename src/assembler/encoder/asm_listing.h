@@ -2,17 +2,17 @@
 #include <stdio.h>
 #include <stdbool.h>
 #include "../../utils/data_structs.h"
-#include "asm_instruction.h"
+#include "asm_line.h"
 
 typedef struct asm_listing asm_listing;
 struct asm_listing_ops;
 
 typedef struct asm_listing {
-    char *next_label;
-    char *next_comment;
+    str *next_label;
+    str *next_comment;
 
     mempool *mempool;
-    llist *asm_lines; // item is asm_line
+    llist *lines; // item is asm_line
 
     struct asm_listing_ops *ops;
 } asm_listing;
@@ -26,8 +26,8 @@ struct asm_listing_ops {
 };
 
 asm_listing *new_asm_listing(mempool *mp);
-struct asm_operand *new_asm_operand_imm(int value);
-struct asm_operand *new_asm_operand_reg(enum gp_reg reg_no);
-struct asm_operand *new_asm_operand_mem_by_sym(char *symbol_name);
-struct asm_operand *new_asm_operand_mem_by_reg(enum gp_reg reg_no, int offset);
+asm_operand *new_asm_operand_imm(int value);
+asm_operand *new_asm_operand_reg(enum gp_reg reg_no);
+asm_operand *new_asm_operand_mem_by_sym(char *symbol_name);
+asm_operand *new_asm_operand_mem_by_reg(enum gp_reg reg_no, int offset);
 

@@ -1,15 +1,15 @@
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include "asm_instruction.h"
+#include "asm_line.h"
 #include "../../run_info.h"
 #include "../../err_handler.h"
 
 
-static void append_operand_instruction(struct asm_operand *op, char *buffer, int buff_size);
+static void append_operand_instruction(asm_operand *op, char *buffer, int buff_size);
 
 
-static void append_operand_instruction(struct asm_operand *op, char *buffer, int buff_size) {
+static void append_operand_instruction(asm_operand *op, char *buffer, int buff_size) {
     char *pos = buffer + strlen(buffer);
     int len = buff_size - strlen(buffer);
 
@@ -88,7 +88,7 @@ asm_instruction *new_asm_instruction(enum opcode op) {
     return p;
 }
 
-asm_instruction *new_asm_instruction_with_operand(enum opcode op, struct asm_operand *target) {
+asm_instruction *new_asm_instruction_with_operand(enum opcode op, asm_operand *target) {
 
     asm_instruction *o = new_asm_instruction(op);
     
@@ -117,7 +117,7 @@ asm_instruction *new_asm_instruction_with_operand(enum opcode op, struct asm_ope
     return o;
 }
 
-asm_instruction *new_asm_instruction_with_operands(enum opcode op, struct asm_operand *target, struct asm_operand *source) {
+asm_instruction *new_asm_instruction_with_operands(enum opcode op, asm_operand *target, asm_operand *source) {
 
     // operations memory to memory, or any to immediate, are not supported
     if ((source->type == OT_MEM_OF_SYMBOL || source->type == OT_MEM_POINTED_BY_REG) &&
@@ -138,8 +138,8 @@ asm_instruction *new_asm_instruction_with_operands(enum opcode op, struct asm_op
     // mem        reg        mem (tv)   reg (sv)    op2 to op1
     // mem        imm        mem (tv)   imm (sv)    op2 to op1
 
-    struct asm_operand *operand1;
-    struct asm_operand *operand2;
+    asm_operand *operand1;
+    asm_operand *operand2;
     bool dir_1_to_2;
     if (target->type == OT_REGISTER && 
         (source->type == OT_MEM_OF_SYMBOL || source->type == OT_MEM_POINTED_BY_REG)) {

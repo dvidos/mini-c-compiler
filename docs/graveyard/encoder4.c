@@ -1,6 +1,6 @@
 #include <string.h>
 #include "encoder4.h"
-#include "asm_instruction.h"
+#include "asm_line.h"
 #include "encoding_info.h"
 #include "encoded_instruction.h"
 

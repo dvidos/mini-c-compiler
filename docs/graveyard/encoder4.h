@@ -1,7 +1,7 @@
 #pragma once
 #include <stdio.h>
 #include <stdbool.h>
-#include "asm_instruction.h"
+#include "asm_line.h"
 #include "encoded_instruction.h"
 #include "encoding_info.h"
 

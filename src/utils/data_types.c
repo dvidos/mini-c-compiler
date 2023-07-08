@@ -531,7 +531,7 @@ str *str_load_file(str *filename, mempool *mp) {
 }
 
 const char *str_charptr(str *s) {
-    return s->buff;
+    return s == NULL ? NULL : s->buff;
 }
 
 str *str_change_extension(str *filename, char *new_extension) {

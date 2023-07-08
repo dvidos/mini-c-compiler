@@ -2,10 +2,6 @@
 
 
 static bool _encode_old(struct x86_encoder *enc, struct asm_instruction_old *instr) {
-    if (enc->mode != CPU_MODE_PROTECTED) {
-        return false;
-    }
-
     switch (instr->opcode) {
         case OC_NOP:
             enc->output->add_byte(enc->output, 0x90); // simplest case

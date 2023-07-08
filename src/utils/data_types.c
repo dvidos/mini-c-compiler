@@ -357,6 +357,32 @@ void str_cats(str *s1, char *s2) {
     s1->length += strlen(s2);
 }
 
+void str_catf(str *s, char *format, ...) {
+    mempool *scratch = new_mempool();
+    int buff_size = 128; // for start
+    char *buff;
+    va_list args;
+
+    while (true) {
+        buff = mempool_alloc(scratch, buff_size, "new_strf buff");
+        memset(buff, 0, sizeof(buff));
+
+        va_start(args, format);
+        vsnprintf(buff, buff_size - 1, format, args);
+        va_end(args);
+
+        // if buffer was sufficiently big, we are done here!
+        if (strlen(buff) < buff_size - 2)
+            break;
+        
+        // buffer was exhausted, we need a bigger buffer
+        buff_size *= 2;
+    }
+
+    str_cats(s, buff);
+    mempool_release(scratch);
+}
+
 void str_catc(str *s, char c) {
     if (c == '\0')
         return;

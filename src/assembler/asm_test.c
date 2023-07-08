@@ -6,9 +6,9 @@
 #include "../utils/buffer.h"
 #include "../linker/symbol_table.h"
 #include "../linker/obj_code.h"
-#include "encoder/asm_line.h"
 #include "encoder/encoder.h"
-#include "encoder/asm_listing.h"
+#include "asm_line.h"
+#include "asm_listing.h"
 #include "assembler.h"
 #include "../linker/linker.h"
 #include "../elf/elf_contents.h"
@@ -160,22 +160,21 @@ static bool verify_single_instruction(enum opcode oc, asm_operand *op1, asm_oper
     else if (op1 != NULL && op2 != NULL)
         instr = new_asm_instruction_with_operands(oc, op1, op2);
 
-    string *s = new_string();
+    str *s = new_str(mp, NULL);
     asm_instruction_to_str(instr, s, false);
 
     buffer *b = new_buffer();
     reloc_list *relocs = new_reloc_list();
     x86_encoder *enc = new_x86_encoder(mp, b, relocs);
     if (!enc->encode_v4(enc, instr)) {
-        printf("  Could not encode instruction '%s'\n", s->buffer);
+        printf("  Could not encode instruction '%s'\n", str_charptr(s));
         enc->free(enc);
-        s->v->free(s);
         return false;
     }
 
     if (memcmp(b->buffer, expected_bytes, expected_len) != 0) {
         printf("\n");
-        printf("  Bad instruction encoding '%s'\n", s->buffer);
+        printf("  Bad instruction encoding '%s'\n", str_charptr(s));
         printf("  Expected:");
         for (int i = 0; i < expected_len; i++)
             printf(" %02x", (u8)expected_bytes[i]);
@@ -184,12 +183,10 @@ static bool verify_single_instruction(enum opcode oc, asm_operand *op1, asm_oper
         for (int i = 0; i < b->length; i++)
             printf(" %02x", (u8)b->buffer[i]);
         printf("\n");
-        s->v->free(s);
         b->free(b);
         return false;
     }
 
-    s->v->free(s);
     b->free(b);
     printf(".");
     return true;
@@ -359,10 +356,10 @@ static bool _test_encode_listing_code(asm_listing *lst, obj_code *mod) {
         }
 
         if (!enc->encode_v4(enc, inst)) {
-            string *s = new_string();
+            str *s = new_str(mp, NULL);
             asm_instruction_to_str(inst, s, false);
-            printf("Failed encoding instruction: '%s'\n", s->buffer);
-            s->v->free(s);
+            printf("Failed encoding instruction: '%s'\n", str_charptr(s));
+            mempool_release(mp);
             return false;
         }
     }

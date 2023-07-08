@@ -37,13 +37,13 @@ SRC_FILES = \
 	compiler/codegen/ir_value.c \
 	compiler/codegen/ir_entry.c \
 	compiler/codegen/ir_listing.c \
-	assembler/ir_to_asm_converter.c \
 	assembler/encoder/encoder.c \
-	assembler/encoder/asm_line.c \
-	assembler/encoder/asm_listing.c \
 	assembler/encoder/asm_allocator.c \
 	assembler/encoder/encoded_instruction.c \
 	assembler/encoder/encoding_info.c \
+	assembler/ir_to_asm_converter.c \
+	assembler/asm_line.c \
+	assembler/asm_listing.c \
 	assembler/assembler.c \
 	assembler/asm_test.c \
 	elf/elf64_contents.c \

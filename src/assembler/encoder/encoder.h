@@ -1,12 +1,12 @@
 #pragma once
 #include <stdbool.h>
 #include "encoder.h"
-#include "asm_line.h"
+#include "../asm_line.h"
 #include "../../utils/buffer.h"
 #include "../../utils/data_structs.h"
 #include "../../linker/reloc_list.h"
 #include "../../linker/obj_code.h"
-#include "asm_listing.h"
+#include "../asm_listing.h"
 #include "encoded_instruction.h"
 #include "encoding_info.h"
 

@@ -1,15 +1,54 @@
 #pragma once
 #include <stdint.h>
 #include <stdbool.h>
-#include "../../utils/string.h"
-#include "../../utils/data_structs.h"
+#include "../utils/data_structs.h"
 
-typedef struct asm_operand asm_operand;
-typedef struct asm_instruction asm_instruction;
 typedef struct asm_line asm_line;
 typedef struct asm_named_definition asm_named_definition;
 typedef struct asm_data_definition asm_data_definition;
+typedef struct asm_instruction asm_instruction;
+typedef struct asm_operand asm_operand;
 
+enum asm_line_type {
+    ALT_EMPTY,     // e.g. empty line or single comment
+    ALT_SECTION,  // e.g. ".section data"
+    ALT_EXTERN,   // e.g. ".extern <name>"
+    ALT_GLOBAL,   // e.g. ".global <name>"
+    ALT_DATA,     // e.g. "<name:> db, dw, dd, dq <name> value [, value [,...]]"
+    ALT_INSTRUCTION,  // MOV RAX, 0x1234
+};
+
+// e.g. see https://en.wikibooks.org/wiki/X86_Assembly/NASM_Syntax#Hello_World_(Linux)
+struct asm_line {
+    str *label;
+    str *comment;
+    enum asm_line_type type;
+    union {
+        asm_named_definition *named_definition;
+        asm_data_definition *data_definition;
+        asm_instruction *instruction;
+    } per_type;
+};
+
+// for section name, .global, .extern etc
+struct asm_named_definition {
+    str *name;
+};
+
+enum data_size {
+    DATA_BYTE,
+    DATA_WORD,
+    DATA_DWORD,
+    DATA_QWORD
+};
+
+struct asm_data_definition {
+    str *name;
+    int length_units;     // in units e.g. 24 bytes, 3 words etc.
+    enum data_size unit_size;  // e.g. operand size (used to define scale in ModRmReg)
+    int length_bytes;     // in bytes
+    bin *initial_value;   // in bytes
+};
 
 enum operand_type {
     OT_NONE = 0,              // this operand is not to be used
@@ -115,9 +154,13 @@ struct asm_instruction {
     } operand2; 
 };
 
-
 char *gp_reg_name(enum gp_reg r); // don't free the returned string
 char *opcode_name(enum opcode code); // don't free the returned string
+
+asm_operand *new_asm_operand_imm(int value);
+asm_operand *new_asm_operand_reg(enum gp_reg reg_no);
+asm_operand *new_asm_operand_mem_by_sym(char *symbol_name);
+asm_operand *new_asm_operand_mem_by_reg(enum gp_reg reg_no, int offset);
 
 asm_instruction *new_asm_instruction(enum opcode op);
 asm_instruction *new_asm_instruction_with_operand(enum opcode op, asm_operand *target);
@@ -126,46 +169,7 @@ asm_instruction *new_asm_instruction_for_reserving_stack_space(int size);
 asm_instruction *new_asm_instruction_for_register(enum opcode op, enum gp_reg gp_reg);
 asm_instruction *new_asm_instruction_for_registers(enum opcode op, enum gp_reg target_reg, enum gp_reg source_reg);
 
-void asm_instruction_to_str(asm_instruction *instr, string *str, bool with_comment);
+void asm_instruction_to_str(asm_instruction *instr, str *str, bool with_comment);
 
-// for section name, .global, .extern etc
-struct asm_named_definition {
-    str *name;
-};
 
-typedef enum data_size {
-    DATA_BYTE,
-    DATA_WORD,
-    DATA_DWORD,
-    DATA_QWORD
-} data_size;
-
-struct asm_data_definition {
-    str *name;
-    int length_units;     // in units e.g. 24 bytes, 3 words etc.
-    data_size unit_size;  // e.g. operand size (used to define scale in ModRmReg)
-    int length_bytes;     // in bytes
-    bin *initial_value;   // in bytes
-};
-
-enum asm_line_type {
-    ALT_EMPTY,     // e.g. empty line or single comment
-    ALT_SECTION,  // e.g. ".section data"
-    ALT_EXTERN,   // e.g. ".extern <name>"
-    ALT_GLOBAL,   // e.g. ".global <name>"
-    ALT_DATA,     // e.g. "<name:> db, dw, dd, dq <name> value [, value [,...]]"
-    ALT_INSTRUCTION,  // MOV RAX, 0x1234
-};
-
-// e.g. see https://en.wikibooks.org/wiki/X86_Assembly/NASM_Syntax#Hello_World_(Linux)
-typedef struct asm_line {
-    str *label;
-    str *comment;
-    enum asm_line_type type;
-    union {
-        asm_named_definition *named_definition;
-        asm_data_definition *data_definition;
-        asm_instruction *instruction;
-    } per_type;
-} asm_line;
 

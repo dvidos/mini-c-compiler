@@ -3,7 +3,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
-#include "../../utils/data_structs.h"
+#include "../utils/data_structs.h"
 #include "asm_line.h"
 #include "asm_listing.h"
 
@@ -36,39 +36,9 @@ asm_listing *new_asm_listing(mempool *mp) {
     return l;
 }
 
-// for working with specific values, e.g. SUB SP, <bytes>
-asm_operand *new_asm_operand_imm(int value) {
-    asm_operand *op = malloc(sizeof(asm_operand));
-    op->type = OT_IMMEDIATE;
-    op->immediate = value;
-    return op;
-}
-
-// for handling specific registers, e.g. BP, SP, AX
-asm_operand *new_asm_operand_reg(enum gp_reg gp_reg_no) {
-    asm_operand *op = malloc(sizeof(asm_operand));
-    op->type = OT_REGISTER;
-    op->reg = gp_reg_no;
-    return op;
-}
-
-asm_operand *new_asm_operand_mem_by_sym(char *symbol_name) {
-    asm_operand *op = malloc(sizeof(asm_operand));
-    op->type = OT_MEM_OF_SYMBOL;
-    op->symbol_name = strdup(symbol_name);
-    return op;
-}
-
-asm_operand *new_asm_operand_mem_by_reg(enum gp_reg gp_reg_no, int offset) {
-    asm_operand *op = malloc(sizeof(asm_operand));
-    op->type = OT_MEM_POINTED_BY_REG;
-    op->reg = gp_reg_no;
-    op->offset = offset;
-    return op;
-}
-
 static void asm_listing_print(asm_listing *lst, FILE *stream) {
-    string *str = new_string();
+    mempool *mp = new_mempool();
+    str *s = new_str(mp, NULL);
     
     struct asm_instruction *inst;
 
@@ -78,16 +48,16 @@ static void asm_listing_print(asm_listing *lst, FILE *stream) {
         
         inst = line->per_type.instruction;
 
-        asm_instruction_to_str(inst, str, true);
-        fprintf(stream, "    %s\n", str->buffer);
-        str->v->clear(str);
+        asm_instruction_to_str(inst, s, true);
+        fprintf(stream, "    %s\n", str_charptr(s));
+        str_clear(s);
 
         // perhaps allow some space between functions?
         if (inst->operation == OC_RET)
             fprintf(stream, "\n\n");
     }
 
-    str->v->free(str);
+    mempool_release(mp);
 }
 
 static void asm_listing_set_next_label(asm_listing *lst, char *label, ...) {

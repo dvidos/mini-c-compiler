@@ -2,9 +2,10 @@
 #include <stdint.h>
 #include <string.h>
 #include "../../err_handler.h"
+#include "../../utils/data_types.h"
 #include "../../linker/obj_code.h"
+#include "../asm_listing.h"
 #include "encoder.h"
-#include "asm_listing.h"
 #include "encoded_instruction.h"
 #include "encoding_info.h"
 
@@ -40,7 +41,8 @@ struct x86_encoder *new_x86_encoder(mempool *mp, buffer *code_out, reloc_list *r
 
 static bool _encode_v4(x86_encoder *encoder, asm_instruction *instr) {
     struct encoding_info enc_info;
-    string *s;
+    mempool *mp = new_mempool();
+    str *s;
 
     if (!load_encoding_info(instr, &enc_info)) {
         error(NULL, 0, "Failed loading encoding info for operation '%s'\n", opcode_name(instr->operation));
@@ -49,11 +51,11 @@ static bool _encode_v4(x86_encoder *encoder, asm_instruction *instr) {
 
     encoded_instruction enc_instr;
     if (!encode_asm_instruction(instr, &enc_info, &enc_instr)) {
-        s = new_string();
+        str *s = new_str(mp, NULL);
         asm_instruction_to_str(instr, s, false);
-        error(NULL, 0, "Failed encoding instruction: '%s'\n", s->buffer);
-        s->v->free(s);
-        return false;;
+        error(NULL, 0, "Failed encoding instruction: '%s'\n", str_charptr(s));
+        mempool_release(mp);
+        return false;
     }
 
     // we have not solved for rellocations or symbol tables yet
@@ -61,13 +63,13 @@ static bool _encode_v4(x86_encoder *encoder, asm_instruction *instr) {
     pack_encoded_instruction(&enc_instr, encoder->output);
 
     // show the conversion
-    s = new_string();
+    s = new_str(mp, NULL);
     asm_instruction_to_str(instr, s, false);
-    printf("%-20s >> ", s->buffer);
-    s->v->clear(s);
+    printf("%-20s >> ", str_charptr(s));
+    str_clear(s);
     encoded_instruction_to_str(&enc_instr, s);
-    printf("%s >> ", s->buffer);
-    s->v->clear(s);
+    printf("%s >> ", str_charptr(s));
+    str_clear(s);
     for (int i = old_index; i < encoder->output->length; i++)
         printf(" %02x", (unsigned char)encoder->output->buffer[i]);
     printf("\n");

@@ -1,8 +1,7 @@
 #pragma once
+#include "../utils/mempool.h"
+#include "asm_listing.h"
 #include "../linker/obj_code.h"
-#include "../compiler/codegen/ir_listing.h"
-#include "encoder/asm_listing.h"
-#include "encoder/encoder.h"
 #include "../elf/obj_module.h"
 
 // given assembly, convert into machine code

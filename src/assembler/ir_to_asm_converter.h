@@ -3,7 +3,7 @@
 #include "../err_handler.h"
 #include "../run_info.h"
 #include "../compiler/codegen/ir_listing.h"
-#include "encoder/asm_listing.h"
+#include "asm_listing.h"
 #include "encoder/asm_allocator.h"
 
 // given an Intemediate Representation listing, generate an assembly listing.

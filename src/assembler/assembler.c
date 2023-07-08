@@ -6,12 +6,12 @@
 #include "../utils/string.h"
 #include "../compiler/codegen/ir_listing.h"
 #include "../linker/obj_code.h"
-#include "encoder/asm_listing.h"
 #include "encoder/encoding_info.h"
 #include "encoder/encoded_instruction.h"
 #include "encoder/encoder.h"
 #include "encoder/asm_allocator.h"
-#include "encoder/asm_line.h"
+#include "asm_line.h"
+#include "asm_listing.h"
 #include "../utils/string.h"
 #include "../utils/data_structs.h"
 #include "../elf/obj_module.h"
@@ -38,10 +38,9 @@ void assemble_listing_into_i386_code(mempool *mp, asm_listing *asm_list, obj_cod
             continue;
         
         if (!enc->encode_v4(enc, inst)) {
-            string *s = new_string();
+            str *s = new_str(mp, NULL);
             asm_instruction_to_str(inst, s, false);
-            error(NULL, 0, "Failed encoding instruction: '%s'\n", s->buffer);
-            s->v->free(s);
+            error(NULL, 0, "Failed encoding instruction: '%s'\n", str_charptr(s));
             continue;
         }
     }

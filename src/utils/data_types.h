@@ -63,6 +63,7 @@ str *str_padl(str *s, int len, char c);
 void str_cpy(str *s1, str *s2);
 void str_cat(str *s1, str *s2);
 void str_cats(str *s1, char *s2);
+void str_catf(str *s, char *format, ...);
 void str_catc(str *s, char c);
 int  str_cmp(str *s1, str *s2);
 int  str_cmps(str *s1, char *s2);

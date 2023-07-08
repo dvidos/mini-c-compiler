@@ -23,7 +23,7 @@
 #include "compiler/codegen/ir_listing.h"
 #include "assembler/ir_to_asm_converter.h"
 #include "assembler/assembler.h"
-#include "assembler/encoder/asm_listing.h"
+#include "assembler/asm_listing.h"
 #include "assembler/encoder/encoder.h"
 #include "elf/elf64_contents.h"
 #include "linker/linker.h"

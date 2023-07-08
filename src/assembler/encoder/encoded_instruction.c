@@ -39,7 +39,7 @@ void pack_encoded_instruction(encoded_instruction *inst, buffer *buff) {
         buff->add_mem(buff, inst->immediate, inst->immediate_bytes_count);
 }
 
-void encoded_instruction_to_str(encoded_instruction *inst, string *s) {
+void encoded_instruction_to_str(encoded_instruction *inst, str *s) {
 /*
     4 prefix bytes, 2 opcode bytes, modregrm, sib, 0-4 displacement, 0-4 immediate
 
@@ -51,8 +51,8 @@ void encoded_instruction_to_str(encoded_instruction *inst, string *s) {
     char buffer[128];
 
     if (inst == NULL) {
-        s->v->adds(s, "Ins Adr Opr Seg Opc     --ModR/M-- ---SIB----                        \n");
-        s->v->adds(s, "Pfx Siz Siz Ovr Pfx Opc Md Reg R/M SS Idx Bse Displacemnt Immediate  ");
+        str_cats(s, "Ins Adr Opr Seg Opc     --ModR/M-- ---SIB----                        \n");
+        str_cats(s, "Pfx Siz Siz Ovr Pfx Opc Md Reg R/M SS Idx Bse Displacemnt Immediate  ");
         return;
     }
     //                 0         1         2         3         4         5         6         7         8
@@ -138,5 +138,5 @@ void encoded_instruction_to_str(encoded_instruction *inst, string *s) {
         sprintf(num, "%02x", (unsigned char)inst->immediate[3]);
         memcpy(buffer + 67, num, 2);
     }
-    s->v->addf(s, "%s", buffer);
+    str_cats(s, buffer);
 }

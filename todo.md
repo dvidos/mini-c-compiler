@@ -2,11 +2,9 @@
 * ~~fix three address code assembly generation...~~
 * ~~implement the IR RETURN command to return a temp reg, to abstract away calling conventions~~
 * ~~asm encoding using the new instruction structure~~
-* make the first executable, damn it! <------ THIS
+* ~~make the first executable, damn it! <------ Done!~~
+* make x86_64 asm-to-machine-code encoder
 
-* save some symbols in elf, to help disassembly and debugging
-* find a way to save/load .o files, to allow read(), write(), exit()
-* make register names & capacities confront to size, e.g. AL, AX, EAX, RAX.
 * rename the assembler into something else (backend IR converter?) and rename the Encoder into Assembler.
 * convert AST to object-like ~~and implement print to file, file line numbers~~
 * convert assembler and allocator to real objects, instead of singletons

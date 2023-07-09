@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 #include "err_handler.h"
 #include "utils/unit_tests.h"
 #include "utils/data_types.h"
@@ -32,7 +33,7 @@
 #include "elf/elf_contents.h"
 
 
-static void perform_end_to_end_test();
+static bool perform_end_to_end_test();
 
 
 #ifdef INCLUDE_UNIT_TESTS
@@ -284,13 +285,71 @@ static void process_all_files(mempool *mp) {
     x86_64_link(obj_modules, obj_files, lib_files, 0x400000, executable);
 }
 
-static void perform_end_to_end_test() {
+static bool perform_end_to_end_test() {
     // try to run all the stages, checking at each level.
-    // we can start from the end, actually
-    // - preprocess -> .i file
-    // - compile -> .asm file
-    // - assemble -> .obj file
-    // - link -> elf file
+
+    mempool *mp = new_mempool();
+
+    llist *sources = new_llist(mp);
+    llist_add(sources, new_str(mp,
+        "char *message = \"Hello World\\n\";"
+        "void greeting();"
+        "int main() { greeting(); return 0; }"));
+    llist_add(sources, new_str(mp, 
+        "extern char *message;"
+        "void greeting() { print(message); }"));
+    
+    llist *token_lists = new_llist(mp);
+    for_list(sources, str, source) {
+        llist *tokens = NULL; // lexer_of_file(mp, source);
+        if (errors_count) return false;
+        llist_add(token_lists, tokens);
+    }
+
+    llist *module_asts = new_llist(mp);
+    for_list(token_lists, llist, tokens_list) {
+        ast_module_node *module_ast = NULL; // parse_tokens(mp, tokens_list);
+        if (errors_count) return false;
+        llist_add(module_asts, module_ast);
+    }
+
+    for_list(module_asts, ast_module_node, module_ast) {
+        // perform_semantic_analysis(mp, module_ast);
+        if (errors_count) return false;
+    }
+
+    llist *ir_listings = new_llist(mp);
+    for_list(module_asts, ast_module_node, module_ast) {
+        ir_listing *ir_lst = NULL; // generate_ir_code(mp, module_ast);
+        if (errors_count) return false;
+        llist_add(ir_listings, ir_lst);
+    }
+
+    llist *asm_listings = new_llist(mp);
+    for_list(ir_listings, ir_listing, ir_lst) {
+        asm_listing *asm_lst = NULL; // convert_ir_listing_to_asm_listing(mp, ir_lst);
+        if (errors_count) return false;
+        llist_add(asm_listings, asm_lst);
+    }
+
+    llist *obj_modules = new_llist(mp);
+    for_list(asm_listings, asm_listing, asm_lst) {
+        obj_module *obj = NULL; // assemble_listing_into_x86_64_code(mp, asm_lst);
+        if (errors_count) return false;
+        llist_add(obj_modules, obj);
+    }
+
+    llist *obj_paths = new_llist(mp);
+    llist *lib_paths = new_llist(mp);
+    str *executable_path = new_str(mp, "./end-to-end-test.out");
+    // x86_64_link(obj_modules, obj_paths, lib_paths, 0x400000, executable_path);
+    if (errors_count) return false;
+
+    int err_exit_code = system(str_charptr(executable_path));
+    if (err_exit_code) return false;
+
+    unlink(str_charptr(executable_path));
+    return true;
 }
 
 int main(int argc, char *argv[]) {
@@ -318,7 +377,8 @@ int main(int argc, char *argv[]) {
         perform_asm_test();
         return 0;
     } else if (run_info->options->e2e_test) {
-        perform_end_to_end_test();
+        bool passed = perform_end_to_end_test();
+        return passed ? 0 : 1;
     }
 
     if (run_info->options->filename == NULL || llist_is_empty(run_info->files)) {

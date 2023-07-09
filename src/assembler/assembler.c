@@ -142,5 +142,6 @@ void assemble_listing_into_x86_64_code(mempool *mp, asm_listing *asm_list, obj_m
     // to go back and resolve local relocations (e.g. if/else end labels)
     // these can be local jumps to offset relative to the end of the instruction,
     // or to function label + offset
+    // another way is to have local jumps as addendums from the start of the function
 }
 

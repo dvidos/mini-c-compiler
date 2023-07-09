@@ -76,6 +76,7 @@ bool str_save_file(str *s, str *filename);
 str *str_load_file(str *filename, mempool *mp);
 const char *str_charptr(str *s);
 str *str_change_extension(str *filename, char *new_extension);
+str *str_filename_only(str *path);
 
 // -------------------------------------------
 

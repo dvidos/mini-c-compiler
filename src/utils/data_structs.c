@@ -1,5 +1,6 @@
 #include <string.h>
 #include <stdlib.h>
+#include <stdarg.h>
 #include "unit_tests.h"
 #include "data_structs.h"
 #include "mempool.h"
@@ -251,6 +252,18 @@ llist *new_llist(mempool *mp) {
     memset(l, 0, sizeof(llist));
     l->mempool = mp;
     l->base_iterator = llist_create_iterator(l, mp);
+    return l;
+}
+
+llist *new_llist_of(mempool *mp, int num, ...) {
+    llist *l = new_llist(mp);
+    if (num > 0) {
+        va_list arguments;
+        va_start(arguments, num);
+        while (num-- > 0)
+            llist_add(l, va_arg(arguments, void *));
+        va_end(arguments);
+    }
     return l;
 }
 

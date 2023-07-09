@@ -582,6 +582,14 @@ str *str_change_extension(str *filename, char *new_extension) {
     return result;
 }
 
+str *str_filename_only(str *path) {
+    int pos = str_last_char_pos(path, '/');
+    if (pos == -1)
+        return path;
+
+    return str_substr(path, pos + 1, 1000);
+}
+
 #ifdef INCLUDE_UNIT_TESTS
 void str_unit_tests() {
     mempool *mp = new_mempool();

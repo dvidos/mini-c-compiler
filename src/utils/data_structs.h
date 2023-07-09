@@ -81,6 +81,7 @@ typedef struct llist llist;
         var = (type *)llist_iteration_next(list))
 
 llist *new_llist(mempool *mp);
+llist *new_llist_of(mempool *mp, int num, ...);
 int   llist_length(llist *l);
 bool  llist_is_empty(llist *l);
 void *llist_get(llist *l, int index);

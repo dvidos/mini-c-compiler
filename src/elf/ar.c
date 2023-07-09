@@ -12,7 +12,7 @@
 
 
 archive *ar_open(mempool *mp, str *filename) {
-    archive *a = mempool_alloc(mp, sizeof(archive), "archive");
+    archive *a = mpalloc(mp, archive);
     a->mempool = mp;
     a->filename = new_str(a->mempool, str_charptr(filename));
 
@@ -121,7 +121,7 @@ static archive_entry *get_entry_header_at(archive *a, size_t header_offset, bin 
     if (!load_entry_header_bytes(a, shortname, &offset, &size))
         return NULL;
     
-    archive_entry *e = mempool_alloc(mp, sizeof(archive_entry), "archive_entry");
+    archive_entry *e = mpalloc(mp, archive_entry);
     e->filename = resolve_entry_filename(shortname, long_names_table, mp);
     e->offset = offset;
     e->size = size;
@@ -188,7 +188,7 @@ llist *ar_get_symbols(archive *a, mempool *mp) {
             last_entry = get_entry_header_at(a, offset, long_names_table, mp);
         }
         
-        archive_symbol *s = mempool_alloc(mp, sizeof(archive_symbol), "archive_symbol");
+        archive_symbol *s = mpalloc(mp, archive_symbol);
         s->name = bin_str(symbols_table, name_offset, a->mempool);
         s->entry = last_entry;
 

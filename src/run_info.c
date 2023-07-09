@@ -18,7 +18,7 @@ void initialize_run_info(mempool *mp, int argc, char *argv[]) {
     run_info = &the_run_info;
     memset(run_info, 0, sizeof(prog_run_info));
     run_info->files = new_llist(mp);
-    run_info->options = mempool_alloc(mp, sizeof(prog_run_options), "prog_run_options");
+    run_info->options = mpalloc(mp, prog_run_options);
     memset(run_info->options, 0, sizeof(prog_run_options));
 
     parse_options(mp, argc, argv);
@@ -57,7 +57,7 @@ static void parse_options(mempool *mp, int argc, char *argv[]) {
 
         // first letter not a minus
         if (p[0] != '-') {
-            file_run_info *fi = mempool_alloc(mp, sizeof(file_run_info), "file_run_info");
+            file_run_info *fi = mpalloc(mp, file_run_info);
             fi->source_filename = new_str(mp, p);
             llist_add(run_info->files, fi);
 

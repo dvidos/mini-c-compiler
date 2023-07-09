@@ -19,7 +19,7 @@ struct queue {
 };
 
 queue *new_queue(mempool *mp) {
-    queue *q = mempool_alloc(mp, sizeof(queue), "queue");
+    queue *q = mpalloc(mp, queue);
     q->mempool = mp;
     return q;
 }
@@ -39,7 +39,7 @@ void queue_clear(queue *q) {
 }
 
 void queue_put(queue *q, void *item) {
-    queue_node *n = mempool_alloc(q->mempool, sizeof(queue_node), "queue_node");
+    queue_node *n = mpalloc(q->mempool, queue_node);
     n->item = item;
     n->next = NULL;
 
@@ -137,7 +137,7 @@ struct stack {
 };
 
 stack *new_stack(mempool *mp) {
-    stack *s = mempool_alloc(mp, sizeof(stack), "stack");
+    stack *s = mpalloc(mp, stack);
     s->mempool = mp;
     return s;
 }
@@ -156,7 +156,7 @@ void stack_clear(stack *s) {
 }
 
 void stack_push(stack *s, void *item) {
-    stack_node *n = mempool_alloc(s->mempool, sizeof(stack_node), "stack_node");
+    stack_node *n = mpalloc(s->mempool, stack_node);
     n->item = item;
     n->next = NULL;
 
@@ -247,7 +247,7 @@ struct llist {
 };
 
 llist *new_llist(mempool *mp) {
-    llist *l = mempool_alloc(mp, sizeof(llist), "llist");
+    llist *l = mpalloc(mp, llist);
     memset(l, 0, sizeof(llist));
     l->mempool = mp;
     l->base_iterator = llist_create_iterator(l, mp);
@@ -271,7 +271,7 @@ void *llist_get(llist *l, int index) {
 }
 
 void llist_add(llist *l, void *item) {
-    llist_node *n = mempool_alloc(l->mempool, sizeof(llist_node), "llist_node");
+    llist_node *n = mpalloc(l->mempool, llist_node);
     memset(n, 0, sizeof(llist_node));
     n->data = item;
 
@@ -328,7 +328,7 @@ bool llist_insert_at(llist *l, int index, void *item) {
 
     } else if (index == 0) {
         // index at the start
-        llist_node *new_node = mempool_alloc(l->mempool, sizeof(llist_node), "llist_node");
+        llist_node *new_node = mpalloc(l->mempool, llist_node);
         memset(new_node, 0, sizeof(llist_node));
         new_node->data = item;
         new_node->next = l->head;
@@ -339,7 +339,7 @@ bool llist_insert_at(llist *l, int index, void *item) {
 
     } else {
         // index in the middle
-        llist_node *new_node = mempool_alloc(l->mempool, sizeof(llist_node), "llist_node");
+        llist_node *new_node = mpalloc(l->mempool, llist_node);
         memset(new_node, 0, sizeof(llist_node));
         new_node->data = item;
         new_node->next = l->head;
@@ -404,7 +404,7 @@ void llist_clear(llist *l) {
 }
 
 llist *llist_reverse(llist *l) {
-    llist *new_list = mempool_alloc(l->mempool, sizeof(llist), "llist");
+    llist *new_list = mpalloc(l->mempool, llist);
     memset(new_list, 0, sizeof(llist));
     new_list->mempool = l->mempool;
     llist_node *n = l->tail;
@@ -450,7 +450,7 @@ llist *llist_sort(llist *l, comparator_function *compare, mempool *mp) {
     // allocate an array with all the pointers, then sort them, then create a new list
 
     mempool *scratch = new_mempool();
-    void **ptr_array = mempool_alloc(scratch, l->items_count * sizeof(void *), "llist_ptr_array");
+    void **ptr_array = mpallocn(scratch, l->items_count * sizeof(void *), "llist_ptr_array");
     llist_node *n = l->head;
     int i = 0;
     while (n != NULL) {
@@ -488,7 +488,7 @@ llist *llist_unique(llist *l, comparator_function *compare, mempool *mp) {
 }
 
 llist *llist_filter(llist *l, filterer_function *filter, mempool *mp) {
-    llist *new_list = mempool_alloc(mp, sizeof(llist), "llist");
+    llist *new_list = mpalloc(mp, llist);
     memset(new_list, 0, sizeof(llist));
     new_list->mempool = mp;
 
@@ -502,7 +502,7 @@ llist *llist_filter(llist *l, filterer_function *filter, mempool *mp) {
 }
 
 llist *llist_map(llist *l, mapper_function *map, mempool *mp) {
-    llist *new_list = mempool_alloc(l->mempool, sizeof(llist), "llist");
+    llist *new_list = mpalloc(l->mempool, llist);
     memset(new_list, 0, sizeof(llist));
     new_list->mempool = l->mempool;
 
@@ -560,11 +560,11 @@ void *llist_iteration_next(llist *l) {
 }
 
 iterator *llist_create_iterator(llist *l, mempool *mp) {
-    llist_iterator_private_state *it_state = mempool_alloc(mp, sizeof(llist_iterator_private_state), "llist_iterator_private_state");
+    llist_iterator_private_state *it_state = mpalloc(mp, llist_iterator_private_state);
     memset(it_state, 0, sizeof(llist_iterator_private_state));
     it_state->list = l;
 
-    iterator *it = mempool_alloc(mp, sizeof(iterator), "iterator");
+    iterator *it = mpalloc(mp, iterator);
     it->private_data = it_state;
     it->reset = llist_iterator_reset;
     it->valid = llist_iterator_valid;
@@ -587,14 +587,14 @@ static bool __llist_unit_test_filter(void *item) {
 }
 static void *__llist_unit_test_map(void *item, mempool *mp) {
     char *src = (char *)item;
-    char *dst = mempool_alloc(mp, strlen(src) * 2 + 4, "string mapping");
+    char *dst = mpallocn(mp, strlen(src) * 2 + 4, "string mapping");
     strcpy(dst, src);
     strcat(dst, "-");
     strcat(dst, src);
     return dst;
 }
 static void *__llist_unit_test_reduce(void *item, void *prev_value, mempool *mp) {
-    char *reduced = mempool_alloc(mp, strlen((char *)prev_value) + 1 + strlen((char *)item) + 1, "reduced value");
+    char *reduced = mpallocn(mp, strlen((char *)prev_value) + 1 + strlen((char *)item) + 1, "reduced value");
 
     strcpy(reduced, (char *)prev_value);
     if (strlen(reduced) > 0)
@@ -608,9 +608,9 @@ void llist_unit_tests() {
     mempool *mp = new_mempool();
     char *s;
 
-    void *a = mempool_alloc(mp, 4, "dummy data");
-    void *b = mempool_alloc(mp, 4, "dummy data");
-    void *c = mempool_alloc(mp, 4, "dummy data");
+    void *a = mpallocn(mp, 4, "dummy data");
+    void *b = mpallocn(mp, 4, "dummy data");
+    void *c = mpallocn(mp, 4, "dummy data");
     strcpy(a, "A");
     strcpy(b, "B");
     strcpy(c, "C");
@@ -843,7 +843,7 @@ struct bstree {
 };
 
 bstree *new_bstree(mempool *mp) {
-    bstree *t = mempool_alloc(mp, sizeof(bstree), "bstree");
+    bstree *t = mpalloc(mp, bstree);
     t->mempool = mp;
     return t;
 }
@@ -879,7 +879,7 @@ void *bstree_get(bstree *t, str *key) { // O(lg N) time complexity (1 million no
 }
 
 bool bstree_put(bstree *t, str *key, void *data) {
-    bstree_node *new_node = mempool_alloc(t->mempool, sizeof(bstree_node), "bstree_node");
+    bstree_node *new_node = mpalloc(t->mempool, bstree_node);
     memset(new_node, 0, sizeof(bstree_node));
     new_node->key = key;
     new_node->data = data;
@@ -1068,11 +1068,11 @@ static void *bstree_iterator_next(iterator *it) {
 }
 
 iterator *bstree_create_iterator(bstree *t, mempool *mp) {
-    bstree_iterator_private_state *it_state = mempool_alloc(mp, sizeof(bstree_iterator_private_state), "bstree_iterator_private_state");
+    bstree_iterator_private_state *it_state = mpalloc(mp, bstree_iterator_private_state);
     it_state->tree = t;
     it_state->stack = new_stack(mp);
 
-    iterator *it = mempool_alloc(mp, sizeof(iterator), "iterator");
+    iterator *it = mpalloc(mp, iterator);
     it->private_data = it_state;
     it->reset = bstree_iterator_reset;
     it->valid = bstree_iterator_valid;
@@ -1247,9 +1247,9 @@ struct hashtable {
 };
 
 hashtable *new_hashtable(mempool *mp, int capacity) {
-    hashtable *h = mempool_alloc(mp, sizeof(hashtable), "hashtable");
+    hashtable *h = mpalloc(mp, hashtable);
     h->capacity = capacity;
-    h->items_arr = (hashtable_node **)mempool_alloc(mp, capacity * sizeof(void *), "hashtable_items_arr");
+    h->items_arr = (hashtable_node **)mpallocn(mp, capacity * sizeof(void *), "hashtable_items_arr");
     h->mempool = mp;
     return h;
 }
@@ -1285,7 +1285,7 @@ void *hashtable_get(hashtable *h, str *key) { // O(1)
 }
 
 static hashtable_node *hashtable_create_node(hashtable *h, str *key, void *data) {
-    hashtable_node *node = mempool_alloc(h->mempool, sizeof(hashtable_node), "hashtable_node");
+    hashtable_node *node = mpalloc(h->mempool, hashtable_node);
     node->key = key;
     node->data = data;
     node->next = NULL;
@@ -1411,12 +1411,12 @@ static void *hashtable_iterator_next(iterator *it) {
 }
 
 iterator *hashtable_create_iterator(hashtable *h, mempool *mp) {
-    hashtable_iterator_private_state *it_state = mempool_alloc(mp, sizeof(hashtable_iterator_private_state), "hashtable_iterator_private_state");
+    hashtable_iterator_private_state *it_state = mpalloc(mp, hashtable_iterator_private_state);
     it_state->hashtable = h;
     it_state->curr_slot_no = -1;
     it_state->curr_node = NULL;
 
-    iterator *it = mempool_alloc(mp, sizeof(iterator), "iterator");
+    iterator *it = mpalloc(mp, iterator);
     it->private_data = it_state;
     it->reset = hashtable_iterator_reset;
     it->valid = hashtable_iterator_valid;

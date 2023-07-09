@@ -110,7 +110,7 @@ static bool add_participant_from_library(link2_info *info, link2_lib_module_id *
 }
 
 static void discover_library_contents(link2_info *info, str *library_path) {
-    link2_lib_info *lib_info = mempool_alloc(info->mempool, sizeof(link2_lib_info), "linker2_lib_info");
+    link2_lib_info *lib_info = mpalloc(info->mempool, link2_lib_info);
     lib_info->pathname = library_path;
     lib_info->archive = ar_open(info->mempool, library_path);
     if (lib_info->archive == NULL)
@@ -233,7 +233,7 @@ static link2_lib_module_id *find_lib_module_for_symbol(link2_info *info, str *na
         // see if this library contains this symbol
         int index = llist_find_first(lib_info->symbols, (comparator_function*)compare_archive_symbol_name, name);
         if (index >= 0) {
-            link2_lib_module_id *mid = mempool_alloc(info->mempool, sizeof(link2_lib_module_id), "linker2_lib_module_id");
+            link2_lib_module_id *mid = mpalloc(info->mempool, link2_lib_module_id);
             mid->lib_info = lib_info;
             mid->entry = ((archive_symbol *)llist_get(lib_info->symbols, index))->entry;
             return mid;
@@ -482,7 +482,7 @@ static bool do_link2(link2_info *info) {
 bool x86_64_link(llist *obj_modules, llist *obj_file_paths, llist *library_file_paths, u64 base_address, str *executable_path) {
     mempool *mp = new_mempool();
 
-    link2_info *info = mempool_alloc(mp, sizeof(link2_info), "link2_info");
+    link2_info *info = mpalloc(mp, link2_info);
     info->executable_path = executable_path;
     info->entry_point_name = new_str(mp, "_start");
     info->base_address = base_address;

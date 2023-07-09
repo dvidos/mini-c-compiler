@@ -25,7 +25,7 @@ static struct asm_listing_ops ops = {
 };
 
 asm_listing *new_asm_listing(mempool *mp) {
-    asm_listing *l = mempool_alloc(mp, sizeof(asm_listing), "asm_listing");
+    asm_listing *l = mpalloc(mp, asm_listing);
 
     l->lines = new_llist(mp);
     l->next_label = NULL;
@@ -101,7 +101,7 @@ static void asm_listing_add_comment(asm_listing *lst, char *comment, ...) {
 
 void asm_listing_add_instruction(asm_listing *lst, asm_instruction *instr) {
 
-    asm_line *line = mempool_alloc(lst->mempool, sizeof(asm_line), "asm_line");
+    asm_line *line = mpalloc(lst->mempool, asm_line);
     line->label = lst->next_label; // either null or not
     line->comment = lst->next_comment; // null or not
     line->type = ALT_INSTRUCTION;

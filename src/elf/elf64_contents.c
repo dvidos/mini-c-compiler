@@ -58,11 +58,11 @@ static bin *flatten_elf64_contents(elf64_contents *contents, mempool *mp);
 // --------------------------------------------------
 
 static elf64_section *elf64_contents_create_section(elf64_contents *contents, str *name, size_t type) {
-    elf64_section *s = mempool_alloc(contents->mempool, sizeof(elf64_section), "elf64_section");
+    elf64_section *s = mpalloc(contents->mempool, elf64_section);
 
     s->index = 0;
     s->name = name;
-    s->header = mempool_alloc(contents->mempool, sizeof(elf64_section_header), "elf64_section_header");
+    s->header = mpalloc(contents->mempool, elf64_section_header);
     s->header->type = type;
     s->contents = new_bin(contents->mempool);
     s->ops = &elf64_section_ops;
@@ -71,7 +71,7 @@ static elf64_section *elf64_contents_create_section(elf64_contents *contents, st
 }
 
 static elf64_prog_header *elf64_contents_create_prog_header(elf64_contents *contents) {
-    elf64_prog_header *h = mempool_alloc(contents->mempool, sizeof(elf64_prog_header), "elf64_prog_header");
+    elf64_prog_header *h = mpalloc(contents->mempool, elf64_prog_header);
     memset(h, 0, sizeof(elf64_prog_header));
     return h;
 }
@@ -275,7 +275,7 @@ static inline size_t round_up(size_t value, size_t granularity) {
 }
 
 static elf64_header *new_elf64_file_header(mempool *mp, bool executable, u64 entry_point) {
-    elf64_header *h = mempool_alloc(mp, sizeof(elf64_header), "elf64_header");
+    elf64_header *h = mpalloc(mp, elf64_header);
 
     memcpy(h->identity, "\177ELF", 4);
     h->identity[ELF_IDENTITY_CLASS] = ELF_CLASS_64;
@@ -301,7 +301,7 @@ static elf64_header *new_elf64_file_header(mempool *mp, bool executable, u64 ent
 }
 
 static elf64_section_header *new_elf64_section_header(int type, char *name, u64 flags, u64 file_offset, u64 size, u64 item_size, u64 link, u64 info, u64 virt_address, bin *sections_names_table, mempool *mp) {
-    elf64_section_header *h = mempool_alloc(mp, sizeof(elf64_section_header), "elf64_section_header");
+    elf64_section_header *h = mpalloc(mp, elf64_section_header);
 
     u64 name_offset = bin_len(sections_names_table);
     bin_add_mem(sections_names_table, name, strlen(name) + 1);
@@ -321,7 +321,7 @@ static elf64_section_header *new_elf64_section_header(int type, char *name, u64 
 }
 
 static elf64_prog_header *generate_prog_header(mempool *mp, size_t file_offset, size_t file_size, size_t mem_address, size_t mem_size, unsigned flags, unsigned align) {
-    elf64_prog_header *prog = mempool_alloc(mp, sizeof(elf64_prog_header), "elf64_prog_header");
+    elf64_prog_header *prog = mpalloc(mp, elf64_prog_header);
     memset(prog, 0, sizeof(elf64_prog_header));
 
     prog->type = PROG_TYPE_LOAD;
@@ -525,7 +525,7 @@ static bin *flatten_elf64_contents(elf64_contents *contents, mempool *mp) {
 // -------------------------------------------
 
 elf64_contents *new_elf64_contents(mempool *mp) {
-    elf64_contents *c = mempool_alloc(mp, sizeof(elf64_contents), "elf64_contents");
+    elf64_contents *c = mpalloc(mp, elf64_contents);
     c->header = new_elf64_file_header(mp, false, 0);
     c->sections = new_llist(mp);
     c->prog_headers = new_llist(mp);

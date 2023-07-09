@@ -52,8 +52,8 @@ static struct storage_allocator_ops ops = {
 
 asm_allocator *new_asm_allocator(mempool *mp, asm_listing *listing) {
 
-    asm_allocator *a = mempool_alloc(mp, sizeof(asm_allocator), "asm_allocator");
-    struct asm_allocator_data *data = mempool_alloc(mp, sizeof(struct asm_allocator_data), "asm_allocator_data");
+    asm_allocator *a = mpalloc(mp, asm_allocator);
+    struct asm_allocator_data *data = mpalloc(mp, struct asm_allocator_data);
     memset(data, 0, sizeof(struct asm_allocator_data));
 
     data->listing = listing;

@@ -19,7 +19,7 @@ static struct obj_module_ops module_ops = {
 
 
 obj_module *new_obj_module(mempool *mp) {
-    obj_module *m = mempool_alloc(mp, sizeof(obj_module), "obj_module");
+    obj_module *m = mpalloc(mp, obj_module);
     m->name = new_str(mp, "");
     m->sections = new_llist(mp);
 
@@ -178,7 +178,7 @@ static elf64_contents *obj_module_prepare_elf_contents(obj_module *module, int e
 // ---------------------------------------------------------------------------
 
 static obj_symbol *new_obj_symbol_from_elf_symbol(elf64_sym *sym, elf64_section *strtab, llist *sections, mempool *mp) {
-    obj_symbol *s = mempool_alloc(mp, sizeof(obj_symbol), "obj_symbol");
+    obj_symbol *s = mpalloc(mp, obj_symbol);
     s->name = new_str(mp, "");
 
     int type = ELF64_ST_TYPE(sym->st_info);
@@ -198,7 +198,7 @@ static obj_symbol *new_obj_symbol_from_elf_symbol(elf64_sym *sym, elf64_section 
 }
 
 static obj_relocation *new_obj_relocation_from_elf_relocation(elf64_rela *rel, elf64_section *symtab, elf64_section *strtab, llist *elf64_sections, mempool *mp) {
-    obj_relocation *r = mempool_alloc(mp, sizeof(obj_relocation), "obj_relocation");
+    obj_relocation *r = mpalloc(mp, obj_relocation);
 
     // find the symbol this relocation needs to resolve
     size_t sym_index = ELF64_R_SYM(rel->r_info);

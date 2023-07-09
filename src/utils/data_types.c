@@ -23,10 +23,10 @@ str *new_str(mempool *mp, const char *strz) {
     if (strz == NULL)
         strz = "";
     
-    str *s = mempool_alloc(mp, sizeof(str), "str");
+    str *s = mpalloc(mp, str);
     s->length = strlen(strz);
     s->capacity = s->length + 1;
-    s->buff = mempool_alloc(mp, s->capacity, "str_buff");
+    s->buff = mpallocn(mp, s->capacity, "str_buff");
     strcpy(s->buff, strz);
     s->mempool = mp;
 
@@ -37,9 +37,9 @@ str *new_str_from_mem(mempool *mp, const char *ptr, int length) {
     if (ptr == NULL)
         return new_str(mp, NULL);
     
-    str *s = mempool_alloc(mp, sizeof(str), "str");
+    str *s = mpalloc(mp, str);
     s->capacity = length + 1;
-    s->buff = mempool_alloc(mp, s->capacity, "str_buff");
+    s->buff = mpallocn(mp, s->capacity, "str_buff");
     s->length = length;
     memcpy(s->buff, ptr, length);
     s->buff[s->length] = '\0';
@@ -55,7 +55,7 @@ str *new_strf(mempool *mp, const char *format, ...) {
     va_list args;
 
     while (true) {
-        buff = mempool_alloc(scratch, buff_size, "new_strf buff");
+        buff = mpallocn(scratch, buff_size, "new_strf buff");
         memset(buff, 0, sizeof(buff));
 
         va_start(args, format);
@@ -79,11 +79,11 @@ str *new_strf(mempool *mp, const char *format, ...) {
 str *new_str_random(mempool *mp, int min_len, int max_len) {
     static const char allowed[] = "abcdefghijklmnopqrstuvwxyz0123456789";
 
-    str *s = mempool_alloc(mp, sizeof(str), "str");
+    str *s = mpalloc(mp, str);
 
     int len = min_len + rand() % (max_len - min_len + 1);
     s->capacity = len + 1;
-    s->buff = mempool_alloc(mp, s->capacity, "str_buff");
+    s->buff = mpallocn(mp, s->capacity, "str_buff");
     for (int i = 0; i < len; i++)
         s->buff[i] = allowed[rand() % (sizeof(allowed) - 1)];
     s->buff[len] = '\0';
@@ -103,7 +103,7 @@ static void str_ensure_capacity(str *s, int needed_capacity) {
         new_capacity *= 2;
     
     // emulate realloc
-    char *new_buff = mempool_alloc(s->mempool, new_capacity, "more str.buff");
+    char *new_buff = mpallocn(s->mempool, new_capacity, "more str.buff");
     strcpy(new_buff, s->buff);
     s->capacity = new_capacity;
     s->buff = new_buff;
@@ -364,7 +364,7 @@ void str_catf(str *s, char *format, ...) {
     va_list args;
 
     while (true) {
-        buff = mempool_alloc(scratch, buff_size, "new_strf buff");
+        buff = mpallocn(scratch, buff_size, "new_strf buff");
         memset(buff, 0, sizeof(buff));
 
         va_start(args, format);
@@ -830,7 +830,7 @@ void str_unit_tests() {
 
     // save, load
     char *text = "i am a string, as long as can be, \n is there room in the file, for a string like me? \n";
-    char *fname = mempool_alloc(mp, 50, "fname");
+    char *fname = mpallocn(mp, 50, "fname");
     strcpy(fname, "/tmp/temp_XXXXXX");
     mkstemp(fname);
     s = new_str(mp, text);
@@ -860,11 +860,11 @@ typedef struct bin {
 } bin;
 
 bin *new_bin(mempool *mp) {
-    bin *b = mempool_alloc(mp, sizeof(bin), "binary");
+    bin *b = mpalloc(mp, bin);
     memset(b, 0, sizeof(bin));
 
     b->capacity = 16;
-    b->buffer = mempool_alloc(mp, b->capacity, "binary buffer");
+    b->buffer = mpallocn(mp, b->capacity, "binary buffer");
     b->length = 0;
     b->position = 0;
     b->mempool = mp;
@@ -880,16 +880,16 @@ static void bin_ensure_capacity(bin *b, size_t capacity) {
         b->capacity *= 2;
     
     char *old_buffer = b->buffer;
-    b->buffer = mempool_alloc(b->mempool, b->capacity, "binary buffer");
+    b->buffer = mpallocn(b->mempool, b->capacity, "binary buffer");
     memcpy(b->buffer, old_buffer, b->length);
 }
 
 bin *new_bin_from_mem(mempool *mp, char *address, size_t size) {
-    bin *b = mempool_alloc(mp, sizeof(bin), "binary");
+    bin *b = mpalloc(mp, bin);
     memset(b, 0, sizeof(bin));
 
     b->capacity = size;
-    b->buffer = mempool_alloc(mp, b->capacity, "binary buffer");
+    b->buffer = mpallocn(mp, b->capacity, "binary buffer");
     memcpy(b->buffer, address, size);
     b->length = size;
     b->position = 0;
@@ -906,11 +906,11 @@ bin *new_bin_from_file(mempool *mp, str *filename) {
     size_t file_length = ftell(f);
     fseek(f, 0, SEEK_SET);
 
-    bin *b = mempool_alloc(mp, sizeof(bin), "binary");
+    bin *b = mpalloc(mp, bin);
     memset(b, 0, sizeof(bin));
 
     b->capacity = file_length;
-    b->buffer = mempool_alloc(mp, b->capacity, "binary buffer");
+    b->buffer = mpallocn(mp, b->capacity, "binary buffer");
 
     fread(b->buffer, 1, file_length, f);
     fclose(f);
@@ -937,11 +937,11 @@ bin *new_bin_from_stream(mempool *mp, FILE *stream, size_t offset, size_t length
 }
 
 bin *new_bin_from_zeros(mempool *mp, size_t size) {
-    bin *b = mempool_alloc(mp, sizeof(bin), "binary");
+    bin *b = mpalloc(mp, bin);
     memset(b, 0, sizeof(bin));
 
     b->capacity = size;
-    b->buffer = mempool_alloc(mp, b->capacity, "binary buffer");
+    b->buffer = mpallocn(mp, b->capacity, "binary buffer");
     memset(b->buffer, 0, size);
     b->length = size;
     b->position = 0;
@@ -1228,11 +1228,11 @@ void binary_unit_tests() {
     bin *b1;
     str *s;
 
-    char *bytes32 = mempool_alloc(mp, 32, "bytes32");
+    char *bytes32 = mpallocn(mp, 32, "bytes32");
     for (int i = 0; i < 32; i++)
         bytes32[i] = (char)i;
 
-    char *mem = mempool_alloc(mp, 16, "mem");
+    char *mem = mpallocn(mp, 16, "mem");
 
     b = new_bin(mp);
     assert(b != NULL);
@@ -1401,7 +1401,7 @@ void binary_unit_tests() {
     assert(memcmp(b->buffer, "\xff\xff\xff\xff\0\0\0\0\0\xff\xff\xff\xff\xff\xff\xff", 16) == 0);
 
     // save, load
-    char *fname = mempool_alloc(mp, 50, "fname");
+    char *fname = mpallocn(mp, 50, "fname");
     strcpy(fname, "/tmp/temp_XXXXXX");
     mkstemp(fname);
     b = new_bin_from_mem(mp, bytes32, 32);

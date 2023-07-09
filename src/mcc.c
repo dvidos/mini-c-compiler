@@ -349,6 +349,7 @@ static bool perform_end_to_end_test() {
     if (err_exit_code) return false;
 
     unlink(str_charptr(executable_path));
+    mempool_release(mp);
     return true;
 }
 

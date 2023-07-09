@@ -24,7 +24,7 @@ static bool encode_asm_instruction(asm_instruction *instr, struct encoding_info 
 
 
 struct x86_encoder *new_x86_encoder(mempool *mp, buffer *code_out, reloc_list *relocations_out) {
-    struct x86_encoder *enc = mempool_alloc(mp, sizeof(struct x86_encoder), "x86_encoder");
+    struct x86_encoder *enc = mpalloc(mp, struct x86_encoder);
 
     enc->output = code_out;
     enc->relocations = relocations_out;

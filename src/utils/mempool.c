@@ -210,7 +210,7 @@ void mempool_unit_tests() {
     assert(mp->buckets->next == NULL);
 
     // small allocation
-    char *ptr = mempool_alloc(mp, 64, "small alloc");
+    char *ptr = mpallocn(mp, 64, "small alloc");
     assert(ptr != NULL);
     assert(mp->allocations_count == 1);
     assert(mp->total_allocated == 64 + ALLOCATION_INFO_SIZE);
@@ -223,7 +223,7 @@ void mempool_unit_tests() {
     assert(sum == 0); // ensure the chunk delivered is clean
 
     // check large allocation requires grabbing a new segment
-    char *ptr2 = mempool_alloc(mp, 64 * 1024, "large alloc");
+    char *ptr2 = mpallocn(mp, 64 * 1024, "large alloc");
     assert(ptr2 != NULL);
     assert(mp->buckets->next != NULL);
     assert(ptr2 == mp->buckets->buffer + ALLOCATION_INFO_SIZE); // the new segment was inserted at head
@@ -252,9 +252,9 @@ void mempool_unit_tests() {
     mp = new_mempool();
 
     // first we need a chunk to hold all the pointers
-    void **arr = (void **)mempool_alloc(mp, sizeof(void *) * max_pointers, "pointers"); // should be 40K or 80K
+    void **arr = (void **)mpallocn(mp, sizeof(void *) * max_pointers, "pointers"); // should be 40K or 80K
     for (int i = 0; i < max_pointers; i++) {
-        arr[i] = mempool_alloc(mp, chunk_size, "chunk");
+        arr[i] = mpallocn(mp, chunk_size, "chunk");
     }
 
     // mempool_print_allocations(mp, stdout);

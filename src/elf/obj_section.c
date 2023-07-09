@@ -34,7 +34,7 @@ static struct obj_relocation_ops relocation_ops = {
 };
 
 obj_section *new_obj_section(mempool *mp) {
-    obj_section *s = mempool_alloc(mp, sizeof(obj_section), "obj_section");
+    obj_section *s = mpalloc(mp, obj_section);
     s->name = new_str(mp, "");
     s->contents = new_bin(mp);
     s->relocations = new_llist(mp);
@@ -130,7 +130,7 @@ static obj_symbol *obj_section_find_symbol(obj_section *s, str *name, bool expor
 }
 
 static obj_symbol *obj_section_add_symbol(obj_section *s, str *name, size_t value, size_t size, bool global) {
-    obj_symbol *sym = mempool_alloc(s->mempool, sizeof(obj_symbol), "obj_symbol");
+    obj_symbol *sym = mpalloc(s->mempool, obj_symbol);
     
     sym->name = name;
     sym->value = value;
@@ -144,7 +144,7 @@ static obj_symbol *obj_section_add_symbol(obj_section *s, str *name, size_t valu
 
 
 static obj_relocation *obj_section_add_relocation(obj_section *s, size_t offset, str *sym_name, int type, long addendum) {
-    obj_relocation *rela = mempool_alloc(s->mempool, sizeof(obj_relocation), "obj_relocation");
+    obj_relocation *rela = mpalloc(s->mempool, obj_relocation);
 
     rela->offset = offset;
     rela->symbol_name = sym_name;

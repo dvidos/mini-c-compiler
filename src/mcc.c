@@ -339,16 +339,15 @@ static bool perform_end_to_end_test() {
         llist_add(obj_modules, obj);
     }
 
-    llist *obj_paths = new_llist(mp);
-    llist *lib_paths = new_llist(mp);
-    str *executable_path = new_str(mp, "./end-to-end-test.out");
-    // x86_64_link(obj_modules, obj_paths, lib_paths, 0x400000, executable_path);
+    str *executable = new_str(mp, "./end-to-end-test.out");
+    x86_64_link(obj_modules, new_llist(mp), 
+            x86_64_std_libraries(mp), x86_64_std_load_address(), executable);
     if (errors_count) return false;
 
-    int err_exit_code = system(str_charptr(executable_path));
+    int err_exit_code = system(str_charptr(executable));
     if (err_exit_code) return false;
 
-    unlink(str_charptr(executable_path));
+    unlink(str_charptr(executable));
     mempool_release(mp);
     return true;
 }

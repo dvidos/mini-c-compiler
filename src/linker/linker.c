@@ -69,7 +69,17 @@ struct link2_info {
 
 // -------------------------------------------------
 
+llist *x86_64_std_libraries(mempool *mp) {
+    llist *std_libs = new_llist(mp);
+    llist_add(std_libs, new_str(mp, "./libruntime64.a"));
+    return std_libs;
+}
 
+size_t x86_64_std_load_address() {
+    return 0x400000; // 4 MB
+}
+
+// -------------------------------------------------
 
 static bool add_participant(link2_info *info, obj_module *module) {
     // should be smarter about it.
@@ -504,17 +514,16 @@ bool x86_64_link(llist *obj_modules, llist *obj_file_paths, llist *library_file_
 
 void link_test() {
     mempool *mp = new_mempool();
-
     llist *modules = new_llist(mp);
     llist *obj_file_paths = new_llist(mp);
-    llist *lib_file_paths = new_llist(mp);
 
     // llist_add(obj_file_paths, new_str(mp, "./docs/link-sample/file1.o"));
     // llist_add(obj_file_paths, new_str(mp, "./docs/link-sample/file2.o"));
     llist_add(obj_file_paths, new_str(mp, "./src/runtimes/example.o"));
-    llist_add(lib_file_paths, new_str(mp, "./src/runtimes/libruntime.a"));
 
-    x86_64_link(modules, obj_file_paths, lib_file_paths, 0x401000, new_str(mp, "b.out"));
+    x86_64_link(modules, obj_file_paths, 
+        x86_64_std_libraries(mp), x86_64_std_load_address(), 
+        new_str(mp, "b.out"));
 
     mempool_release(mp);
 }

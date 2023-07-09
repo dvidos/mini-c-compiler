@@ -25,10 +25,10 @@ typedef struct storage {
 
 struct storage_allocator_ops {
     void (*reset)(asm_allocator *a);
-    void (*declare_local_symbol)(asm_allocator *a, char *symbol, int size, int bp_offset);
+    void (*declare_local_symbol)(asm_allocator *a, const char *symbol, int size, int bp_offset);
     void (*generate_stack_info_comments)(asm_allocator *a);
 
-    bool (*get_named_storage)(asm_allocator *a, char *symbol_name, storage *target); // false = not found
+    bool (*get_named_storage)(asm_allocator *a, const char *symbol_name, storage *target); // false = not found
     void (*get_temp_reg_storage)(asm_allocator *a, int reg_no, storage *target, bool *allocated);
     bool (*is_treg_a_gp_reg)(asm_allocator *a, int reg_no);
     bool (*is_treg_a_stack_var)(asm_allocator *a, int reg_no);

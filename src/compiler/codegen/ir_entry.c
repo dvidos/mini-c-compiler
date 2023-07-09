@@ -20,7 +20,7 @@ static struct ir_entry_ops ops = {
     .free = _free,
 };
 
-ir_entry *new_ir_function_definition(char *func_name, struct ir_entry_func_arg_info *args_arr, int args_len, int ret_val_size) {
+ir_entry *new_ir_function_definition(const char *func_name, struct ir_entry_func_arg_info *args_arr, int args_len, int ret_val_size) {
     ir_entry *e = malloc(sizeof(ir_entry));
     e->type = IR_FUNCTION_DEFINITION;
     e->t.function_def.func_name = strdup(func_name);
@@ -63,15 +63,16 @@ ir_entry *new_ir_label(char *fmt, ...) {
     return e;
 }
 
-ir_entry *new_ir_data_declaration(int length, void *initial_data, char *symbol_name, ir_data_storage storage) {
+ir_entry *new_ir_data_declaration(int length, const void *initial_data, const char *symbol_name, ir_data_storage storage) {
     ir_entry *e = malloc(sizeof(ir_entry));
     e->type = IR_DATA_DECLARATION;
     e->t.data_decl.size = length;
     if (initial_data == NULL) {
         e->t.data_decl.initial_data = NULL;
     } else {
-        e->t.data_decl.initial_data = malloc(length);
-        memcpy(e->t.data_decl.initial_data, initial_data, length);
+        void *ptr = malloc(length);
+        memcpy(ptr, initial_data, length);
+        e->t.data_decl.initial_data = ptr;
     }
     e->t.data_decl.symbol_name = symbol_name == NULL ? NULL : strdup(symbol_name);
     e->t.data_decl.storage = storage;
@@ -212,7 +213,7 @@ static void _to_string(ir_entry *e, string *s) {
 
             if (e->t.data_decl.initial_data != NULL) {
                 int len = e->t.data_decl.size;
-                char *ptr = e->t.data_decl.initial_data;
+                char *ptr = (char *)e->t.data_decl.initial_data;
 
                 if (len == 1)
                     s->v->addf(s, " = 0x%02x", *(unsigned char *)ptr);
@@ -317,7 +318,7 @@ static void _print(ir_entry *e, FILE *stream) {
 
             if (e->t.data_decl.initial_data != NULL) {
                 int len = e->t.data_decl.size;
-                char *ptr = e->t.data_decl.initial_data;
+                const char *ptr = e->t.data_decl.initial_data;
 
                 if (len == 1)
                     fprintf(stream, " = 0x%02x", *(unsigned char *)ptr);
@@ -431,7 +432,7 @@ static void _foreach_ir_value(ir_entry *e, ir_value_visitor visitor, void *pdata
     }
 }
 
-static inline void free_nullable(void *p) { if (p != NULL) free(p); }
+static inline void free_nullable(const void *p) { if (p != NULL) free((void *)p); }
 static void _free(ir_entry *e) {
     switch (e->type) {
         case IR_FUNCTION_DEFINITION:

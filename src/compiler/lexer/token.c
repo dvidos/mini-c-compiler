@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <stdbool.h>
 #include "token.h"
+#include "../../utils/mempool.h"
 
 token *tokens_head;
 token *tokens_tail;
@@ -23,7 +24,7 @@ char *keywords[] = {
     "false"
 };
 
-token *create_token(token_type type, char *value, const char *filename, int line_no) {
+token *new_token(mempool *mp, token_type type, const char *value, const char *filename, int line_no) {
 
     // see if identifier is a reserved word
     if (type == TOK_IDENTIFIER && value != NULL) {
@@ -36,13 +37,14 @@ token *create_token(token_type type, char *value, const char *filename, int line
         }
     }
 
-    token *t = malloc(sizeof(token));
+    token *t = mpalloc(mp, token);
     t->type = type;
     if (value == NULL)
         t->value = NULL;
     else {
-        t->value = malloc(strlen(value) + 1);
-        strcpy(t->value, value);
+        char *mem = mpallocn(mp, strlen(value) + 1, "token_value");
+        strcpy(mem, value);
+        t->value = mem;
     }
     t->filename = filename;
     t->line_no = line_no;

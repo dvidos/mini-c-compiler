@@ -1,6 +1,7 @@
 #pragma once
 
 #include <stdbool.h>
+#include "../../utils/data_types.h"
 
 
 typedef enum token_type {
@@ -77,13 +78,14 @@ typedef enum token_type {
     TOK_FALSE,
 
     // unknown token, e.g. something we don't understand.
-    TOK_UNKNOWN,
+    TOK_UNKNOWN = 9999,
 } token_type;
 
 typedef struct token token;
+
 struct token {
     token_type type;
-    char *value;
+    const char *value;
     int entry;  // if specific keyword or data type
 
     // helping with troubleshooting
@@ -91,6 +93,7 @@ struct token {
     int line_no;
 };
 
-token *create_token(token_type type, char *value, const char *filename, int line_no);
+
+token *new_token(mempool *mp, token_type type, const char *value, const char *filename, int line_no);
 char *token_type_name(token_type type);
 

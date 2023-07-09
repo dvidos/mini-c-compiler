@@ -1,6 +1,5 @@
 #pragma once
 #include "token.h"
 
-void init_lexer();
-void parse_lexer_token_at_pointer(char **p, const char *filename, int *line_no, token **token);
-
+llist *lexer_parse_source_code_into_tokens(mempool *mp, str *filename, str *source_code);
+bool lexer_check_tokens(llist *tokens, str *filename);

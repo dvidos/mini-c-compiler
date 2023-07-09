@@ -9,7 +9,7 @@ typedef struct statement statement;
 
 typedef struct var_declaration {
 
-    char *var_name;
+    const char *var_name;
 
     // the declared data type, e.g. "int[]"
     data_type *data_type;
@@ -19,7 +19,7 @@ typedef struct var_declaration {
     struct var_declaration *next; // for function arguments lists
 } var_declaration;
 
-var_declaration *new_var_declaration(data_type *data_type, char* var_name, token *token);
+var_declaration *new_var_declaration(data_type *data_type, const char* var_name, token *token);
 
 
 
@@ -27,7 +27,7 @@ struct func_declaration_ops;
 
 typedef struct func_declaration {
 
-    char *func_name;
+    const char *func_name;
 
     // used to solve the data type of calling the function
     // and verify returned value types
@@ -45,7 +45,7 @@ typedef struct func_declaration {
     struct func_declaration_ops *ops;
 } func_declaration;
 
-func_declaration *new_func_declaration(data_type *return_type, char *func_name, var_declaration *args_list, statement *body, token *token);
+func_declaration *new_func_declaration(data_type *return_type, const char *func_name, var_declaration *args_list, statement *body, token *token);
 
 struct func_declaration_ops {
     int (*count_required_arguments)(func_declaration *func);

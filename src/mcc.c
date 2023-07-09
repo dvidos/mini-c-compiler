@@ -54,54 +54,21 @@ static bool run_unit_tests() {
 }
 #endif 
 
-static void load_source_code(char **source_code) {
+static str *load_source_code(mempool *mp, str *filename) {
 
-    char *p = NULL;
-    if (!load_text(run_info->options->filename, &p)) {
-        error_at(run_info->options->filename, 0, "Failed loading source code");
-        return;
+    str *source_code = str_load_file(filename, mp);
+    if (source_code == NULL) {
+        error_at(str_charptr(filename), 0, "Failed loading source code");
+        return NULL;
     }
     
-    printf("Loaded %ld bytes from file \"%s\"\n", strlen(p), run_info->options->filename);
+    printf("Loaded %d bytes from file \"%s\"\n", str_len(source_code), str_charptr(filename));
     if (run_info->options->verbose) {
         printf("------- Source code -------\n");
-        printf("%s\n", p);
+        printf("%s\n", str_charptr(source_code));
     }
 
-    (*source_code) = p;
-}
-
-static void parse_file_into_lexer_tokens(char *file_buffer, const char *filename, token_list *list) {
-    char *p = file_buffer;
-    token *token = NULL;
-    int err;
-    int line_no = 1;
-
-    while (*p != '\0') {
-        parse_lexer_token_at_pointer(&p, filename, &line_no, &token);
-        if (errors_count)
-            return;
-        
-        if (token == NULL)
-            break;
-        if (token->type == TOK_COMMENT)
-            continue;
-        
-        list->add(list, token);
-    }
-
-    // one final token, to allow us to always peek at the subsequent token
-    list->add(list, create_token(TOK_EOF, NULL, filename, 999999));
-    if (list->unknown_tokens_exist(list)) {
-        error_at(filename, 0, "Unknown tokens detected, cannot continue...\n");
-        list->print(list, "  ", true);
-        return;
-    }
-
-    if (run_info->options->verbose) {
-        printf("---- File tokens ----\n");
-        list->print(list, "  ", false);
-    }
+    return source_code;
 }
 
 static void parse_abstract_syntax_tree(token_list *list) {
@@ -162,17 +129,16 @@ static void generate_intermediate_code(ir_listing *listing) {
 
 static void process_one_file(mempool *mp, file_run_info *fi) {
     // process one file (load, parse, generate obj module)
-    init_lexer();
 
-    char *source_code;
-    load_source_code(&source_code);
-    if (errors_count)
+    fi->source_code = load_source_code(mp, fi->source_filename);
+    if (fi->source_code == NULL || errors_count)
         return;
 
     token_list *token_list = new_token_list();
-    parse_file_into_lexer_tokens(source_code, str_charptr(fi->source_filename), token_list);
-    free(source_code);
+    llist *tokens = lexer_parse_source_code_into_tokens(mp, fi->source_filename, fi->source_code);
     if (errors_count)
+        return;
+    if (!lexer_check_tokens(tokens, fi->source_filename))
         return;
 
     parse_abstract_syntax_tree(token_list);
@@ -286,23 +252,27 @@ static void process_all_files(mempool *mp) {
 }
 
 static bool perform_end_to_end_test() {
-    // try to run all the stages, checking at each level.
 
     mempool *mp = new_mempool();
 
-    llist *sources = new_llist(mp);
-    llist_add(sources, new_str(mp,
-        "char *message = \"Hello World\\n\";"
-        "void greeting();"
-        "int main() { greeting(); return 0; }"));
-    llist_add(sources, new_str(mp, 
-        "extern char *message;"
-        "void greeting() { print(message); }"));
-    
+    llist *filenames = new_llist_of(mp, 2, new_str(mp, "file1.c"), new_str(mp, "file2.c"));
+    llist *sources = new_llist_of(mp, 2, 
+        new_str(mp,
+            "char *message = \"Hello World\\n\";\n"
+            "void greeting();\n"
+            "int main() { greeting(); return 0; }\n"),
+        new_str(mp, 
+            "extern char *message;\n"
+            "void greeting() { print(message); }\n")
+    );
+
     llist *token_lists = new_llist(mp);
-    for_list(sources, str, source) {
-        llist *tokens = NULL; // lexer_of_file(mp, source);
-        if (errors_count) return false;
+    for (int i = 0; i < llist_length(filenames); i++) {
+        str *filename = llist_get(filenames, i);
+        str *source = llist_get(sources, i);
+        llist *tokens = lexer_parse_source_code_into_tokens(mp, filename, source);
+        if (errors_count || tokens == NULL) return false;
+        if (!lexer_check_tokens(tokens, filename)) return false;
         llist_add(token_lists, tokens);
     }
 
@@ -332,6 +302,12 @@ static bool perform_end_to_end_test() {
         llist_add(asm_listings, asm_lst);
     }
 
+    asm_listing *l = new_asm_listing(mp);
+    l->ops->add_instruction(l, new_asm_instruction(OC_NOP));
+    l->ops->add_instruction(l, new_asm_instruction_for_register(OC_PUSH, REG_AX));
+    l->ops->add_instruction(l, new_asm_instruction_with_operand(OC_INT, new_asm_operand_imm(0x80)));
+    llist_add(asm_listings, l);
+    
     llist *obj_modules = new_llist(mp);
     for_list(asm_listings, asm_listing, asm_lst) {
         obj_module *obj = NULL; // assemble_listing_into_x86_64_code(mp, asm_lst);
@@ -339,10 +315,11 @@ static bool perform_end_to_end_test() {
         llist_add(obj_modules, obj);
     }
 
+
     str *executable = new_str(mp, "./end-to-end-test.out");
-    x86_64_link(obj_modules, new_llist(mp), 
+    bool success = x86_64_link(obj_modules, new_llist(mp), 
             x86_64_std_libraries(mp), x86_64_std_load_address(), executable);
-    if (errors_count) return false;
+    if (errors_count || !success) return false;
 
     int err_exit_code = system(str_charptr(executable));
     if (err_exit_code) return false;
@@ -377,7 +354,9 @@ int main(int argc, char *argv[]) {
         perform_asm_test();
         return 0;
     } else if (run_info->options->e2e_test) {
+        printf("Running end-to-end test... \n");
         bool passed = perform_end_to_end_test();
+        printf("%s\n", passed ? "PASSED" : "FAILED");
         return passed ? 0 : 1;
     }
 

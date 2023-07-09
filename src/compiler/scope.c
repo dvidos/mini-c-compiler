@@ -40,7 +40,7 @@ void scope_exited() {
 }
 
 // find a symbol in all scopes
-src_symbol *scope_lookup(char *symbol_name) {
+src_symbol *scope_lookup(const char *symbol_name) {
     scope *sc = scopes_stack_top;
     while (sc != NULL) {
         // look up in this scope
@@ -69,7 +69,7 @@ func_declaration *get_scope_owning_function() {
 }
 
 // see if symbol already declared
-bool scope_symbol_declared_at_curr_level(char *symbol_name) {
+bool scope_symbol_declared_at_curr_level(const char *symbol_name) {
     if (scopes_stack_top == NULL)
         return false;
 

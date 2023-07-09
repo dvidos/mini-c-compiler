@@ -23,7 +23,7 @@ static void gen_global_var(code_gen *cg, var_declaration *decl, expression *init
     if (init_expr != NULL) {
         if (init_expr->op == OP_STR_LITERAL) {
             length = strlen(init_expr->value.str) + 1;
-            init_value = init_expr->value.str;
+            init_value = (void *)init_expr->value.str;
             storage = IR_GLOBAL_RO;
         } else if (init_expr->op == OP_NUM_LITERAL) {
             init_value = &init_expr->value.num;

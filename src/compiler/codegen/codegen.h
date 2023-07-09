@@ -9,7 +9,7 @@ struct code_gen_ops;
 
 typedef struct code_gen {
     ir_listing *ir;
-    char *curr_func_name;
+    const char *curr_func_name;
     int reg_num;
     int label_num; // for symbols, labels, ifs etc.
     int loops_stack[CODE_GEN_MAX_NESTED_LOOPS];
@@ -27,8 +27,8 @@ struct code_gen_ops {
     void (*generate_for_statement)(code_gen *cg, statement *stmt);
     
     ir_value *(*create_ir_value)(code_gen *cg, expression *expr);
-    void (*set_curr_func_name)(code_gen *cg, char *func_name);
-    char *(*get_curr_func_name)(code_gen *cg);
+    void (*set_curr_func_name)(code_gen *cg, const char *func_name);
+    const char *(*get_curr_func_name)(code_gen *cg);
     int (*next_reg_num)(code_gen *cg);
     int (*next_label_num)(code_gen *cg);
     int (*curr_loop_num)(code_gen *cg);

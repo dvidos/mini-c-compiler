@@ -10,7 +10,7 @@
 
 static void asm_listing_print(asm_listing *lst, FILE *stream);
 static void asm_listing_ensure_capacity(asm_listing *lst, int extra);
-static void asm_listing_set_next_label(asm_listing *lst, char *label, ...);
+static void asm_listing_set_next_label(asm_listing *lst, const char *label, ...);
 static void asm_listing_set_next_comment(asm_listing *lst, char *comment, ...);
 static void asm_listing_add_comment(asm_listing *lst, char *comment, ...);
 static void asm_listing_add_instruction(asm_listing *lst, asm_instruction *instr);
@@ -60,7 +60,7 @@ static void asm_listing_print(asm_listing *lst, FILE *stream) {
     mempool_release(mp);
 }
 
-static void asm_listing_set_next_label(asm_listing *lst, char *label, ...) {
+static void asm_listing_set_next_label(asm_listing *lst, const char *label, ...) {
     char buffer[128];
 
     va_list vl;

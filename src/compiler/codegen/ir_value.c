@@ -4,7 +4,7 @@
 #include "ir_value.h"
 
 
-ir_value *new_ir_value_symbol(char *symbol_name) {
+ir_value *new_ir_value_symbol(const char *symbol_name) {
     // symbols represent addresses in our IR, not values
     ir_value *v = malloc(sizeof(ir_value));
     v->type = IR_SYM;
@@ -63,7 +63,7 @@ void ir_value_to_string(ir_value *v, string *s) {
 void free_ir_value(ir_value *v) {
     if (v == NULL) return;
     if (v->type == IR_SYM && v->val.symbol_name != NULL)
-        free(v->val.symbol_name);
+        free((void *)v->val.symbol_name);
     free(v);
 }
 

@@ -48,7 +48,7 @@
 // - statement (take action: loop, jump, return)
 // - expression (something to be evaluate and produce a value, includes function calls)
 
-static char *expect_identifier();
+static const char *expect_identifier();
 static bool is_data_type_description();
 static bool is_variable_declaration();
 static bool is_function_declaration();
@@ -115,7 +115,7 @@ static bool is_function_declaration() {
         && lookahead_is(tokens + 1, TOK_LPAREN);
 }
 
-static char *expect_identifier() {
+static const char *expect_identifier() {
     if (!expect(TOK_IDENTIFIER))
         return NULL;
 
@@ -151,7 +151,7 @@ static statement *accept_variable_declaration() {
 
     data_type *dt = accept_data_type_description();
     if (dt == NULL) return NULL;
-    char *name = expect_identifier();
+    const char *name = expect_identifier();
     token *identifier_token = accepted();
     if (name == NULL) return NULL;
 
@@ -189,7 +189,7 @@ static func_declaration *accept_function_declaration() {
     data_type *ret_type = accept_data_type_description();
     if (ret_type == NULL) return NULL;
 
-    char *name = expect_identifier();
+    const char *name = expect_identifier();
     if (name == NULL) return NULL;
     token *identifier_token = accepted();
 
@@ -305,7 +305,7 @@ static var_declaration *parse_function_arguments_list() {
     while (!next_is(TOK_RPAREN)) {
         data_type *dt = accept_data_type_description();
         if (dt == NULL) return NULL;
-        char *name = expect_identifier();
+        const char *name = expect_identifier();
         if (name == NULL) return NULL;
         token *identifier_token = accepted();
 

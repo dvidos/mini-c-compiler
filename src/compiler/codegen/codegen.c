@@ -23,8 +23,8 @@
 */
 
 static ir_value *_create_ir_value(code_gen *cg, expression *expr);
-static void _set_curr_func_name(code_gen *cg, char *func_name);
-static char *_get_curr_func_name(code_gen *cg);
+static void _set_curr_func_name(code_gen *cg, const char *func_name);
+static const char *_get_curr_func_name(code_gen *cg);
 static int _next_reg_num(code_gen *cg);
 static int _next_label_num(code_gen *cg);
 static int _curr_loop_num(code_gen *cg);
@@ -77,11 +77,11 @@ static ir_value *_create_ir_value(code_gen *cg, expression *expr) {
     }
 }
 
-static void _set_curr_func_name(code_gen *cg, char *func_name) {
+static void _set_curr_func_name(code_gen *cg, const char *func_name) {
     cg->curr_func_name = func_name;
 }
 
-static char *_get_curr_func_name(code_gen *cg) {
+static const char *_get_curr_func_name(code_gen *cg) {
     return cg->curr_func_name;
 }
 

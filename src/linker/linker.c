@@ -82,11 +82,10 @@ size_t x86_64_std_load_address() {
 // -------------------------------------------------
 
 static bool add_participant(link2_info *info, obj_module *module) {
-    // should be smarter about it.
-    // info->target_module->ops->append(info->target_module, module);
-
+    if (module == NULL)
+        return false;
+    
     llist_add(info->participants, module);
-
     return true;
 }
 

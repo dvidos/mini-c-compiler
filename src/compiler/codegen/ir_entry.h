@@ -58,21 +58,21 @@ struct ir_entry_str_info {
 };
 
 struct ir_entry_func_def_info {
-    char *func_name;
+    const char *func_name;
     struct ir_entry_func_arg_info *args_arr; // array of structs, left to right
     int args_len; // number of args
     int ret_val_size; // 0=void
 };
 
 struct ir_entry_func_arg_info {
-    char *name; // e.g. "x"
+    const char *name; // e.g. "x"
     int size;   // e.g. 8
 };
 
 struct ir_entry_data_decl_info {
     int size;
-    void *initial_data; // null for uninitialized
-    char *symbol_name;
+    const void *initial_data; // null for uninitialized
+    const char *symbol_name;
     ir_data_storage storage;
 };
 
@@ -120,10 +120,10 @@ typedef struct ir_entry {
 } ir_entry;
 
 
-ir_entry *new_ir_function_definition(char *func_name, struct ir_entry_func_arg_info *args_arr, int args_len, int ret_val_size);
+ir_entry *new_ir_function_definition(const char *func_name, struct ir_entry_func_arg_info *args_arr, int args_len, int ret_val_size);
 ir_entry *new_ir_comment(char *fmt, ...);
 ir_entry *new_ir_label(char *label_fmt, ...);
-ir_entry *new_ir_data_declaration(int length, void *initial_data, char *symbol_name, ir_data_storage storage);
+ir_entry *new_ir_data_declaration(int length, const void *initial_data, const char *symbol_name, ir_data_storage storage);
 ir_entry *new_ir_assignment(ir_value *lvalue, ir_value *rvalue);
 ir_entry *new_ir_unary_address_code(ir_value *lvalue, ir_operation op, ir_value *rvalue);
 ir_entry *new_ir_three_address_code(ir_value *lvalue, ir_value *op1, ir_operation op, ir_value *op2);

@@ -11,7 +11,7 @@ struct asm_allocator_data {
 
     // function arguments and local variables.
     struct named_storage_slot {
-        char *symbol_name;
+        const char *symbol_name;
         struct storage value;
     } *named_storage_arr;
     int named_storage_arr_len;
@@ -28,9 +28,9 @@ struct asm_allocator_data {
 
 
 static void _reset(asm_allocator *a);
-static void _declare_local_symbol(asm_allocator *a, char *symbol, int size, int bp_offset);
+static void _declare_local_symbol(asm_allocator *a, const char *symbol, int size, int bp_offset);
 static void _generate_stack_info_comments(asm_allocator *a);
-static bool _get_named_storage(asm_allocator *a, char *symbol_name, storage *target); // false = not found
+static bool _get_named_storage(asm_allocator *a, const char *symbol_name, storage *target); // false = not found
 static void _get_temp_reg_storage(asm_allocator *a, int temp_reg_no, storage *target, bool *allocated);
 static bool _is_treg_a_gp_reg(asm_allocator *a, int reg_no);
 static bool _is_treg_a_stack_var(asm_allocator *a, int reg_no);
@@ -102,7 +102,7 @@ static void _reset(asm_allocator *a) {
     // printf("Prepared storage allocation table:\n"); for (int j=0;j<data->temp_storage_arr_len;j++) printf("  #%d  owner=%d, is_gp=%d, gp=%d, is_bp_off=%d, bp_off=%d\n", j, data->temp_storage_arr[j].holder_reg, data->temp_storage_arr[j].value.is_gp_reg, data->temp_storage_arr[j].value.gp_reg, data->temp_storage_arr[j].value.is_stack_var, data->temp_storage_arr[j].value.bp_offset);
 }
 
-static void _declare_local_symbol(asm_allocator *a, char *symbol, int size, int bp_offset) {
+static void _declare_local_symbol(asm_allocator *a, const char *symbol, int size, int bp_offset) {
     struct asm_allocator_data *data = (struct asm_allocator_data *)a->private_data;
     
     // allocate more room
@@ -138,7 +138,7 @@ static void _generate_stack_info_comments(asm_allocator *a) {
     }
 }
 
-static bool _get_named_storage(asm_allocator *a, char *symbol_name, storage *target) {
+static bool _get_named_storage(asm_allocator *a, const char *symbol_name, storage *target) {
     struct asm_allocator_data *data = (struct asm_allocator_data *)a->private_data;
     
     for (int i = 0; i < data->named_storage_arr_len; i++) {

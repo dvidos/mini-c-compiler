@@ -31,17 +31,17 @@ expression *create_expression(oper op, expression *arg1, expression *arg2, token
     return n;
 }
 
-expression *create_symbol_name_expr(char *name, token *token) {
+expression *create_symbol_name_expr(const char *name, token *token) {
     expression *n = create_expression(OP_SYMBOL_NAME, NULL, NULL, token);
     n->value.str = name;
     return n;
 }
-expression *create_string_literal_expr(char *str, token *token) {
+expression *create_string_literal_expr(const char *str, token *token) {
     expression *n = create_expression(OP_STR_LITERAL, NULL, NULL, token);
-    n->value.str = str;
+    n->value.str = (char *)str;
     return n;
 }
-expression *create_number_literal_expr(char *number, token *token) {
+expression *create_number_literal_expr(const char *number, token *token) {
     expression *n = create_expression(OP_NUM_LITERAL, NULL, NULL, token);
     int base = 10;
     if (number[0] == '0' && number[1] != '\0') {

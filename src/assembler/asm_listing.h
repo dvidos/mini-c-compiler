@@ -19,7 +19,7 @@ typedef struct asm_listing {
 
 struct asm_listing_ops {
     void (*print)(asm_listing *lst, FILE *stream);
-    void (*set_next_label)(asm_listing *lst, char *label, ...);
+    void (*set_next_label)(asm_listing *lst, const char *label, ...);
     void (*set_next_comment)(asm_listing *lst, char *comment, ...);
     void (*add_comment)(asm_listing *lst, char *comment, ...);
     void (*add_instruction)(asm_listing *lst, asm_instruction *instr);

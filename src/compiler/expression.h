@@ -13,7 +13,7 @@ typedef struct expression {
 
     // some expressions contain literal values, e.g. "true" or "func1"
     union {
-        char *str; // var name, func name, or string literal.
+        const char *str; // var name, func name, or string literal.
         long num;
         char chr;
         bool bln;
@@ -31,9 +31,9 @@ struct expression_ops {
 };
 
 expression *create_expression(oper op, expression *arg1, expression *arg2, token *token);
-expression *create_symbol_name_expr(char *name, token *token);
-expression *create_string_literal_expr(char *str, token *token);
-expression *create_number_literal_expr(char *number, token *token);
+expression *create_symbol_name_expr(const char *name, token *token);
+expression *create_string_literal_expr(const char *str, token *token);
+expression *create_number_literal_expr(const char *number, token *token);
 expression *create_char_literal_expr(char chr, token *token);
 expression *create_bool_literal_expr(bool value, token *token);
 

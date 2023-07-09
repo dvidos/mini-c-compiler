@@ -50,7 +50,7 @@ void print_16_hex(void *buffer, int size, int indent) {
 }
 
 
-void print_pretty(char *str, FILE *stream) {
+void print_pretty(const char *str, FILE *stream) {
     char *buff = malloc(strlen(str) * 2);
     char *dest = buff;
     

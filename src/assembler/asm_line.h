@@ -74,7 +74,7 @@ struct asm_operand {
     enum operand_type type;
     long immediate;
     enum gp_reg reg;
-    char *symbol_name;
+    const char *symbol_name;
     long offset; // for indirect memory access, through BP
 };
 

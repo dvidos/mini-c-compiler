@@ -3,6 +3,8 @@
 #include <stddef.h>
 #include <string.h>
 #include "../../err_handler.h"
+#include "../../run_info.h"
+#include "../../utils/data_structs.h"
 #include "lexer.h"
 #include "token.h"
 
@@ -21,33 +23,6 @@
 #define is_line_comment(c, c2)    ((c) == '/' && (c2) == '/')
 
 
-
-
-static int collector_len = 0;
-static int collector_capacity = 0;
-static char *collector_buffer = NULL;
-
-void init_lexer() {
-    collector_capacity = 64;
-    collector_buffer = malloc(collector_capacity);
-    collector_len = 0;
-}
-
-static void clear_collection() {
-    collector_len = 0;
-    collector_buffer[collector_len] = '\0';
-}
-
-static void collect(char c) {
-    if (collector_len + 1 >= collector_capacity) {
-        collector_capacity *= 2;
-        collector_buffer = realloc(collector_buffer, collector_capacity);
-    }
-    collector_buffer[collector_len++] = c;
-    collector_buffer[collector_len  ] = '\0';
-}
-
-
 static void skip_whitespace(char **p, int *line_no) {
     while (is_whitespace(**p)) {
         if (is_newline(**p)) 
@@ -56,7 +31,7 @@ static void skip_whitespace(char **p, int *line_no) {
     }
 }
 
-static int parse_block_comment(char **p, int *line_no) {
+static int parse_block_comment(str *buffer, char **p, int *line_no) {
     (*p) += 2; // skip the "/*" opening part
     char c = **p;
     char c2 = *((*p) + 1);
@@ -64,7 +39,7 @@ static int parse_block_comment(char **p, int *line_no) {
         if (is_newline(c))
             (*line_no) += 1;
         
-        collect(c);
+        str_catc(buffer, c);
         (*p)++;
         c = **p;
         c2 = *((*p) + 1);
@@ -72,21 +47,21 @@ static int parse_block_comment(char **p, int *line_no) {
     (*p) += 2; // skip the "*/" closing part
 }
 
-static int parse_line_comment(char **p) {
+static int parse_line_comment(str *buffer, char **p) {
     (*p) += 2; // skip the "//" opening part
     while (**p == ' ')
         (*p)++;
     while (!is_newline(**p)) {
-        collect(**p);
+        str_catc(buffer, **p);
         (*p)++;
     }
 }
 
-static int parse_identifier(char **p) {
-    clear_collection();
+static int parse_identifier(str *buffer, char **p) {
+    str_clear(buffer);
     char c = **p;
     while (is_letter(c) || is_digit(c) || is_underscore(c)) {
-        collect(c);
+        str_catc(buffer, c);
         (*p)++;
         c = **p;
     }
@@ -105,8 +80,8 @@ static char backslash_escaped_char(char c) {
     return c;
 }
 
-static int parse_string(char **p) {
-    clear_collection();
+static int parse_string(str *buffer, char **p) {
+    str_clear(buffer);
     (*p)++; // skip starting quote
     char c = **p;
     while (!is_string_quote(c)) {
@@ -114,32 +89,32 @@ static int parse_string(char **p) {
             (*p)++;
             c = backslash_escaped_char(**p);
         }
-        collect(c);
+        str_catc(buffer, c);
         (*p)++;
         c = **p;
     }
     (*p)++; // skip ending quote
 }
 
-static int parse_number(char **p) {
-    clear_collection();
+static int parse_number(str *buffer, char **p) {
+    str_clear(buffer);
     char c = **p;
     while (is_digit(c) || is_hex_digit_or_sign(c)) {
-        collect(c);
+        str_catc(buffer, c);
         (*p)++;
         c = **p;
     }
 }
 
-static int parse_char(char **p) {
-    clear_collection();
+static int parse_char(str *buffer, char **p) {
+    str_clear(buffer);
     (*p)++; // skip starting quote
     char c = **p;
     if (c == '\\') {
         (*p)++;
         c = backslash_escaped_char(**p);
     }
-    collect(c);
+    str_catc(buffer, c);
     (*p)++; // skip character
     (*p)++; // skip ending quote
 }
@@ -162,39 +137,39 @@ static int parse_char(char **p) {
         (*p) += 2;                          \
     }
 
-void parse_lexer_token_at_pointer(char **p, const char *filename, int *line_no, struct token **token) {
+static token *parse_lexer_token_at_pointer(mempool *mp, str *buffer, char **p, const char *filename, int *line_no) {
+    str_clear(buffer);
 
-    (*token) = NULL;
     skip_whitespace(p, line_no);
     if (**p == '\0')
-        return;
+        return NULL;
     
     char c = **p;
     char c2 = *(*p + 1);
     enum token_type type;
 
     if (is_block_comment(c, c2)) {
-        parse_block_comment(p, line_no);
+        parse_block_comment(buffer, p, line_no);
         type = TOK_COMMENT;
     } 
     else if (is_line_comment(c, c2)) {
-        parse_line_comment(p);
+        parse_line_comment(buffer, p);
         type = TOK_COMMENT;
     }
     else if (is_identifier_start(c)) {
-        parse_identifier(p);
+        parse_identifier(buffer, p);
         type = TOK_IDENTIFIER;
     }
     else if (is_digit(c)) {
-        parse_number(p);
+        parse_number(buffer, p);
         type = TOK_NUMERIC_LITERAL;
     }
     else if (is_string_quote(c)) {
-        parse_string(p);
+        parse_string(buffer, p);
         type = TOK_STRING_LITERAL;
     }
     else if (is_char_quote(c)) {
-        parse_char(p);
+        parse_char(buffer, p);
         type = TOK_CHAR_LITERAL;
     }
     check1(',', TOK_COMMA)
@@ -226,7 +201,7 @@ void parse_lexer_token_at_pointer(char **p, const char *filename, int *line_no, 
     check1_ext('&', '&', TOK_AMPERSAND, TOK_DBL_AMPERSAND)
 
     else {
-        collect(c);
+        str_catc(buffer, c);
         type = TOK_UNKNOWN;
         (*p)++;
     }
@@ -237,10 +212,81 @@ void parse_lexer_token_at_pointer(char **p, const char *filename, int *line_no, 
         || type == TOK_NUMERIC_LITERAL
         || type == TOK_IDENTIFIER
         || type == TOK_UNKNOWN) {
-        value = strdup(collector_buffer); // can be a string of zero length
+        value = strdup(str_charptr(buffer)); // can be a string of zero length
     }
-    (*token) = create_token(type, value, filename, *line_no);
-
+    
+    token *t = new_token(mp, type, value, filename, *line_no);
     skip_whitespace(p, line_no);
+
+    return t;
 }
 
+
+llist *lexer_parse_source_code_into_tokens(mempool *mp, str *filename, str *source_code) {
+    llist *tokens = new_llist(mp);
+    const char *p = str_charptr(source_code);
+    token *token = NULL;
+    str *buffer = new_str(mp, NULL);
+    int line_no = 1;
+    const char *fn = str_charptr(filename);
+
+    while (*p != '\0') {
+        token = parse_lexer_token_at_pointer(mp, buffer, (char **)&p, fn, &line_no);
+        if (errors_count)
+            return NULL;
+        
+        if (token == NULL)
+            break;
+        if (token->type == TOK_COMMENT)
+            continue;
+        
+        llist_add(tokens, token);
+    }
+
+    // one final token, to allow us to always peek at the subsequent token
+    llist_add(tokens, new_token(mp, TOK_EOF, NULL, fn, 999999));
+
+    return tokens;
+}
+
+static void lexer_print_tokens(llist *tokens, char *prefix, bool unknown_only) {
+    int line_no = -1;
+    for_list(tokens, token, t) {
+        if (unknown_only && t->type != TOK_UNKNOWN)
+            continue;
+        if (t->type == TOK_EOF)
+            continue;
+        
+        if (t->line_no != line_no) {
+            if (t->line_no > 1)
+                printf("\n");
+            printf("%s%d:", prefix, t->line_no);
+            line_no = t->line_no;
+        }
+
+        char *name = token_type_name(t->type);
+        if (t->value == NULL)
+            printf(" %s", name);
+        else
+            printf(" %s \"%s\"", name, t->value);
+    }
+    printf("\n");
+}
+
+
+bool lexer_check_tokens(llist *tokens, str *filename) {
+    // verify if unknown tokens exist
+    for_list(tokens, token, t) {
+        if (t->type == TOK_UNKNOWN) {
+            error_at(str_charptr(filename), 0, "Unkown tokens found:");
+            lexer_print_tokens(tokens, "  ", true);
+            return false;
+        }
+    }
+
+    // print tokens if requested
+    if (run_info->options->verbose)
+        lexer_print_tokens(tokens, "  ", false);
+
+    return true;
+}

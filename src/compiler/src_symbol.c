@@ -2,7 +2,7 @@
 #include "src_symbol.h"
 
 
-src_symbol *create_symbol(char *name, data_type *data_type, src_symbol_type definition, const char *file_name, int line_no) {
+src_symbol *create_symbol(const char *name, data_type *data_type, src_symbol_type definition, const char *file_name, int line_no) {
     src_symbol *s = malloc(sizeof(src_symbol));
 
     s->name = name;
@@ -17,7 +17,7 @@ src_symbol *create_symbol(char *name, data_type *data_type, src_symbol_type defi
     return s;
 }
 
-src_symbol *create_func_arg_symbol(char *name, data_type *data_type, int arg_no, const char *file_name, int line_no) {
+src_symbol *create_func_arg_symbol(const char *name, data_type *data_type, int arg_no, const char *file_name, int line_no) {
     src_symbol *s = malloc(sizeof(src_symbol));
 
     s->name = name;
@@ -32,7 +32,7 @@ src_symbol *create_func_arg_symbol(char *name, data_type *data_type, int arg_no,
     return s;
 }
 
-src_symbol *create_func_symbol(char *name, func_declaration *func, const char *file_name, int line_no) {
+src_symbol *create_func_symbol(const char *name, func_declaration *func, const char *file_name, int line_no) {
     src_symbol *s = malloc(sizeof(src_symbol));
 
     s->name = name;

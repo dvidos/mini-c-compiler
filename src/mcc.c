@@ -16,7 +16,7 @@
 #include "compiler/operators.h"
 #include "compiler/scope.h"
 #include "compiler/src_symbol.h"
-#include "compiler/parser/iterator.h"
+#include "compiler/parser/token_iterator.h"
 #include "compiler/parser/recursive_descend.h"
 #include "compiler/parser/shunting_yard.h"
 #include "compiler/analysis/analysis.h"

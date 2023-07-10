@@ -7,7 +7,7 @@
 #include "../declaration.h"
 #include "../statement.h"
 #include "../ast.h"
-#include "iterator.h"
+#include "token_iterator.h"
 #include "shunting_yard.h"
 
 

@@ -27,6 +27,7 @@ typedef struct iterator {
     void *(*reset)(struct iterator *i); // reset and return first item, if any
     bool (*valid)(struct iterator *i);  // was the one last returned valid?
     void *(*next)(struct iterator *i);  // advance and return item, if any
+    void *(*lookahead)(struct iterator *i, int times); // to enable an LL(n) parser
     void *private_data;
 } iterator;
 

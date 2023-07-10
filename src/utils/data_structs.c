@@ -560,6 +560,17 @@ static void *llist_iterator_next(iterator *it) {
     return it_state->curr == NULL ? NULL : it_state->curr->data;
 }
 
+static void *llist_iterator_lookahead(iterator *it, int times) {
+    llist_iterator_private_state *it_state = (llist_iterator_private_state *)it->private_data;
+    llist_node *ahead = it_state->curr;
+
+    // if went past the list end, return NULL
+    while (times-- > 0 && ahead != NULL)
+        ahead = ahead->next;
+
+    return ahead;
+}
+
 void *llist_iteration_reset(llist *l) {
     return llist_iterator_reset(l->base_iterator);
 }
@@ -582,6 +593,7 @@ iterator *llist_create_iterator(llist *l, mempool *mp) {
     it->reset = llist_iterator_reset;
     it->valid = llist_iterator_valid;
     it->next = llist_iterator_next;
+    it->lookahead = llist_iterator_lookahead;
     return it;
 }
 
@@ -1080,6 +1092,11 @@ static void *bstree_iterator_next(iterator *it) {
     return NULL;
 }
 
+static void *bstree_iterator_lookahead(iterator *it, int times) {
+    // not supported for now
+    return NULL;
+}
+
 iterator *bstree_create_iterator(bstree *t, mempool *mp) {
     bstree_iterator_private_state *it_state = mpalloc(mp, bstree_iterator_private_state);
     it_state->tree = t;
@@ -1090,6 +1107,7 @@ iterator *bstree_create_iterator(bstree *t, mempool *mp) {
     it->reset = bstree_iterator_reset;
     it->valid = bstree_iterator_valid;
     it->next = bstree_iterator_next;
+    it->lookahead = bstree_iterator_lookahead;
     return it;
 }
 
@@ -1423,6 +1441,11 @@ static void *hashtable_iterator_next(iterator *it) {
     return it_state->curr_node == NULL ? NULL : it_state->curr_node->data;
 }
 
+static void *hashtable_iterator_lookahead(iterator *it, int times) {
+    // not supported for now
+    return NULL;
+}
+
 iterator *hashtable_create_iterator(hashtable *h, mempool *mp) {
     hashtable_iterator_private_state *it_state = mpalloc(mp, hashtable_iterator_private_state);
     it_state->hashtable = h;
@@ -1434,6 +1457,7 @@ iterator *hashtable_create_iterator(hashtable *h, mempool *mp) {
     it->reset = hashtable_iterator_reset;
     it->valid = hashtable_iterator_valid;
     it->next = hashtable_iterator_next;
+    it->lookahead = hashtable_iterator_lookahead;
     return it;
 }
 

@@ -23,7 +23,7 @@ SRC_FILES = \
 	compiler/scope.c \
 	compiler/declaration.c \
 	compiler/ast.c \
-	compiler/parser/iterator.c \
+	compiler/parser/token_iterator.c \
 	compiler/parser/recursive_descend.c \
 	compiler/parser/shunting_yard.c \
 	compiler/analysis/analysis.c  \

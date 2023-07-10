@@ -5,7 +5,7 @@
 #include "../operators.h"
 #include "../declaration.h"
 #include "../expression.h"
-#include "iterator.h"
+#include "token_iterator.h"
 
 /*
     for the shunting yard algorithm, for parsing operators according to precedence,

@@ -568,7 +568,7 @@ static void *llist_iterator_lookahead(iterator *it, int times) {
     while (times-- > 0 && ahead != NULL)
         ahead = ahead->next;
 
-    return ahead;
+    return ahead->data;
 }
 
 void *llist_iteration_reset(llist *l) {

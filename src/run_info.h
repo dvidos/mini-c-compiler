@@ -2,6 +2,7 @@
 #include <stdbool.h>
 #include "utils/data_structs.h"
 #include "elf/obj_module.h"
+#include "compiler/ast.h"
 
 typedef struct prog_run_info prog_run_info;
 typedef struct file_run_info file_run_info;
@@ -33,10 +34,12 @@ struct prog_run_options {
 };
 
 struct file_run_info {
-    str *source_filename;
-    str *source_code;    // the loaded source
-    str *assembly_code;  // generated assembly code
-    obj_module *module;  // machine code
+    str *source_filename;  // where we start
+    str *source_code;      // the loaded source
+    llist *tokens;         // item type is token
+    ast_module_node *ast;  // AST for this file
+    str *assembly_code;    // generated assembly code
+    obj_module *module;    // machine code
 };
 
 struct prog_run_info {

@@ -6,16 +6,16 @@
 #include "../../run_info.h"
 #include "../../err_handler.h"
 #include "../lexer/token.h"
-#include "../expression.h"
-#include "../statement.h"
+#include "../ast_expression.h"
+#include "../ast_statement.h"
 #include "../src_symbol.h"
-#include "../declaration.h"
+#include "../ast_declaration.h"
 #include "codegen.h"
 #include "ir_listing.h"
 
 
 
-static void gen_global_var(code_gen *cg, var_declaration *decl, expression *init_expr) {
+static void gen_global_var(code_gen *cg, ast_var_declaration *decl, ast_expression *init_expr) {
     int length = decl->data_type->ops->size_of(decl->data_type);
     void *init_value = NULL;
     ir_data_storage storage = IR_GLOBAL;
@@ -42,7 +42,7 @@ static void gen_global_var(code_gen *cg, var_declaration *decl, expression *init
     cg->ir->ops->add(cg->ir, declaration);
 }
 
-static void declare_expr_strings(code_gen *cg, expression *expr) {
+static void declare_expr_strings(code_gen *cg, ast_expression *expr) {
     if (expr == NULL) return;
 
     if (expr->op == OP_STR_LITERAL) {
@@ -66,11 +66,11 @@ static void declare_expr_strings(code_gen *cg, expression *expr) {
 
 }
 
-static void declare_stmt_strings(code_gen *cg, statement *stmt) {
+static void declare_stmt_strings(code_gen *cg, ast_statement *stmt) {
     if (stmt == NULL) return;
 
     if (stmt->stmt_type == ST_BLOCK) {
-        for (statement *s = stmt->body; s != NULL; s = s->next)
+        for (ast_statement *s = stmt->body; s != NULL; s = s->next)
             declare_stmt_strings(cg, s);
     } else if (stmt->stmt_type == ST_VAR_DECL && stmt->expr != NULL && stmt->expr->op == OP_STR_LITERAL) {
         // a variable initialized to a string
@@ -87,9 +87,9 @@ static void declare_stmt_strings(code_gen *cg, statement *stmt) {
     }
 }
 
-void code_gen_generate_for_module(code_gen *cg, ast_module_node *module) {
+void code_gen_generate_for_module(code_gen *cg, ast_module *module) {
 
-    statement *stmt = module->statements_list;
+    ast_statement *stmt = module->statements_list;
     while (stmt != NULL) {
         if (stmt->stmt_type != ST_VAR_DECL) {
             error_at(stmt->token->filename, stmt->token->line_no, "only var declarations are supported in code generation");
@@ -104,15 +104,15 @@ void code_gen_generate_for_module(code_gen *cg, ast_module_node *module) {
     }
 
     // traverse all to delcare any possible strings
-    for (func_declaration *f = module->funcs_list; f != NULL; f = f->next) {
-        for (statement *s = f->stmts_list; s != NULL; s = s->next) {
+    for (ast_func_declaration *f = module->funcs_list; f != NULL; f = f->next) {
+        for (ast_statement *s = f->stmts_list; s != NULL; s = s->next) {
             declare_stmt_strings(cg, s);
             if (errors_count) return;
         }
     }
     
     // generate code for all functions
-    for (func_declaration *f = module->funcs_list; f != NULL; f = f->next) {
+    for (ast_func_declaration *f = module->funcs_list; f != NULL; f = f->next) {
         if (f->stmts_list != NULL) { // maybe it's just a func declaration
             cg->ops->generate_for_function(cg, f);
             if (errors_count) return;

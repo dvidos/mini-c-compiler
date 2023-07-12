@@ -5,16 +5,16 @@
 #include <stdarg.h>
 #include "../../run_info.h"
 #include "../../err_handler.h"
-#include "../expression.h"
+#include "../ast_expression.h"
 #include "../lexer/token.h"
-#include "../statement.h"
+#include "../ast_statement.h"
 #include "../src_symbol.h"
-#include "../declaration.h"
+#include "../ast_declaration.h"
 #include "codegen.h"
 
 
 
-static ir_value *resolve_addr(code_gen *cg, expression *expr) {
+static ir_value *resolve_addr(code_gen *cg, ast_expression *expr) {
     // e.g. we can have "a = 1", but also "a[entries[idx].a_offset] = 1"
     
     if (expr->op == OP_SYMBOL_NAME) {
@@ -37,7 +37,7 @@ static ir_value *resolve_addr(code_gen *cg, expression *expr) {
     }
 }
 
-static void gen_func_call(code_gen *cg, ir_value *lvalue, expression *expr) {
+static void gen_func_call(code_gen *cg, ir_value *lvalue, ast_expression *expr) {
 
     // need to find the func reference?  e.g. "(devices[0]->write)(h, 10, buffer)"
     // remember that C pushes args from right to left (IR opcode PUSH)
@@ -51,7 +51,7 @@ static void gen_func_call(code_gen *cg, ir_value *lvalue, expression *expr) {
 
     // flatten arguments to be used
     #define MAX_FUNC_ARGS  16
-    expression *arg_expressions[MAX_FUNC_ARGS];
+    ast_expression *arg_expressions[MAX_FUNC_ARGS];
     int argc = 0;
     expr->ops->flatten_func_call_args_to_array(expr, arg_expressions, MAX_FUNC_ARGS, &argc);
     if (argc >= MAX_FUNC_ARGS) {
@@ -69,7 +69,7 @@ static void gen_func_call(code_gen *cg, ir_value *lvalue, expression *expr) {
     cg->ir->ops->add(cg->ir, new_ir_function_call(lvalue, func_addr, argc, ir_values_arr));
 }
 
-static void gen_binary_op(code_gen *cg, ir_value *lvalue, expression *expr) {
+static void gen_binary_op(code_gen *cg, ir_value *lvalue, ast_expression *expr) {
 
     ir_value *r1 = new_ir_value_temp_reg(cg->ops->next_reg_num(cg));
     cg->ops->generate_for_expression(cg, r1, expr->arg1);
@@ -98,7 +98,7 @@ static void gen_binary_op(code_gen *cg, ir_value *lvalue, expression *expr) {
     cg->ir->ops->add(cg->ir, new_ir_three_address_code(lvalue, r1, op, r2));
 }
 
-void code_gen_generate_for_expression(code_gen *cg, ir_value *lvalue, expression *expr) {
+void code_gen_generate_for_expression(code_gen *cg, ir_value *lvalue, ast_expression *expr) {
     switch (expr->op) {
         case OP_NUM_LITERAL:
             cg->ir->ops->add(cg->ir, new_ir_assignment(lvalue, new_ir_value_immediate(expr->value.num)));

@@ -1,28 +1,28 @@
 #include <stdlib.h>
 #include <string.h>
-#include "expression.h"
-#include "operators.h"
-#include "data_type.h"
+#include "ast_expression.h"
+#include "src_operator.h"
+#include "ast_data_type.h"
 #include "src_symbol.h"
 #include "scope.h"
 #include "../err_handler.h"
 #include "lexer/token.h"
 
 
-static data_type *get_data_type(expression *expr);
-static void flatten_func_call_args_to_array(expression *call_expr, expression *arr[], int arr_size, int *args_count);
+static ast_data_type *get_data_type(ast_expression *expr);
+static void flatten_func_call_args_to_array(ast_expression *call_expr, ast_expression *arr[], int arr_size, int *args_count);
 
 
-static struct expression_ops ops = {
+static struct ast_expression_ops ops = {
     .get_data_type = get_data_type,
     .flatten_func_call_args_to_array = flatten_func_call_args_to_array,
 };
 
 
 
-expression *create_expression(oper op, expression *arg1, expression *arg2, token *token) {
-    expression *n = malloc(sizeof(expression));
-    memset(n, 0, sizeof(expression));
+ast_expression *create_expression(oper op, ast_expression *arg1, ast_expression *arg2, token *token) {
+    ast_expression *n = malloc(sizeof(ast_expression));
+    memset(n, 0, sizeof(ast_expression));
     n->op = op;
     n->arg1 = arg1;
     n->arg2 = arg2;
@@ -31,18 +31,18 @@ expression *create_expression(oper op, expression *arg1, expression *arg2, token
     return n;
 }
 
-expression *create_symbol_name_expr(const char *name, token *token) {
-    expression *n = create_expression(OP_SYMBOL_NAME, NULL, NULL, token);
+ast_expression *create_symbol_name_expr(const char *name, token *token) {
+    ast_expression *n = create_expression(OP_SYMBOL_NAME, NULL, NULL, token);
     n->value.str = name;
     return n;
 }
-expression *create_string_literal_expr(const char *str, token *token) {
-    expression *n = create_expression(OP_STR_LITERAL, NULL, NULL, token);
+ast_expression *create_string_literal_expr(const char *str, token *token) {
+    ast_expression *n = create_expression(OP_STR_LITERAL, NULL, NULL, token);
     n->value.str = (char *)str;
     return n;
 }
-expression *create_number_literal_expr(const char *number, token *token) {
-    expression *n = create_expression(OP_NUM_LITERAL, NULL, NULL, token);
+ast_expression *create_number_literal_expr(const char *number, token *token) {
+    ast_expression *n = create_expression(OP_NUM_LITERAL, NULL, NULL, token);
     int base = 10;
     if (number[0] == '0' && number[1] != '\0') {
         if ((number[1] == 'x' || number[1] == 'X') && number[2] != '\0') {
@@ -56,19 +56,19 @@ expression *create_number_literal_expr(const char *number, token *token) {
     n->value.num = strtol(number, NULL, base);
     return n;
 }
-expression *create_char_literal_expr(char chr, token *token) {
-    expression *n = create_expression(OP_CHR_LITERAL, NULL, NULL, token);
+ast_expression *create_char_literal_expr(char chr, token *token) {
+    ast_expression *n = create_expression(OP_CHR_LITERAL, NULL, NULL, token);
     n->value.chr = chr;
     return n;
 }
 
-expression *create_bool_literal_expr(bool value, token *token) {
-    expression *n = create_expression(OP_BOOL_LITERAL, NULL, NULL, token);
+ast_expression *create_bool_literal_expr(bool value, token *token) {
+    ast_expression *n = create_expression(OP_BOOL_LITERAL, NULL, NULL, token);
     n->value.bln = value;
     return n;
 }
 
-static data_type *get_data_type(expression *expr) {
+static ast_data_type *get_data_type(ast_expression *expr) {
     if (expr == NULL)
         return NULL;
 
@@ -120,7 +120,7 @@ static data_type *get_data_type(expression *expr) {
         return expr->result_type;
     
     // now we need to consult our arguments types.
-    data_type *arg1_type = expr->arg1->ops->get_data_type(expr->arg1);
+    ast_data_type *arg1_type = expr->arg1->ops->get_data_type(expr->arg1);
     if (op == OP_POINTED_VALUE) {
         // return the nested type of arg1 type, i.e. *(of a char*) is a char
         if (arg1_type == NULL || arg1_type->nested == NULL) {
@@ -174,12 +174,12 @@ static data_type *get_data_type(expression *expr) {
 
 
 // instead of a COMMA tree, put everything in an array for easier handling
-static void flatten_func_call_args_to_array(expression *call_expr, expression *arr[], int arr_size, int *args_count) {
-    memset(arr, 0, sizeof(expression *) * arr_size);
+static void flatten_func_call_args_to_array(ast_expression *call_expr, ast_expression *arr[], int arr_size, int *args_count) {
+    memset(arr, 0, sizeof(ast_expression *) * arr_size);
     *args_count = 0;
     int i = 0;
 
-    expression *node = call_expr->arg2; // arg1 is the function name or pointer
+    ast_expression *node = call_expr->arg2; // arg1 is the function name or pointer
     while (node != NULL) {
         if (node->op != OP_COMMA) {
             // finding a non comma on arg2 means we are done!

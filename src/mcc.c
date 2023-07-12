@@ -11,9 +11,9 @@
 #include "compiler/lexer/token_list.h"
 #include "compiler/lexer/token.h"
 #include "compiler/lexer/lexer.h"
-#include "compiler/declaration.h"
-#include "compiler/ast.h"
-#include "compiler/operators.h"
+#include "compiler/ast_declaration.h"
+#include "compiler/ast_module.h"
+#include "compiler/src_operator.h"
 #include "compiler/scope.h"
 #include "compiler/src_symbol.h"
 #include "compiler/parser/token_iterator.h"
@@ -281,18 +281,18 @@ static bool perform_end_to_end_test() {
 
     llist *module_asts = new_llist(mp);
     for_list(token_lists, llist, tokens_list) {
-        ast_module_node *module_ast = parse_file_tokens_using_recursive_descend(mp, tokens_list);
+        ast_module *module_ast = parse_file_tokens_using_recursive_descend(mp, tokens_list);
         if (module_ast == NULL || errors_count) return false;
         llist_add(module_asts, module_ast);
     }
 
-    for_list(module_asts, ast_module_node, module_ast) {
+    for_list(module_asts, ast_module, module_ast) {
         // perform_semantic_analysis(mp, module_ast);
         if (errors_count) return false;
     }
 
     llist *ir_listings = new_llist(mp);
-    for_list(module_asts, ast_module_node, module_ast) {
+    for_list(module_asts, ast_module, module_ast) {
         ir_listing *ir_lst = NULL; // generate_ir_code(mp, module_ast);
         if (errors_count) return false;
         llist_add(ir_listings, ir_lst);

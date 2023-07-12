@@ -3,9 +3,9 @@
 #include "../../err_handler.h"
 #include "../../utils/data_structs.h"
 #include "../lexer/token.h"
-#include "../operators.h"
-#include "../declaration.h"
-#include "../expression.h"
+#include "../src_operator.h"
+#include "../ast_declaration.h"
+#include "../ast_expression.h"
 #include "token_iterator.h"
 
 /*
@@ -72,7 +72,7 @@ bool next_is_terminal(token_iterator *ti) {
         || tt == TOK_IDENTIFIER;
 }
 
-expression *accept_terminal(token_iterator *ti) {
+ast_expression *accept_terminal(token_iterator *ti) {
     if (!next_is_terminal(ti))
         return NULL;
     token *t = ti->next(ti);
@@ -101,11 +101,11 @@ static inline void push_operator(oper op) { operators_stack[operators_stack_len+
 static inline oper pop_operator() { return operators_stack[--operators_stack_len]; }
 static inline oper peek_operator() { return operators_stack[operators_stack_len - 1]; }
 
-expression *operands_stack[MAX_STACK_SIZE];
+ast_expression *operands_stack[MAX_STACK_SIZE];
 int operands_stack_len = 0;
-static inline void push_operand(expression *n) { operands_stack[operands_stack_len++] = n; if (operands_stack_len >= MAX_STACK_SIZE) error("expr stack overflow"); }
-static inline expression *pop_operand() { return operands_stack[--operands_stack_len]; }
-static inline expression *peek_operand() { return operands_stack[operands_stack_len - 1]; }
+static inline void push_operand(ast_expression *n) { operands_stack[operands_stack_len++] = n; if (operands_stack_len >= MAX_STACK_SIZE) error("expr stack overflow"); }
+static inline ast_expression *pop_operand() { return operands_stack[--operands_stack_len]; }
+static inline ast_expression *peek_operand() { return operands_stack[operands_stack_len - 1]; }
 
 // -------------------------------------------------------------------
 
@@ -200,8 +200,8 @@ static void pop_operator_into_expression()
 {
     oper op = pop_operator();
     bool is_unary = is_unary_operator(op);
-    expression *op1, *op2;
-    expression *expr;
+    ast_expression *op1, *op2;
+    ast_expression *expr;
 
     if (is_unary) { 
         op1 = pop_operand();
@@ -220,7 +220,7 @@ static void pop_operator_into_expression()
 
 // -------------------------------------------------------------------
 
-expression *parse_expression_using_shunting_yard(mempool *mp, token_iterator *ti) {
+ast_expression *parse_expression_using_shunting_yard(mempool *mp, token_iterator *ti) {
 
     // reset stacks, push SENTINEL to serve as lowest priority indicator
     operators_stack_len = 0;

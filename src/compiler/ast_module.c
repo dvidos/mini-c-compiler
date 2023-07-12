@@ -1,16 +1,16 @@
 #include <stddef.h>
 #include <stdio.h>
-#include "ast.h"
-#include "declaration.h"
+#include "ast_module.h"
+#include "ast_declaration.h"
 #include "../utils.h"
 
 // currently we do not have a "tree" in the correct sense of the word.
 // if we wanted to do so, we need to make function declarations part of a statement.
 
 // the lists below at file level
-static ast_module_node ast_root;
+static ast_module ast_root;
 
-static void print_statement_list(FILE *stream, statement *list, int depth);
+static void print_statement_list(FILE *stream, ast_statement *list, int depth);
 
 
 void init_ast() {
@@ -18,26 +18,26 @@ void init_ast() {
     ast_root.funcs_list = NULL;
 }
 
-ast_module_node *get_ast_root_node() {
+ast_module *get_ast_root_node() {
     return &ast_root;
 }
 
-void ast_add_statement(statement *stmt) {
+void ast_add_statement(ast_statement *stmt) {
     if (ast_root.statements_list == NULL) {
         ast_root.statements_list = stmt;
     } else {
-        statement *p = ast_root.statements_list;
+        ast_statement *p = ast_root.statements_list;
         while (p->next != NULL) p = p->next;
         p->next = stmt;
     }
     stmt->next = NULL;
 }
 
-void ast_add_function(func_declaration *func) {
+void ast_add_function(ast_func_declaration *func) {
     if (ast_root.funcs_list == NULL) {
         ast_root.funcs_list = func;
     } else {
-        func_declaration *p = ast_root.funcs_list;
+        ast_func_declaration *p = ast_root.funcs_list;
         while (p->next != NULL) p = p->next;
         p->next = func;
     }
@@ -50,7 +50,7 @@ static void indent(FILE *stream, int depth) {
         fprintf(stream, "    ");
 }
 
-static void print_expression_using_func_format(FILE *stream, expression *expr) {
+static void print_expression_using_func_format(FILE *stream, ast_expression *expr) {
     if (expr == NULL) {
         fprintf(stream, "NULL");
     } else if (expr->op == OP_SYMBOL_NAME) {
@@ -76,7 +76,7 @@ static void print_expression_using_func_format(FILE *stream, expression *expr) {
     }
 }
 
-static void print_expression_using_tree_format(FILE *stream, expression *expr, int depth) {
+static void print_expression_using_tree_format(FILE *stream, ast_expression *expr, int depth) {
     indent(stream, depth);
     
     if (expr == NULL) { fprintf(stream, "NULL\n");
@@ -94,7 +94,7 @@ static void print_expression_using_tree_format(FILE *stream, expression *expr, i
     }
 }
 
-static void print_statement(FILE *stream, statement *st, int depth) {
+static void print_statement(FILE *stream, ast_statement *st, int depth) {
     switch (st->stmt_type) {
         case ST_BLOCK:
             print_statement_list(stream, st->body, depth);
@@ -167,8 +167,8 @@ static void print_statement(FILE *stream, statement *st, int depth) {
     }
 }
 
-static void print_statement_list(FILE *stream, statement *list, int depth) {
-    statement *stmt = list;
+static void print_statement_list(FILE *stream, ast_statement *list, int depth) {
+    ast_statement *stmt = list;
     while (stmt != NULL) {
         print_statement(stream, stmt, depth);
         stmt = stmt->next;
@@ -177,20 +177,20 @@ static void print_statement_list(FILE *stream, statement *list, int depth) {
 
 void print_ast(FILE *stream) {
 
-    statement *stmt = ast_root.statements_list;
+    ast_statement *stmt = ast_root.statements_list;
     while (stmt != NULL) {
         print_statement(stream, stmt, 0);
         stmt = stmt->next;
     }
 
-    func_declaration *func = ast_root.funcs_list;
+    ast_func_declaration *func = ast_root.funcs_list;
     while (func != NULL) {
         fprintf(stream, "\n");
         indent(stream, 0);
         fprintf(stream, "function: %s %s(",
             func->return_type->ops->to_string(func->return_type),
             func->func_name);
-        var_declaration *arg = func->args_list;
+        ast_var_declaration *arg = func->args_list;
         while (arg != NULL) {
             fprintf(stream, "%s %s",
                  arg->data_type->ops->to_string(arg->data_type),
@@ -209,7 +209,7 @@ void print_ast(FILE *stream) {
 }
 
 
-static void ast_count_expression_nodes(expression *expr, int *expressions) {
+static void ast_count_expression_nodes(ast_expression *expr, int *expressions) {
     if (expr == NULL)
         return;
     (*expressions)++;
@@ -218,7 +218,7 @@ static void ast_count_expression_nodes(expression *expr, int *expressions) {
 }
 
 
-static void ast_count_statements(statement *stmt, int *statements, int *expressions) {
+static void ast_count_statements(ast_statement *stmt, int *statements, int *expressions) {
     if (stmt == NULL)
         return;
     (*statements)++;
@@ -228,7 +228,7 @@ static void ast_count_statements(statement *stmt, int *statements, int *expressi
 
     ast_count_expression_nodes(stmt->expr, expressions);
 
-    statement *s = stmt->body;
+    ast_statement *s = stmt->body;
     while (s != NULL) {
         ast_count_statements(s, statements, expressions);
         s = s->next;
@@ -245,13 +245,13 @@ void ast_count_nodes(int *functions, int *statements, int *expressions) {
     (*statements) = 0;
     (*expressions) = 0;
 
-    statement *stmt = ast_root.statements_list;
+    ast_statement *stmt = ast_root.statements_list;
     while (stmt != NULL) {
         (*statements)++;
         stmt = stmt->next;
     }
 
-    func_declaration *func = ast_root.funcs_list;
+    ast_func_declaration *func = ast_root.funcs_list;
     while (func != NULL) {
         (*functions)++;
         // TODO: fix this so that function bodies count correct

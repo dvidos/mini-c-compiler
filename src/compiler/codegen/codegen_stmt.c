@@ -5,16 +5,16 @@
 #include <stdarg.h>
 #include "../../run_info.h"
 #include "../../err_handler.h"
-#include "../expression.h"
+#include "../ast_expression.h"
 #include "../lexer/token.h"
-#include "../statement.h"
+#include "../ast_statement.h"
 #include "../src_symbol.h"
-#include "../declaration.h"
+#include "../ast_declaration.h"
 #include "codegen.h"
 
 
 // we generate for the false condition, to allow to skip an "if"s body.
-static void gen_false_cond_jump(code_gen *cg, expression *expr, char *label_fmt, int label_num) {
+static void gen_false_cond_jump(code_gen *cg, ast_expression *expr, char *label_fmt, int label_num) {
 
     ir_value *v1;
     ir_comparison cmp = IR_NONE;
@@ -42,7 +42,7 @@ static void gen_false_cond_jump(code_gen *cg, expression *expr, char *label_fmt,
     cg->ir->ops->add(cg->ir, new_ir_conditional_jump(v1, cmp, v2, label_fmt, label_num));
 }
 
-void code_gen_generate_for_statement(code_gen *cg, statement *stmt) {
+void code_gen_generate_for_statement(code_gen *cg, ast_statement *stmt) {
     int num;
 
     // blocks of statements and expressions, together with jumps
@@ -50,7 +50,7 @@ void code_gen_generate_for_statement(code_gen *cg, statement *stmt) {
         case ST_BLOCK:
             // don't we need to push scope? in order
             // to make sure inner names resolve to correct target?
-            statement *s = stmt->body;
+            ast_statement *s = stmt->body;
             while (s != NULL) {
                 code_gen_generate_for_statement(cg, s);
                 s = s->next;

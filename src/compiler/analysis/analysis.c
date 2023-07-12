@@ -2,11 +2,11 @@
 #include <stdarg.h>
 #include "analysis.h"
 #include "../../err_handler.h"
-#include "../declaration.h"
-#include "../statement.h"
+#include "../ast_declaration.h"
+#include "../ast_statement.h"
 #include "../scope.h"
 #include "../src_symbol.h"
-#include "../ast.h"
+#include "../ast_module.h"
 
 /*
     analysis has the following components:
@@ -16,7 +16,7 @@
 */
 
 
-void perform_declaration_analysis(var_declaration *decl, int arg_no) {
+void perform_declaration_analysis(ast_var_declaration *decl, int arg_no) {
 
     if (scope_symbol_declared_at_curr_level(decl->var_name)) {
         error_at(
@@ -36,7 +36,7 @@ void perform_declaration_analysis(var_declaration *decl, int arg_no) {
     scope_declare_symbol(sym);
 }
 
-void perform_function_analysis(func_declaration *func) {
+void perform_function_analysis(ast_func_declaration *func) {
 
     // functions are declared at their parent scope
     if (scope_symbol_declared_at_curr_level(func->func_name)) {
@@ -52,7 +52,7 @@ void perform_function_analysis(func_declaration *func) {
 
     scope_entered(func); // scope of function
 
-    var_declaration *arg = func->args_list;
+    ast_var_declaration *arg = func->args_list;
     int arg_no = 0;
     while (arg != NULL) {
         perform_declaration_analysis(arg, arg_no);
@@ -61,7 +61,7 @@ void perform_function_analysis(func_declaration *func) {
     }
 
     // functions have a list of statements as their body.
-    statement *stmt = func->stmts_list;
+    ast_statement *stmt = func->stmts_list;
     while (stmt != NULL) {
         perform_statement_analysis(stmt);
         stmt = stmt->next;
@@ -70,16 +70,16 @@ void perform_function_analysis(func_declaration *func) {
     scope_exited(); // exiting function
 }
 
-void perform_module_analysis(ast_module_node *ast_root) {
+void perform_module_analysis(ast_module *ast_root) {
     scope_entered(NULL);
 
-    statement *stmt = ast_root->statements_list;
+    ast_statement *stmt = ast_root->statements_list;
     while (stmt != NULL) {
         perform_statement_analysis(stmt);
         stmt = stmt->next;
     }
 
-    func_declaration *func = ast_root->funcs_list;
+    ast_func_declaration *func = ast_root->funcs_list;
     while (func != NULL) {
         perform_function_analysis(func);
         func = func->next;

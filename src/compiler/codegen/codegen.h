@@ -1,7 +1,7 @@
 #pragma once
 #include "ir_listing.h"
-#include "../declaration.h"
-#include "../ast.h"
+#include "../ast_declaration.h"
+#include "../ast_module.h"
 
 
 struct code_gen_ops;
@@ -21,12 +21,12 @@ typedef struct code_gen {
 code_gen *new_code_generator(ir_listing *listing);
 
 struct code_gen_ops {
-    void (*generate_for_module)(code_gen *cg, ast_module_node *mod);
-    void (*generate_for_function)(code_gen *cg, func_declaration *func);
-    void (*generate_for_expression)(code_gen *cg, ir_value *lvalue, expression *expr);
-    void (*generate_for_statement)(code_gen *cg, statement *stmt);
+    void (*generate_for_module)(code_gen *cg, ast_module *mod);
+    void (*generate_for_function)(code_gen *cg, ast_func_declaration *func);
+    void (*generate_for_expression)(code_gen *cg, ir_value *lvalue, ast_expression *expr);
+    void (*generate_for_statement)(code_gen *cg, ast_statement *stmt);
     
-    ir_value *(*create_ir_value)(code_gen *cg, expression *expr);
+    ir_value *(*create_ir_value)(code_gen *cg, ast_expression *expr);
     void (*set_curr_func_name)(code_gen *cg, const char *func_name);
     const char *(*get_curr_func_name)(code_gen *cg);
     int (*next_reg_num)(code_gen *cg);
@@ -37,15 +37,15 @@ struct code_gen_ops {
 };
 
 // codegen.c
-void code_gen_generate_for_module(code_gen *cg, ast_module_node *module);
+void code_gen_generate_for_module(code_gen *cg, ast_module *module);
 
 // codegen_func.c
-void code_gen_generate_for_function(code_gen *cg, func_declaration *func);
+void code_gen_generate_for_function(code_gen *cg, ast_func_declaration *func);
 
 // codegen_stmt.c
-void code_gen_generate_for_statement(code_gen *cg, statement *stmt);
+void code_gen_generate_for_statement(code_gen *cg, ast_statement *stmt);
 
 // codegen_expr.c
-void code_gen_generate_for_expression(code_gen *cg, ir_value *lvalue, expression *expr);
+void code_gen_generate_for_expression(code_gen *cg, ir_value *lvalue, ast_expression *expr);
 
 

@@ -1,15 +1,15 @@
 #include <stdlib.h>
-#include "declaration.h"
+#include "ast_declaration.h"
 #include "lexer/token.h"
-#include "operators.h"
-#include "statement.h"
+#include "src_operator.h"
+#include "ast_statement.h"
 
-static statement *_create_statement(statement_type stmt_type, 
-        var_declaration *decl, expression *expr, 
-        statement *body, statement *else_body,
+static ast_statement *_create_statement(ast_statement_type stmt_type, 
+        ast_var_declaration *decl, ast_expression *expr, 
+        ast_statement *body, ast_statement *else_body,
         token *token
 ) {
-    statement *n = malloc(sizeof(statement));
+    ast_statement *n = malloc(sizeof(ast_statement));
     n->stmt_type = stmt_type;
     n->decl = decl;
     n->expr = expr;
@@ -21,33 +21,33 @@ static statement *_create_statement(statement_type stmt_type,
     return n;
 }
 
-statement *new_statements_block(statement *stmts_list, token *token) {
+ast_statement *new_statements_block(ast_statement *stmts_list, token *token) {
     return _create_statement(ST_BLOCK, NULL, NULL, stmts_list, NULL, token);
 }
-statement *new_var_decl_statement(var_declaration *decl, expression *init, token *token) {
+ast_statement *new_var_decl_statement(ast_var_declaration *decl, ast_expression *init, token *token) {
     return _create_statement(ST_VAR_DECL, decl, init, NULL, NULL, token);
 }
-statement *new_if_statement(expression *condition, statement *if_body, statement *else_body, token *token) {
+ast_statement *new_if_statement(ast_expression *condition, ast_statement *if_body, ast_statement *else_body, token *token) {
     return _create_statement(ST_IF, NULL, condition, if_body, else_body, token);
 }
-statement *new_while_statement(expression *condition, statement *body, token *token) {
+ast_statement *new_while_statement(ast_expression *condition, ast_statement *body, token *token) {
     return _create_statement(ST_WHILE, NULL, condition, body, NULL, token);
 }
-statement *create_continue_statement(token *token) {
+ast_statement *create_continue_statement(token *token) {
     return _create_statement(ST_CONTINUE, NULL, NULL, NULL, NULL, token);
 }
-statement *new_break_statement(token *token) {
+ast_statement *new_break_statement(token *token) {
     return _create_statement(ST_BREAK, NULL, NULL, NULL, NULL, token);
 }
-statement *new_return_statement(expression *return_value, token *token) {
+ast_statement *new_return_statement(ast_expression *return_value, token *token) {
     return _create_statement(ST_RETURN, NULL, return_value, NULL, NULL, token);
 }
-statement *new_expr_statement(expression *expression, token *token) {
+ast_statement *new_expr_statement(ast_expression *expression, token *token) {
     return _create_statement(ST_EXPRESSION, NULL, expression, NULL, NULL, token);
 }
 
 
-char *statement_type_name(statement_type type) {
+char *statement_type_name(ast_statement_type type) {
     switch (type) {
         case ST_BLOCK: return "block";
         case ST_VAR_DECL: return "declaration";

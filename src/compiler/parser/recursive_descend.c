@@ -4,9 +4,9 @@
 #include <stdlib.h>
 #include "../../err_handler.h"
 #include "../lexer/token.h"
-#include "../declaration.h"
-#include "../statement.h"
-#include "../ast.h"
+#include "../ast_declaration.h"
+#include "../ast_statement.h"
+#include "../ast_module.h"
 #include "token_iterator.h"
 #include "shunting_yard.h"
 
@@ -53,13 +53,13 @@ static bool is_data_type_description(token_iterator *ti, int *num_tokens);
 static bool is_variable_declaration(token_iterator *ti);
 static bool is_function_declaration(token_iterator *ti);
 
-static data_type *accept_data_type_description(mempool *mp, token_iterator *ti);
-static statement *accept_variable_declaration(mempool *mp, token_iterator *ti);
-static func_declaration *accept_function_declaration(mempool *mp, token_iterator *ti);
+static ast_data_type *accept_data_type_description(mempool *mp, token_iterator *ti);
+static ast_statement *accept_variable_declaration(mempool *mp, token_iterator *ti);
+static ast_func_declaration *accept_function_declaration(mempool *mp, token_iterator *ti);
 
-static statement *parse_statement(mempool *mp, token_iterator *ti);
-static statement *parse_statements_list_in_block(mempool *mp, token_iterator *ti);
-static var_declaration *parse_function_arguments_list(mempool *mp, token_iterator *ti);
+static ast_statement *parse_statement(mempool *mp, token_iterator *ti);
+static ast_statement *parse_statements_list_in_block(mempool *mp, token_iterator *ti);
+static ast_var_declaration *parse_function_arguments_list(mempool *mp, token_iterator *ti);
 
 static bool is_data_type_description(token_iterator *ti, int *num_tokens) {
 
@@ -123,15 +123,15 @@ static const char *expect_identifier(token_iterator *ti) {
     return ti->accepted(ti)->value;
 }
 
-static data_type *accept_data_type_description(mempool *mp, token_iterator *ti) {
+static ast_data_type *accept_data_type_description(mempool *mp, token_iterator *ti) {
     // we assume data definition takes only one token, for now
     int tokens;
     if (!is_data_type_description(ti, &tokens))
         return NULL;
 
     ti->consume(ti); // a keyword such as "int" or "char"
-    type_family family = data_type_family_for_token(ti->accepted(ti)->type);
-    data_type *t = new_data_type(family, NULL);
+    ast_type_family family = data_type_family_for_token(ti->accepted(ti)->type);
+    ast_data_type *t = new_data_type(family, NULL);
 
     if (ti->accept(ti, TOK_STAR)) {
         // we are a pointer, nest the data type
@@ -146,11 +146,11 @@ static data_type *accept_data_type_description(mempool *mp, token_iterator *ti) 
     return t;
 }
 
-static statement *accept_variable_declaration(mempool *mp, token_iterator *ti) {
+static ast_statement *accept_variable_declaration(mempool *mp, token_iterator *ti) {
     if (!is_variable_declaration(ti))
         return NULL;
 
-    data_type *dt = accept_data_type_description(mp, ti);
+    ast_data_type *dt = accept_data_type_description(mp, ti);
     if (dt == NULL) return NULL;
     const char *name = expect_identifier(ti);
     token *identifier_token = ti->accepted(ti);
@@ -172,8 +172,8 @@ static statement *accept_variable_declaration(mempool *mp, token_iterator *ti) {
         }
     }
 
-    var_declaration *vd = new_var_declaration(dt, name, identifier_token);
-    expression *initialization = NULL;
+    ast_var_declaration *vd = new_var_declaration(dt, name, identifier_token);
+    ast_expression *initialization = NULL;
     if (ti->accept(ti, TOK_EQUAL_SIGN)) {
         initialization = parse_expression_using_shunting_yard(mp, ti);
     }
@@ -183,11 +183,11 @@ static statement *accept_variable_declaration(mempool *mp, token_iterator *ti) {
     return new_var_decl_statement(vd, initialization, identifier_token);
 }
 
-static func_declaration *accept_function_declaration(mempool *mp, token_iterator *ti) {
+static ast_func_declaration *accept_function_declaration(mempool *mp, token_iterator *ti) {
     if (!is_function_declaration(ti))
         return NULL;
 
-    data_type *ret_type = accept_data_type_description(mp, ti);
+    ast_data_type *ret_type = accept_data_type_description(mp, ti);
     if (ret_type == NULL) return NULL;
 
     const char *name = expect_identifier(ti);
@@ -195,13 +195,13 @@ static func_declaration *accept_function_declaration(mempool *mp, token_iterator
     token *identifier_token = ti->accepted(ti);
 
     if (!ti->expect(ti, TOK_LPAREN)) return NULL;
-    var_declaration *args = NULL;
+    ast_var_declaration *args = NULL;
     if (!ti->accept(ti, TOK_RPAREN)) {
         args = parse_function_arguments_list(mp, ti);
         if (!ti->expect(ti, TOK_RPAREN)) return NULL;
     }
 
-    statement *body = NULL;
+    ast_statement *body = NULL;
     // we either have a semicolon (declaration) or an opening brace (definition)
     if (ti->accept(ti, TOK_SEMICOLON)) {
         body = NULL;
@@ -217,14 +217,14 @@ static func_declaration *accept_function_declaration(mempool *mp, token_iterator
 }
 
 // cannot parse a function, but can parse a block and anything in it.
-static statement *parse_statement(mempool *mp, token_iterator *ti) {
+static ast_statement *parse_statement(mempool *mp, token_iterator *ti) {
     token *start_token;
 
     if (ti->accept(ti, TOK_BLOCK_START)) {
         // we need to parse the nested block, blocks have their own scope
         token *opening_token = ti->accepted(ti);
-        statement *stmt_list = parse_statements_list_in_block(mp, ti);
-        statement *bl = new_statements_block(stmt_list, opening_token);
+        ast_statement *stmt_list = parse_statements_list_in_block(mp, ti);
+        ast_statement *bl = new_statements_block(stmt_list, opening_token);
         if (!ti->expect(ti, TOK_BLOCK_END)) return NULL;
         return bl;
     }
@@ -236,11 +236,11 @@ static statement *parse_statement(mempool *mp, token_iterator *ti) {
     if (ti->accept(ti, TOK_IF)) {
         start_token = ti->accepted(ti);
         if (!ti->expect(ti, TOK_LPAREN)) return NULL;
-        expression *cond = parse_expression_using_shunting_yard(mp, ti);
+        ast_expression *cond = parse_expression_using_shunting_yard(mp, ti);
         if (!ti->expect(ti, TOK_RPAREN)) return NULL;
-        statement *if_body = parse_statement(mp, ti);
+        ast_statement *if_body = parse_statement(mp, ti);
         if (if_body == NULL) return NULL;
-        statement *else_body = NULL;
+        ast_statement *else_body = NULL;
         if (ti->accept(ti, TOK_ELSE)) {
             else_body = parse_statement(mp, ti);
             if (else_body == NULL) return NULL;
@@ -251,9 +251,9 @@ static statement *parse_statement(mempool *mp, token_iterator *ti) {
     if (ti->accept(ti, TOK_WHILE)) {
         start_token = ti->accepted(ti);
         if (!ti->expect(ti, TOK_LPAREN)) return NULL;
-        expression *cond = parse_expression_using_shunting_yard(mp, ti);
+        ast_expression *cond = parse_expression_using_shunting_yard(mp, ti);
         if (!ti->expect(ti, TOK_RPAREN)) return NULL;
-        statement *body = parse_statement(mp, ti);
+        ast_statement *body = parse_statement(mp, ti);
         if (body == NULL) return NULL;
         return new_while_statement(cond, body, start_token);
     }
@@ -272,7 +272,7 @@ static statement *parse_statement(mempool *mp, token_iterator *ti) {
 
     if (ti->accept(ti, TOK_RETURN)) {
         start_token = ti->accepted(ti);
-        expression *value = NULL;
+        ast_expression *value = NULL;
         if (!ti->accept(ti, TOK_SEMICOLON)) {
             value = parse_expression_using_shunting_yard(mp, ti);
             if (!ti->expect(ti, TOK_SEMICOLON)) return NULL;
@@ -282,16 +282,16 @@ static statement *parse_statement(mempool *mp, token_iterator *ti) {
     
     // what is left? treat the rest as expressions
     start_token = ti->next(ti);
-    expression *expr = parse_expression_using_shunting_yard(mp, ti);
+    ast_expression *expr = parse_expression_using_shunting_yard(mp, ti);
     if (!ti->expect(ti, TOK_SEMICOLON)) return NULL;
     return new_expr_statement(expr, start_token);
 }
 
-static statement *parse_statements_list_in_block(mempool *mp, token_iterator *ti) {
-    declare_list(statement);
+static ast_statement *parse_statements_list_in_block(mempool *mp, token_iterator *ti) {
+    declare_list(ast_statement);
 
     while (!ti->next_is(ti, TOK_BLOCK_END) && !ti->next_is(ti, TOK_EOF) && errors_count == 0) {
-        statement *n = parse_statement(mp, ti);
+        ast_statement *n = parse_statement(mp, ti);
         if (n == NULL) // error?
             return NULL;
         list_append(n);
@@ -300,11 +300,11 @@ static statement *parse_statements_list_in_block(mempool *mp, token_iterator *ti
     return list;
 }
 
-static var_declaration *parse_function_arguments_list(mempool *mp, token_iterator *ti) {
-    declare_list(var_declaration);
+static ast_var_declaration *parse_function_arguments_list(mempool *mp, token_iterator *ti) {
+    declare_list(ast_var_declaration);
 
     while (!ti->next_is(ti, TOK_RPAREN)) {
-        data_type *dt = accept_data_type_description(mp, ti);
+        ast_data_type *dt = accept_data_type_description(mp, ti);
         if (dt == NULL) return NULL;
         const char *name = expect_identifier(ti);
         if (name == NULL) return NULL;
@@ -326,7 +326,7 @@ static var_declaration *parse_function_arguments_list(mempool *mp, token_iterato
             }
         }
 
-        var_declaration *n = new_var_declaration(dt, name, identifier_token);
+        ast_var_declaration *n = new_var_declaration(dt, name, identifier_token);
         list_append(n);
 
         if (!ti->accept(ti, TOK_COMMA))
@@ -338,11 +338,11 @@ static var_declaration *parse_function_arguments_list(mempool *mp, token_iterato
 
 static void parse_file_level_element(mempool *mp, token_iterator *ti) {
     if (is_variable_declaration(ti)) {
-        statement *n = accept_variable_declaration(mp, ti);
+        ast_statement *n = accept_variable_declaration(mp, ti);
         ast_add_statement(n);
     }
     else if (is_function_declaration(ti)) {
-        func_declaration *n = accept_function_declaration(mp, ti);
+        ast_func_declaration *n = accept_function_declaration(mp, ti);
         ast_add_function(n);
     }
     else {
@@ -351,7 +351,7 @@ static void parse_file_level_element(mempool *mp, token_iterator *ti) {
     }
 }
 
-ast_module_node *parse_file_tokens_using_recursive_descend(mempool *mp, llist *tokens) {
+ast_module *parse_file_tokens_using_recursive_descend(mempool *mp, llist *tokens) {
 
     init_operators(); // make sure our lookup is populated
 

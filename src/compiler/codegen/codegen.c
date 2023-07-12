@@ -6,11 +6,11 @@
 #include "../../run_info.h"
 #include "../../err_handler.h"
 #include "../lexer/token.h"
-#include "../expression.h"
-#include "../statement.h"
+#include "../ast_expression.h"
+#include "../ast_statement.h"
 #include "../src_symbol.h"
-#include "../declaration.h"
-#include "../expression.h"
+#include "../ast_declaration.h"
+#include "../ast_expression.h"
 #include "codegen.h"
 #include "ir_listing.h"
 
@@ -22,7 +22,7 @@
     http://ref.x86asm.net/coder32.html
 */
 
-static ir_value *_create_ir_value(code_gen *cg, expression *expr);
+static ir_value *_create_ir_value(code_gen *cg, ast_expression *expr);
 static void _set_curr_func_name(code_gen *cg, const char *func_name);
 static const char *_get_curr_func_name(code_gen *cg);
 static int _next_reg_num(code_gen *cg);
@@ -47,7 +47,7 @@ static struct code_gen_ops ops = {
     .end_loop_generation = _end_loop_generation,
 };
 
-static ir_value *_create_ir_value(code_gen *cg, expression *expr) {
+static ir_value *_create_ir_value(code_gen *cg, ast_expression *expr) {
     switch (expr->op) {
         case OP_NUM_LITERAL:
             return new_ir_value_immediate(expr->value.num);

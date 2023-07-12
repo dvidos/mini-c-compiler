@@ -2,17 +2,17 @@
 #include <string.h>
 #include <stdio.h>
 #include "../run_info.h"
-#include "data_type.h"
+#include "ast_data_type.h"
 
-static int _size_of(data_type *type);
-static data_type *_clone(data_type *type);
-static void _free(data_type *type);
-static bool _equals(data_type *a, data_type *b);
-static char *_to_string(data_type *type);
+static int _size_of(ast_data_type *type);
+static ast_data_type *_clone(ast_data_type *type);
+static void _free(ast_data_type *type);
+static bool _equals(ast_data_type *a, ast_data_type *b);
+static char *_to_string(ast_data_type *type);
 
 
 
-static struct data_type_ops ops = {
+static struct ast_data_type_ops ops = {
     .size_of = _size_of,
     .equals = _equals,
     .to_string = _to_string,
@@ -20,7 +20,7 @@ static struct data_type_ops ops = {
     .free = _free,
 };
 
-type_family data_type_family_for_token(token_type type) {
+ast_type_family data_type_family_for_token(token_type type) {
     switch (type) {
         case TOK_INT_KEYWORD:  return TF_INT;
         case TOK_FLOAT:        return TF_FLOAT;
@@ -33,8 +33,8 @@ type_family data_type_family_for_token(token_type type) {
     return TF_INT;
 }
 
-data_type *new_data_type(type_family family, data_type *nested) {
-    data_type *n = malloc(sizeof(data_type));
+ast_data_type *new_data_type(ast_type_family family, ast_data_type *nested) {
+    ast_data_type *n = malloc(sizeof(ast_data_type));
     n->family = family;
     n->nested = nested;
     n->array_size = 0;
@@ -43,7 +43,7 @@ data_type *new_data_type(type_family family, data_type *nested) {
     return n;
 }
 
-static int _size_of(data_type *type) {
+static int _size_of(ast_data_type *type) {
     switch (type->family) {
         case TF_INT:
             return run_info->options->is_32_bits ? 4 : 8;
@@ -66,11 +66,11 @@ static int _size_of(data_type *type) {
 
 
 
-static data_type *_clone(data_type *type) {
+static ast_data_type *_clone(ast_data_type *type) {
     if (type == NULL)
         return NULL;
     
-    data_type *clone = malloc(sizeof(data_type));
+    ast_data_type *clone = malloc(sizeof(ast_data_type));
     clone->family = type->family;
     clone->nested = _clone(type->nested);
     clone->array_size = type->array_size;
@@ -79,7 +79,7 @@ static data_type *_clone(data_type *type) {
     return clone;
 }
 
-static void _free(data_type *type) {
+static void _free(ast_data_type *type) {
     if (type->nested != NULL)
         _free(type);
     if (type->string_repr != NULL)
@@ -87,7 +87,7 @@ static void _free(data_type *type) {
     free(type);
 }
 
-static bool _equals(data_type *a, data_type *b) {
+static bool _equals(ast_data_type *a, ast_data_type *b) {
     if ((a == b))
         return true;
     
@@ -107,7 +107,7 @@ static bool _equals(data_type *a, data_type *b) {
 }
 
 
-static char *_to_string(data_type *type) {
+static char *_to_string(ast_data_type *type) {
     if (type->string_repr != NULL)
         return type->string_repr;
     

@@ -6,15 +6,15 @@
 #include "../../run_info.h"
 #include "../../err_handler.h"
 #include "../lexer/token.h"
-#include "../expression.h"
-#include "../statement.h"
+#include "../ast_expression.h"
+#include "../ast_statement.h"
 #include "../src_symbol.h"
-#include "../declaration.h"
+#include "../ast_declaration.h"
 #include "codegen.h"
 #include "ir_listing.h"
 
 
-static void traverse_and_generate_vars(code_gen *cg, statement *stmt) {
+static void traverse_and_generate_vars(code_gen *cg, ast_statement *stmt) {
     if (stmt == NULL)
         return;
     
@@ -28,7 +28,7 @@ static void traverse_and_generate_vars(code_gen *cg, statement *stmt) {
             break;
 
         case ST_BLOCK:
-            for (statement *s = stmt->body; s != NULL; s = s->next) 
+            for (ast_statement *s = stmt->body; s != NULL; s = s->next) 
                 traverse_and_generate_vars(cg, s);
             break;
 
@@ -50,19 +50,19 @@ static void traverse_and_generate_vars(code_gen *cg, statement *stmt) {
     }
 }
 
-void code_gen_generate_for_function(code_gen *cg, func_declaration *func) {
+void code_gen_generate_for_function(code_gen *cg, ast_func_declaration *func) {
 
     cg->ops->set_curr_func_name(cg, func->func_name);
 
     // prepare IR function definition arguments
     int args_len = 0;
     struct ir_entry_func_arg_info *args_arr = NULL;
-    for (var_declaration *arg = func->args_list; arg != NULL; arg = arg->next)
+    for (ast_var_declaration *arg = func->args_list; arg != NULL; arg = arg->next)
         args_len++;
     if (args_len > 0) {
         args_arr = malloc(args_len * sizeof(struct ir_entry_func_arg_info));
         int i = 0;
-        for (var_declaration *arg = func->args_list; arg != NULL; arg = arg->next) {
+        for (ast_var_declaration *arg = func->args_list; arg != NULL; arg = arg->next) {
             args_arr[i].name = arg->var_name;
             args_arr[i].size = arg->data_type->ops->size_of(arg->data_type);
             i++;
@@ -79,7 +79,7 @@ void code_gen_generate_for_function(code_gen *cg, func_declaration *func) {
 
 
     // traverse function tree to find local variables.
-    statement *stmt = func->stmts_list;
+    ast_statement *stmt = func->stmts_list;
     while (stmt != NULL) {
         traverse_and_generate_vars(cg, stmt);
         stmt = stmt->next;

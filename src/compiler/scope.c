@@ -5,13 +5,13 @@
 #include "../run_info.h"
 #include "scope.h"
 #include "src_symbol.h"
-#include "declaration.h"
+#include "ast_declaration.h"
 
 // a stack of scopes, the outermost pushed first
 scope *scopes_stack_top = NULL;
 
 // creates a new scope on the stack
-void scope_entered(func_declaration *func) {
+void scope_entered(ast_func_declaration *func) {
     scope *s = malloc(sizeof(scope));
     s->symbols_list_head = NULL;
     s->symbols_list_tail = NULL;
@@ -56,7 +56,7 @@ src_symbol *scope_lookup(const char *symbol_name) {
     return NULL;
 }
 
-func_declaration *get_scope_owning_function() {
+ast_func_declaration *get_scope_owning_function() {
     scope *sc = scopes_stack_top;
     while (sc != NULL) {
         if (sc->scoped_func != NULL)

@@ -15,14 +15,14 @@ SRC_FILES = \
 	compiler/lexer/token.c \
 	compiler/lexer/token_list.c \
 	compiler/lexer/lexer.c \
-	compiler/statement.c \
-	compiler/data_type.c \
-	compiler/expression.c \
-	compiler/operators.c \
+	compiler/ast_module.c \
+	compiler/ast_declaration.c \
+	compiler/ast_statement.c \
+	compiler/ast_expression.c \
+	compiler/ast_data_type.c \
+	compiler/src_operator.c \
 	compiler/src_symbol.c \
 	compiler/scope.c \
-	compiler/declaration.c \
-	compiler/ast.c \
 	compiler/parser/token_iterator.c \
 	compiler/parser/recursive_descend.c \
 	compiler/parser/shunting_yard.c \

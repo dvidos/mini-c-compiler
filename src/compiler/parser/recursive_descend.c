@@ -48,20 +48,21 @@
 // - statement (take action: loop, jump, return)
 // - expression (something to be evaluate and produce a value, includes function calls)
 
-static const char *expect_identifier();
-static bool is_data_type_description();
-static bool is_variable_declaration();
-static bool is_function_declaration();
+static const char *expect_identifier(token_iterator *ti);
+static bool is_data_type_description(token_iterator *ti, int *num_tokens);
+static bool is_variable_declaration(token_iterator *ti);
+static bool is_function_declaration(token_iterator *ti);
 
-static data_type *accept_data_type_description();
-static statement *accept_variable_declaration();
-static func_declaration *accept_function_declaration();
+static data_type *accept_data_type_description(mempool *mp, token_iterator *ti);
+static statement *accept_variable_declaration(mempool *mp, token_iterator *ti);
+static func_declaration *accept_function_declaration(mempool *mp, token_iterator *ti);
 
-static statement *parse_statement();
-static statement *parse_statements_list_in_block();
-static var_declaration *parse_function_arguments_list();
+static statement *parse_statement(mempool *mp, token_iterator *ti);
+static statement *parse_statements_list_in_block(mempool *mp, token_iterator *ti);
+static var_declaration *parse_function_arguments_list(mempool *mp, token_iterator *ti);
 
-static bool is_data_type_description(int *num_tokens) {
+static bool is_data_type_description(token_iterator *ti, int *num_tokens) {
+
     // storage_class_specifiers: typedef, extern, static, auto, register.
     // type_qualifiers: const, volatile.
     // type specifiers: void, char, short, int, long, float, double, 
@@ -71,73 +72,73 @@ static bool is_data_type_description(int *num_tokens) {
 
     int count = 0;
 
-    if (!(next_is(TOK_INT_KEYWORD)
-         || next_is(TOK_FLOAT)
-         || next_is(TOK_CHAR_KEYWORD)
-         || next_is(TOK_BOOL)
-         || next_is(TOK_VOID))) {
+    if (!  (ti->next_is(ti, TOK_INT_KEYWORD)
+         || ti->next_is(ti, TOK_FLOAT)
+         || ti->next_is(ti, TOK_CHAR_KEYWORD)
+         || ti->next_is(ti, TOK_BOOL)
+         || ti->next_is(ti, TOK_VOID))) {
         return false;
     }
     count++;
 
     // possible pointer
-    if (lookahead_is(count, TOK_STAR))
+    if (ti->lookahead_is(ti, count, TOK_STAR))
         count++;
     
     // possible pointer-to-pointer
-    if (lookahead_is(count, TOK_STAR))
+    if (ti->lookahead_is(ti, count, TOK_STAR))
         count++;
 
     *num_tokens = count;
     return true;
 }
 
-static bool is_variable_declaration() {
+static bool is_variable_declaration(token_iterator *ti) {
     // we assume data definition takes only one token for now
-    int tokens = 0;
-    if (!is_data_type_description(&tokens))
+    int num_tokens = 0;
+    if (!is_data_type_description(ti, &num_tokens))
         return false;
 
-    // after that, we should expect an identifier, but NO parenthesis
-    return lookahead_is(tokens + 0, TOK_IDENTIFIER)
-        && !lookahead_is(tokens + 1, TOK_LPAREN);
+    // after that, we should expect an identifier, but NO parentheses
+    return ti->lookahead_is(ti, num_tokens + 0, TOK_IDENTIFIER)
+        && !ti->lookahead_is(ti, num_tokens + 1, TOK_LPAREN);
 }
 
-static bool is_function_declaration() {
+static bool is_function_declaration(token_iterator *ti) {
 
     // we assume data definition takes only one token for now
-    int tokens = 0;
-    if (!is_data_type_description(&tokens))
+    int num_tokens = 0;
+    if (!is_data_type_description(ti, &num_tokens))
         return false;
 
     // after that, we should expect an identifier and a L parenthesis
-    return lookahead_is(tokens + 0, TOK_IDENTIFIER) 
-        && lookahead_is(tokens + 1, TOK_LPAREN);
+    return ti->lookahead_is(ti, num_tokens + 0, TOK_IDENTIFIER) 
+        && ti->lookahead_is(ti, num_tokens + 1, TOK_LPAREN);
 }
 
-static const char *expect_identifier() {
-    if (!expect(TOK_IDENTIFIER))
+static const char *expect_identifier(token_iterator *ti) {
+    if (!ti->expect(ti, TOK_IDENTIFIER))
         return NULL;
 
-    return accepted()->value;
+    return ti->accepted(ti)->value;
 }
 
-static data_type *accept_data_type_description() {
+static data_type *accept_data_type_description(mempool *mp, token_iterator *ti) {
     // we assume data definition takes only one token, for now
     int tokens;
-    if (!is_data_type_description(&tokens))
+    if (!is_data_type_description(ti, &tokens))
         return NULL;
 
-    consume(); // a keyword such as "int" or "char"
-    type_family family = data_type_family_for_token(accepted()->type);
+    ti->consume(ti); // a keyword such as "int" or "char"
+    type_family family = data_type_family_for_token(ti->accepted(ti)->type);
     data_type *t = new_data_type(family, NULL);
 
-    if (accept(TOK_STAR)) {
+    if (ti->accept(ti, TOK_STAR)) {
         // we are a pointer, nest the data type
         t = new_data_type(TF_POINTER, t);
     }
 
-    if (accept(TOK_STAR)) {
+    if (ti->accept(ti, TOK_STAR)) {
         // we are a pointer to pointer, nest the data type too
         t = new_data_type(TF_POINTER, t);
     }
@@ -145,70 +146,70 @@ static data_type *accept_data_type_description() {
     return t;
 }
 
-static statement *accept_variable_declaration() {
-    if (!is_variable_declaration())
+static statement *accept_variable_declaration(mempool *mp, token_iterator *ti) {
+    if (!is_variable_declaration(ti))
         return NULL;
 
-    data_type *dt = accept_data_type_description();
+    data_type *dt = accept_data_type_description(mp, ti);
     if (dt == NULL) return NULL;
-    const char *name = expect_identifier();
-    token *identifier_token = accepted();
+    const char *name = expect_identifier(ti);
+    token *identifier_token = ti->accepted(ti);
     if (name == NULL) return NULL;
 
-    if (accept(TOK_LBRACKET)) {
+    if (ti->accept(ti, TOK_LBRACKET)) {
         // it's an array
         dt = new_data_type(TF_ARRAY, dt);
-        if (!expect(TOK_NUMERIC_LITERAL)) return NULL;
-        dt->array_size = strtol(accepted()->value, NULL, 10);
-        if (!expect(TOK_RBRACKET)) return NULL;
+        if (!ti->expect(ti, TOK_NUMERIC_LITERAL)) return NULL;
+        dt->array_size = strtol(ti->accepted(ti)->value, NULL, 10);
+        if (!ti->expect(ti, TOK_RBRACKET)) return NULL;
 
-        if (accept(TOK_LBRACKET)) {
+        if (ti->accept(ti, TOK_LBRACKET)) {
             // it's a two-dimensions array
             dt = new_data_type(TF_ARRAY, dt);
-            if (!expect(TOK_NUMERIC_LITERAL)) return NULL;
-            dt->array_size = strtol(accepted()->value, NULL, 10);
-            if (!expect(TOK_RBRACKET)) return NULL;
+            if (!ti->expect(ti, TOK_NUMERIC_LITERAL)) return NULL;
+            dt->array_size = strtol(ti->accepted(ti)->value, NULL, 10);
+            if (!ti->expect(ti, TOK_RBRACKET)) return NULL;
         }
     }
 
     var_declaration *vd = new_var_declaration(dt, name, identifier_token);
     expression *initialization = NULL;
-    if (accept(TOK_EQUAL_SIGN)) {
-        initialization = parse_expression_using_shunting_yard();
+    if (ti->accept(ti, TOK_EQUAL_SIGN)) {
+        initialization = parse_expression_using_shunting_yard(mp, ti);
     }
 
-    if (!expect(TOK_SEMICOLON))
+    if (!ti->expect(ti, TOK_SEMICOLON))
         return NULL;
     return new_var_decl_statement(vd, initialization, identifier_token);
 }
 
-static func_declaration *accept_function_declaration() {
-    if (!is_function_declaration())
+static func_declaration *accept_function_declaration(mempool *mp, token_iterator *ti) {
+    if (!is_function_declaration(ti))
         return NULL;
 
-    data_type *ret_type = accept_data_type_description();
+    data_type *ret_type = accept_data_type_description(mp, ti);
     if (ret_type == NULL) return NULL;
 
-    const char *name = expect_identifier();
+    const char *name = expect_identifier(ti);
     if (name == NULL) return NULL;
-    token *identifier_token = accepted();
+    token *identifier_token = ti->accepted(ti);
 
-    if (!expect(TOK_LPAREN)) return NULL;
+    if (!ti->expect(ti, TOK_LPAREN)) return NULL;
     var_declaration *args = NULL;
-    if (!accept(TOK_RPAREN)) {
-        args = parse_function_arguments_list();
-        if (!expect(TOK_RPAREN)) return NULL;
+    if (!ti->accept(ti, TOK_RPAREN)) {
+        args = parse_function_arguments_list(mp, ti);
+        if (!ti->expect(ti, TOK_RPAREN)) return NULL;
     }
 
     statement *body = NULL;
     // we either have a semicolon (declaration) or an opening brace (definition)
-    if (accept(TOK_SEMICOLON)) {
+    if (ti->accept(ti, TOK_SEMICOLON)) {
         body = NULL;
-    } else if (accept(TOK_BLOCK_START)) {
-        body = parse_statements_list_in_block();
-        expect(TOK_BLOCK_END);
+    } else if (ti->accept(ti, TOK_BLOCK_START)) {
+        body = parse_statements_list_in_block(mp, ti);
+        ti->expect(ti, TOK_BLOCK_END);
     } else {
-        error_at(next()->filename, next()->line_no,
+        error_at(ti->next(ti)->filename, ti->next(ti)->line_no,
             "expecting either ';' or '{' for function %s", name);
     }
 
@@ -216,81 +217,81 @@ static func_declaration *accept_function_declaration() {
 }
 
 // cannot parse a function, but can parse a block and anything in it.
-static statement *parse_statement() {
+static statement *parse_statement(mempool *mp, token_iterator *ti) {
     token *start_token;
 
-    if (accept(TOK_BLOCK_START)) {
+    if (ti->accept(ti, TOK_BLOCK_START)) {
         // we need to parse the nested block, blocks have their own scope
-        token *opening_token = accepted();
-        statement *stmt_list = parse_statements_list_in_block();
+        token *opening_token = ti->accepted(ti);
+        statement *stmt_list = parse_statements_list_in_block(mp, ti);
         statement *bl = new_statements_block(stmt_list, opening_token);
-        if (!expect(TOK_BLOCK_END)) return NULL;
+        if (!ti->expect(ti, TOK_BLOCK_END)) return NULL;
         return bl;
     }
 
-    if (is_variable_declaration()) {
-        return accept_variable_declaration();
+    if (is_variable_declaration(ti)) {
+        return accept_variable_declaration(mp, ti);
     }
 
-    if (accept(TOK_IF)) {
-        start_token = accepted();
-        if (!expect(TOK_LPAREN)) return NULL;
-        expression *cond = parse_expression_using_shunting_yard();
-        if (!expect(TOK_RPAREN)) return NULL;
-        statement *if_body = parse_statement();
+    if (ti->accept(ti, TOK_IF)) {
+        start_token = ti->accepted(ti);
+        if (!ti->expect(ti, TOK_LPAREN)) return NULL;
+        expression *cond = parse_expression_using_shunting_yard(mp, ti);
+        if (!ti->expect(ti, TOK_RPAREN)) return NULL;
+        statement *if_body = parse_statement(mp, ti);
         if (if_body == NULL) return NULL;
         statement *else_body = NULL;
-        if (accept(TOK_ELSE)) {
-            else_body = parse_statement();
+        if (ti->accept(ti, TOK_ELSE)) {
+            else_body = parse_statement(mp, ti);
             if (else_body == NULL) return NULL;
         }
         return new_if_statement(cond, if_body, else_body, start_token);
     }
 
-    if (accept(TOK_WHILE)) {
-        start_token = accepted();
-        if (!expect(TOK_LPAREN)) return NULL;
-        expression *cond = parse_expression_using_shunting_yard();
-        if (!expect(TOK_RPAREN)) return NULL;
-        statement *body = parse_statement();
+    if (ti->accept(ti, TOK_WHILE)) {
+        start_token = ti->accepted(ti);
+        if (!ti->expect(ti, TOK_LPAREN)) return NULL;
+        expression *cond = parse_expression_using_shunting_yard(mp, ti);
+        if (!ti->expect(ti, TOK_RPAREN)) return NULL;
+        statement *body = parse_statement(mp, ti);
         if (body == NULL) return NULL;
         return new_while_statement(cond, body, start_token);
     }
 
-    if (accept(TOK_CONTINUE)) {
-        start_token = accepted();
-        if (!expect(TOK_SEMICOLON)) return NULL;
+    if (ti->accept(ti, TOK_CONTINUE)) {
+        start_token = ti->accepted(ti);
+        if (!ti->expect(ti, TOK_SEMICOLON)) return NULL;
         return create_continue_statement(start_token);
     }
 
-    if (accept(TOK_BREAK)) {
-        start_token = accepted();
-        if (!expect(TOK_SEMICOLON)) return NULL;
+    if (ti->accept(ti, TOK_BREAK)) {
+        start_token = ti->accepted(ti);
+        if (!ti->expect(ti, TOK_SEMICOLON)) return NULL;
         return new_break_statement(start_token);
     }
 
-    if (accept(TOK_RETURN)) {
-        start_token = accepted();
+    if (ti->accept(ti, TOK_RETURN)) {
+        start_token = ti->accepted(ti);
         expression *value = NULL;
-        if (!accept(TOK_SEMICOLON)) {
-            value = parse_expression_using_shunting_yard();
-            if (!expect(TOK_SEMICOLON)) return NULL;
+        if (!ti->accept(ti, TOK_SEMICOLON)) {
+            value = parse_expression_using_shunting_yard(mp, ti);
+            if (!ti->expect(ti, TOK_SEMICOLON)) return NULL;
         }
         return new_return_statement(value, start_token);
     }
     
     // what is left? treat the rest as expressions
-    start_token = next();
-    expression *expr = parse_expression_using_shunting_yard();
-    if (!expect(TOK_SEMICOLON)) return NULL;
+    start_token = ti->next(ti);
+    expression *expr = parse_expression_using_shunting_yard(mp, ti);
+    if (!ti->expect(ti, TOK_SEMICOLON)) return NULL;
     return new_expr_statement(expr, start_token);
 }
 
-static statement *parse_statements_list_in_block() {
+static statement *parse_statements_list_in_block(mempool *mp, token_iterator *ti) {
     declare_list(statement);
 
-    while (!next_is(TOK_BLOCK_END) && !next_is(TOK_EOF) && errors_count == 0) {
-        statement *n = parse_statement();
+    while (!ti->next_is(ti, TOK_BLOCK_END) && !ti->next_is(ti, TOK_EOF) && errors_count == 0) {
+        statement *n = parse_statement(mp, ti);
         if (n == NULL) // error?
             return NULL;
         list_append(n);
@@ -299,64 +300,69 @@ static statement *parse_statements_list_in_block() {
     return list;
 }
 
-static var_declaration *parse_function_arguments_list() {
+static var_declaration *parse_function_arguments_list(mempool *mp, token_iterator *ti) {
     declare_list(var_declaration);
 
-    while (!next_is(TOK_RPAREN)) {
-        data_type *dt = accept_data_type_description();
+    while (!ti->next_is(ti, TOK_RPAREN)) {
+        data_type *dt = accept_data_type_description(mp, ti);
         if (dt == NULL) return NULL;
-        const char *name = expect_identifier();
+        const char *name = expect_identifier(ti);
         if (name == NULL) return NULL;
-        token *identifier_token = accepted();
+        token *identifier_token = ti->accepted(ti);
 
         // it's an array
-        if (accept(TOK_LBRACKET)) {
+        if (ti->accept(ti, TOK_LBRACKET)) {
             dt = new_data_type(TF_ARRAY, dt);
-            if (!expect(TOK_NUMERIC_LITERAL)) return NULL;
-            dt->array_size = strtol(accepted()->value, NULL, 10);
-            if (!expect(TOK_RBRACKET)) return NULL;
+            if (!ti->expect(ti, TOK_NUMERIC_LITERAL)) return NULL;
+            dt->array_size = strtol(ti->accepted(ti)->value, NULL, 10);
+            if (!ti->expect(ti, TOK_RBRACKET)) return NULL;
 
-            if (accept(TOK_LBRACKET)) {
+            if (ti->accept(ti, TOK_LBRACKET)) {
                 // it's a two-dimensions array
                 dt = new_data_type(TF_ARRAY, dt);
-                if (!expect(TOK_NUMERIC_LITERAL)) return NULL;
-                dt->array_size = strtol(accepted()->value, NULL, 10);
-                if (!expect(TOK_RBRACKET)) return NULL;
+                if (!ti->expect(ti, TOK_NUMERIC_LITERAL)) return NULL;
+                dt->array_size = strtol(ti->accepted(ti)->value, NULL, 10);
+                if (!ti->expect(ti, TOK_RBRACKET)) return NULL;
             }
         }
 
         var_declaration *n = new_var_declaration(dt, name, identifier_token);
         list_append(n);
 
-        if (!accept(TOK_COMMA))
+        if (!ti->accept(ti, TOK_COMMA))
             break;
     }
 
     return list;
 }
 
-
-static void parse_file_level_element() {
-    if (is_variable_declaration()) {
-        statement *n = accept_variable_declaration();
+static void parse_file_level_element(mempool *mp, token_iterator *ti) {
+    if (is_variable_declaration(ti)) {
+        statement *n = accept_variable_declaration(mp, ti);
         ast_add_statement(n);
     }
-    else if (is_function_declaration()) {
-        func_declaration *n = accept_function_declaration();
+    else if (is_function_declaration(ti)) {
+        func_declaration *n = accept_function_declaration(mp, ti);
         ast_add_function(n);
     }
     else {
-        error_at(
-            next()->filename,
-            next()->line_no,
-            "expecting variable or function declaration"
-        );
+        error_at(ti->next(ti)->filename, ti->next(ti)->line_no,
+            "expecting variable or function declaration");
     }
 }
 
-void parse_file_using_recursive_descend() {
+ast_module_node *parse_file_tokens_using_recursive_descend(mempool *mp, llist *tokens) {
 
-    // parsing cannot continue if errors are discovered
-    while (!next_is(TOK_EOF) && errors_count == 0)
-        parse_file_level_element();
+    init_operators(); // make sure our lookup is populated
+
+    // use the new token_iterator.
+    token_iterator *ti = new_token_iterator(mp, tokens);
+    while (!ti->next_is(ti, TOK_EOF) && errors_count == 0)
+        parse_file_level_element(mp, ti);
+}
+
+void parse_file_using_recursive_descend___deprecated() {
+    // // parsing cannot continue if errors are discovered
+    // while (!next_is(TOK_EOF) && errors_count == 0)
+    //     parse_file_level_element();
 }

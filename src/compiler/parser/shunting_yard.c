@@ -1,6 +1,7 @@
 #include <stddef.h>
 #include <stdlib.h>
 #include "../../err_handler.h"
+#include "../../utils/data_structs.h"
 #include "../lexer/token.h"
 #include "../operators.h"
 #include "../declaration.h"
@@ -22,47 +23,47 @@
 */
 
 // whether the next token in the iterator can be used as a unary operator
-bool next_is_unary_operator() {
-    token_type tt = next() == NULL ? TOK_EOF : next()->type;
+bool next_is_unary_operator(token_iterator *ti) {
+    token_type tt = ti->next(ti) == NULL ? TOK_EOF : ti->next(ti)->type;
     return to_unary_operator(tt) != OP_UNKNOWN;
 }
 
-oper accept_unary_operator() {
-    if (!next_is_unary_operator())
+oper accept_unary_operator(token_iterator *ti) {
+    if (!next_is_unary_operator(ti))
         return OP_UNKNOWN;
-    token *t = next();
-    consume();
+    token *t = ti->next(ti);
+    ti->consume(ti);
     return to_unary_operator(t->type);
 }
 
-bool next_is_postfix_operator() {
-    token_type tt = next() == NULL ? TOK_EOF : next()->type;
+bool next_is_postfix_operator(token_iterator *ti) {
+    token_type tt = ti->next(ti) == NULL ? TOK_EOF : ti->next(ti)->type;
     return to_postfix_operator(tt) != OP_UNKNOWN;
 }
 
-oper accept_postfix_operator() {
-    if (!next_is_postfix_operator())
+oper accept_postfix_operator(token_iterator *ti) {
+    if (!next_is_postfix_operator(ti))
         return OP_UNKNOWN;
-    token *t = next();
-    consume();
+    token *t = ti->next(ti);
+    ti->consume(ti);
     return to_postfix_operator(t->type);
 }
 
-bool next_is_binary_operator() {
-    token_type tt = next() == NULL ? TOK_EOF : next()->type;
+bool next_is_binary_operator(token_iterator *ti) {
+    token_type tt = ti->next(ti) == NULL ? TOK_EOF : ti->next(ti)->type;
     return to_binary_operator(tt) != OP_UNKNOWN;
 }
 
-oper accept_binary_operator() {
-    if (!next_is_binary_operator())
+oper accept_binary_operator(token_iterator *ti) {
+    if (!next_is_binary_operator(ti))
         return OP_UNKNOWN;
-    token *t = next();
-    consume();
+    token *t = ti->next(ti);
+    ti->consume(ti);
     return to_binary_operator(t->type);
 }
 
-bool next_is_terminal() {
-    token_type tt = next() == NULL ? TOK_EOF : next()->type;
+bool next_is_terminal(token_iterator *ti) {
+    token_type tt = ti->next(ti) == NULL ? TOK_EOF : ti->next(ti)->type;
     return tt == TOK_STRING_LITERAL
         || tt == TOK_NUMERIC_LITERAL 
         || tt == TOK_CHAR_LITERAL 
@@ -71,11 +72,11 @@ bool next_is_terminal() {
         || tt == TOK_IDENTIFIER;
 }
 
-expression *accept_terminal() {
-    if (!next_is_terminal())
+expression *accept_terminal(token_iterator *ti) {
+    if (!next_is_terminal(ti))
         return NULL;
-    token *t = next();
-    consume();
+    token *t = ti->next(ti);
+    ti->consume(ti);
     switch (t->type)
     {
         case TOK_IDENTIFIER:      return create_symbol_name_expr(t->value, t);
@@ -108,72 +109,71 @@ static inline expression *peek_operand() { return operands_stack[operands_stack_
 
 // -------------------------------------------------------------------
 
-static void parse_complex_expression();
-static void parse_operand();
+static void parse_complex_expression(token_iterator *ti);
+static void parse_operand(token_iterator *ti);
 static void push_operator_with_priority(oper op);
 static void pop_operator_into_expression();
 
-static void parse_complex_expression() {
+static void parse_complex_expression(token_iterator *ti) {
 
     // staring with an operand (number, symbol etc)
-    parse_operand();
+    parse_operand(ti);
 
     // for as long as there are more operators and operands, continue
-    while (next_is_binary_operator()) {
-        push_operator_with_priority(accept_binary_operator());
-        parse_operand();
+    while (next_is_binary_operator(ti)) {
+        push_operator_with_priority(accept_binary_operator(ti));
+        parse_operand(ti);
     }
 
     // convert any outstanding operators into expressions
-    while (peek_operator() != OP_SENTINEL) {
-        pop_operator_into_expression();
-    }
+    while (peek_operator(ti) != OP_SENTINEL)
+        pop_operator_into_expression(ti);
 }
 
-static void parse_operand() {
+static void parse_operand(token_iterator *ti) {
 
-    if (next_is_terminal()) {
-        push_operand(accept_terminal());
+    if (next_is_terminal(ti)) {
+        push_operand(accept_terminal(ti));
 
-    } else if (accept(TOK_LPAREN)) {
+    } else if (ti->accept(ti, TOK_LPAREN)) {
         push_operator(OP_SENTINEL);
-        parse_complex_expression();
-        expect(TOK_RPAREN);
+        parse_complex_expression(ti);
+        ti->expect(ti, TOK_RPAREN);
         pop_operator(); // pop sentinel
 
-    } else if (next_is_unary_operator()) {
-        push_operator_with_priority(accept_unary_operator());
-        parse_operand();
+    } else if (next_is_unary_operator(ti)) {
+        push_operator_with_priority(accept_unary_operator(ti));
+        parse_operand(ti);
 
     } else {
-        error_at(next()->filename, next()->line_no, "expected '(', unary operator, or terminal token");
+        error_at(ti->next(ti)->filename, ti->next(ti)->line_no, "expected '(', unary operator, or terminal token");
     }
 
-    while (next_is_postfix_operator()) {
-        oper op = accept_postfix_operator();
+    while (next_is_postfix_operator(ti)) {
+        oper op = accept_postfix_operator(ti);
         push_operator_with_priority(op);
 
         if (op == OP_FUNC_CALL) {
-            if (accept(TOK_RPAREN)) {
+            if (ti->accept(ti, TOK_RPAREN)) {
                 push_operand(NULL); // i.e. no arguments for the function call
             } else {
                 push_operator(OP_SENTINEL);
-                parse_complex_expression();
+                parse_complex_expression(ti);
                 pop_operator(); // pop sentinel
-                expect(TOK_RPAREN);
+                ti->expect(ti, TOK_RPAREN);
             }
         } else if (op == OP_ARRAY_SUBSCRIPT) {
             push_operator(OP_SENTINEL);
-            parse_complex_expression();
+            parse_complex_expression(ti);
             pop_operator(); // pop sentinel
-            expect(TOK_RBRACKET);
+            ti->expect(ti, TOK_RBRACKET);
         } else if (!is_unary_operator(op)) {
             // post-increment is not binary, it does not expect another operand
             // otoh, array subscript is binary, so it needs another operand
             // pushing a sentinel forces the subexpression to be parsed
             // without interfering with the current contents of the stacks
             push_operator(OP_SENTINEL);
-            parse_complex_expression();
+            parse_complex_expression(ti);
             pop_operator(); // pop sentinel
         }
     }
@@ -220,13 +220,13 @@ static void pop_operator_into_expression()
 
 // -------------------------------------------------------------------
 
-expression *parse_expression_using_shunting_yard() {
+expression *parse_expression_using_shunting_yard(mempool *mp, token_iterator *ti) {
 
     // reset stacks, push SENTINEL to serve as lowest priority indicator
     operators_stack_len = 0;
     operands_stack_len = 0;
     push_operator(OP_SENTINEL);
-    parse_complex_expression();
+    parse_complex_expression(ti);
 
     // all outstanding operators must have been popped into expressions,
     // with the highest prioririty one pushed last

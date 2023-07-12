@@ -71,11 +71,11 @@ static str *load_source_code(mempool *mp, str *filename) {
     return source_code;
 }
 
-static void parse_abstract_syntax_tree(token_list *list) {
-    init_token_iterator(list);
+static void parse_abstract_syntax_tree___deprecated(token_list *list) {
+    // init_token_iterator__deprecated(list);
     init_ast();
 
-    parse_file_using_recursive_descend(list->tokens[0]);
+    parse_file_using_recursive_descend___deprecated();
     if (errors_count)
         return;
 
@@ -135,14 +135,17 @@ static void process_one_file(mempool *mp, file_run_info *fi) {
         return;
 
     token_list *token_list = new_token_list();
-    llist *tokens = lexer_parse_source_code_into_tokens(mp, fi->source_filename, fi->source_code);
-    if (errors_count)
+    fi->tokens = lexer_parse_source_code_into_tokens(mp, fi->source_filename, fi->source_code);
+    if (fi->tokens == NULL || errors_count)
         return;
-    if (!lexer_check_tokens(tokens, fi->source_filename))
+    if (!lexer_check_tokens(fi->tokens, fi->source_filename))
         return;
 
-    parse_abstract_syntax_tree(token_list);
+    // parse_abstract_syntax_tree___deprecated(token_list);
     if (errors_count)
+        return;
+    fi->ast = parse_file_tokens_using_recursive_descend(mp, fi->tokens);
+    if (fi->ast == NULL || errors_count)
         return;
 
     perform_semantic_analysis();
@@ -278,8 +281,8 @@ static bool perform_end_to_end_test() {
 
     llist *module_asts = new_llist(mp);
     for_list(token_lists, llist, tokens_list) {
-        ast_module_node *module_ast = NULL; // parse_tokens(mp, tokens_list);
-        if (errors_count) return false;
+        ast_module_node *module_ast = parse_file_tokens_using_recursive_descend(mp, tokens_list);
+        if (module_ast == NULL || errors_count) return false;
         llist_add(module_asts, module_ast);
     }
 

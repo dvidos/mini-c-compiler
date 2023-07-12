@@ -4,46 +4,40 @@
 #include "ast_declaration.h"
 #include "../utils.h"
 
-// currently we do not have a "tree" in the correct sense of the word.
-// if we wanted to do so, we need to make function declarations part of a statement.
-
-// the lists below at file level
-static ast_module ast_root;
 
 static void print_statement_list(FILE *stream, ast_statement *list, int depth);
 
 
-void init_ast() {
-    ast_root.statements_list = NULL;
-    ast_root.funcs_list = NULL;
+ast_module *new_ast_module(mempool *mp) {
+    ast_module *m = mpalloc(mp, ast_module);
+    m->funcs_list_head = NULL;
+    m->statements_list_head = NULL;
+    m->mempool = mp;
+
+    return m;
 }
 
-ast_module *get_ast_root_node() {
-    return &ast_root;
-}
-
-void ast_add_statement(ast_statement *stmt) {
-    if (ast_root.statements_list == NULL) {
-        ast_root.statements_list = stmt;
+void ast_add_statement(ast_module *m, ast_statement *stmt) {
+    if (m->statements_list_head == NULL) {
+        m->statements_list_head = stmt;
     } else {
-        ast_statement *p = ast_root.statements_list;
+        ast_statement *p = m->statements_list_head;
         while (p->next != NULL) p = p->next;
         p->next = stmt;
     }
     stmt->next = NULL;
 }
 
-void ast_add_function(ast_func_declaration *func) {
-    if (ast_root.funcs_list == NULL) {
-        ast_root.funcs_list = func;
+void ast_add_function(ast_module *m, ast_func_declaration *func) {
+    if (m->funcs_list_head == NULL) {
+        m->funcs_list_head = func;
     } else {
-        ast_func_declaration *p = ast_root.funcs_list;
+        ast_func_declaration *p = m->funcs_list_head;
         while (p->next != NULL) p = p->next;
         p->next = func;
     }
     func->next = NULL;
 }
-
 
 static void indent(FILE *stream, int depth) {
     while (depth--)
@@ -175,15 +169,15 @@ static void print_statement_list(FILE *stream, ast_statement *list, int depth) {
     }
 }
 
-void print_ast(FILE *stream) {
+void print_ast(ast_module *m, FILE *stream) {
 
-    ast_statement *stmt = ast_root.statements_list;
+    ast_statement *stmt = m->statements_list_head;
     while (stmt != NULL) {
         print_statement(stream, stmt, 0);
         stmt = stmt->next;
     }
 
-    ast_func_declaration *func = ast_root.funcs_list;
+    ast_func_declaration *func = m->funcs_list_head;
     while (func != NULL) {
         fprintf(stream, "\n");
         indent(stream, 0);
@@ -208,7 +202,6 @@ void print_ast(FILE *stream) {
     }
 }
 
-
 static void ast_count_expression_nodes(ast_expression *expr, int *expressions) {
     if (expr == NULL)
         return;
@@ -216,7 +209,6 @@ static void ast_count_expression_nodes(ast_expression *expr, int *expressions) {
     ast_count_expression_nodes(expr->arg1, expressions);
     ast_count_expression_nodes(expr->arg2, expressions);
 }
-
 
 static void ast_count_statements(ast_statement *stmt, int *statements, int *expressions) {
     if (stmt == NULL)
@@ -240,18 +232,18 @@ static void ast_count_statements(ast_statement *stmt, int *statements, int *expr
     }
 }
 
-void ast_count_nodes(int *functions, int *statements, int *expressions) {
+void ast_count_nodes(ast_module *m, int *functions, int *statements, int *expressions) {
     (*functions) = 0;
     (*statements) = 0;
     (*expressions) = 0;
 
-    ast_statement *stmt = ast_root.statements_list;
+    ast_statement *stmt = m->statements_list_head;
     while (stmt != NULL) {
         (*statements)++;
         stmt = stmt->next;
     }
 
-    ast_func_declaration *func = ast_root.funcs_list;
+    ast_func_declaration *func = m->funcs_list_head;
     while (func != NULL) {
         (*functions)++;
         // TODO: fix this so that function bodies count correct

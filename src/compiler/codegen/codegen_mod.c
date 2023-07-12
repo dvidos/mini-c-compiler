@@ -89,7 +89,7 @@ static void declare_stmt_strings(code_gen *cg, ast_statement *stmt) {
 
 void code_gen_generate_for_module(code_gen *cg, ast_module *module) {
 
-    ast_statement *stmt = module->statements_list;
+    ast_statement *stmt = module->statements_list_head;
     while (stmt != NULL) {
         if (stmt->stmt_type != ST_VAR_DECL) {
             error_at(stmt->token->filename, stmt->token->line_no, "only var declarations are supported in code generation");
@@ -104,7 +104,7 @@ void code_gen_generate_for_module(code_gen *cg, ast_module *module) {
     }
 
     // traverse all to delcare any possible strings
-    for (ast_func_declaration *f = module->funcs_list; f != NULL; f = f->next) {
+    for (ast_func_declaration *f = module->funcs_list_head; f != NULL; f = f->next) {
         for (ast_statement *s = f->stmts_list; s != NULL; s = s->next) {
             declare_stmt_strings(cg, s);
             if (errors_count) return;
@@ -112,7 +112,7 @@ void code_gen_generate_for_module(code_gen *cg, ast_module *module) {
     }
     
     // generate code for all functions
-    for (ast_func_declaration *f = module->funcs_list; f != NULL; f = f->next) {
+    for (ast_func_declaration *f = module->funcs_list_head; f != NULL; f = f->next) {
         if (f->stmts_list != NULL) { // maybe it's just a func declaration
             cg->ops->generate_for_function(cg, f);
             if (errors_count) return;

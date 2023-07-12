@@ -71,17 +71,11 @@ static str *load_source_code(mempool *mp, str *filename) {
     return source_code;
 }
 
-static void parse_abstract_syntax_tree___deprecated(token_list *list) {
-    // init_token_iterator__deprecated(list);
-    init_ast();
-
-    parse_file_using_recursive_descend___deprecated();
-    if (errors_count)
-        return;
+static void after_ast_parsed(ast_module *m) {
 
     if (run_info->options->verbose) {
         printf("---------- Abstract Syntax Tree ----------\n");
-        print_ast(stdout);
+        print_ast(m, stdout);
     }
 
     if (run_info->options->generate_ast) {
@@ -90,21 +84,21 @@ static void parse_abstract_syntax_tree___deprecated(token_list *list) {
         if (f == NULL) {
             error("cannot open file \"%s\" for writing", ast_filename);
         }
-        print_ast(f);
+        print_ast(m, f);
         fclose(f);
         free(ast_filename);
     }
 }
 
-static void perform_semantic_analysis() {
-    perform_module_analysis(get_ast_root_node());
+static void perform_semantic_analysis(ast_module *m) {
+    perform_module_analysis(m);
 }
 
-static void generate_intermediate_code(ir_listing *listing) {
+static void generate_intermediate_code(ast_module *ast, ir_listing *listing) {
     code_gen *gen = new_code_generator(listing);
     if (errors_count) return;
     
-    gen->ops->generate_for_module(gen, get_ast_root_node());
+    gen->ops->generate_for_module(gen, ast);
     if (errors_count) return;
 
     if (run_info->options->verbose) {
@@ -141,19 +135,17 @@ static void process_one_file(mempool *mp, file_run_info *fi) {
     if (!lexer_check_tokens(fi->tokens, fi->source_filename))
         return;
 
-    // parse_abstract_syntax_tree___deprecated(token_list);
-    if (errors_count)
-        return;
     fi->ast = parse_file_tokens_using_recursive_descend(mp, fi->tokens);
     if (fi->ast == NULL || errors_count)
         return;
-
-    perform_semantic_analysis();
+    
+    after_ast_parsed(fi->ast);
+    perform_semantic_analysis(fi->ast);
     if (errors_count)
         return;
     
     ir_listing *ir_listing = new_ir_listing();
-    generate_intermediate_code(ir_listing);
+    generate_intermediate_code(fi->ast, ir_listing);
     if (errors_count)
         return;
 
@@ -284,6 +276,7 @@ static bool perform_end_to_end_test() {
         ast_module *module_ast = parse_file_tokens_using_recursive_descend(mp, tokens_list);
         if (module_ast == NULL || errors_count) return false;
         llist_add(module_asts, module_ast);
+        after_ast_parsed(module_ast);
     }
 
     for_list(module_asts, ast_module, module_ast) {

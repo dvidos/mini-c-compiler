@@ -73,13 +73,13 @@ void perform_function_analysis(ast_func_declaration *func) {
 void perform_module_analysis(ast_module *ast_root) {
     scope_entered(NULL);
 
-    ast_statement *stmt = ast_root->statements_list;
+    ast_statement *stmt = ast_root->statements_list_head;
     while (stmt != NULL) {
         perform_statement_analysis(stmt);
         stmt = stmt->next;
     }
 
-    ast_func_declaration *func = ast_root->funcs_list;
+    ast_func_declaration *func = ast_root->funcs_list_head;
     while (func != NULL) {
         perform_function_analysis(func);
         func = func->next;

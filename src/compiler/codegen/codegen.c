@@ -8,7 +8,7 @@
 #include "../lexer/token.h"
 #include "../ast_expression.h"
 #include "../ast_statement.h"
-#include "../src_symbol.h"
+#include "../ast_symbol.h"
 #include "../ast_declaration.h"
 #include "../ast_expression.h"
 #include "codegen.h"

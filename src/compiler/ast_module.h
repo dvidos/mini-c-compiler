@@ -5,11 +5,8 @@
 
 typedef struct ast_module {
 
-    // list of variables defined at module level
-    ast_statement *statements_list_head;
-
-    // list of functions in the source file
-    ast_func_declaration *funcs_list_head;
+    llist *statements;  // item type is ast_statement, type of ST_VAR_DECL
+    llist *functions; // item type is ast_func_declaration
 
     mempool *mempool;
 } ast_module;

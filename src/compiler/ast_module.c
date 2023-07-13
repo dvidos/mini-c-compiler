@@ -10,33 +10,18 @@ static void print_statement_list(FILE *stream, ast_statement *list, int depth);
 
 ast_module *new_ast_module(mempool *mp) {
     ast_module *m = mpalloc(mp, ast_module);
-    m->funcs_list_head = NULL;
-    m->statements_list_head = NULL;
+    m->statements = new_llist(mp);
+    m->functions = new_llist(mp);
     m->mempool = mp;
-
     return m;
 }
 
 void ast_add_statement(ast_module *m, ast_statement *stmt) {
-    if (m->statements_list_head == NULL) {
-        m->statements_list_head = stmt;
-    } else {
-        ast_statement *p = m->statements_list_head;
-        while (p->next != NULL) p = p->next;
-        p->next = stmt;
-    }
-    stmt->next = NULL;
+    llist_add(m->statements, stmt);
 }
 
 void ast_add_function(ast_module *m, ast_func_declaration *func) {
-    if (m->funcs_list_head == NULL) {
-        m->funcs_list_head = func;
-    } else {
-        ast_func_declaration *p = m->funcs_list_head;
-        while (p->next != NULL) p = p->next;
-        p->next = func;
-    }
-    func->next = NULL;
+    llist_add(m->functions, func);
 }
 
 static void indent(FILE *stream, int depth) {
@@ -170,15 +155,10 @@ static void print_statement_list(FILE *stream, ast_statement *list, int depth) {
 }
 
 void print_ast(ast_module *m, FILE *stream) {
-
-    ast_statement *stmt = m->statements_list_head;
-    while (stmt != NULL) {
+    for_list(m->statements, ast_statement, stmt)
         print_statement(stream, stmt, 0);
-        stmt = stmt->next;
-    }
-
-    ast_func_declaration *func = m->funcs_list_head;
-    while (func != NULL) {
+    
+    for_list(m->functions, ast_func_declaration, func) {
         fprintf(stream, "\n");
         indent(stream, 0);
         fprintf(stream, "function: %s %s(",
@@ -233,21 +213,10 @@ static void ast_count_statements(ast_statement *stmt, int *statements, int *expr
 }
 
 void ast_count_nodes(ast_module *m, int *functions, int *statements, int *expressions) {
-    (*functions) = 0;
-    (*statements) = 0;
+    (*statements) = llist_length(m->statements);
+    (*functions) = llist_length(m->functions);
+
     (*expressions) = 0;
-
-    ast_statement *stmt = m->statements_list_head;
-    while (stmt != NULL) {
-        (*statements)++;
-        stmt = stmt->next;
-    }
-
-    ast_func_declaration *func = m->funcs_list_head;
-    while (func != NULL) {
-        (*functions)++;
-        // TODO: fix this so that function bodies count correct
-        ast_count_statements(func->stmts_list, statements, expressions);
-        func = func->next;
-    }
+    for_list(m->functions, ast_func_declaration, f)
+        ast_count_statements(f->stmts_list, statements, expressions);
 }

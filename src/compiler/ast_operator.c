@@ -1,4 +1,4 @@
-#include "src_operator.h"
+#include "ast_operator.h"
 #include "lexer/token.h"
 
 
@@ -8,7 +8,7 @@
 // precedence is numeric, larger numbers => higher precedence
 
 struct operator_info {
-    oper op;
+    ast_operator op;
     int precedence;
     bool unary;
     bool postfix;
@@ -81,25 +81,25 @@ struct operator_info *operators_info_by_op[sizeof(operators_info_list) / sizeof(
 // make operators a O(1) lookup, by using the enum value as an index.
 void init_operators() {
     for (int i = 0; i < sizeof(operators_info_list) / sizeof(operators_info_list[0]); i++) {
-        oper op = operators_info_list[i].op;
+        ast_operator op = operators_info_list[i].op;
         operators_info_by_op[(int)op] = &operators_info_list[i];
     }
 }
 
-int oper_precedence(oper op) {
+int oper_precedence(ast_operator op) {
     return operators_info_by_op[(int)op]->precedence;
 }
 
-char *oper_debug_name(oper op) {
+char *oper_debug_name(ast_operator op) {
     return operators_info_by_op[(int)op]->mnemonic;
 }
 
-bool is_unary_operator(oper op) {
+bool is_unary_operator(ast_operator op) {
     return operators_info_by_op[(int)op]->unary;
 }
 
 // convert a token to a unary operator, if applicable
-oper to_unary_operator(token_type type) {
+ast_operator to_unary_operator(token_type type) {
     switch (type) {
         case TOK_EXCLAMANTION: return OP_LOGICAL_NOT;
         case TOK_STAR:         return OP_POINTED_VALUE;
@@ -114,7 +114,7 @@ oper to_unary_operator(token_type type) {
 }
 
 // convert a token to a unary operator, if applicable
-oper to_binary_operator(token_type type) {
+ast_operator to_binary_operator(token_type type) {
     switch (type) {
         case TOK_PLUS_SIGN:       return OP_ADD;
         case TOK_MINUS_SIGN:      return OP_SUB;
@@ -141,7 +141,7 @@ oper to_binary_operator(token_type type) {
 }
 
 // convert a token to a postfix operator, if applicable
-oper to_postfix_operator(token_type type) {
+ast_operator to_postfix_operator(token_type type) {
     switch (type) {
         case TOK_LPAREN:       return OP_FUNC_CALL;
         case TOK_LBRACKET: return OP_ARRAY_SUBSCRIPT;

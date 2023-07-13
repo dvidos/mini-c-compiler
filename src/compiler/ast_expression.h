@@ -1,5 +1,5 @@
 #pragma once
-#include "src_operator.h"
+#include "ast_operator.h"
 #include "ast_data_type.h"
 #include "lexer/token.h"
 
@@ -7,7 +7,7 @@ typedef struct ast_expression ast_expression; // parsed expression for evaluatio
 struct ast_expression_ops;
 
 typedef struct ast_expression {
-    oper op;
+    ast_operator op;
     ast_expression *arg1;
     ast_expression *arg2; // used as "next" for chains of commas
 
@@ -30,7 +30,7 @@ struct ast_expression_ops {
     void (*flatten_func_call_args_to_array)(ast_expression *call_expr, ast_expression *arr[], int arr_size, int *args_count);
 };
 
-ast_expression *create_expression(oper op, ast_expression *arg1, ast_expression *arg2, token *token);
+ast_expression *create_expression(ast_operator op, ast_expression *arg1, ast_expression *arg2, token *token);
 ast_expression *create_symbol_name_expr(const char *name, token *token);
 ast_expression *create_string_literal_expr(const char *str, token *token);
 ast_expression *create_number_literal_expr(const char *number, token *token);

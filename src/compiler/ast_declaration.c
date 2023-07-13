@@ -1,7 +1,7 @@
 #include <stddef.h>
 #include <stdlib.h>
 #include "lexer/token.h"
-#include "src_operator.h"
+#include "ast_operator.h"
 #include "ast_data_type.h"
 #include "ast_statement.h"
 #include "ast_declaration.h"

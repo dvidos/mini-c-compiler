@@ -5,7 +5,7 @@
 #include "../ast_declaration.h"
 #include "../ast_statement.h"
 #include "../scope.h"
-#include "../src_symbol.h"
+#include "../ast_symbol.h"
 #include "../ast_module.h"
 
 /*
@@ -28,7 +28,7 @@ void perform_declaration_analysis(ast_var_declaration *decl, int arg_no) {
         return;
     }
 
-    src_symbol *sym;
+    ast_symbol *sym;
     if (arg_no >= 0)
         sym = create_func_arg_symbol(decl->var_name, decl->data_type, arg_no, decl->token->filename, decl->token->line_no);
     else
@@ -46,7 +46,7 @@ void perform_function_analysis(ast_func_declaration *func) {
             "function \"%s\" already defined", 
             func->func_name);
     } else {
-        src_symbol *sym = create_func_symbol(func->func_name, func, func->token->filename, func->token->line_no);
+        ast_symbol *sym = create_func_symbol(func->func_name, func, func->token->filename, func->token->line_no);
         scope_declare_symbol(sym);
     }
 
@@ -70,20 +70,14 @@ void perform_function_analysis(ast_func_declaration *func) {
     scope_exited(); // exiting function
 }
 
-void perform_module_analysis(ast_module *ast_root) {
+void perform_module_analysis(ast_module *ast) {
     scope_entered(NULL);
 
-    ast_statement *stmt = ast_root->statements_list_head;
-    while (stmt != NULL) {
+    for_list(ast->statements, ast_statement, stmt)
         perform_statement_analysis(stmt);
-        stmt = stmt->next;
-    }
-
-    ast_func_declaration *func = ast_root->funcs_list_head;
-    while (func != NULL) {
+    
+    for_list(ast->functions, ast_func_declaration, func)
         perform_function_analysis(func);
-        func = func->next;
-    }
 
     scope_exited();
 }

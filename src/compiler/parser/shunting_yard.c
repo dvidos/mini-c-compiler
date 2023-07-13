@@ -3,7 +3,7 @@
 #include "../../err_handler.h"
 #include "../../utils/data_structs.h"
 #include "../lexer/token.h"
-#include "../src_operator.h"
+#include "../ast_operator.h"
 #include "../ast_declaration.h"
 #include "../ast_expression.h"
 #include "token_iterator.h"
@@ -28,7 +28,7 @@ bool next_is_unary_operator(token_iterator *ti) {
     return to_unary_operator(tt) != OP_UNKNOWN;
 }
 
-oper accept_unary_operator(token_iterator *ti) {
+ast_operator accept_unary_operator(token_iterator *ti) {
     if (!next_is_unary_operator(ti))
         return OP_UNKNOWN;
     token *t = ti->next(ti);
@@ -41,7 +41,7 @@ bool next_is_postfix_operator(token_iterator *ti) {
     return to_postfix_operator(tt) != OP_UNKNOWN;
 }
 
-oper accept_postfix_operator(token_iterator *ti) {
+ast_operator accept_postfix_operator(token_iterator *ti) {
     if (!next_is_postfix_operator(ti))
         return OP_UNKNOWN;
     token *t = ti->next(ti);
@@ -54,7 +54,7 @@ bool next_is_binary_operator(token_iterator *ti) {
     return to_binary_operator(tt) != OP_UNKNOWN;
 }
 
-oper accept_binary_operator(token_iterator *ti) {
+ast_operator accept_binary_operator(token_iterator *ti) {
     if (!next_is_binary_operator(ti))
         return OP_UNKNOWN;
     token *t = ti->next(ti);
@@ -95,11 +95,11 @@ ast_expression *accept_terminal(token_iterator *ti) {
 
 #define MAX_STACK_SIZE 64
 
-oper operators_stack[MAX_STACK_SIZE];
+ast_operator operators_stack[MAX_STACK_SIZE];
 int operators_stack_len = 0;
-static inline void push_operator(oper op) { operators_stack[operators_stack_len++] = op; if (operators_stack_len >= MAX_STACK_SIZE) error("op stack overflow"); }
-static inline oper pop_operator() { return operators_stack[--operators_stack_len]; }
-static inline oper peek_operator() { return operators_stack[operators_stack_len - 1]; }
+static inline void push_operator(ast_operator op) { operators_stack[operators_stack_len++] = op; if (operators_stack_len >= MAX_STACK_SIZE) error("op stack overflow"); }
+static inline ast_operator pop_operator() { return operators_stack[--operators_stack_len]; }
+static inline ast_operator peek_operator() { return operators_stack[operators_stack_len - 1]; }
 
 ast_expression *operands_stack[MAX_STACK_SIZE];
 int operands_stack_len = 0;
@@ -111,7 +111,7 @@ static inline ast_expression *peek_operand() { return operands_stack[operands_st
 
 static void parse_complex_expression(token_iterator *ti);
 static void parse_operand(token_iterator *ti);
-static void push_operator_with_priority(oper op);
+static void push_operator_with_priority(ast_operator op);
 static void pop_operator_into_expression();
 
 static void parse_complex_expression(token_iterator *ti) {
@@ -150,7 +150,7 @@ static void parse_operand(token_iterator *ti) {
     }
 
     while (next_is_postfix_operator(ti)) {
-        oper op = accept_postfix_operator(ti);
+        ast_operator op = accept_postfix_operator(ti);
         push_operator_with_priority(op);
 
         if (op == OP_FUNC_CALL) {
@@ -179,12 +179,12 @@ static void parse_operand(token_iterator *ti) {
     }
 }
 
-static void push_operator_with_priority(oper op) {
+static void push_operator_with_priority(ast_operator op) {
 
     // if a higher priority operator exists in the stack,
     // we must extract it to a new expression now,
     // to force it to be calculated first
-    oper top_operator = peek_operator();
+    ast_operator top_operator = peek_operator();
     while (oper_precedence(top_operator) > oper_precedence(op)) {
         pop_operator_into_expression();
         top_operator = peek_operator();
@@ -198,7 +198,7 @@ static void push_operator_with_priority(oper op) {
 // extract from stack and combine into new expressions
 static void pop_operator_into_expression()
 {
-    oper op = pop_operator();
+    ast_operator op = pop_operator();
     bool is_unary = is_unary_operator(op);
     ast_expression *op1, *op2;
     ast_expression *expr;

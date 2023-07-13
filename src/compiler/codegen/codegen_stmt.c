@@ -8,7 +8,7 @@
 #include "../ast_expression.h"
 #include "../lexer/token.h"
 #include "../ast_statement.h"
-#include "../src_symbol.h"
+#include "../ast_symbol.h"
 #include "../ast_declaration.h"
 #include "codegen.h"
 
@@ -19,7 +19,7 @@ static void gen_false_cond_jump(code_gen *cg, ast_expression *expr, char *label_
     ir_value *v1;
     ir_comparison cmp = IR_NONE;
     ir_value *v2;
-    oper op = expr->op;
+    ast_operator op = expr->op;
 
     if (op == OP_GE || op == OP_GT || op == OP_LE || op == OP_LT || op == OP_EQ || op == OP_NE) {
         switch (expr->op) {

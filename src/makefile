@@ -20,8 +20,8 @@ SRC_FILES = \
 	compiler/ast_statement.c \
 	compiler/ast_expression.c \
 	compiler/ast_data_type.c \
-	compiler/src_operator.c \
-	compiler/src_symbol.c \
+	compiler/ast_operator.c \
+	compiler/ast_symbol.c \
 	compiler/scope.c \
 	compiler/parser/token_iterator.c \
 	compiler/parser/recursive_descend.c \

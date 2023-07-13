@@ -1,7 +1,7 @@
 #pragma once
 #include "lexer/token.h"
 
-typedef enum oper {
+typedef enum ast_operator {
     OP_UNKNOWN,       // to signify an unknown operator, when the token does not work
 
     OP_FUNC_CALL,          // a()
@@ -61,16 +61,16 @@ typedef enum oper {
     OP_NUM_LITERAL,   // carries a numeric value
     OP_CHR_LITERAL,   // carries a char value
     OP_BOOL_LITERAL,  // carries a boolean value
-} oper;
+} ast_operator;
 
 
 void init_operators();
 
-int oper_precedence(oper op);
-char *oper_debug_name(oper op);
-bool is_unary_operator(oper op);
-bool is_postfix_operator(oper op);
-oper to_unary_operator(token_type type); // or OP_UNKNOWN if not supported
-oper to_binary_operator(token_type type); // or OP_UNKNOWN if not supported
-oper to_postfix_operator(token_type type); // or OP_INKNOWN if not supported
+int oper_precedence(ast_operator op);
+char *oper_debug_name(ast_operator op);
+bool is_unary_operator(ast_operator op);
+bool is_postfix_operator(ast_operator op);
+ast_operator to_unary_operator(token_type type); // or OP_UNKNOWN if not supported
+ast_operator to_binary_operator(token_type type); // or OP_UNKNOWN if not supported
+ast_operator to_postfix_operator(token_type type); // or OP_INKNOWN if not supported
 

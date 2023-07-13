@@ -4,7 +4,7 @@
 #include "../ast_declaration.h"
 #include "../ast_statement.h"
 #include "../scope.h"
-#include "../src_symbol.h"
+#include "../ast_symbol.h"
 #include "analysis.h"
 
 

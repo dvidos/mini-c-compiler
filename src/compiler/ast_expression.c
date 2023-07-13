@@ -1,9 +1,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include "ast_expression.h"
-#include "src_operator.h"
+#include "ast_operator.h"
 #include "ast_data_type.h"
-#include "src_symbol.h"
+#include "ast_symbol.h"
 #include "scope.h"
 #include "../err_handler.h"
 #include "lexer/token.h"
@@ -20,7 +20,7 @@ static struct ast_expression_ops ops = {
 
 
 
-ast_expression *create_expression(oper op, ast_expression *arg1, ast_expression *arg2, token *token) {
+ast_expression *create_expression(ast_operator op, ast_expression *arg1, ast_expression *arg2, token *token) {
     ast_expression *n = malloc(sizeof(ast_expression));
     memset(n, 0, sizeof(ast_expression));
     n->op = op;
@@ -77,7 +77,7 @@ static ast_data_type *get_data_type(ast_expression *expr) {
         return expr->result_type;
     
     // let's discover it...
-    oper op = expr->op;
+    ast_operator op = expr->op;
     
     // first calculate terminal cases, we don't need nested expressions
     if (op == OP_STR_LITERAL) {
@@ -90,7 +90,7 @@ static ast_data_type *get_data_type(ast_expression *expr) {
         expr->result_type = new_data_type(TF_BOOL, NULL);
     } else if (op == OP_SYMBOL_NAME) {
         // result will be whatever type the symbol is
-        src_symbol *sym = scope_lookup(expr->value.str);
+        ast_symbol *sym = scope_lookup(expr->value.str);
         if (sym == NULL)
             error_at(expr->token->filename, expr->token->line_no, "symbol \"%s\" not defined in current scope", expr->arg1);
         else
@@ -101,7 +101,7 @@ static ast_data_type *get_data_type(ast_expression *expr) {
             // for now we support symbols, lvalues (pointers) later
             error_at(expr->token->filename, expr->token->line_no, "func call expression did not have the symbol as arg1");
         } else {
-            src_symbol *sym = scope_lookup(expr->arg1->value.str);
+            ast_symbol *sym = scope_lookup(expr->arg1->value.str);
             if (sym == NULL) {
                 error_at(expr->token->filename, expr->token->line_no, "symbol \"%s\" not defined in current scope", expr->arg1->value.str);
             } else {

@@ -7,7 +7,7 @@
 
 static void _add(reloc_list *list, u64 address, char *name, int rel_type, long addend);
 static void _clear(reloc_list *list);
-static bool _backfill_buffer(reloc_list *list, symbol_table *symbols, buffer *buff);
+static bool _backfill_buffer(reloc_list *list, symbol_table *symbols, bin *buff);
 static void _print(reloc_list *list);
 static void _offset(reloc_list *list, long offset);
 static void _append(reloc_list *list, reloc_list *source, long address_offset);
@@ -53,12 +53,12 @@ static void _clear(reloc_list *list) {
     list->length = 0;
 }
 
-static bool _backfill_buffer(reloc_list *list, symbol_table *symbols, buffer *buff) {
+static bool _backfill_buffer(reloc_list *list, symbol_table *symbols, bin *buff) {
     for (int i = 0; i < list->length; i++) {
         struct relocation *r = &list->list[i];
 
-        if (r->position >= buff->length) {
-            printf("Reference at byte %ld, but buffer length only %d\n", r->position, buff->length);
+        if (r->position >= bin_len(buff)) {
+            printf("Reference at byte %ld, but buffer length only %ld\n", r->position, bin_len(buff));
             return false;
         }
 
@@ -71,8 +71,8 @@ static bool _backfill_buffer(reloc_list *list, symbol_table *symbols, buffer *bu
 
         // we are supposed to respect the relocation type.
         if (r->type == RT_ABS_32) {
-            void *pos = &buff->buffer[r->position];
-            *(u32 *)pos = (u32)sym->address;
+            bin_seek(buff, r->position);
+            bin_write_dword(buff, (u32)sym->address);
         } else {
             printf("Not supported relocation type %d\n", r->type);
             return false;

@@ -3,40 +3,40 @@
 #include "encoded_instruction.h"
 
 
-void pack_encoded_instruction(encoded_instruction *inst, buffer *buff) {
+void pack_encoded_instruction(encoded_instruction *inst, bin *buff) {
 
     // prefixes
     if (inst->flags.have_instruction_prefix)
-        buff->add_byte(buff, inst->instruction_prefix);
+        bin_add_byte(buff, inst->instruction_prefix);
 
     if (inst->flags.have_address_size_prefix)
-        buff->add_byte(buff, inst->address_size_prefix);
+        bin_add_byte(buff, inst->address_size_prefix);
     
     if (inst->flags.have_operand_size_prefix)
-        buff->add_byte(buff, inst->operand_size_prefix);
+        bin_add_byte(buff, inst->operand_size_prefix);
 
     if (inst->flags.have_segment_override_prefix)
-        buff->add_byte(buff, inst->segment_override_prefix);
+        bin_add_byte(buff, inst->segment_override_prefix);
 
     // opcode(s)
     if (inst->flags.have_opcode_expansion_byte)
-        buff->add_byte(buff, inst->opcode_expansion_byte);
+        bin_add_byte(buff, inst->opcode_expansion_byte);
 
-    buff->add_byte(buff, inst->opcode_byte);
+    bin_add_byte(buff, inst->opcode_byte);
 
     // operands
     if (inst->flags.have_modregrm)
-        buff->add_byte(buff, inst->modregrm_byte);
+        bin_add_byte(buff, inst->modregrm_byte);
 
     if (inst->flags.have_sib)
-        buff->add_byte(buff, inst->sib_byte);
+        bin_add_byte(buff, inst->sib_byte);
 
     // displacement & immediate
     if (inst->displacement_bytes_count > 0)
-        buff->add_mem(buff, inst->displacement, inst->displacement_bytes_count);
+        bin_add_mem(buff, inst->displacement, inst->displacement_bytes_count);
 
     if (inst->immediate_bytes_count > 0)
-        buff->add_mem(buff, inst->immediate, inst->immediate_bytes_count);
+        bin_add_mem(buff, inst->immediate, inst->immediate_bytes_count);
 }
 
 void encoded_instruction_to_str(encoded_instruction *inst, str *s) {

@@ -2,7 +2,7 @@
 #include <stdio.h>
 #include <string.h>
 #include "symbol_table.h"
-#include "../utils/buffer.h"
+#include "../utils/data_types.h"
 #include "../utils.h"
 #include "reloc_list.h"
 
@@ -12,7 +12,7 @@ typedef struct section {
     u64 address;
 
     // code for .text, or data for .data etc
-    buffer *contents;
+    bin *contents;
 
     // symbols both local and exported in this section
     symbol_table *symbols;
@@ -28,8 +28,7 @@ struct section_vtable {
     void (*set_address)(section *s, u64 address);
     void (*print)(section *s);
     void (*append)(section *s, section *other);
-    void (*free)(section *s);
 };
 
-section *new_section();
+section *new_section(mempool *mp);
 

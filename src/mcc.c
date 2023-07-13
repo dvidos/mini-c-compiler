@@ -43,12 +43,6 @@ static bool run_unit_tests() {
     all_data_types_unit_tests();
     all_data_structs_unit_tests();
     elf_unit_tests();
-
-    void buffer_unit_tests();
-    buffer_unit_tests();
-
-    void string_unit_tests();
-    string_unit_tests();
     
     return unit_tests_outcome(); // prints results and returns success flag
 }

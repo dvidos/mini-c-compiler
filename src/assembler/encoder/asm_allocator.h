@@ -1,6 +1,5 @@
 #include <stdbool.h>
 #include "../asm_listing.h"
-#include "../../utils/string.h"
 #include "../../utils/data_structs.h"
 
 

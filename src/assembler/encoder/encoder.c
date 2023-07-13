@@ -23,7 +23,7 @@ static void _free(x86_encoder *enc);
 static bool encode_asm_instruction(asm_instruction *instr, struct encoding_info *info, struct encoded_instruction *result);
 
 
-struct x86_encoder *new_x86_encoder(mempool *mp, buffer *code_out, reloc_list *relocations_out) {
+struct x86_encoder *new_x86_encoder(mempool *mp, bin *code_out, reloc_list *relocations_out) {
     struct x86_encoder *enc = mpalloc(mp, struct x86_encoder);
 
     enc->output = code_out;
@@ -59,7 +59,7 @@ static bool _encode_v4(x86_encoder *encoder, asm_instruction *instr) {
     }
 
     // we have not solved for rellocations or symbol tables yet
-    int old_index = encoder->output->length;
+    int old_index = bin_len(encoder->output);
     pack_encoded_instruction(&enc_instr, encoder->output);
 
     // show the conversion
@@ -70,20 +70,18 @@ static bool _encode_v4(x86_encoder *encoder, asm_instruction *instr) {
     encoded_instruction_to_str(&enc_instr, s);
     printf("%s >> ", str_charptr(s));
     str_clear(s);
-    for (int i = old_index; i < encoder->output->length; i++)
-        printf(" %02x", (unsigned char)encoder->output->buffer[i]);
+    bin_print_hex(encoder->output, 0, 0, -1, stdout);
     printf("\n");
 
     return true;
 }
 
 static void _reset(struct x86_encoder *enc) {
-    enc->output->clear(enc->output);
+    bin_clear(enc->output);
     enc->relocations->clear(enc->relocations);
 }
 
 static void _free(struct x86_encoder *enc) {
-    enc->output->free(enc->output);
     enc->relocations->free(enc->relocations);
     free(enc);
 }

@@ -1,6 +1,5 @@
 #pragma once
 #include <stdio.h>
-#include "../utils/buffer.h"
 #include "section.h"
 #include "../linker/reloc_list.h"
 

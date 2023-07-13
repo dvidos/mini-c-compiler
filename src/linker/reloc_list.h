@@ -2,7 +2,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include "symbol_table.h"
-#include "../utils/buffer.h"
+#include "../utils/data_types.h"
 
 typedef uint8_t u8;
 typedef uint16_t u16;
@@ -37,7 +37,7 @@ struct reloc_list {
 
     void (*add)(reloc_list *list, u64 position, char *name, int rel_type, long addend);
     void (*clear)(reloc_list *list);
-    bool (*backfill_buffer)(reloc_list *list, symbol_table *symbols, buffer *buff);
+    bool (*backfill_buffer)(reloc_list *list, symbol_table *symbols, bin *buff);
     void (*print)(reloc_list *list);
     void (*offset)(reloc_list *list, long offset);
     void (*append)(reloc_list *list, reloc_list *source, long address_offset);

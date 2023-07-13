@@ -3,7 +3,6 @@
 #include <stdio.h>
 #include <string.h>
 #include "ir_listing.h"
-#include "../../utils/string.h"
 
 
 static void _add(ir_listing *l, ir_entry *entry);

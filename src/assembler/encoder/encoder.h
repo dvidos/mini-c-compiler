@@ -2,7 +2,6 @@
 #include <stdbool.h>
 #include "encoder.h"
 #include "../asm_line.h"
-#include "../../utils/buffer.h"
 #include "../../utils/data_structs.h"
 #include "../../linker/reloc_list.h"
 #include "../../linker/obj_code.h"
@@ -14,7 +13,7 @@
 typedef struct x86_encoder x86_encoder;
 
 struct x86_encoder {
-    buffer *output;
+    bin *output;
     reloc_list *relocations; // symbol relocations to be backfilled
     mempool *mempool;
 
@@ -23,6 +22,6 @@ struct x86_encoder {
     void (*free)(x86_encoder *encoder);
 };
 
-x86_encoder *new_x86_encoder(mempool *mp, buffer *code_out, reloc_list *relocations_out);
+x86_encoder *new_x86_encoder(mempool *mp, bin *code_out, reloc_list *relocations_out);
 
 

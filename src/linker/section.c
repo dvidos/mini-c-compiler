@@ -6,21 +6,18 @@ static void _set_name(section *s, char *name);
 static void _set_address(section *s, u64 address);
 static void _print(section *s);
 static void _append(section *s, section *other);
-static void _free(section *s);
 
 static struct section_vtable vtable = {
     .set_name = _set_name,
     .set_address = _set_address,
     .print = _print,
     .append = _append,
-    .free = _free
 };
 
-section *new_section() {
-    section *s = malloc(sizeof(section));
-    memset(s, 0, sizeof(section));
+section *new_section(mempool *mp) {
+    section *s = mpalloc(mp, section);
 
-    s->contents = new_buffer();
+    s->contents = new_bin(mp);
     s->symbols = new_symbol_table();
     s->relocations = new_reloc_list();
 
@@ -39,11 +36,11 @@ static void _set_address(section *s, u64 address) {
 
 static void _print(section *s) {
     printf("Section %s\n", s->name == NULL ? "(null)" : s->name);
-    if (s->contents->length > 0) {
-        printf("  Contents (%d bytes)\n", s->contents->length);
-        int max_size = s->contents->length > 128 ? 128 : s->contents->length;
-        print_16_hex(s->contents->buffer, max_size, 4);
-        if (s->contents->length > 128)
+    if (bin_len(s->contents) > 0) {
+        printf("  Contents (%ld bytes)\n", bin_len(s->contents));
+        int max_size = bin_len(s->contents) > 128 ? 128 : bin_len(s->contents);
+        bin_print_hex(s->contents, 4, 0, max_size, stdout);
+        if (bin_len(s->contents) > 128)
             printf("    ... (trimmed)\n");
     }
     if (s->symbols->length > 0) {
@@ -57,19 +54,10 @@ static void _print(section *s) {
 }
 
 static void _append(section *s, section *other) {
-    long address_offset = s->contents->length;
-    s->contents->append(s->contents, other->contents);
+    long address_offset = bin_len(s->contents);
+    bin_cat(s->contents, other->contents);
     
     s->symbols->append(s->symbols, other->symbols, address_offset);
     s->relocations->append(s->relocations, other->relocations, address_offset);
-}
-
-static void _free(section *s) {
-    if (s->name != NULL)
-        free(s->name);
-    s->contents->free(s->contents);
-    s->symbols->free(s->symbols);
-    s->relocations->free(s->relocations);
-    free(s);
 }
 

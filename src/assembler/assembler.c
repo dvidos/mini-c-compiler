@@ -3,7 +3,6 @@
 #include <string.h>
 #include "../err_handler.h"
 #include "../run_info.h"
-#include "../utils/string.h"
 #include "../compiler/codegen/ir_listing.h"
 #include "../linker/obj_code.h"
 #include "encoder/encoding_info.h"
@@ -12,7 +11,6 @@
 #include "encoder/asm_allocator.h"
 #include "asm_line.h"
 #include "asm_listing.h"
-#include "../utils/string.h"
 #include "../utils/data_structs.h"
 #include "../elf/obj_module.h"
 #include "../utils/data_types.h"
@@ -31,7 +29,7 @@ void assemble_listing_into_i386_code(mempool *mp, asm_listing *asm_list, obj_cod
         if (line->label != NULL) {
             // we don't know if this is exported for now
             obj->text->symbols->add(obj->text->symbols, str_charptr(line->label), 
-                obj->text->contents->length, 0, ST_FUNCTION, false);
+                bin_len(obj->text->contents), 0, ST_FUNCTION, false);
         }
 
         if (inst->operation == OC_NONE)
@@ -46,8 +44,7 @@ void assemble_listing_into_i386_code(mempool *mp, asm_listing *asm_list, obj_cod
     }
 
     printf("Sample resulting machine code\n");
-    for (int i = 0; i < obj->text->contents->length; i++)
-        printf("%02x ", (unsigned char)obj->text->contents->buffer[i]);
+    bin_print_hex(obj->text->contents, 0, 0, -1, stdout);
     printf("\n");
 }
 

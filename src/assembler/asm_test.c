@@ -3,7 +3,6 @@
 #include <stdlib.h>
 #include "../utils.h"
 #include "../run_info.h"
-#include "../utils/buffer.h"
 #include "../linker/symbol_table.h"
 #include "../linker/obj_code.h"
 #include "encoder/encoder.h"
@@ -163,7 +162,7 @@ static bool verify_single_instruction(enum opcode oc, asm_operand *op1, asm_oper
     str *s = new_str(mp, NULL);
     asm_instruction_to_str(instr, s, false);
 
-    buffer *b = new_buffer();
+    bin *b = new_bin(mp);
     reloc_list *relocs = new_reloc_list();
     x86_encoder *enc = new_x86_encoder(mp, b, relocs);
     if (!enc->encode_v4(enc, instr)) {
@@ -172,23 +171,21 @@ static bool verify_single_instruction(enum opcode oc, asm_operand *op1, asm_oper
         return false;
     }
 
-    if (memcmp(b->buffer, expected_bytes, expected_len) != 0) {
+    bin *expected = new_bin_from_mem(mp, expected_bytes, expected_len);
+    if (bin_cmp(b, expected) != 0) {
         printf("\n");
         printf("  Bad instruction encoding '%s'\n", str_charptr(s));
         printf("  Expected:");
-        for (int i = 0; i < expected_len; i++)
-            printf(" %02x", (u8)expected_bytes[i]);
+        bin_print_hex(expected, 0, 0, -1, stdout);
         printf("\n");
         printf("  Produced:");
-        for (int i = 0; i < b->length; i++)
-            printf(" %02x", (u8)b->buffer[i]);
+        bin_print_hex(b, 0, 0, -1, stdout);
         printf("\n");
-        b->free(b);
         return false;
     }
 
-    b->free(b);
     printf(".");
+    mempool_release(mp);
     return true;
 }
 
@@ -352,7 +349,7 @@ static bool _test_encode_listing_code(asm_listing *lst, obj_code *mod) {
         if (line->label != NULL) {
             // we don't know if this is exported for now
             mod->text->symbols->add(mod->text->symbols, str_charptr(line->label), 
-                mod->text->contents->length, 0, ST_FUNCTION, false);
+                bin_len(mod->text->contents), 0, ST_FUNCTION, false);
         }
 
         if (!enc->encode_v4(enc, inst)) {
@@ -384,9 +381,9 @@ static bool _test_link_module(obj_code *mod, u64 code_base_address, char *filena
     u64 bss_base_address;
     u64 rodata_base_address;
 
-    data_base_address = round_up(code_base_address + mod->text->contents->length, 4096);
-    bss_base_address = round_up(data_base_address + mod->data->contents->length, 4096);
-    bss_base_address = round_up(bss_base_address + mod->bss->contents->length, 4096);
+    data_base_address = round_up(code_base_address + bin_len(mod->text->contents), 4096);
+    bss_base_address = round_up(data_base_address + bin_len(mod->data->contents), 4096);
+    bss_base_address = round_up(bss_base_address + bin_len(mod->bss->contents), 4096);
 
     mod->text->symbols->offset(mod->text->symbols, code_base_address);
     mod->data->symbols->offset(mod->data->symbols, data_base_address);
@@ -403,14 +400,14 @@ static bool _test_link_module(obj_code *mod, u64 code_base_address, char *filena
     elf.flags.is_static_executable = true;
     elf.flags.is_64_bits = false;
     elf.code_address = code_base_address; // usual starting address
-    elf.code_contents = mod->text->contents->buffer;
-    elf.code_size = mod->text->contents->length;
+    elf.code_contents = bin_ptr_at(mod->text->contents, 0);
+    elf.code_size = bin_len(mod->text->contents);
     elf.code_entry_point = code_base_address + start->address; // address of _start, actually...
     elf.data_address = data_base_address;
-    elf.data_contents = mod->data->contents->buffer;
-    elf.data_size = mod->data->contents->length;
+    elf.data_contents = bin_ptr_at(mod->data->contents, 0);
+    elf.data_size = bin_len(mod->data->contents);
     elf.bss_address = bss_base_address;
-    elf.bss_size = mod->bss->contents->length;
+    elf.bss_size = bin_len(mod->bss->contents);
     
     bool write_elf_file(elf_contents *prog, char *filename);
     if (!write_elf_file(&elf, filename)) {

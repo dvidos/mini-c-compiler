@@ -1,6 +1,4 @@
 #pragma once
-#include "../../utils/buffer.h"
-#include "../../utils/string.h"
 #include "../../utils/data_types.h"
 
 
@@ -31,6 +29,6 @@ typedef struct encoded_instruction {
 } encoded_instruction;
 
 
-void pack_encoded_instruction(encoded_instruction *inst, buffer *buff);
+void pack_encoded_instruction(encoded_instruction *inst, bin *buff);
 void encoded_instruction_to_str(encoded_instruction *inst, str *s);
 

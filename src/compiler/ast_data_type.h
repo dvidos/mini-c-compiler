@@ -20,6 +20,10 @@ typedef struct ast_data_type {
     struct ast_data_type *nested; // for pointer-of, or array-of etc.
     int array_size; // only for arrays
     char *string_repr; // calculated on the first to_string() call
+    struct {
+        unsigned is_static : 1;
+        unsigned is_extern : 1;
+    } flags;
 
     struct ast_data_type_ops *ops;
 } ast_data_type;

@@ -111,15 +111,21 @@ static char *_to_string(ast_data_type *type) {
     if (type->string_repr != NULL)
         return type->string_repr;
     
-    char *p = malloc(64); // careful when we introduce structs or func pointers
+    char *p = malloc(128); // careful when we introduce structs or func pointers
     p[0] = '\0';
 
+    if (type->flags.is_extern) {
+        strcat(p, "extern ");
+    } else if (type->flags.is_static) {
+        strcat(p, "static ");
+    }
+
     switch (type->family) {
-        case TF_INT:   strcpy(p, "int");   break;
-        case TF_FLOAT: strcpy(p, "float"); break;
-        case TF_CHAR:  strcpy(p, "char");  break;
-        case TF_BOOL:  strcpy(p, "bool");  break;
-        case TF_VOID:  strcpy(p, "void");  break;
+        case TF_INT:   strcat(p, "int");   break;
+        case TF_FLOAT: strcat(p, "float"); break;
+        case TF_CHAR:  strcat(p, "char");  break;
+        case TF_BOOL:  strcat(p, "bool");  break;
+        case TF_VOID:  strcat(p, "void");  break;
 
         case TF_POINTER:
             if (type->nested != NULL)

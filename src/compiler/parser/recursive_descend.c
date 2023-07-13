@@ -62,6 +62,12 @@ static ast_statement *parse_statements_list_in_block(mempool *mp, token_iterator
 static ast_var_declaration *parse_function_arguments_list(mempool *mp, token_iterator *ti);
 
 static bool is_data_type_description(token_iterator *ti, int *num_tokens) {
+    int count = 0;
+
+    if (ti->next_is(ti, TOK_EXTERN))
+        count++;
+    else if (ti->next_is(ti, TOK_STATIC))
+        count++;
 
     // storage_class_specifiers: typedef, extern, static, auto, register.
     // type_qualifiers: const, volatile.
@@ -70,13 +76,11 @@ static bool is_data_type_description(token_iterator *ti, int *num_tokens) {
     // make sure to detect without consuming anything. 
     // use lookahead() if neded.
 
-    int count = 0;
-
-    if (!  (ti->next_is(ti, TOK_INT_KEYWORD)
-         || ti->next_is(ti, TOK_FLOAT)
-         || ti->next_is(ti, TOK_CHAR_KEYWORD)
-         || ti->next_is(ti, TOK_BOOL)
-         || ti->next_is(ti, TOK_VOID))) {
+    if (!  (ti->lookahead_is(ti, count, TOK_INT_KEYWORD)
+         || ti->lookahead_is(ti, count, TOK_FLOAT)
+         || ti->lookahead_is(ti, count, TOK_CHAR_KEYWORD)
+         || ti->lookahead_is(ti, count, TOK_BOOL)
+         || ti->lookahead_is(ti, count, TOK_VOID))) {
         return false;
     }
     count++;
@@ -94,8 +98,9 @@ static bool is_data_type_description(token_iterator *ti, int *num_tokens) {
 }
 
 static bool is_variable_declaration(token_iterator *ti) {
-    // we assume data definition takes only one token for now
     int num_tokens = 0;
+
+    // we assume data definition takes only one token for now
     if (!is_data_type_description(ti, &num_tokens))
         return false;
 
@@ -129,6 +134,15 @@ static ast_data_type *accept_data_type_description(mempool *mp, token_iterator *
     if (!is_data_type_description(ti, &tokens))
         return NULL;
 
+    bool is_extern = false;
+    bool is_static = false;
+
+    if (ti->accept(ti, TOK_EXTERN)) {
+        is_extern = true;
+    } else if (ti->accept(ti, TOK_STATIC)) {
+        is_static = true;
+    }
+
     ti->consume(ti); // a keyword such as "int" or "char"
     ast_type_family family = data_type_family_for_token(ti->accepted(ti)->type);
     ast_data_type *t = new_ast_data_type(family, NULL);
@@ -143,6 +157,9 @@ static ast_data_type *accept_data_type_description(mempool *mp, token_iterator *
         t = new_ast_data_type(TF_POINTER, t);
     }
 
+    t->flags.is_extern = is_extern;
+    t->flags.is_static = is_static;
+    
     return t;
 }
 
@@ -216,7 +233,7 @@ static ast_func_declaration *accept_function_declaration(mempool *mp, token_iter
     return new_ast_func_declaration(mp, ret_type, name, args, body, identifier_token);
 }
 
-// cannot parse a function, but can parse a block and anything in it.
+// this cannot parse a function, but can parse a block and anything in it.
 static ast_statement *parse_statement(mempool *mp, token_iterator *ti) {
     token *start_token;
 

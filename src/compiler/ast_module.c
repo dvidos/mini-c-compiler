@@ -81,7 +81,7 @@ static void print_statement(FILE *stream, ast_statement *st, int depth) {
 
         case ST_VAR_DECL:
             indent(stream, depth);
-            fprintf(stream, "variable: %s %s", 
+            fprintf(stream, "variable: %s (%s)", 
                 st->decl->var_name, 
                 st->decl->data_type->ops->to_string(st->decl->data_type));
             if (st->expr != NULL) {

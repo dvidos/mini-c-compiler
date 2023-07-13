@@ -21,7 +21,9 @@ char *keywords[] = {
     "void",
     "bool",
     "true",
-    "false"
+    "false",
+    "extern",
+    "static"
 };
 
 token *new_token(mempool *mp, token_type type, const char *value, const char *filename, int line_no) {
@@ -104,6 +106,8 @@ char *token_type_name(enum token_type type) {
         case TOK_VOID: return "void";
         case TOK_TRUE: return "true";
         case TOK_FALSE: return "false";
+        case TOK_EXTERN: return "extern";
+        case TOK_STATIC: return "static";
         case TOK_DBL_GRATER_THAN: return ">>";
         case TOK_DBL_LESS_THAN: return "<<";
         case TOK_UNKNOWN: return "*** unknown ***";

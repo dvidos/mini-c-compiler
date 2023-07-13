@@ -76,6 +76,8 @@ typedef enum token_type {
     TOK_BOOL,
     TOK_TRUE,
     TOK_FALSE,
+    TOK_EXTERN,
+    TOK_STATIC,
 
     // unknown token, e.g. something we don't understand.
     TOK_UNKNOWN = 9999,

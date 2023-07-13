@@ -30,9 +30,9 @@ void perform_declaration_analysis(ast_var_declaration *decl, int arg_no) {
 
     ast_symbol *sym;
     if (arg_no >= 0)
-        sym = create_func_arg_symbol(decl->var_name, decl->data_type, arg_no, decl->token->filename, decl->token->line_no);
+        sym = new_func_arg_symbol(decl->var_name, decl->data_type, arg_no, decl->token->filename, decl->token->line_no);
     else
-        sym = create_symbol(decl->var_name, decl->data_type, SYM_VAR, decl->token->filename, decl->token->line_no);
+        sym = new_ast_symbol(decl->var_name, decl->data_type, SYM_VAR, decl->token->filename, decl->token->line_no);
     scope_declare_symbol(sym);
 }
 
@@ -46,7 +46,7 @@ void perform_function_analysis(ast_func_declaration *func) {
             "function \"%s\" already defined", 
             func->func_name);
     } else {
-        ast_symbol *sym = create_func_symbol(func->func_name, func, func->token->filename, func->token->line_no);
+        ast_symbol *sym = new_func_symbol(func->func_name, func, func->token->filename, func->token->line_no);
         scope_declare_symbol(sym);
     }
 

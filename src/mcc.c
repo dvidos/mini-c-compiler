@@ -75,7 +75,7 @@ static void after_ast_parsed(ast_module *m) {
 
     if (run_info->options->verbose) {
         printf("---------- Abstract Syntax Tree ----------\n");
-        print_ast(m, stdout);
+        ast_module_print(m, stdout);
     }
 
     if (run_info->options->generate_ast) {
@@ -84,7 +84,7 @@ static void after_ast_parsed(ast_module *m) {
         if (f == NULL) {
             error("cannot open file \"%s\" for writing", ast_filename);
         }
-        print_ast(m, f);
+        ast_module_print(m, f);
         fclose(f);
         free(ast_filename);
     }

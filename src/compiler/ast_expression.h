@@ -30,10 +30,10 @@ struct ast_expression_ops {
     void (*flatten_func_call_args_to_array)(ast_expression *call_expr, ast_expression *arr[], int arr_size, int *args_count);
 };
 
-ast_expression *create_expression(ast_operator op, ast_expression *arg1, ast_expression *arg2, token *token);
-ast_expression *create_symbol_name_expr(const char *name, token *token);
-ast_expression *create_string_literal_expr(const char *str, token *token);
-ast_expression *create_number_literal_expr(const char *number, token *token);
-ast_expression *create_char_literal_expr(char chr, token *token);
-ast_expression *create_bool_literal_expr(bool value, token *token);
+ast_expression *new_ast_expression(ast_operator op, ast_expression *arg1, ast_expression *arg2, token *token);
+ast_expression *new_symbol_name_expr(const char *name, token *token);
+ast_expression *new_string_literal_expr(const char *str, token *token);
+ast_expression *new_number_literal_expr(const char *number, token *token);
+ast_expression *new_char_literal_expr(char chr, token *token);
+ast_expression *new_bool_literal_expr(bool value, token *token);
 

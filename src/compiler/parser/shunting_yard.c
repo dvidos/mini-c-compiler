@@ -79,12 +79,12 @@ ast_expression *accept_terminal(token_iterator *ti) {
     ti->consume(ti);
     switch (t->type)
     {
-        case TOK_IDENTIFIER:      return create_symbol_name_expr(t->value, t);
-        case TOK_STRING_LITERAL:  return create_string_literal_expr(t->value, t);
-        case TOK_NUMERIC_LITERAL: return create_number_literal_expr(t->value, t);
-        case TOK_CHAR_LITERAL:    return create_char_literal_expr(t->value[0], t);
-        case TOK_TRUE:            return create_bool_literal_expr(true, t);
-        case TOK_FALSE:           return create_bool_literal_expr(false, t);
+        case TOK_IDENTIFIER:      return new_symbol_name_expr(t->value, t);
+        case TOK_STRING_LITERAL:  return new_string_literal_expr(t->value, t);
+        case TOK_NUMERIC_LITERAL: return new_number_literal_expr(t->value, t);
+        case TOK_CHAR_LITERAL:    return new_char_literal_expr(t->value[0], t);
+        case TOK_TRUE:            return new_bool_literal_expr(true, t);
+        case TOK_FALSE:           return new_bool_literal_expr(false, t);
     }
     return NULL;
 }
@@ -205,14 +205,14 @@ static void pop_operator_into_expression()
 
     if (is_unary) { 
         op1 = pop_operand();
-        expr = create_expression(op, op1, NULL, op1->token);
+        expr = new_ast_expression(op, op1, NULL, op1->token);
     } else { 
         op1 = pop_operand();
         op2 = pop_operand();
         // note op2, then op1, to make them appear in "correct" order as a result
         // also, op1 may be null, e.g. when calling a func without args
         token *token = op1 == NULL ? (op2 == NULL ? NULL : op2->token) : op1->token;
-        expr = create_expression(op, op2, op1, token); 
+        expr = new_ast_expression(op, op2, op1, token); 
     }
 
     push_operand(expr);

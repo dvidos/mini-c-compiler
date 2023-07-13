@@ -4,7 +4,7 @@
 #include "ast_operator.h"
 #include "ast_statement.h"
 
-static ast_statement *_create_statement(ast_statement_type stmt_type, 
+static ast_statement *new_any_statement(ast_statement_type stmt_type, 
         ast_var_declaration *decl, ast_expression *expr, 
         ast_statement *body, ast_statement *else_body,
         token *token
@@ -22,32 +22,32 @@ static ast_statement *_create_statement(ast_statement_type stmt_type,
 }
 
 ast_statement *new_statements_block(ast_statement *stmts_list, token *token) {
-    return _create_statement(ST_BLOCK, NULL, NULL, stmts_list, NULL, token);
+    return new_any_statement(ST_BLOCK, NULL, NULL, stmts_list, NULL, token);
 }
 ast_statement *new_var_decl_statement(ast_var_declaration *decl, ast_expression *init, token *token) {
-    return _create_statement(ST_VAR_DECL, decl, init, NULL, NULL, token);
+    return new_any_statement(ST_VAR_DECL, decl, init, NULL, NULL, token);
 }
 ast_statement *new_if_statement(ast_expression *condition, ast_statement *if_body, ast_statement *else_body, token *token) {
-    return _create_statement(ST_IF, NULL, condition, if_body, else_body, token);
+    return new_any_statement(ST_IF, NULL, condition, if_body, else_body, token);
 }
 ast_statement *new_while_statement(ast_expression *condition, ast_statement *body, token *token) {
-    return _create_statement(ST_WHILE, NULL, condition, body, NULL, token);
+    return new_any_statement(ST_WHILE, NULL, condition, body, NULL, token);
 }
-ast_statement *create_continue_statement(token *token) {
-    return _create_statement(ST_CONTINUE, NULL, NULL, NULL, NULL, token);
+ast_statement *new_continue_statement(token *token) {
+    return new_any_statement(ST_CONTINUE, NULL, NULL, NULL, NULL, token);
 }
 ast_statement *new_break_statement(token *token) {
-    return _create_statement(ST_BREAK, NULL, NULL, NULL, NULL, token);
+    return new_any_statement(ST_BREAK, NULL, NULL, NULL, NULL, token);
 }
 ast_statement *new_return_statement(ast_expression *return_value, token *token) {
-    return _create_statement(ST_RETURN, NULL, return_value, NULL, NULL, token);
+    return new_any_statement(ST_RETURN, NULL, return_value, NULL, NULL, token);
 }
 ast_statement *new_expr_statement(ast_expression *expression, token *token) {
-    return _create_statement(ST_EXPRESSION, NULL, expression, NULL, NULL, token);
+    return new_any_statement(ST_EXPRESSION, NULL, expression, NULL, NULL, token);
 }
 
 
-char *statement_type_name(ast_statement_type type) {
+char *ast_statement_type_name(ast_statement_type type) {
     switch (type) {
         case ST_BLOCK: return "block";
         case ST_VAR_DECL: return "declaration";

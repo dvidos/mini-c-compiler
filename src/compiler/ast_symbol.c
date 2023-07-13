@@ -2,7 +2,7 @@
 #include "ast_symbol.h"
 
 
-ast_symbol *create_symbol(const char *name, ast_data_type *data_type, ast_symbol_type definition, const char *file_name, int line_no) {
+ast_symbol *new_ast_symbol(const char *name, ast_data_type *data_type, ast_symbol_type definition, const char *file_name, int line_no) {
     ast_symbol *s = malloc(sizeof(ast_symbol));
 
     s->name = name;
@@ -17,7 +17,7 @@ ast_symbol *create_symbol(const char *name, ast_data_type *data_type, ast_symbol
     return s;
 }
 
-ast_symbol *create_func_arg_symbol(const char *name, ast_data_type *data_type, int arg_no, const char *file_name, int line_no) {
+ast_symbol *new_func_arg_symbol(const char *name, ast_data_type *data_type, int arg_no, const char *file_name, int line_no) {
     ast_symbol *s = malloc(sizeof(ast_symbol));
 
     s->name = name;
@@ -32,7 +32,7 @@ ast_symbol *create_func_arg_symbol(const char *name, ast_data_type *data_type, i
     return s;
 }
 
-ast_symbol *create_func_symbol(const char *name, ast_func_declaration *func, const char *file_name, int line_no) {
+ast_symbol *new_func_symbol(const char *name, ast_func_declaration *func, const char *file_name, int line_no) {
     ast_symbol *s = malloc(sizeof(ast_symbol));
 
     s->name = name;
@@ -47,7 +47,7 @@ ast_symbol *create_func_symbol(const char *name, ast_func_declaration *func, con
     return s;
 }
 
-char *symbol_type_name(ast_symbol_type st) {
+char *ast_symbol_type_name(ast_symbol_type st) {
     switch (st) {
         case SYM_VAR: return "var";
         case SYM_FUNC: return "func";

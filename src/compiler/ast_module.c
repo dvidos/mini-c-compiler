@@ -16,11 +16,11 @@ ast_module *new_ast_module(mempool *mp) {
     return m;
 }
 
-void ast_add_statement(ast_module *m, ast_statement *stmt) {
+void ast_module_add_statement(ast_module *m, ast_statement *stmt) {
     llist_add(m->statements, stmt);
 }
 
-void ast_add_function(ast_module *m, ast_func_declaration *func) {
+void ast_module_add_function(ast_module *m, ast_func_declaration *func) {
     llist_add(m->functions, func);
 }
 
@@ -154,7 +154,7 @@ static void print_statement_list(FILE *stream, ast_statement *list, int depth) {
     }
 }
 
-void print_ast(ast_module *m, FILE *stream) {
+void ast_module_print(ast_module *m, FILE *stream) {
     for_list(m->statements, ast_statement, stmt)
         print_statement(stream, stmt, 0);
     
@@ -212,7 +212,7 @@ static void ast_count_statements(ast_statement *stmt, int *statements, int *expr
     }
 }
 
-void ast_count_nodes(ast_module *m, int *functions, int *statements, int *expressions) {
+void ast_module_count_nodes(ast_module *m, int *functions, int *statements, int *expressions) {
     (*statements) = llist_length(m->statements);
     (*functions) = llist_length(m->functions);
 

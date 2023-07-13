@@ -51,11 +51,11 @@ ast_statement *new_statements_block(ast_statement *stmts_list, token *token);
 ast_statement *new_var_decl_statement(ast_var_declaration *decl, ast_expression *init, token *token);
 ast_statement *new_if_statement(ast_expression *condition, ast_statement *if_body, ast_statement *else_nody, token *token);
 ast_statement *new_while_statement(ast_expression *condition, ast_statement *body, token *token);
-ast_statement *create_continue_statement(token *token);
+ast_statement *new_continue_statement(token *token);
 ast_statement *new_break_statement(token *token);
 ast_statement *new_return_statement(ast_expression *return_value, token *token);
 ast_statement *new_expr_statement(ast_expression *expression, token *token);
 
-char *statement_type_name(ast_statement_type type);
+char *ast_statement_type_name(ast_statement_type type);
 
 

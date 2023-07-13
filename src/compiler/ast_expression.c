@@ -20,7 +20,7 @@ static struct ast_expression_ops ops = {
 
 
 
-ast_expression *create_expression(ast_operator op, ast_expression *arg1, ast_expression *arg2, token *token) {
+ast_expression *new_ast_expression(ast_operator op, ast_expression *arg1, ast_expression *arg2, token *token) {
     ast_expression *n = malloc(sizeof(ast_expression));
     memset(n, 0, sizeof(ast_expression));
     n->op = op;
@@ -31,18 +31,18 @@ ast_expression *create_expression(ast_operator op, ast_expression *arg1, ast_exp
     return n;
 }
 
-ast_expression *create_symbol_name_expr(const char *name, token *token) {
-    ast_expression *n = create_expression(OP_SYMBOL_NAME, NULL, NULL, token);
+ast_expression *new_symbol_name_expr(const char *name, token *token) {
+    ast_expression *n = new_ast_expression(OP_SYMBOL_NAME, NULL, NULL, token);
     n->value.str = name;
     return n;
 }
-ast_expression *create_string_literal_expr(const char *str, token *token) {
-    ast_expression *n = create_expression(OP_STR_LITERAL, NULL, NULL, token);
+ast_expression *new_string_literal_expr(const char *str, token *token) {
+    ast_expression *n = new_ast_expression(OP_STR_LITERAL, NULL, NULL, token);
     n->value.str = (char *)str;
     return n;
 }
-ast_expression *create_number_literal_expr(const char *number, token *token) {
-    ast_expression *n = create_expression(OP_NUM_LITERAL, NULL, NULL, token);
+ast_expression *new_number_literal_expr(const char *number, token *token) {
+    ast_expression *n = new_ast_expression(OP_NUM_LITERAL, NULL, NULL, token);
     int base = 10;
     if (number[0] == '0' && number[1] != '\0') {
         if ((number[1] == 'x' || number[1] == 'X') && number[2] != '\0') {
@@ -56,14 +56,14 @@ ast_expression *create_number_literal_expr(const char *number, token *token) {
     n->value.num = strtol(number, NULL, base);
     return n;
 }
-ast_expression *create_char_literal_expr(char chr, token *token) {
-    ast_expression *n = create_expression(OP_CHR_LITERAL, NULL, NULL, token);
+ast_expression *new_char_literal_expr(char chr, token *token) {
+    ast_expression *n = new_ast_expression(OP_CHR_LITERAL, NULL, NULL, token);
     n->value.chr = chr;
     return n;
 }
 
-ast_expression *create_bool_literal_expr(bool value, token *token) {
-    ast_expression *n = create_expression(OP_BOOL_LITERAL, NULL, NULL, token);
+ast_expression *new_bool_literal_expr(bool value, token *token) {
+    ast_expression *n = new_ast_expression(OP_BOOL_LITERAL, NULL, NULL, token);
     n->value.bln = value;
     return n;
 }

@@ -261,7 +261,7 @@ static ast_statement *parse_statement(mempool *mp, token_iterator *ti) {
     if (ti->accept(ti, TOK_CONTINUE)) {
         start_token = ti->accepted(ti);
         if (!ti->expect(ti, TOK_SEMICOLON)) return NULL;
-        return create_continue_statement(start_token);
+        return new_continue_statement(start_token);
     }
 
     if (ti->accept(ti, TOK_BREAK)) {
@@ -339,11 +339,11 @@ static ast_var_declaration *parse_function_arguments_list(mempool *mp, token_ite
 static void parse_file_level_element(mempool *mp, token_iterator *ti, ast_module *mod) {
     if (is_variable_declaration(ti)) {
         ast_statement *n = accept_variable_declaration(mp, ti);
-        ast_add_statement(mod, n);
+        ast_module_add_statement(mod, n);
     }
     else if (is_function_declaration(ti)) {
         ast_func_declaration *n = accept_function_declaration(mp, ti);
-        ast_add_function(mod, n);
+        ast_module_add_function(mod, n);
     }
     else {
         error_at(ti->next(ti)->filename, ti->next(ti)->line_no,

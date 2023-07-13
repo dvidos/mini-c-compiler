@@ -111,7 +111,7 @@ void print_symbol_table(scope *s) {
 
     ast_symbol *sym = s->symbols_list_head;
     while (sym != NULL) {
-        printf("    %-20s  %-5s %-5s\n", sym->name, symbol_type_name(sym->sym_type), sym->data_type->ops->to_string(sym->data_type));
+        printf("    %-20s  %-5s %-5s\n", sym->name, ast_symbol_type_name(sym->sym_type), sym->data_type->ops->to_string(sym->data_type));
         sym = sym->next;
     }
 }

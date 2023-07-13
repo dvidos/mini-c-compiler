@@ -8,7 +8,6 @@ typedef struct ast_statement ast_statement;
 
 
 typedef struct ast_var_declaration {
-
     const char *var_name;
 
     // the declared data type, e.g. "int[]"
@@ -17,9 +16,10 @@ typedef struct ast_var_declaration {
     // house keeping
     token *token;
     struct ast_var_declaration *next; // for function arguments lists
+    mempool *mempool;
 } ast_var_declaration;
 
-ast_var_declaration *new_var_declaration(ast_data_type *data_type, const char* var_name, token *token);
+ast_var_declaration *new_ast_var_declaration(mempool *mp, ast_data_type *data_type, const char* var_name, token *token);
 
 
 
@@ -43,9 +43,10 @@ typedef struct ast_func_declaration {
     token *token;
     struct ast_func_declaration *next;
     struct ast_func_declaration_ops *ops;
+    mempool *mempool;
 } ast_func_declaration;
 
-ast_func_declaration *new_func_declaration(ast_data_type *return_type, const char *func_name, ast_var_declaration *args_list, ast_statement *body, token *token);
+ast_func_declaration *new_ast_func_declaration(mempool *mp, ast_data_type *return_type, const char *func_name, ast_var_declaration *args_list, ast_statement *body, token *token);
 
 struct ast_func_declaration_ops {
     int (*count_required_arguments)(ast_func_declaration *func);

@@ -4,12 +4,12 @@
 #include "ast_operator.h"
 #include "ast_statement.h"
 
-static ast_statement *new_any_statement(ast_statement_type stmt_type, 
+static ast_statement *new_any_statement(mempool *mp, ast_statement_type stmt_type, 
         ast_var_declaration *decl, ast_expression *expr, 
         ast_statement *body, ast_statement *else_body,
         token *token
 ) {
-    ast_statement *n = malloc(sizeof(ast_statement));
+    ast_statement *n = mpalloc(mp, ast_statement);
     n->stmt_type = stmt_type;
     n->decl = decl;
     n->expr = expr;
@@ -18,32 +18,33 @@ static ast_statement *new_any_statement(ast_statement_type stmt_type,
 
     n->token = token;
     n->next = NULL;
+    n->mempool = mp;
     return n;
 }
 
-ast_statement *new_statements_block(ast_statement *stmts_list, token *token) {
-    return new_any_statement(ST_BLOCK, NULL, NULL, stmts_list, NULL, token);
+ast_statement *new_ast_statement_block(mempool *mp, ast_statement *stmts_list, token *token) {
+    return new_any_statement(mp, ST_BLOCK, NULL, NULL, stmts_list, NULL, token);
 }
-ast_statement *new_var_decl_statement(ast_var_declaration *decl, ast_expression *init, token *token) {
-    return new_any_statement(ST_VAR_DECL, decl, init, NULL, NULL, token);
+ast_statement *new_ast_statement_var_decl(mempool *mp, ast_var_declaration *decl, ast_expression *init, token *token) {
+    return new_any_statement(mp, ST_VAR_DECL, decl, init, NULL, NULL, token);
 }
-ast_statement *new_if_statement(ast_expression *condition, ast_statement *if_body, ast_statement *else_body, token *token) {
-    return new_any_statement(ST_IF, NULL, condition, if_body, else_body, token);
+ast_statement *new_ast_statement_if(mempool *mp, ast_expression *condition, ast_statement *if_body, ast_statement *else_body, token *token) {
+    return new_any_statement(mp, ST_IF, NULL, condition, if_body, else_body, token);
 }
-ast_statement *new_while_statement(ast_expression *condition, ast_statement *body, token *token) {
-    return new_any_statement(ST_WHILE, NULL, condition, body, NULL, token);
+ast_statement *new_ast_statement_while(mempool *mp, ast_expression *condition, ast_statement *body, token *token) {
+    return new_any_statement(mp, ST_WHILE, NULL, condition, body, NULL, token);
 }
-ast_statement *new_continue_statement(token *token) {
-    return new_any_statement(ST_CONTINUE, NULL, NULL, NULL, NULL, token);
+ast_statement *new_ast_statement_continue(mempool *mp, token *token) {
+    return new_any_statement(mp, ST_CONTINUE, NULL, NULL, NULL, NULL, token);
 }
-ast_statement *new_break_statement(token *token) {
-    return new_any_statement(ST_BREAK, NULL, NULL, NULL, NULL, token);
+ast_statement *new_ast_statement_break(mempool *mp, token *token) {
+    return new_any_statement(mp, ST_BREAK, NULL, NULL, NULL, NULL, token);
 }
-ast_statement *new_return_statement(ast_expression *return_value, token *token) {
-    return new_any_statement(ST_RETURN, NULL, return_value, NULL, NULL, token);
+ast_statement *new_ast_statement_return(mempool *mp, ast_expression *return_value, token *token) {
+    return new_any_statement(mp, ST_RETURN, NULL, return_value, NULL, NULL, token);
 }
-ast_statement *new_expr_statement(ast_expression *expression, token *token) {
-    return new_any_statement(ST_EXPRESSION, NULL, expression, NULL, NULL, token);
+ast_statement *new_ast_statement_expression(mempool *mp, ast_expression *expression, token *token) {
+    return new_any_statement(mp, ST_EXPRESSION, NULL, expression, NULL, NULL, token);
 }
 
 

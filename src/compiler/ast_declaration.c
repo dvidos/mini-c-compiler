@@ -14,25 +14,27 @@ static struct ast_func_declaration_ops func_ops = {
 
 
 
-ast_var_declaration *new_var_declaration(ast_data_type *data_type, const char* var_name, token *token) {
-    ast_var_declaration *n = malloc(sizeof(ast_var_declaration));
-    n->data_type = data_type;
-    n->var_name = var_name;
-    n->token = token;
-    n->next = NULL;
-    return n;
+ast_var_declaration *new_ast_var_declaration(mempool *mp, ast_data_type *data_type, const char* var_name, token *token) {
+    ast_var_declaration *v = mpalloc(mp, ast_var_declaration);
+    v->data_type = data_type;
+    v->var_name = var_name;
+    v->token = token;
+    v->next = NULL;
+    v->mempool = mp;
+    return v;
 }
 
-ast_func_declaration *new_func_declaration(ast_data_type *return_type, const char* func_name, ast_var_declaration *args_list, ast_statement *body, token *token) {
-    ast_func_declaration *n = malloc(sizeof(ast_func_declaration));
-    n->func_name = func_name;
-    n->return_type = return_type;
-    n->args_list = args_list;
-    n->stmts_list = body;
-    n->token = token;
-    n->next = NULL;
-    n->ops = &func_ops;
-    return n;
+ast_func_declaration *new_ast_func_declaration(mempool *mp, ast_data_type *return_type, const char* func_name, ast_var_declaration *args_list, ast_statement *body, token *token) {
+    ast_func_declaration *f = mpalloc(mp, ast_func_declaration);
+    f->func_name = func_name;
+    f->return_type = return_type;
+    f->args_list = args_list;
+    f->stmts_list = body;
+    f->token = token;
+    f->next = NULL;
+    f->ops = &func_ops;
+    f->mempool = mp;
+    return f;
 }
 
 static int count_required_arguments(ast_func_declaration *func) {

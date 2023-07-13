@@ -33,7 +33,7 @@ ast_type_family data_type_family_for_token(token_type type) {
     return TF_INT;
 }
 
-ast_data_type *new_data_type(ast_type_family family, ast_data_type *nested) {
+ast_data_type *new_ast_data_type(ast_type_family family, ast_data_type *nested) {
     ast_data_type *n = malloc(sizeof(ast_data_type));
     n->family = family;
     n->nested = nested;

@@ -2,47 +2,43 @@
 #include "ast_symbol.h"
 
 
-ast_symbol *new_ast_symbol(const char *name, ast_data_type *data_type, ast_symbol_type definition, const char *file_name, int line_no) {
-    ast_symbol *s = malloc(sizeof(ast_symbol));
-
+ast_symbol *new_ast_symbol(mempool *mp, const char *name, ast_data_type *data_type, ast_symbol_type definition, token *token) {
+    ast_symbol *s = mpalloc(mp, ast_symbol);
     s->name = name;
     s->data_type = data_type;
     s->sym_type = definition;
     s->arg_no = -1;
     s->func = NULL;
-    s->file_name = file_name;
-    s->line_no = line_no;
+    s->token = token;
     s->next = NULL;
-
+    s->mempool = mp;
     return s;
 }
 
-ast_symbol *new_func_arg_symbol(const char *name, ast_data_type *data_type, int arg_no, const char *file_name, int line_no) {
-    ast_symbol *s = malloc(sizeof(ast_symbol));
-
+ast_symbol *new_ast_symbol_func_arg(mempool *mp, const char *name, ast_data_type *data_type, int arg_no, token *token) {
+    ast_symbol *s = mpalloc(mp, ast_symbol);
     s->name = name;
     s->data_type = data_type;
     s->sym_type = SYM_FUNC_ARG;
     s->arg_no = arg_no;
     s->func = NULL;
-    s->file_name = file_name;
-    s->line_no = line_no;
+    s->token = token;
     s->next = NULL;
-
+    s->mempool = mp;
     return s;
 }
 
-ast_symbol *new_func_symbol(const char *name, ast_func_declaration *func, const char *file_name, int line_no) {
-    ast_symbol *s = malloc(sizeof(ast_symbol));
+ast_symbol *new_ast_symbol_func(mempool *mp, const char *name, ast_func_declaration *func, token *token) {
+    ast_symbol *s = mpalloc(mp, ast_symbol);
 
     s->name = name;
     s->data_type = func->return_type;
     s->sym_type = SYM_FUNC;
     s->arg_no = -1;
     s->func = func;
-    s->file_name = file_name;
-    s->line_no = line_no;
+    s->token = token;
     s->next = NULL;
+    s->mempool = mp;
 
     return s;
 }

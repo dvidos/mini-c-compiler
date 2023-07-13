@@ -45,16 +45,17 @@ typedef struct ast_statement {
     // house keeping properties
     token *token; // for line information
     struct ast_statement *next; // for a list of statements in a block or function
+    mempool *mempool;
 } ast_statement;
 
-ast_statement *new_statements_block(ast_statement *stmts_list, token *token);
-ast_statement *new_var_decl_statement(ast_var_declaration *decl, ast_expression *init, token *token);
-ast_statement *new_if_statement(ast_expression *condition, ast_statement *if_body, ast_statement *else_nody, token *token);
-ast_statement *new_while_statement(ast_expression *condition, ast_statement *body, token *token);
-ast_statement *new_continue_statement(token *token);
-ast_statement *new_break_statement(token *token);
-ast_statement *new_return_statement(ast_expression *return_value, token *token);
-ast_statement *new_expr_statement(ast_expression *expression, token *token);
+ast_statement *new_ast_statement_block(mempool *mp, ast_statement *stmts_list, token *token);
+ast_statement *new_ast_statement_var_decl(mempool *mp, ast_var_declaration *decl, ast_expression *init, token *token);
+ast_statement *new_ast_statement_if(mempool *mp, ast_expression *condition, ast_statement *if_body, ast_statement *else_nody, token *token);
+ast_statement *new_ast_statement_while(mempool *mp, ast_expression *condition, ast_statement *body, token *token);
+ast_statement *new_ast_statement_continue(mempool *mp, token *token);
+ast_statement *new_ast_statement_break(mempool *mp, token *token);
+ast_statement *new_ast_statement_return(mempool *mp, ast_expression *return_value, token *token);
+ast_statement *new_ast_statement_expression(mempool *mp, ast_expression *expression, token *token);
 
 char *ast_statement_type_name(ast_statement_type type);
 

@@ -98,6 +98,7 @@ static inline void *mempool_alloc_in_bucket(mempool *mp, struct mem_bucket *b, s
     mp->allocations_count += 1;
     mp->total_allocated += size + ALLOCATION_INFO_SIZE;
 
+    memset(ptr, 0, size);
     return ptr;
 }
 

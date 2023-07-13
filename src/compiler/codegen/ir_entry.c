@@ -8,7 +8,7 @@
 #include "ir_value.h"
 
 
-static void _to_string(ir_entry *e, string *s);
+static str *_to_string(mempool *mp, ir_entry *e);
 static void _print(ir_entry *e, FILE *stream);
 static void _foreach_ir_value(ir_entry *e, ir_value_visitor visitor, void *pdata, int idata);
 static void _free(ir_entry *e);
@@ -184,29 +184,31 @@ static char *ir_comparison_name(ir_comparison cmp) {
     return "(unknown)";
 }
 
-static void _to_string(ir_entry *e, string *s) {
+static str *_to_string(mempool *mp, ir_entry *e) {
+    str *s = new_str(mp, NULL);
+
     switch (e->type) {
         case IR_FUNCTION_DEFINITION:
-            s->v->addf(s, "function \"%s\" (", e->t.function_def.func_name);
+            str_catf(s, "function \"%s\" (", e->t.function_def.func_name);
             for (int i = 0; i < e->t.function_def.args_len; i++) {
-                if (i > 0) s->v->addf(s, ", ");
-                s->v->addf(s, "%s:%d", 
+                if (i > 0) str_catf(s, ", ");
+                str_catf(s, "%s:%d", 
                     e->t.function_def.args_arr[i].name, 
                     e->t.function_def.args_arr[i].size);
             }
-            s->v->addf(s, ") -> %d", e->t.function_def.ret_val_size);
+            str_catf(s, ") -> %d", e->t.function_def.ret_val_size);
             break;
 
         case IR_COMMENT:
-            s->v->addf(s, "# %s", e->t.comment.str);
+            str_catf(s, "# %s", e->t.comment.str);
             break;
 
         case IR_LABEL:
-            s->v->addf(s, "%s:", e->t.label.str);
+            str_catf(s, "%s:", e->t.label.str);
             break;
 
         case IR_DATA_DECLARATION:
-            s->v->addf(s, "%s data \"%s\", %d bytes", 
+            str_catf(s, "%s data \"%s\", %d bytes", 
             ir_data_storage_name(e->t.data_decl.storage), 
             e->t.data_decl.symbol_name, 
             e->t.data_decl.size);
@@ -216,17 +218,17 @@ static void _to_string(ir_entry *e, string *s) {
                 char *ptr = (char *)e->t.data_decl.initial_data;
 
                 if (len == 1)
-                    s->v->addf(s, " = 0x%02x", *(unsigned char *)ptr);
+                    str_catf(s, " = 0x%02x", *(unsigned char *)ptr);
                 else if (len == 2)
-                    s->v->addf(s, " = 0x%04x", *(unsigned short *)ptr);
+                    str_catf(s, " = 0x%04x", *(unsigned short *)ptr);
                 else if (len == 4)
-                    s->v->addf(s, " = 0x%08x", *(unsigned short *)ptr);
+                    str_catf(s, " = 0x%08x", *(unsigned short *)ptr);
                 else {
                     // if all but the last are not zeros, it's a string
                     if (strchr(ptr, 0) == ptr + len - 1) {
-                        s->v->adds(s, " = \"");
-                        s->v->add_escaped(s, ptr);
-                        s->v->adds(s, "\"");
+                        str_cats(s, " = \"");
+                        str_cats(s, ptr); // originally escaped
+                        str_cats(s, "\"");
                     }
                 }
             }
@@ -235,13 +237,13 @@ static void _to_string(ir_entry *e, string *s) {
         case IR_THREE_ADDR_CODE:
             // can be a=c, a=!c, a=b+c, or even just c (func call)
             ir_value_to_string(e->t.three_address_code.lvalue, s);
-            s->v->addf(s, " = ");
+            str_catf(s, " = ");
             if (e->t.three_address_code.op1 != NULL) {
                 ir_value_to_string(e->t.three_address_code.op1, s);
-                s->v->addf(s, " ");
+                str_catf(s, " ");
             }
             if (e->t.three_address_code.op != IR_NONE) {
-                s->v->addf(s, "%s ", ir_operation_name(e->t.three_address_code.op));
+                str_catf(s, "%s ", ir_operation_name(e->t.three_address_code.op));
             }
             ir_value_to_string(e->t.three_address_code.op2, s);
             break;
@@ -249,41 +251,41 @@ static void _to_string(ir_entry *e, string *s) {
         case IR_FUNCTION_CALL:
             if (e->t.function_call.lvalue != NULL) {
                 ir_value_to_string(e->t.function_call.lvalue, s);
-                s->v->addf(s, " = ");
+                str_catf(s, " = ");
             }
-            s->v->addf(s, "call ");
+            str_catf(s, "call ");
             ir_value_to_string(e->t.function_call.func_addr, s);
             if (e->t.function_call.args_len > 0) {
-                s->v->addf(s, " passing ");
+                str_catf(s, " passing ");
                 for (int i = 0; i < e->t.function_call.args_len; i++) {
-                    if (i > 0) s->v->addf(s, ", ");
+                    if (i > 0) str_catf(s, ", ");
                     ir_value_to_string(e->t.function_call.args_arr[i], s);
                 }
             }
             break;
 
         case IR_CONDITIONAL_JUMP:
-            s->v->addf(s, "if ");
+            str_catf(s, "if ");
             ir_value_to_string(e->t.conditional_jump.v1, s);
-            s->v->addf(s, " %s ", ir_comparison_name(e->t.conditional_jump.cmp));
+            str_catf(s, " %s ", ir_comparison_name(e->t.conditional_jump.cmp));
             ir_value_to_string(e->t.conditional_jump.v2, s);
-            s->v->addf(s, " goto %s", e->t.conditional_jump.target_label);
+            str_catf(s, " goto %s", e->t.conditional_jump.target_label);
             break;
 
         case IR_UNCONDITIONAL_JUMP:
-            s->v->addf(s, "goto %s", e->t.unconditional_jump.str);
+            str_catf(s, "goto %s", e->t.unconditional_jump.str);
             break;
 
         case IR_RETURN:
-            s->v->addf(s, "return");
+            str_catf(s, "return");
             if (e->t.return_stmt.ret_val != NULL) {
-                s->v->addf(s, " ");
+                str_catf(s, " ");
                 ir_value_to_string(e->t.return_stmt.ret_val, s);
             }
             break;
 
         case IR_FUNCTION_END:
-            s->v->addf(s, "function end");
+            str_catf(s, "function end");
             break;
     }
 }

@@ -42,7 +42,8 @@ static void _add(ir_listing *l, ir_entry *entry) {
 }
 
 static void _print(ir_listing *l ,FILE *stream) {
-    string *s = new_string();
+    mempool *mp = new_mempool();
+
     for (int i = 0; i < l->length; i++) {
         ir_entry *e = l->entries_arr[i];
         if (e->type == IR_FUNCTION_DEFINITION)
@@ -54,15 +55,15 @@ static void _print(ir_listing *l ,FILE *stream) {
             if (e->type != IR_FUNCTION_DEFINITION)
                 fprintf(stream, "    ");
                 
-            e->ops->to_string(e, s);
-            fprintf(stream, "%s\n", s->buffer);
-            s->v->clear(s);
+            fprintf(stream, "%s\n", str_charptr(e->ops->to_string(mp, e)));
         } 
 
         if (e->type == IR_FUNCTION_END) {
             fprintf(stream, "\n");
         }
     }
+
+    mempool_release(mp);
 }
 
 static int _find_next_function_def(ir_listing *l, int start) {

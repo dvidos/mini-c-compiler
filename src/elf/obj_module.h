@@ -11,7 +11,7 @@ typedef struct obj_relocation obj_relocation;
 
 struct obj_module {
     str *name;        // e.g. "mcc.c"
-    llist *sections;  // item type is obj_section
+    list *sections;  // item type is obj_section
 
     struct obj_module_ops {
         void (*print)(obj_module *m, bool show_details, FILE *f);

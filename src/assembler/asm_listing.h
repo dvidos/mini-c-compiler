@@ -12,7 +12,7 @@ typedef struct asm_listing {
     str *next_comment;
 
     mempool *mempool;
-    llist *lines; // item is asm_line
+    list *lines; // item is asm_line
 
     struct asm_listing_ops *ops;
 } asm_listing;

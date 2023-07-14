@@ -8,8 +8,8 @@ typedef struct elf64_section elf64_section;
 
 struct elf64_contents {
     elf64_header *header;
-    llist *sections;       // items are of type "elf64_section"
-    llist *prog_headers;   // items are of type "elf64_prog_header"
+    list *sections;       // items are of type "elf64_section"
+    list *prog_headers;   // items are of type "elf64_prog_header"
 
     struct elf64_contents_ops { 
         elf64_section *(*create_section)(elf64_contents *contents, str *name, size_t type);

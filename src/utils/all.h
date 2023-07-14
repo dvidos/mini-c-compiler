@@ -7,7 +7,7 @@
 #include "data_types/bin.h"
 
 #include "data_structs/iterator.h"
-#include "data_structs/llist.h"
+#include "data_structs/list.h"
 #include "data_structs/queue.h"
 #include "data_structs/stack.h"
 #include "data_structs/heap.h"
@@ -25,7 +25,7 @@
         str_unit_tests(); \
         bin_unit_tests(); \
         \
-        llist_unit_tests(); \
+        list_unit_tests(); \
         bstree_unit_tests(); \
         queue_unit_tests(); \
         stack_unit_tests(); \

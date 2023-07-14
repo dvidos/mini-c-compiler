@@ -39,5 +39,5 @@ struct token_iterator {
     void *priv_data;
 };
 
-token_iterator *new_token_iterator(mempool *mp, llist *tokens);
+token_iterator *new_token_iterator(mempool *mp, list *tokens);
 

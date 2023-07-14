@@ -6,7 +6,7 @@
 #include <string.h>
 #include <ctype.h>
 #include "str.h"
-#include "../data_structs/llist.h"
+#include "../data_structs/list.h"
 
 
 typedef struct str str;
@@ -461,12 +461,12 @@ unsigned int str_hash(str *s) {
     return murmur_hash(s->buff, s->length);
 }
 
-llist *str_split(str *s, str *delimiters, bool include_empty_tokens, int max_items, mempool *mp) {
+list *str_split(str *s, str *delimiters, bool include_empty_tokens, int max_items, mempool *mp) {
     // empty strings should be left out.
-    llist *l = new_llist(mp);
+    list *l = new_list(mp);
 
     int start = 0;
-    while (start < s->length && (max_items == -1 || llist_length(l) < max_items - 1)) {
+    while (start < s->length && (max_items == -1 || list_length(l) < max_items - 1)) {
 
         // find end delimiter
         int end = str_index_of_any(s, delimiters, start);
@@ -485,7 +485,7 @@ llist *str_split(str *s, str *delimiters, bool include_empty_tokens, int max_ite
         memcpy(item->buff, s->buff + start, end - start);
         item->buff[end - start] = '\0';
         item->length = end - start;
-        llist_add(l, item);
+        list_add(l, item);
 
         // move on
         start = end + 1;
@@ -493,14 +493,14 @@ llist *str_split(str *s, str *delimiters, bool include_empty_tokens, int max_ite
 
     // there may be a limit to the number of tokens, add the remainder to the list
     if (start < str_len(s))
-        llist_add(l, str_substr(s, start, str_len(s) - start));
+        list_add(l, str_substr(s, start, str_len(s) - start));
 
     return l;
 }
 
-str *str_join(llist *strings, str *delimiter, mempool *mp) {
+str *str_join(list *strings, str *delimiter, mempool *mp) {
     mempool *scratch = new_mempool();
-    iterator *it = llist_create_iterator(strings, scratch);
+    iterator *it = list_create_iterator(strings, scratch);
     
     int total_len = 0;
     for_iterator(str, s, it)
@@ -594,7 +594,7 @@ void str_unit_tests() {
     mempool *mp = new_mempool();
     str *s;
     str *s1;
-    llist *l;
+    list *l;
 
     // empty constructor
     s = new_str(mp, NULL);
@@ -802,29 +802,29 @@ void str_unit_tests() {
     // split
     s = new_str(mp, "one,two||four");
     l = str_split(s, new_str(mp, "|,"), true, -1, mp); // base case
-    assert(llist_length(l) == 4);
-    assert(str_cmps(llist_get(l, 0), "one") == 0);
-    assert(str_cmps(llist_get(l, 1), "two") == 0);
-    assert(str_cmps(llist_get(l, 2), "") == 0);
-    assert(str_cmps(llist_get(l, 3), "four") == 0);
+    assert(list_length(l) == 4);
+    assert(str_cmps(list_get(l, 0), "one") == 0);
+    assert(str_cmps(list_get(l, 1), "two") == 0);
+    assert(str_cmps(list_get(l, 2), "") == 0);
+    assert(str_cmps(list_get(l, 3), "four") == 0);
     l = str_split(s, new_str(mp, "|,"), false, -1, mp); // skip empty tokens
-    assert(llist_length(l) == 3);
-    assert(str_cmps(llist_get(l, 0), "one") == 0);
-    assert(str_cmps(llist_get(l, 1), "two") == 0);
-    assert(str_cmps(llist_get(l, 2), "four") == 0);
+    assert(list_length(l) == 3);
+    assert(str_cmps(list_get(l, 0), "one") == 0);
+    assert(str_cmps(list_get(l, 1), "two") == 0);
+    assert(str_cmps(list_get(l, 2), "four") == 0);
     l = str_split(s, new_str(mp, "|,"), false, 2, mp); // max items to split
-    assert(llist_length(l) == 2);
-    assert(str_cmps(llist_get(l, 0), "one") == 0);
-    assert(str_cmps(llist_get(l, 1), "two||four") == 0);
+    assert(list_length(l) == 2);
+    assert(str_cmps(list_get(l, 0), "one") == 0);
+    assert(str_cmps(list_get(l, 1), "two||four") == 0);
 
     // join
-    l = new_llist(mp);
-    llist_add(l, new_str(mp, "one"));
-    llist_add(l, new_str(mp, "two"));
-    llist_add(l, new_str(mp, "three"));
+    l = new_list(mp);
+    list_add(l, new_str(mp, "one"));
+    list_add(l, new_str(mp, "two"));
+    list_add(l, new_str(mp, "three"));
     s = str_join(l, new_str(mp, " & "), mp);  // base case
     assert(strcmp(s->buff, "one & two & three") == 0);
-    llist_clear(l);
+    list_clear(l);
     s = str_join(l, new_str(mp, " & "), mp);  // behavior without items
     assert(strcmp(s->buff, "") == 0);
 

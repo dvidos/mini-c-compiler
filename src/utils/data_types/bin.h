@@ -16,7 +16,7 @@ typedef int32_t  s32;
 typedef int64_t  s64;
 
 typedef struct str str;
-typedef struct llist llist;
+typedef struct list list;
 typedef struct iterator iterator;
 
 typedef struct bin bin;

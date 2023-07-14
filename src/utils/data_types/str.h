@@ -6,7 +6,7 @@
 
 
 typedef struct str str;
-typedef struct llist llist;
+typedef struct list list;
 
 
 str *new_str(mempool *mp, const char *str);
@@ -45,8 +45,8 @@ int  str_cmp(str *s1, str *s2);
 int  str_cmps(str *s1, char *s2);
 bool str_equals(str *s1, str *s2);
 unsigned int str_hash(str *s);
-llist *str_split(str *s, str *delimiters, bool include_empty_tokens, int max_items, mempool *mp);
-str *str_join(llist *strings, str *delimiter, mempool *mp);
+list *str_split(str *s, str *delimiters, bool include_empty_tokens, int max_items, mempool *mp);
+str *str_join(list *strings, str *delimiter, mempool *mp);
 str *str_clone(str *s);
 bool str_save_file(str *s, str *filename);
 str *str_load_file(str *filename, mempool *mp);

@@ -24,11 +24,11 @@ typedef struct archive_symbol {
 } archive_symbol;
 
 archive *ar_open(mempool *mp, str *filename);
-llist *ar_get_entries(archive *a, mempool *mp); // list items are of type "archive_entry"
-llist *ar_get_symbols(archive *a, mempool *mp); // list items are of type "archive_symbol"
+list *ar_get_entries(archive *a, mempool *mp); // list items are of type "archive_entry"
+list *ar_get_symbols(archive *a, mempool *mp); // list items are of type "archive_symbol"
 bin *ar_load_file_contents(archive *a, archive_entry *e);
-void ar_print_entries(llist *entries, int max_entries, FILE *stream);
-void ar_print_symbols(llist *symbols, int max_symbols, FILE *stream);
+void ar_print_entries(list *entries, int max_entries, FILE *stream);
+void ar_print_symbols(list *symbols, int max_symbols, FILE *stream);
 void ar_close(archive *a);
 
 

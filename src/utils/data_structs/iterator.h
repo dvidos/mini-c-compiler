@@ -24,16 +24,16 @@ typedef struct iterator {
 // then: take one value of it, or reduce() to a value, or collect to a list
 
 typedef struct hashtable hashtable;
-typedef struct llist llist;
+typedef struct list list;
 
 long iterator_count(iterator *it);
 iterator *iterator_filter(iterator *it, filterer_func filter);
 iterator *iterator_map(iterator *it, mapper_func filter);
-hashtable *iterator_group(iterator *it, classifier_func classifier); // hashtable of llists per group
+hashtable *iterator_group(iterator *it, classifier_func classifier); // hashtable of lists per group
 void *iterator_reduce(iterator *it, reducer_func filter, void *initial_value);
 void *iterator_first(iterator *it);
 void *iterator_last(iterator *it);
-llist *iterator_collect(iterator *it, mempool *mp);
+list *iterator_collect(iterator *it, mempool *mp);
 
 #ifdef INCLUDE_UNIT_TESTS
 void iterator_unit_tests();

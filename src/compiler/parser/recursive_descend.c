@@ -368,7 +368,7 @@ static void parse_file_level_element(mempool *mp, token_iterator *ti, ast_module
     }
 }
 
-ast_module *parse_file_tokens_using_recursive_descend(mempool *mp, llist *tokens) {
+ast_module *parse_file_tokens_using_recursive_descend(mempool *mp, list *tokens) {
 
     init_operators(); // make sure our lookup is populated
 

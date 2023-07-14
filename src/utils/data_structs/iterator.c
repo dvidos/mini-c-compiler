@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include <stdarg.h>
 #include "iterator.h"
-#include "llist.h"
+#include "list.h"
 
 
 // load everything in a list, create iterator of the list,
@@ -23,7 +23,7 @@ iterator *iterator_filter(iterator *it, filterer_func filter);
 iterator *iterator_map(iterator *it, mapper_func filter);
 void *iterator_reduce(iterator *it, reducer_func filter, void *initial_value);
 
-hashtable *iterator_group(iterator *it, classifier_func classifier); // hashtable of llists per group
+hashtable *iterator_group(iterator *it, classifier_func classifier); // hashtable of lists per group
 
 void *iterator_first(iterator *it) {
     void *item = it->reset(it);
@@ -42,10 +42,10 @@ void *iterator_last(iterator *it) {
     return valid_item;
 }
 
-llist *iterator_collect(iterator *it, mempool *mp) {
-    llist *l = new_llist(mp);
+list *iterator_collect(iterator *it, mempool *mp) {
+    list *l = new_list(mp);
     for_iterator(void, ptr, it)
-        llist_add(l, ptr);
+        list_add(l, ptr);
     return l;
 }
 
@@ -55,11 +55,11 @@ void iterator_unit_tests() {
     // long iterator_count(iterator *it);
     // iterator *iterator_filter(iterator *it, filterer_func filter);
     // iterator *iterator_map(iterator *it, mapper_func filter);
-    // hashtable *iterator_group(iterator *it, classifier_func classifier); // hashtable of llists per group
+    // hashtable *iterator_group(iterator *it, classifier_func classifier); // hashtable of lists per group
     // void *iterator_reduce(iterator *it, reducer_func filter, void *initial_value);
     // void *iterator_first(iterator *it);
     // void *iterator_last(iterator *it);
-    // llist *iterator_collect(iterator *it, mempool *mp);
+    // list *iterator_collect(iterator *it, mempool *mp);
 }
 #endif
 

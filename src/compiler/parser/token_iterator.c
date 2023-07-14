@@ -8,7 +8,7 @@
 
 
 typedef struct token_iterator_private_data {
-    llist *tokens;
+    list *tokens;
     iterator *iter;
     token *upcoming; // "next" / peek
     token *accepted; // "past"
@@ -23,10 +23,10 @@ static bool token_iterator_accept(token_iterator *ti, token_type type);
 static token *token_iterator_accepted(token_iterator *ti);
 static bool token_iterator_expect(token_iterator *ti, token_type type);
 
-token_iterator *new_token_iterator(mempool *mp, llist *tokens) {
+token_iterator *new_token_iterator(mempool *mp, list *tokens) {
     token_iterator_private_data *data = mpalloc(mp, token_iterator_private_data);
     data->tokens = tokens;
-    data->iter = llist_create_iterator(data->tokens, mp);
+    data->iter = list_create_iterator(data->tokens, mp);
     data->accepted = NULL;
     data->upcoming = data->iter->reset(data->iter);
 

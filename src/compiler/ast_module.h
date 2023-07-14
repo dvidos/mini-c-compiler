@@ -5,8 +5,8 @@
 
 typedef struct ast_module {
 
-    llist *statements;  // item type is ast_statement, type of ST_VAR_DECL
-    llist *functions; // item type is ast_func_declaration
+    list *statements;  // item type is ast_statement, type of ST_VAR_DECL
+    list *functions; // item type is ast_func_declaration
 
     mempool *mempool;
 } ast_module;

@@ -26,8 +26,8 @@ static void demo_obj_file(char *filename) {
     mempool_release(mp);
 }
 
-static void demo_lib_entry(archive *a, llist *entries, int entry_no) {
-    archive_entry *e = llist_get(entries, entry_no);
+static void demo_lib_entry(archive *a, list *entries, int entry_no) {
+    archive_entry *e = list_get(entries, entry_no);
     if (e == NULL)
         return;
 
@@ -57,12 +57,12 @@ static void demo_lib_file(char *filename) {
     mempool *mp = new_mempool();
     archive *lib = ar_open(mp, new_str(mp, filename));
 
-    llist *entries = ar_get_entries(lib, mp);
-    printf("Entries (%d)\n", llist_length(entries));
+    list *entries = ar_get_entries(lib, mp);
+    printf("Entries (%d)\n", list_length(entries));
     ar_print_entries(entries, 50, stdout);
 
-    llist *symbols = ar_get_symbols(lib, mp);
-    printf("Symbols (%d)\n", llist_length(symbols));
+    list *symbols = ar_get_symbols(lib, mp);
+    printf("Symbols (%d)\n", list_length(symbols));
     ar_print_symbols(symbols, 50, stdout);
 
     demo_lib_entry(lib, entries, 0);

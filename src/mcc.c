@@ -215,23 +215,23 @@ static void process_all_files(mempool *mp) {
 
     // for each file, we need to convert into an obj file.
     // then we need to link them all together
-    llist *obj_modules = new_llist(mp);
+    list *obj_modules = new_list(mp);
 
-    iterator *run_files_it = llist_create_iterator(run_info->files, mp);
+    iterator *run_files_it = list_create_iterator(run_info->files, mp);
     for_iterator(file_run_info, fi, run_files_it) {
         process_one_file(mp, fi);
         if (errors_count)
             return;
         
-        llist_add(obj_modules, fi->module);
+        list_add(obj_modules, fi->module);
     }
     
     // proceeding to link - default runtime files
-    llist *obj_files = new_llist(mp);
-    llist *lib_files = new_llist(mp);
-    llist_add(lib_files, new_str(mp, "libruntime64.a"));
+    list *obj_files = new_list(mp);
+    list *lib_files = new_list(mp);
+    list_add(lib_files, new_str(mp, "libruntime64.a"));
 
-    file_run_info *first_file = llist_get(run_info->files, 0);
+    file_run_info *first_file = list_get(run_info->files, 0);
     str *executable = str_change_extension(first_file->source_filename, NULL);
 
     x86_64_link(obj_modules, obj_files, lib_files, 0x400000, executable);
@@ -241,8 +241,8 @@ static bool perform_end_to_end_test() {
 
     mempool *mp = new_mempool();
 
-    llist *filenames = new_llist_of(mp, 2, new_str(mp, "file1.c"), new_str(mp, "file2.c"));
-    llist *sources = new_llist_of(mp, 2, 
+    list *filenames = new_list_of(mp, 2, new_str(mp, "file1.c"), new_str(mp, "file2.c"));
+    list *sources = new_list_of(mp, 2, 
         new_str(mp,
             "char *message = \"Hello World\\n\";\n"
             "void greeting();\n"
@@ -252,21 +252,21 @@ static bool perform_end_to_end_test() {
             "void greeting() { print(message); }\n")
     );
 
-    llist *token_lists = new_llist(mp);
-    for (int i = 0; i < llist_length(filenames); i++) {
-        str *filename = llist_get(filenames, i);
-        str *source = llist_get(sources, i);
-        llist *tokens = lexer_parse_source_code_into_tokens(mp, filename, source);
+    list *token_lists = new_list(mp);
+    for (int i = 0; i < list_length(filenames); i++) {
+        str *filename = list_get(filenames, i);
+        str *source = list_get(sources, i);
+        list *tokens = lexer_parse_source_code_into_tokens(mp, filename, source);
         if (errors_count || tokens == NULL) return false;
         if (!lexer_check_tokens(tokens, filename)) return false;
-        llist_add(token_lists, tokens);
+        list_add(token_lists, tokens);
     }
 
-    llist *module_asts = new_llist(mp);
-    for_list(token_lists, llist, tokens_list) {
+    list *module_asts = new_list(mp);
+    for_list(token_lists, list, tokens_list) {
         ast_module *module_ast = parse_file_tokens_using_recursive_descend(mp, tokens_list);
         if (module_ast == NULL || errors_count) return false;
-        llist_add(module_asts, module_ast);
+        list_add(module_asts, module_ast);
         after_ast_parsed(module_ast);
     }
 
@@ -275,36 +275,36 @@ static bool perform_end_to_end_test() {
         if (errors_count) return false;
     }
 
-    llist *ir_listings = new_llist(mp);
+    list *ir_listings = new_list(mp);
     for_list(module_asts, ast_module, module_ast) {
         ir_listing *ir_lst = NULL; // generate_ir_code(mp, module_ast);
         if (errors_count) return false;
-        llist_add(ir_listings, ir_lst);
+        list_add(ir_listings, ir_lst);
     }
 
-    llist *asm_listings = new_llist(mp);
+    list *asm_listings = new_list(mp);
     for_list(ir_listings, ir_listing, ir_lst) {
         asm_listing *asm_lst = NULL; // convert_ir_listing_to_asm_listing(mp, ir_lst);
         if (errors_count) return false;
-        llist_add(asm_listings, asm_lst);
+        list_add(asm_listings, asm_lst);
     }
 
     asm_listing *l = new_asm_listing(mp);
     l->ops->add_instruction(l, new_asm_instruction(OC_NOP));
     l->ops->add_instruction(l, new_asm_instruction_for_register(OC_PUSH, REG_AX));
     l->ops->add_instruction(l, new_asm_instruction_with_operand(OC_INT, new_asm_operand_imm(0x80)));
-    llist_add(asm_listings, l);
+    list_add(asm_listings, l);
     
-    llist *obj_modules = new_llist(mp);
+    list *obj_modules = new_list(mp);
     for_list(asm_listings, asm_listing, asm_lst) {
         obj_module *obj = NULL; // assemble_listing_into_x86_64_code(mp, asm_lst);
         if (errors_count) return false;
-        llist_add(obj_modules, obj);
+        list_add(obj_modules, obj);
     }
 
 
     str *executable = new_str(mp, "./end-to-end-test.out");
-    bool success = x86_64_link(obj_modules, new_llist(mp), 
+    bool success = x86_64_link(obj_modules, new_list(mp), 
             x86_64_std_libraries(mp), x86_64_std_load_address(), executable);
     if (errors_count || !success) return false;
 
@@ -347,7 +347,7 @@ int main(int argc, char *argv[]) {
         return passed ? 0 : 1;
     }
 
-    if (run_info->options->filename == NULL || llist_is_empty(run_info->files)) {
+    if (run_info->options->filename == NULL || list_is_empty(run_info->files)) {
         show_syntax();
         return 1;
     }

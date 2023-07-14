@@ -128,11 +128,11 @@ static archive_entry *get_entry_header_at(archive *a, size_t header_offset, bin 
     return e;
 }
 
-llist *ar_get_entries(archive *a, mempool *mp) {
+list *ar_get_entries(archive *a, mempool *mp) {
     archive_entry *entry;
 
     bin *long_names_table = load_short_named_entry_contents(a, LONG_FILENAMES_TABLE_ENTRYNAME);
-    llist *entries = new_llist(mp);
+    list *entries = new_list(mp);
 
     fseek(a->handle, AR_HEADER_BYTES, SEEK_SET);
     while ((entry = get_entry_header_at(a, ftell(a->handle), long_names_table, mp)) != NULL) {
@@ -143,14 +143,14 @@ llist *ar_get_entries(archive *a, mempool *mp) {
             continue;
         }
 
-        llist_add(entries, entry);
+        list_add(entries, entry);
         fseek(a->handle, entry->size + (entry->size & 1), SEEK_CUR);
     }
 
     return entries;
 }
 
-llist *ar_get_symbols(archive *a, mempool *mp) {
+list *ar_get_symbols(archive *a, mempool *mp) {
     unsigned char buff[4];
     unsigned long offset;
     unsigned long last_offset = -1;
@@ -161,7 +161,7 @@ llist *ar_get_symbols(archive *a, mempool *mp) {
         return NULL; // there is no symbols table
     
     bin *long_names_table = load_short_named_entry_contents(a, LONG_FILENAMES_TABLE_ENTRYNAME);
-    llist *symbols_list = new_llist(mp);
+    list *symbols_list = new_list(mp);
 
     // in the "/" entries,
     // 4 bytes big endian the number of symbols (00 00 11 d5 = 4565 symbols)
@@ -191,7 +191,7 @@ llist *ar_get_symbols(archive *a, mempool *mp) {
         s->name = bin_str(symbols_table, name_offset, a->mempool);
         s->entry = last_entry;
 
-        llist_add(symbols_list, s);
+        list_add(symbols_list, s);
         last_offset = offset;
         name_offset += str_len(s->name) + 1;
     }
@@ -203,10 +203,10 @@ bin *ar_load_file_contents(archive *a, archive_entry *e) {
     return new_bin_from_stream(a->mempool, a->handle, e->offset, e->size);
 }
 
-void ar_print_entries(llist *entries, int max_entries, FILE *stream) {
+void ar_print_entries(list *entries, int max_entries, FILE *stream) {
     mempool *mp = new_mempool();
 
-    iterator *it = llist_create_iterator(entries, mp);
+    iterator *it = list_create_iterator(entries, mp);
     fprintf(stream, "   Idx      Offset        Size  File name\n");
     //              "  1234  1234567890  1234567890  123..."
 
@@ -220,10 +220,10 @@ void ar_print_entries(llist *entries, int max_entries, FILE *stream) {
     mempool_release(mp);
 }
 
-void ar_print_symbols(llist *symbols, int max_symbols, FILE *stream) {
+void ar_print_symbols(list *symbols, int max_symbols, FILE *stream) {
     mempool *mp = new_mempool();
 
-    iterator *it = llist_create_iterator(symbols, mp);
+    iterator *it = list_create_iterator(symbols, mp);
     fprintf(stream, "  Symbol name                    File                     Offset       Size\n");
     //              "  123456789012345678901234567890 12345678901234567890 1234567890 1234567890"
 

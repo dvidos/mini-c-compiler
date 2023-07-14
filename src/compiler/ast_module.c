@@ -10,18 +10,18 @@ static void print_statement_list(FILE *stream, ast_statement *list, int depth);
 
 ast_module *new_ast_module(mempool *mp) {
     ast_module *m = mpalloc(mp, ast_module);
-    m->statements = new_llist(mp);
-    m->functions = new_llist(mp);
+    m->statements = new_list(mp);
+    m->functions = new_list(mp);
     m->mempool = mp;
     return m;
 }
 
 void ast_module_add_statement(ast_module *m, ast_statement *stmt) {
-    llist_add(m->statements, stmt);
+    list_add(m->statements, stmt);
 }
 
 void ast_module_add_function(ast_module *m, ast_func_declaration *func) {
-    llist_add(m->functions, func);
+    list_add(m->functions, func);
 }
 
 static void indent(FILE *stream, int depth) {
@@ -213,8 +213,8 @@ static void ast_count_statements(ast_statement *stmt, int *statements, int *expr
 }
 
 void ast_module_count_nodes(ast_module *m, int *functions, int *statements, int *expressions) {
-    (*statements) = llist_length(m->statements);
-    (*functions) = llist_length(m->functions);
+    (*statements) = list_length(m->statements);
+    (*functions) = list_length(m->functions);
 
     (*expressions) = 0;
     for_list(m->functions, ast_func_declaration, f)

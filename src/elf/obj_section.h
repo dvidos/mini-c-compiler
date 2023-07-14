@@ -13,8 +13,8 @@ struct obj_section {
     str *name;           // e.g. ".text"
     bin *contents;       // binary contents
     size_t address;      // e.g. 0x800000
-    llist *symbols;      // item type is <obj_symbol>
-    llist *relocations;  // item type is <obj_relocation>
+    list *symbols;      // item type is <obj_symbol>
+    list *relocations;  // item type is <obj_relocation>
 
     struct {
         unsigned int allocate: 1;

@@ -31,8 +31,8 @@ struct link2_lib_module_id { // identifies a module in a library
 struct link2_lib_info {
     str *pathname;
     archive *archive;
-    llist *symbols; // items are of type archive_symbol
-    llist *entries; // items are of type archive_entry
+    list *symbols; // items are of type archive_symbol
+    list *entries; // items are of type archive_entry
 };
 
 struct link2_obj_info {
@@ -45,22 +45,22 @@ struct link2_info {
     str *executable_path;
     str *entry_point_name;
     u64 base_address;
-    llist *obj_modules;
-    llist *obj_file_paths;
-    llist *library_file_paths;
+    list *obj_modules;
+    list *obj_file_paths;
+    list *library_file_paths;
 
     // generated data
-    llist *lib_infos;     // item type is link2_lib_info
-    llist *participants;  // item type is obj_module
+    list *lib_infos;     // item type is link2_lib_info
+    list *participants;  // item type is obj_module
     obj_module *target_module;
 
     // unresolved symbols and needed modules
-    llist *unresolved_symbols;  // item type is str
-    llist *needed_module_ids;   // item type is link2_lib_module_id
+    list *unresolved_symbols;  // item type is str
+    list *needed_module_ids;   // item type is link2_lib_module_id
     
     // map for loading / merging similar sections of multiple modules
-    llist *grouping_keys;                 // item is str
-    hashtable *sections_per_group; // item is llist[obj_section]
+    list *grouping_keys;                 // item is str
+    hashtable *sections_per_group; // item is list[obj_section]
 
     mempool *mempool;
     str *error;
@@ -69,9 +69,9 @@ struct link2_info {
 
 // -------------------------------------------------
 
-llist *x86_64_std_libraries(mempool *mp) {
-    llist *std_libs = new_llist(mp);
-    llist_add(std_libs, new_str(mp, "./libruntime64.a"));
+list *x86_64_std_libraries(mempool *mp) {
+    list *std_libs = new_list(mp);
+    list_add(std_libs, new_str(mp, "./libruntime64.a"));
     return std_libs;
 }
 
@@ -85,7 +85,7 @@ static bool add_participant(link2_info *info, obj_module *module) {
     if (module == NULL)
         return false;
     
-    llist_add(info->participants, module);
+    list_add(info->participants, module);
     return true;
 }
 
@@ -126,7 +126,7 @@ static void discover_library_contents(link2_info *info, str *library_path) {
         return;
     lib_info->entries = ar_get_entries(lib_info->archive, info->mempool);
     lib_info->symbols = ar_get_symbols(lib_info->archive, info->mempool);
-    llist_add(info->lib_infos, lib_info);
+    list_add(info->lib_infos, lib_info);
 
     // printf("%s module entries\n", str_charptr(lib_info->pathname));
     // ar_print_entries(lib_info->entries, 50, stdout);
@@ -151,7 +151,7 @@ static obj_symbol *find_symbol(link2_info *info, obj_module *owner, str *name) {
     }
 
     // then look at all other participants, global only
-    iterator *participants_it = llist_create_iterator(info->participants, scratch);
+    iterator *participants_it = list_create_iterator(info->participants, scratch);
     for_iterator(obj_module, part, participants_it) {
         obj_symbol *sym = part->ops->find_symbol(part, name, true);
         if (sym != NULL)
@@ -177,20 +177,20 @@ static bool check_symbol_is_defined(link2_info *info, obj_module *owner, str *na
 static bool check_mark_unresolved_symbol(link2_info *info, obj_module *owner, str *name) {
     bool found = check_symbol_is_defined(info, owner, name);
     if (!found) {
-        if (llist_find_first(info->unresolved_symbols, (comparator_func*)str_cmp, name) == -1)
-            llist_add(info->unresolved_symbols, name);
+        if (list_find_first(info->unresolved_symbols, (comparator_func*)str_cmp, name) == -1)
+            list_add(info->unresolved_symbols, name);
     }
     return found;
 }
 
-static bool find_unresolvable_relocations_in_list(link2_info *info, obj_module *owner, llist *obj_relocations) {
+static bool find_unresolvable_relocations_in_list(link2_info *info, obj_module *owner, list *obj_relocations) {
 
     bool all_found = true;
     for_list(obj_relocations, obj_relocation, rel) {
         if (!check_symbol_is_defined(info, owner, rel->symbol_name)) {
-            if (llist_find_first(info->unresolved_symbols, (comparator_func*)str_cmp, rel->symbol_name) != -1)
+            if (list_find_first(info->unresolved_symbols, (comparator_func*)str_cmp, rel->symbol_name) != -1)
                 continue;
-            llist_add(info->unresolved_symbols, rel->symbol_name);
+            list_add(info->unresolved_symbols, rel->symbol_name);
             all_found = false;
         }
     }
@@ -240,11 +240,11 @@ static link2_lib_module_id *find_lib_module_for_symbol(link2_info *info, str *na
     // check all considered libraries
     for_list(info->lib_infos, link2_lib_info, lib_info) {
         // see if this library contains this symbol
-        int index = llist_find_first(lib_info->symbols, (comparator_func*)compare_archive_symbol_name, name);
+        int index = list_find_first(lib_info->symbols, (comparator_func*)compare_archive_symbol_name, name);
         if (index >= 0) {
             link2_lib_module_id *mid = mpalloc(info->mempool, link2_lib_module_id);
             mid->lib_info = lib_info;
-            mid->entry = ((archive_symbol *)llist_get(lib_info->symbols, index))->entry;
+            mid->entry = ((archive_symbol *)list_get(lib_info->symbols, index))->entry;
             return mid;
         }
     }
@@ -264,11 +264,11 @@ static bool find_needed_lib_modules(link2_info *info) {
         }
         
         // maybe module already considered, 
-        if (llist_find_first(info->needed_module_ids, (comparator_func*)compare_module_ids, mid) != -1)
+        if (list_find_first(info->needed_module_ids, (comparator_func*)compare_module_ids, mid) != -1)
             continue;
         
         // add it to the modules to append
-        llist_add(info->needed_module_ids, mid);
+        list_add(info->needed_module_ids, mid);
     }
 
     return all_found;
@@ -277,9 +277,9 @@ static bool find_needed_lib_modules(link2_info *info) {
 bool include_library_modules_as_needed(link2_info *info) {
     int tries = 0;
     while (true) {
-        llist_clear(info->unresolved_symbols);
+        list_clear(info->unresolved_symbols);
         find_unresolved_symbols(info, true);
-        if (llist_length(info->unresolved_symbols) == 0)
+        if (list_length(info->unresolved_symbols) == 0)
             break; // no unresolvable symbols!!
         
         if (run_info->options->verbose) {
@@ -287,7 +287,7 @@ bool include_library_modules_as_needed(link2_info *info) {
                 str_charptr(str_join(info->unresolved_symbols, new_str(info->mempool, ", "), info->mempool)));
         }
         
-        llist_clear(info->needed_module_ids);
+        list_clear(info->needed_module_ids);
         if (!find_needed_lib_modules(info)) {
             printf("Cannot continue, symbols not resolved...\n");
             return false; // free(mp)
@@ -310,7 +310,7 @@ bool include_library_modules_as_needed(link2_info *info) {
 }
 
 static void prepare_grouping_map(link2_info *info) {
-    info->grouping_keys = new_llist(info->mempool);
+    info->grouping_keys = new_list(info->mempool);
     info->sections_per_group = new_hashtable(info->mempool, 16);
 
     for_list(info->participants, obj_module, participant) {
@@ -327,16 +327,16 @@ static void prepare_grouping_map(link2_info *info) {
             
             // add to keys, add to sections-per-key, add to target-per-key
             if (!hashtable_contains(info->sections_per_group, key)) {
-                llist_add(info->grouping_keys, key);
-                hashtable_set(info->sections_per_group, key, new_llist(info->mempool));
+                list_add(info->grouping_keys, key);
+                hashtable_set(info->sections_per_group, key, new_list(info->mempool));
             }
-            llist_add(hashtable_get(info->sections_per_group, key), section);
+            list_add(hashtable_get(info->sections_per_group, key), section);
         }
     }
 }
 
 void distribute_address_to_group(link2_info *info, str *group_key, size_t *address, size_t section_rounding, size_t group_rounding) {
-    llist *group_sections = hashtable_get(info->sections_per_group, group_key);
+    list *group_sections = hashtable_get(info->sections_per_group, group_key);
     for_list(group_sections, obj_section, section) {
         section->ops->change_address(section, (long)(*address));
         (*address) += bin_len(section->contents);
@@ -393,15 +393,15 @@ bool resolve_relocations(link2_info *info) {
                     return false;
             }
             // we are done with these relocations, clear list to avoid noise
-            llist_clear(sect->relocations);
+            list_clear(sect->relocations);
         }
     }
     return true;
 }
 
 static obj_section *merge_grouped_sections(link2_info *info, str *grouping_key, size_t rounding_value) {
-    llist *group_sections = hashtable_get(info->sections_per_group, grouping_key);
-    obj_section *first = llist_get(group_sections, 0);
+    list *group_sections = hashtable_get(info->sections_per_group, grouping_key);
+    obj_section *first = list_get(group_sections, 0);
 
     obj_section *target_section = new_obj_section(info->mempool);
     target_section->name = first->name;
@@ -455,7 +455,7 @@ static bool do_link2(link2_info *info) {
     // now that individual module visibility is not needed,
     // merge all the participating sections together (e.g all .text's and all .data's)
     for_list(info->grouping_keys, str, key)
-        llist_add(info->target_module->sections, merge_grouped_sections(info, key, GROUP_ROUNDING_VALUE));
+        list_add(info->target_module->sections, merge_grouped_sections(info, key, GROUP_ROUNDING_VALUE));
 
     // debugging purposes
     if (run_info->options->verbose) {
@@ -488,7 +488,7 @@ static bool do_link2(link2_info *info) {
     return true;
 }
 
-bool x86_64_link(llist *obj_modules, llist *obj_file_paths, llist *library_file_paths, u64 base_address, str *executable_path) {
+bool x86_64_link(list *obj_modules, list *obj_file_paths, list *library_file_paths, u64 base_address, str *executable_path) {
     mempool *mp = new_mempool();
 
     link2_info *info = mpalloc(mp, link2_info);
@@ -498,11 +498,11 @@ bool x86_64_link(llist *obj_modules, llist *obj_file_paths, llist *library_file_
     info->obj_modules = obj_modules;
     info->obj_file_paths = obj_file_paths;
     info->library_file_paths = library_file_paths;
-    info->lib_infos = new_llist(mp);
-    info->participants = new_llist(mp);
+    info->lib_infos = new_list(mp);
+    info->participants = new_list(mp);
     info->target_module = new_obj_module(mp);
-    info->unresolved_symbols = new_llist(mp);
-    info->needed_module_ids = new_llist(mp);
+    info->unresolved_symbols = new_list(mp);
+    info->needed_module_ids = new_list(mp);
     info->mempool = mp;
 
     bool success = do_link2(info);
@@ -513,12 +513,12 @@ bool x86_64_link(llist *obj_modules, llist *obj_file_paths, llist *library_file_
 
 void link_test() {
     mempool *mp = new_mempool();
-    llist *modules = new_llist(mp);
-    llist *obj_file_paths = new_llist(mp);
+    list *modules = new_list(mp);
+    list *obj_file_paths = new_list(mp);
 
-    // llist_add(obj_file_paths, new_str(mp, "./docs/link-sample/file1.o"));
-    // llist_add(obj_file_paths, new_str(mp, "./docs/link-sample/file2.o"));
-    llist_add(obj_file_paths, new_str(mp, "./src/runtimes/example.o"));
+    // list_add(obj_file_paths, new_str(mp, "./docs/link-sample/file1.o"));
+    // list_add(obj_file_paths, new_str(mp, "./docs/link-sample/file2.o"));
+    list_add(obj_file_paths, new_str(mp, "./src/runtimes/example.o"));
 
     x86_64_link(modules, obj_file_paths, 
         x86_64_std_libraries(mp), x86_64_std_load_address(), 

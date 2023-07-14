@@ -222,8 +222,8 @@ static token *parse_lexer_token_at_pointer(mempool *mp, str *buffer, char **p, c
 }
 
 
-llist *lexer_parse_source_code_into_tokens(mempool *mp, str *filename, str *source_code) {
-    llist *tokens = new_llist(mp);
+list *lexer_parse_source_code_into_tokens(mempool *mp, str *filename, str *source_code) {
+    list *tokens = new_list(mp);
     const char *p = str_charptr(source_code);
     token *token = NULL;
     str *buffer = new_str(mp, NULL);
@@ -240,16 +240,16 @@ llist *lexer_parse_source_code_into_tokens(mempool *mp, str *filename, str *sour
         if (token->type == TOK_COMMENT)
             continue;
         
-        llist_add(tokens, token);
+        list_add(tokens, token);
     }
 
     // one final token, to allow us to always peek at the subsequent token
-    llist_add(tokens, new_token(mp, TOK_EOF, NULL, fn, 999999));
+    list_add(tokens, new_token(mp, TOK_EOF, NULL, fn, 999999));
 
     return tokens;
 }
 
-static void lexer_print_tokens(llist *tokens, char *prefix, bool unknown_only) {
+static void lexer_print_tokens(list *tokens, char *prefix, bool unknown_only) {
     int line_no = -1;
     for_list(tokens, token, t) {
         if (unknown_only && t->type != TOK_UNKNOWN)
@@ -274,7 +274,7 @@ static void lexer_print_tokens(llist *tokens, char *prefix, bool unknown_only) {
 }
 
 
-bool lexer_check_tokens(llist *tokens, str *filename) {
+bool lexer_check_tokens(list *tokens, str *filename) {
     // verify if unknown tokens exist
     for_list(tokens, token, t) {
         if (t->type == TOK_UNKNOWN) {

@@ -7,7 +7,7 @@
 
     Maybe we can make pseudo-generics by passing the struct_info pointer
     in the container constructor call:
-        llist *tokens = new_llist(mempool, token_struct_info);
+        list *tokens = new_list(mempool, token_struct_info);
     Then validations can take place, even debug dump.
     
     Also, if mempools are kept in a central repository list,
@@ -51,8 +51,8 @@ str *new_str() {
 }
 
 some_func() {
-    bool exists = llist_contains(list, match_type, match_criteria);
-    void *target = llist_find_first(list, match_type, match_criteria);
+    bool exists = list_contains(list, match_type, match_criteria);
+    void *target = list_find_first(list, match_type, match_criteria);
 }
 
 // -------------------------------------------------

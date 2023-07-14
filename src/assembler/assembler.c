@@ -69,8 +69,8 @@ static int compare_str(const void *a, const void *b) {
 
 void assemble_listing_into_x86_64_code(mempool *mp, asm_listing *asm_list, obj_module *target) {
 
-    llist *externs = new_llist(mp); // item is str
-    llist *globals = new_llist(mp); // item is str
+    list *externs = new_list(mp); // item is str
+    list *globals = new_list(mp); // item is str
     asm_named_definition *named_def;
     hashtable *symbol_table; // item is ?
     
@@ -96,15 +96,15 @@ void assemble_listing_into_x86_64_code(mempool *mp, asm_listing *asm_list, obj_m
             case ALT_EXTERN:   // e.g. ".extern <name>"
                 // add to externs if not already there
                 named_def = line->per_type.named_definition;
-                if (llist_find_first(externs, compare_str, named_def->name) == -1)
-                    llist_add(externs, named_def->name);
+                if (list_find_first(externs, compare_str, named_def->name) == -1)
+                    list_add(externs, named_def->name);
                 break;
 
             case ALT_GLOBAL:   // e.g. ".global <name>"
                 // add to globals if not already there
                 named_def = line->per_type.named_definition;
-                if (llist_find_first(globals, compare_str, named_def->name) == -1)
-                    llist_add(globals, named_def->name);
+                if (list_find_first(globals, compare_str, named_def->name) == -1)
+                    list_add(globals, named_def->name);
                 break;
 
             case ALT_DATA:    // "<name:> db, dw, dd, dq value [, value [, ...]]"
@@ -115,8 +115,8 @@ void assemble_listing_into_x86_64_code(mempool *mp, asm_listing *asm_list, obj_m
                     error("Symbol '%s' already defined!", str_charptr(data_def->name));
                     return;
                 }
-                bool is_global = llist_find_first(globals, compare_str, data_def->name) != -1;
-                bool is_extern = llist_find_first(externs, compare_str, data_def->name) != -1;
+                bool is_global = list_find_first(globals, compare_str, data_def->name) != -1;
+                bool is_extern = list_find_first(externs, compare_str, data_def->name) != -1;
                 size_t value = bin_len(curr_sect->contents);
                 bin_cat(curr_sect->contents, data_def->initial_value);
                 sym = curr_sect->ops->add_symbol(curr_sect, data_def->name, value, data_def->length_bytes, is_global);

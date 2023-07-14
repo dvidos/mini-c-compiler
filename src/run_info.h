@@ -36,14 +36,14 @@ struct prog_run_options {
 struct file_run_info {
     str *source_filename;  // where we start
     str *source_code;      // the loaded source
-    llist *tokens;         // item type is token
+    list *tokens;         // item type is token
     ast_module *ast;  // AST for this file
     str *assembly_code;    // generated assembly code
     obj_module *module;    // machine code
 };
 
 struct prog_run_info {
-    llist *files; // item type is file_run_info
+    list *files; // item type is file_run_info
     struct prog_run_options *options;
 };
 

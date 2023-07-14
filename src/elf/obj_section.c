@@ -37,8 +37,8 @@ obj_section *new_obj_section(mempool *mp) {
     obj_section *s = mpalloc(mp, obj_section);
     s->name = new_str(mp, "");
     s->contents = new_bin(mp);
-    s->relocations = new_llist(mp);
-    s->symbols = new_llist(mp);
+    s->relocations = new_list(mp);
+    s->symbols = new_list(mp);
     s->ops = &section_ops;
     return s;
 }
@@ -88,14 +88,14 @@ static void obj_section_print(obj_section *s, bool show_details, FILE *f) {
         }
     }
 
-    if (show_details && llist_length(s->symbols) > 0) {
+    if (show_details && list_length(s->symbols) > 0) {
         int num = 0;
         obj_symbol_print(NULL, 0, f);
         for_list(s->symbols, obj_symbol, sym)
             obj_symbol_print(sym, num++, f);
     }
 
-    if (show_details && llist_length(s->relocations)) {
+    if (show_details && list_length(s->relocations)) {
         obj_relocation_print(NULL, f);
         for_list(s->relocations, obj_relocation, r)
             obj_relocation_print(r, f);
@@ -105,8 +105,8 @@ static void obj_section_print(obj_section *s, bool show_details, FILE *f) {
 static void obj_section_append(obj_section *s, obj_section *other, size_t rounding_value) {
     // any relocations or adjustments are considered already done.
     bin_cat(s->contents, other->contents);
-    llist_add_all(s->symbols, other->symbols);
-    llist_add_all(s->relocations, other->relocations);
+    list_add_all(s->symbols, other->symbols);
+    list_add_all(s->relocations, other->relocations);
 }
 
 static void obj_section_change_address(obj_section *s, long delta) {
@@ -137,7 +137,7 @@ static obj_symbol *obj_section_add_symbol(obj_section *s, str *name, size_t valu
     sym->size = size;
     sym->global = global;
     sym->ops = &symbol_ops;
-    llist_add(s->symbols, sym);
+    list_add(s->symbols, sym);
 
     return sym;
 }
@@ -150,7 +150,7 @@ static obj_relocation *obj_section_add_relocation(obj_section *s, size_t offset,
     rela->symbol_name = sym_name;
     rela->type = type;
     rela->addendum = addendum;
-    llist_add(s->relocations, rela);
+    list_add(s->relocations, rela);
 
     return rela;
 }

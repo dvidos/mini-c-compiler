@@ -77,12 +77,12 @@ static elf64_prog_header *elf64_contents_create_prog_header(elf64_contents *cont
 }
 
 static void elf64_contents_add_section(elf64_contents *contents, elf64_section *s) {
-    s->index = llist_length(contents->sections);
-    llist_add(contents->sections, s);
+    s->index = list_length(contents->sections);
+    list_add(contents->sections, s);
 }
 
 static void elf64_contents_add_prog_header(elf64_contents *contents, elf64_prog_header *p) {
-    llist_add(contents->prog_headers, p);
+    list_add(contents->prog_headers, p);
 }
 
 static elf64_section *elf64_contents_get_section_by_name(elf64_contents *contents, str *name) {
@@ -116,7 +116,7 @@ static void elf64_contents_print(elf64_contents *contents, FILE *stream) {
         contents->header->identity[0], contents->header->identity[1], contents->header->identity[2], contents->header->identity[3]);
     fprintf(stream, "  Type: %d (1=relocatable, 2=executable, 3=dynamic executable)\n", contents->header->file_type);
     
-    if (llist_length(contents->prog_headers) > 0) {
+    if (list_length(contents->prog_headers) > 0) {
         fprintf(stream, "  Program headers\n");
         fprintf(stream, "    Type         Offset    Virt Addr    Phys Addr  FileSize   MemSiz Flg Align\n");
         //              "    1234567890 12345678 123456789012 123456789012  12345678 12345678 XXX 12345678"
@@ -396,8 +396,8 @@ static void generate_program_headers(elf64_contents *contents, size_t lowest_loa
     int align = 4096;
 
     // generate the first prog header, to load the top of the file
-    llist_clear(contents->prog_headers);
-    llist_add(contents->prog_headers, generate_prog_header(contents->mempool,
+    list_clear(contents->prog_headers);
+    list_add(contents->prog_headers, generate_prog_header(contents->mempool,
         0, first_section_offset, lowest_loading_address - 4096, 4096, PROG_FLAGS_READ, 0x1000));
 
     // keep a running group, group similar sections together
@@ -415,7 +415,7 @@ static void generate_program_headers(elf64_contents *contents, size_t lowest_loa
         if (!str_equals(prog_group_key, last_group_key)) {
             if (!str_is_empty(last_group_key)) {
                 // add prev program header
-                llist_add(contents->prog_headers, generate_prog_header(contents->mempool,
+                list_add(contents->prog_headers, generate_prog_header(contents->mempool,
                     prog_file_offset, prog_file_size, prog_memory_address, prog_memory_size, prog_flags, align));
             }
             
@@ -440,7 +440,7 @@ static void generate_program_headers(elf64_contents *contents, size_t lowest_loa
 
     if (!str_is_empty(last_group_key)) {
         // finish last group as applicable
-        llist_add(contents->prog_headers, generate_prog_header(contents->mempool,
+        list_add(contents->prog_headers, generate_prog_header(contents->mempool,
             prog_file_offset, prog_file_size, prog_memory_address, prog_memory_size, prog_flags, align));
     }
 }
@@ -485,10 +485,10 @@ static bin *flatten_elf64_contents(elf64_contents *contents, mempool *mp) {
 
     // update file header contents
     contents->header->prog_headers_entry_size = sizeof(elf64_prog_header);
-    contents->header->prog_headers_entries = llist_length(contents->prog_headers);
+    contents->header->prog_headers_entries = list_length(contents->prog_headers);
     contents->header->section_headers_entry_size = sizeof(elf64_section_header);
-    contents->header->section_headers_entries = llist_length(contents->sections);
-    contents->header->section_headers_strings_entry = llist_length(contents->sections) - 1;
+    contents->header->section_headers_entries = list_length(contents->sections);
+    contents->header->section_headers_strings_entry = list_length(contents->sections) - 1;
 
     // start a buffer and save space for header
     bin *file_data = new_bin(mp);
@@ -509,7 +509,7 @@ static bin *flatten_elf64_contents(elf64_contents *contents, mempool *mp) {
             bin_cat(file_data, s->contents);
 
     // save section headers
-    contents->header->section_headers_offset = llist_is_empty(contents->sections) ? 0 : bin_len(file_data);
+    contents->header->section_headers_offset = list_is_empty(contents->sections) ? 0 : bin_len(file_data);
     for_list(contents->sections, elf64_section, s)
         bin_add_mem(file_data, s->header, sizeof(elf64_section_header));
     
@@ -527,8 +527,8 @@ static bin *flatten_elf64_contents(elf64_contents *contents, mempool *mp) {
 elf64_contents *new_elf64_contents(mempool *mp) {
     elf64_contents *c = mpalloc(mp, elf64_contents);
     c->header = new_elf64_file_header(mp, false, 0);
-    c->sections = new_llist(mp);
-    c->prog_headers = new_llist(mp);
+    c->sections = new_list(mp);
+    c->prog_headers = new_list(mp);
     c->ops = &elf64_contents_ops;
     c->mempool = mp;
     return c;
@@ -565,18 +565,18 @@ elf64_contents *new_elf64_contents_from_binary(mempool *mp, bin *buffer) {
         // contents
         bin_cpy(s->contents, bin_slice(buffer, s->header->file_offset, s->header->size, scratch));
 
-        llist_add(contents->sections, s);
+        list_add(contents->sections, s);
     }
 
     // now that we have all section headers, we can assign headers names
     bin *names_table = NULL;
     if (contents->header->section_headers_strings_entry > 0) {
-        elf64_section *shstrtab = llist_get(contents->sections, contents->header->section_headers_strings_entry);
+        elf64_section *shstrtab = list_get(contents->sections, contents->header->section_headers_strings_entry);
         names_table = shstrtab->contents;
     }
     if (names_table != NULL) {
         for (int i = 0; i < contents->header->section_headers_entries; i++) {
-            elf64_section *s = llist_get(contents->sections, i);
+            elf64_section *s = list_get(contents->sections, i);
             if (s->header->name == 0)
                 continue;
             
@@ -618,19 +618,19 @@ static void elf_unit_test_obj_file(mempool *mp) {
 
     s = elf64_contents_create_section(contents, new_str(mp, ".text"), SECTION_TYPE_PROGBITS);
     bin_pad(s->contents, 'T', 64);
-    llist_add(contents->sections, s);
+    list_add(contents->sections, s);
 
     s = elf64_contents_create_section(contents, new_str(mp, ".data"), SECTION_TYPE_PROGBITS);
     bin_pad(s->contents, 'D', 64);
-    llist_add(contents->sections, s);
+    list_add(contents->sections, s);
 
     s = elf64_contents_create_section(contents, new_str(mp, ".bss"), SECTION_TYPE_NOBITS);
     bin_pad(s->contents, 'B', 64);
-    llist_add(contents->sections, s);
+    list_add(contents->sections, s);
 
     s = elf64_contents_create_section(contents, new_str(mp, ".rodata"), SECTION_TYPE_PROGBITS);
     bin_pad(s->contents, 'R', 64);
-    llist_add(contents->sections, s);
+    list_add(contents->sections, s);
 
     bool elf_obj_saved = elf64_contents_save(contents, obj_filename);
     assert(elf_obj_saved);
@@ -642,7 +642,7 @@ static void elf_unit_test_obj_file(mempool *mp) {
     elf64_contents *loaded = new_elf64_contents_from_binary(mp, file_data);
     unlink(str_charptr(obj_filename));
     assert(loaded != NULL);
-    assert(llist_length(loaded->sections) >= 4);
+    assert(list_length(loaded->sections) >= 4);
 
     s = contents->ops->get_section_by_name(contents, new_str(mp, ".text"));
     assert(s != NULL);

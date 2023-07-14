@@ -27,7 +27,7 @@ static struct asm_listing_ops ops = {
 asm_listing *new_asm_listing(mempool *mp) {
     asm_listing *l = mpalloc(mp, asm_listing);
 
-    l->lines = new_llist(mp);
+    l->lines = new_list(mp);
     l->next_label = NULL;
     l->next_comment = NULL;
     l->ops = &ops;

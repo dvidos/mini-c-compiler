@@ -4,7 +4,7 @@
 #include <string.h>
 #include "../run_info.h"
 #include "scope.h"
-#include "ast_symbol.h"
+#include "scoped_symbol.h"
 #include "ast/all.h"
 
 // a stack of scopes, the outermost pushed first
@@ -40,11 +40,11 @@ void scope_exited() {
 }
 
 // find a symbol in all scopes
-ast_symbol *scope_lookup(const char *symbol_name) {
+scoped_symbol *scope_lookup(const char *symbol_name) {
     scope *sc = scopes_stack_top;
     while (sc != NULL) {
         // look up in this scope
-        ast_symbol *sym = sc->symbols_list_head;
+        scoped_symbol *sym = sc->symbols_list_head;
         while (sym != NULL) {
             if (strcmp(sym->name, symbol_name) == 0)
                 return sym;
@@ -74,7 +74,7 @@ bool scope_symbol_declared_at_curr_level(const char *symbol_name) {
         return false;
 
     // look up in this scope
-    ast_symbol *sym = scopes_stack_top->symbols_list_head;
+    scoped_symbol *sym = scopes_stack_top->symbols_list_head;
     while (sym != NULL) {
         if (strcmp(sym->name, symbol_name) == 0)
             return true;
@@ -85,7 +85,7 @@ bool scope_symbol_declared_at_curr_level(const char *symbol_name) {
 }
 
 // declare a symboll
-void scope_declare_symbol(ast_symbol *symbol) {
+void scope_declare_symbol(scoped_symbol *symbol) {
     if (scopes_stack_top == NULL)
         return;
     if (scopes_stack_top->symbols_list_tail == NULL) {
@@ -109,9 +109,9 @@ void print_symbol_table(scope *s) {
     else
         printf("Symbol table for block\n");
 
-    ast_symbol *sym = s->symbols_list_head;
+    scoped_symbol *sym = s->symbols_list_head;
     while (sym != NULL) {
-        printf("    %-20s  %-5s %-5s\n", sym->name, ast_symbol_type_name(sym->sym_type), sym->data_type->ops->to_string(sym->data_type));
+        printf("    %-20s  %-5s %-5s\n", sym->name, scoped_symbol_type_name(sym->sym_type), sym->data_type->ops->to_string(sym->data_type));
         sym = sym->next;
     }
 }

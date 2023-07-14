@@ -7,7 +7,6 @@
 #include "utils/all.h"
 #include "utils.h"
 #include "run_info.h"
-#include "compiler/lexer/token_list.h"
 #include "compiler/lexer/token.h"
 #include "compiler/lexer/lexer.h"
 #include "compiler/ast/all.h"
@@ -122,7 +121,6 @@ static void process_one_file(mempool *mp, file_run_info *fi) {
     if (fi->source_code == NULL || errors_count)
         return;
 
-    token_list *token_list = new_token_list();
     fi->tokens = lexer_parse_source_code_into_tokens(mp, fi->source_filename, fi->source_code);
     if (fi->tokens == NULL || errors_count)
         return;

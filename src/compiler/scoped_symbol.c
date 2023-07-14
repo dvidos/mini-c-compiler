@@ -1,9 +1,9 @@
 #include <stdlib.h>
-#include "ast_symbol.h"
+#include "scoped_symbol.h"
 
 
-ast_symbol *new_ast_symbol(mempool *mp, const char *name, ast_data_type *data_type, ast_symbol_type definition, token *token) {
-    ast_symbol *s = mpalloc(mp, ast_symbol);
+scoped_symbol *new_scoped_symbol(mempool *mp, const char *name, ast_data_type *data_type, ast_symbol_type definition, token *token) {
+    scoped_symbol *s = mpalloc(mp, scoped_symbol);
     s->name = name;
     s->data_type = data_type;
     s->sym_type = definition;
@@ -15,8 +15,8 @@ ast_symbol *new_ast_symbol(mempool *mp, const char *name, ast_data_type *data_ty
     return s;
 }
 
-ast_symbol *new_ast_symbol_func_arg(mempool *mp, const char *name, ast_data_type *data_type, int arg_no, token *token) {
-    ast_symbol *s = mpalloc(mp, ast_symbol);
+scoped_symbol *new_scoped_symbol_func_arg(mempool *mp, const char *name, ast_data_type *data_type, int arg_no, token *token) {
+    scoped_symbol *s = mpalloc(mp, scoped_symbol);
     s->name = name;
     s->data_type = data_type;
     s->sym_type = SYM_FUNC_ARG;
@@ -28,8 +28,8 @@ ast_symbol *new_ast_symbol_func_arg(mempool *mp, const char *name, ast_data_type
     return s;
 }
 
-ast_symbol *new_ast_symbol_func(mempool *mp, const char *name, ast_function *func, token *token) {
-    ast_symbol *s = mpalloc(mp, ast_symbol);
+scoped_symbol *new_scoped_symbol_func(mempool *mp, const char *name, ast_function *func, token *token) {
+    scoped_symbol *s = mpalloc(mp, scoped_symbol);
 
     s->name = name;
     s->data_type = func->return_type;
@@ -43,7 +43,7 @@ ast_symbol *new_ast_symbol_func(mempool *mp, const char *name, ast_function *fun
     return s;
 }
 
-char *ast_symbol_type_name(ast_symbol_type st) {
+char *scoped_symbol_type_name(ast_symbol_type st) {
     switch (st) {
         case SYM_VAR: return "var";
         case SYM_FUNC: return "func";

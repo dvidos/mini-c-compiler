@@ -11,10 +11,9 @@ SRC_FILES = \
 	$(wildcard utils/data_types/*.c) \
 	$(wildcard utils/data_structs/*.c) \
 	compiler/lexer/token.c \
-	compiler/lexer/token_list.c \
 	compiler/lexer/lexer.c \
 	$(wildcard compiler/ast/*.c) \
-	compiler/ast_symbol.c \
+	compiler/scoped_symbol.c \
 	compiler/scope.c \
 	compiler/parser/parser.c \
 	compiler/parser/token_iterator.c \

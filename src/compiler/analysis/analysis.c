@@ -28,11 +28,11 @@ void perform_declaration_analysis(ast_variable *decl, int arg_no) {
         return;
     }
 
-    ast_symbol *sym;
+    scoped_symbol *sym;
     if (arg_no >= 0)
-        sym = new_ast_symbol_func_arg(decl->mempool, decl->var_name, decl->data_type, arg_no, decl->token);
+        sym = new_scoped_symbol_func_arg(decl->mempool, decl->var_name, decl->data_type, arg_no, decl->token);
     else
-        sym = new_ast_symbol(decl->mempool, decl->var_name, decl->data_type, SYM_VAR, decl->token);
+        sym = new_scoped_symbol(decl->mempool, decl->var_name, decl->data_type, SYM_VAR, decl->token);
     scope_declare_symbol(sym);
 }
 
@@ -46,7 +46,7 @@ void perform_function_analysis(ast_function *func) {
             "function \"%s\" already defined", 
             func->func_name);
     } else {
-        ast_symbol *sym = new_ast_symbol_func(func->mempool, func->func_name, func, func->token);
+        scoped_symbol *sym = new_scoped_symbol_func(func->mempool, func->func_name, func, func->token);
         scope_declare_symbol(sym);
     }
 

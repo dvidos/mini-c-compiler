@@ -1,7 +1,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include "ast_expression.h"
-#include "../ast_symbol.h"
+#include "../scoped_symbol.h"
 #include "../scope.h"
 #include "../../err_handler.h"
 
@@ -90,7 +90,7 @@ static ast_data_type *get_data_type(ast_expression *expr) {
         expr->result_type = new_ast_data_type(TF_BOOL, NULL);
     } else if (op == OP_SYMBOL_NAME) {
         // result will be whatever type the symbol is
-        ast_symbol *sym = scope_lookup(expr->value.str);
+        scoped_symbol *sym = scope_lookup(expr->value.str);
         if (sym == NULL)
             error_at(expr->token->filename, expr->token->line_no, "symbol \"%s\" not defined in current scope", expr->arg1);
         else
@@ -101,7 +101,7 @@ static ast_data_type *get_data_type(ast_expression *expr) {
             // for now we support symbols, lvalues (pointers) later
             error_at(expr->token->filename, expr->token->line_no, "func call expression did not have the symbol as arg1");
         } else {
-            ast_symbol *sym = scope_lookup(expr->arg1->value.str);
+            scoped_symbol *sym = scope_lookup(expr->arg1->value.str);
             if (sym == NULL) {
                 error_at(expr->token->filename, expr->token->line_no, "symbol \"%s\" not defined in current scope", expr->arg1->value.str);
             } else {

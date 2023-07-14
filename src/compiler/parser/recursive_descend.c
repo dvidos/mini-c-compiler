@@ -353,7 +353,7 @@ static ast_var_declaration *parse_function_arguments_list(mempool *mp, token_ite
     return list;
 }
 
-static void parse_file_level_element(mempool *mp, token_iterator *ti, ast_module *mod) {
+void parse_file_level_element(mempool *mp, token_iterator *ti, ast_module *mod) {
     if (is_variable_declaration(ti)) {
         ast_statement *n = accept_variable_declaration(mp, ti);
         ast_module_add_statement(mod, n);
@@ -366,18 +366,5 @@ static void parse_file_level_element(mempool *mp, token_iterator *ti, ast_module
         error_at(ti->next(ti)->filename, ti->next(ti)->line_no,
             "expecting variable or function declaration");
     }
-}
-
-ast_module *parse_file_tokens_using_recursive_descend(mempool *mp, list *tokens) {
-
-    init_operators(); // make sure our lookup is populated
-
-    ast_module *mod = new_ast_module(mp);
-    token_iterator *ti = new_token_iterator(mp, tokens);
-
-    while (!ti->next_is(ti, TOK_EOF) && errors_count == 0)
-        parse_file_level_element(mp, ti, mod);
-
-    return mod;
 }
 

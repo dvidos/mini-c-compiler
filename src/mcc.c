@@ -15,9 +15,7 @@
 #include "compiler/ast_operator.h"
 #include "compiler/scope.h"
 #include "compiler/ast_symbol.h"
-#include "compiler/parser/token_iterator.h"
-#include "compiler/parser/recursive_descend.h"
-#include "compiler/parser/shunting_yard.h"
+#include "compiler/parser/parser.h"
 #include "compiler/analysis/analysis.h"
 #include "compiler/codegen/codegen.h"
 #include "compiler/codegen/ir_listing.h"
@@ -39,7 +37,12 @@ static bool perform_end_to_end_test();
 static bool run_unit_tests() {
 
     utils_unit_tests();
+
+    lexer_unit_tests();
+    parser_unit_tests();
+
     elf_unit_tests();
+
     
     return unit_tests_outcome(); // prints results and returns success flag
 }
@@ -126,7 +129,7 @@ static void process_one_file(mempool *mp, file_run_info *fi) {
     if (!lexer_check_tokens(fi->tokens, fi->source_filename))
         return;
 
-    fi->ast = parse_file_tokens_using_recursive_descend(mp, fi->tokens);
+    fi->ast = parse_file_tokens_into_ast(mp, fi->tokens);
     if (fi->ast == NULL || errors_count)
         return;
     
@@ -264,14 +267,14 @@ static bool perform_end_to_end_test() {
 
     list *module_asts = new_list(mp);
     for_list(token_lists, list, tokens_list) {
-        ast_module *module_ast = parse_file_tokens_using_recursive_descend(mp, tokens_list);
+        ast_module *module_ast = parse_file_tokens_into_ast(mp, tokens_list);
         if (module_ast == NULL || errors_count) return false;
         list_add(module_asts, module_ast);
         after_ast_parsed(module_ast);
     }
 
     for_list(module_asts, ast_module, module_ast) {
-        // perform_semantic_analysis(mp, module_ast);
+        perform_semantic_analysis(module_ast);
         if (errors_count) return false;
     }
 

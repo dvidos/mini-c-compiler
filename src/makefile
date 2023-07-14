@@ -21,6 +21,7 @@ SRC_FILES = \
 	compiler/ast_operator.c \
 	compiler/ast_symbol.c \
 	compiler/scope.c \
+	compiler/parser/parser.c \
 	compiler/parser/token_iterator.c \
 	compiler/parser/recursive_descend.c \
 	compiler/parser/shunting_yard.c \

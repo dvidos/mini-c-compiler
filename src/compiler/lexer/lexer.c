@@ -290,3 +290,88 @@ bool lexer_check_tokens(list *tokens, str *filename) {
 
     return true;
 }
+
+
+#ifdef INCLUDE_UNIT_TESTS
+void lexer_unit_tests() {
+    mempool *mp = new_mempool();
+    str *filename = new_str(mp, "file1.c");
+    token *t;
+    str *code;
+    list *tokens;
+    int i;
+
+    code = new_str(mp, "a \n b");
+    tokens = lexer_parse_source_code_into_tokens(mp, filename, code);
+    assert(tokens != NULL);
+    assert(list_length(tokens) == 3);
+    
+    t = list_get(tokens, 0);
+    assert(t->filename == str_charptr(filename));
+    assert(t->line_no == 1);
+    assert(t->type == TOK_IDENTIFIER);
+    assert(strcmp(t->value, "a") == 0);
+
+    t = list_get(tokens, 1);
+    assert(t->filename == str_charptr(filename));
+    assert(t->line_no == 2);
+    assert(t->type == TOK_IDENTIFIER);
+    assert(strcmp(t->value, "b") == 0);
+
+    t = list_get(tokens, 2);
+    assert(t->type == TOK_EOF);
+
+    i = 0;
+    code = new_str(mp, "int float char void bool true false extern static\n"
+                       "if else while continue break return\n");
+    tokens = lexer_parse_source_code_into_tokens(mp, filename, code);
+    assert(((token *)list_get(tokens, i++))->type == TOK_INT_KEYWORD);
+    assert(((token *)list_get(tokens, i++))->type == TOK_FLOAT);
+    assert(((token *)list_get(tokens, i++))->type == TOK_CHAR_KEYWORD);
+    assert(((token *)list_get(tokens, i++))->type == TOK_VOID);
+    assert(((token *)list_get(tokens, i++))->type == TOK_BOOL);
+    assert(((token *)list_get(tokens, i++))->type == TOK_TRUE);
+    assert(((token *)list_get(tokens, i++))->type == TOK_FALSE);
+    assert(((token *)list_get(tokens, i++))->type == TOK_EXTERN);
+    assert(((token *)list_get(tokens, i++))->type == TOK_STATIC);
+    assert(((token *)list_get(tokens, i++))->type == TOK_IF);
+    assert(((token *)list_get(tokens, i++))->type == TOK_ELSE);
+    assert(((token *)list_get(tokens, i++))->type == TOK_WHILE);
+    assert(((token *)list_get(tokens, i++))->type == TOK_CONTINUE);
+    assert(((token *)list_get(tokens, i++))->type == TOK_BREAK);
+    assert(((token *)list_get(tokens, i++))->type == TOK_RETURN);
+
+    i = 0;
+    code = new_str(mp, "0 123 0xFF 'a' \"hello\"");
+    tokens = lexer_parse_source_code_into_tokens(mp, filename, code);
+    assert(((token *)list_get(tokens, i++))->type == TOK_NUMERIC_LITERAL);
+    assert(strcmp(((token *)list_get(tokens, i - 1))->value, "0") == 0);
+    assert(((token *)list_get(tokens, i++))->type == TOK_NUMERIC_LITERAL);
+    assert(strcmp(((token *)list_get(tokens, i - 1))->value, "123") == 0);
+    assert(((token *)list_get(tokens, i++))->type == TOK_NUMERIC_LITERAL);
+    assert(strcmp(((token *)list_get(tokens, i - 1))->value, "0xFF") == 0);
+    assert(((token *)list_get(tokens, i++))->type == TOK_CHAR_LITERAL);
+    assert(strcmp(((token *)list_get(tokens, i - 1))->value, "a") == 0);
+    assert(((token *)list_get(tokens, i++))->type == TOK_STRING_LITERAL);
+    assert(strcmp(((token *)list_get(tokens, i - 1))->value, "hello") == 0);
+    
+    i = 0;
+    code = new_str(mp, "= * + - / ( ) [ ] { } , ; \n");
+    tokens = lexer_parse_source_code_into_tokens(mp, filename, code);
+    assert(((token *)list_get(tokens, i++))->type == TOK_EQUAL_SIGN);
+    assert(((token *)list_get(tokens, i++))->type == TOK_STAR);
+    assert(((token *)list_get(tokens, i++))->type == TOK_PLUS_SIGN);
+    assert(((token *)list_get(tokens, i++))->type == TOK_MINUS_SIGN);
+    assert(((token *)list_get(tokens, i++))->type == TOK_SLASH);
+    assert(((token *)list_get(tokens, i++))->type == TOK_LPAREN);
+    assert(((token *)list_get(tokens, i++))->type == TOK_RPAREN);
+    assert(((token *)list_get(tokens, i++))->type == TOK_LBRACKET);
+    assert(((token *)list_get(tokens, i++))->type == TOK_RBRACKET);
+    assert(((token *)list_get(tokens, i++))->type == TOK_BLOCK_START);
+    assert(((token *)list_get(tokens, i++))->type == TOK_BLOCK_END);
+    assert(((token *)list_get(tokens, i++))->type == TOK_COMMA);
+    assert(((token *)list_get(tokens, i++))->type == TOK_SEMICOLON);
+
+    mempool_release(mp);
+}
+#endif

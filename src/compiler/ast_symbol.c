@@ -28,7 +28,7 @@ ast_symbol *new_ast_symbol_func_arg(mempool *mp, const char *name, ast_data_type
     return s;
 }
 
-ast_symbol *new_ast_symbol_func(mempool *mp, const char *name, ast_func_declaration *func, token *token) {
+ast_symbol *new_ast_symbol_func(mempool *mp, const char *name, ast_function *func, token *token) {
     ast_symbol *s = mpalloc(mp, ast_symbol);
 
     s->name = name;

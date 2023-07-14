@@ -1,8 +1,7 @@
 #include <stddef.h>
 #include <stdio.h>
 #include "ast_module.h"
-#include "ast_declaration.h"
-#include "../utils.h"
+#include "../../utils.h"
 
 
 static void print_statement_list(FILE *stream, ast_statement *list, int depth);
@@ -20,7 +19,7 @@ void ast_module_add_statement(ast_module *m, ast_statement *stmt) {
     list_add(m->statements, stmt);
 }
 
-void ast_module_add_function(ast_module *m, ast_func_declaration *func) {
+void ast_module_add_function(ast_module *m, ast_function *func) {
     list_add(m->functions, func);
 }
 
@@ -158,13 +157,13 @@ void ast_module_print(ast_module *m, FILE *stream) {
     for_list(m->statements, ast_statement, stmt)
         print_statement(stream, stmt, 0);
     
-    for_list(m->functions, ast_func_declaration, func) {
+    for_list(m->functions, ast_function, func) {
         fprintf(stream, "\n");
         indent(stream, 0);
         fprintf(stream, "function: %s %s(",
             func->return_type->ops->to_string(func->return_type),
             func->func_name);
-        ast_var_declaration *arg = func->args_list;
+        ast_variable *arg = func->args_list;
         while (arg != NULL) {
             fprintf(stream, "%s %s",
                  arg->data_type->ops->to_string(arg->data_type),
@@ -217,6 +216,6 @@ void ast_module_count_nodes(ast_module *m, int *functions, int *statements, int 
     (*functions) = list_length(m->functions);
 
     (*expressions) = 0;
-    for_list(m->functions, ast_func_declaration, f)
+    for_list(m->functions, ast_function, f)
         ast_count_statements(f->stmts_list, statements, expressions);
 }

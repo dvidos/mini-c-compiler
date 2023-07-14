@@ -6,10 +6,10 @@
 #include "../../run_info.h"
 #include "../../err_handler.h"
 #include "../lexer/token.h"
-#include "../ast_expression.h"
-#include "../ast_statement.h"
-#include "../ast_symbol.h"
-#include "../ast_declaration.h"
+#include "../ast/all.h"
+#include "../ast/all.h"
+#include "../ast/all.h"
+#include "../ast/all.h"
 #include "codegen.h"
 #include "ir_listing.h"
 
@@ -50,19 +50,19 @@ static void traverse_and_generate_vars(code_gen *cg, ast_statement *stmt) {
     }
 }
 
-void code_gen_generate_for_function(code_gen *cg, ast_func_declaration *func) {
+void code_gen_generate_for_function(code_gen *cg, ast_function *func) {
 
     cg->ops->set_curr_func_name(cg, func->func_name);
 
     // prepare IR function definition arguments
     int args_len = 0;
     struct ir_entry_func_arg_info *args_arr = NULL;
-    for (ast_var_declaration *arg = func->args_list; arg != NULL; arg = arg->next)
+    for (ast_variable *arg = func->args_list; arg != NULL; arg = arg->next)
         args_len++;
     if (args_len > 0) {
         args_arr = malloc(args_len * sizeof(struct ir_entry_func_arg_info));
         int i = 0;
-        for (ast_var_declaration *arg = func->args_list; arg != NULL; arg = arg->next) {
+        for (ast_variable *arg = func->args_list; arg != NULL; arg = arg->next) {
             args_arr[i].name = arg->var_name;
             args_arr[i].size = arg->data_type->ops->size_of(arg->data_type);
             i++;

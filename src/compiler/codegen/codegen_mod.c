@@ -6,16 +6,16 @@
 #include "../../run_info.h"
 #include "../../err_handler.h"
 #include "../lexer/token.h"
-#include "../ast_expression.h"
-#include "../ast_statement.h"
-#include "../ast_symbol.h"
-#include "../ast_declaration.h"
+#include "../ast/all.h"
+#include "../ast/all.h"
+#include "../ast/all.h"
+#include "../ast/all.h"
 #include "codegen.h"
 #include "ir_listing.h"
 
 
 
-static void gen_global_var(code_gen *cg, ast_var_declaration *decl, ast_expression *init_expr) {
+static void gen_global_var(code_gen *cg, ast_variable *decl, ast_expression *init_expr) {
     int length = decl->data_type->ops->size_of(decl->data_type);
     void *init_value = NULL;
     ir_data_storage storage = IR_GLOBAL;
@@ -101,7 +101,7 @@ void code_gen_generate_for_module(code_gen *cg, ast_module *module) {
     }
 
     // traverse all to delcare any possible strings
-    for_list(module->functions, ast_func_declaration, func) {
+    for_list(module->functions, ast_function, func) {
         for (ast_statement *s = func->stmts_list; s != NULL; s = s->next) {
             declare_stmt_strings(cg, s);
             if (errors_count) return;
@@ -109,7 +109,7 @@ void code_gen_generate_for_module(code_gen *cg, ast_module *module) {
     }
     
     // generate code for all functions
-    for_list(module->functions, ast_func_declaration, func) {
+    for_list(module->functions, ast_function, func) {
         if (func->stmts_list != NULL) { // maybe it's just a func declaration
             cg->ops->generate_for_function(cg, func);
             if (errors_count) return;

@@ -2,7 +2,7 @@
 #include <stdbool.h>
 #include "utils/all.h"
 #include "elf/obj_module.h"
-#include "compiler/ast_module.h"
+#include "compiler/ast/all.h"
 
 typedef struct prog_run_info prog_run_info;
 typedef struct file_run_info file_run_info;

@@ -1,12 +1,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include "ast_expression.h"
-#include "ast_operator.h"
-#include "ast_data_type.h"
-#include "ast_symbol.h"
-#include "scope.h"
-#include "../err_handler.h"
-#include "lexer/token.h"
+#include "../ast_symbol.h"
+#include "../scope.h"
+#include "../../err_handler.h"
 
 
 static ast_data_type *get_data_type(ast_expression *expr);

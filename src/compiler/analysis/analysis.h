@@ -1,14 +1,14 @@
 #pragma once
-#include "../ast_declaration.h"
-#include "../ast_expression.h"
-#include "../ast_statement.h"
-#include "../ast_data_type.h"
-#include "../ast_module.h"
+#include "../ast/all.h"
+#include "../ast/all.h"
+#include "../ast/all.h"
+#include "../ast/all.h"
+#include "../ast/all.h"
 
 
 void perform_module_analysis(ast_module *ast_root);
-void perform_declaration_analysis(ast_var_declaration *decl, int arg_no);
-void perform_function_analysis(ast_func_declaration *func);
+void perform_declaration_analysis(ast_variable *decl, int arg_no);
+void perform_function_analysis(ast_function *func);
 
 // expr_analysis.c
 void perform_expression_analysis(ast_expression *expr);

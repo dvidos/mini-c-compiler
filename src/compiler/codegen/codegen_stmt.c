@@ -5,11 +5,11 @@
 #include <stdarg.h>
 #include "../../run_info.h"
 #include "../../err_handler.h"
-#include "../ast_expression.h"
+#include "../ast/all.h"
 #include "../lexer/token.h"
-#include "../ast_statement.h"
-#include "../ast_symbol.h"
-#include "../ast_declaration.h"
+#include "../ast/all.h"
+#include "../ast/all.h"
+#include "../ast/all.h"
 #include "codegen.h"
 
 

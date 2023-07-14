@@ -1,7 +1,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
-#include "../run_info.h"
+#include "../../run_info.h"
 #include "ast_data_type.h"
 
 static int _size_of(ast_data_type *type);

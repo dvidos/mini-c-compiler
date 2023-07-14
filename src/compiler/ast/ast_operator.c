@@ -1,5 +1,4 @@
 #include "ast_operator.h"
-#include "lexer/token.h"
 
 
 // see https://en.cppreference.com/w/c/language/operator_precedence

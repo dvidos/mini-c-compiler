@@ -4,9 +4,9 @@
 #include <stdlib.h>
 #include "../../err_handler.h"
 #include "../lexer/token.h"
-#include "../ast_declaration.h"
-#include "../ast_statement.h"
-#include "../ast_module.h"
+#include "../ast/all.h"
+#include "../ast/all.h"
+#include "../ast/all.h"
 #include "token_iterator.h"
 #include "shunting_yard.h"
 
@@ -55,11 +55,11 @@ static bool is_function_declaration(token_iterator *ti);
 
 static ast_data_type *accept_data_type_description(mempool *mp, token_iterator *ti);
 static ast_statement *accept_variable_declaration(mempool *mp, token_iterator *ti);
-static ast_func_declaration *accept_function_declaration(mempool *mp, token_iterator *ti);
+static ast_function *accept_function_declaration(mempool *mp, token_iterator *ti);
 
 static ast_statement *parse_statement(mempool *mp, token_iterator *ti);
 static ast_statement *parse_statements_list_in_block(mempool *mp, token_iterator *ti);
-static ast_var_declaration *parse_function_arguments_list(mempool *mp, token_iterator *ti);
+static ast_variable *parse_function_arguments_list(mempool *mp, token_iterator *ti);
 
 static bool is_data_type_description(token_iterator *ti, int *num_tokens) {
     int count = 0;
@@ -189,7 +189,7 @@ static ast_statement *accept_variable_declaration(mempool *mp, token_iterator *t
         }
     }
 
-    ast_var_declaration *vd = new_ast_var_declaration(mp, dt, name, identifier_token);
+    ast_variable *vd = new_ast_variable(mp, dt, name, identifier_token);
     ast_expression *initialization = NULL;
     if (ti->accept(ti, TOK_EQUAL_SIGN)) {
         initialization = parse_expression_using_shunting_yard(mp, ti);
@@ -200,7 +200,7 @@ static ast_statement *accept_variable_declaration(mempool *mp, token_iterator *t
     return new_ast_statement_var_decl(mp, vd, initialization, identifier_token);
 }
 
-static ast_func_declaration *accept_function_declaration(mempool *mp, token_iterator *ti) {
+static ast_function *accept_function_declaration(mempool *mp, token_iterator *ti) {
     if (!is_function_declaration(ti))
         return NULL;
 
@@ -212,7 +212,7 @@ static ast_func_declaration *accept_function_declaration(mempool *mp, token_iter
     token *identifier_token = ti->accepted(ti);
 
     if (!ti->expect(ti, TOK_LPAREN)) return NULL;
-    ast_var_declaration *args = NULL;
+    ast_variable *args = NULL;
     if (!ti->accept(ti, TOK_RPAREN)) {
         args = parse_function_arguments_list(mp, ti);
         if (!ti->expect(ti, TOK_RPAREN)) return NULL;
@@ -230,7 +230,7 @@ static ast_func_declaration *accept_function_declaration(mempool *mp, token_iter
             "expecting either ';' or '{' for function %s", name);
     }
 
-    return new_ast_func_declaration(mp, ret_type, name, args, body, identifier_token);
+    return new_ast_function(mp, ret_type, name, args, body, identifier_token);
 }
 
 // this cannot parse a function, but can parse a block and anything in it.
@@ -317,8 +317,8 @@ static ast_statement *parse_statements_list_in_block(mempool *mp, token_iterator
     return list;
 }
 
-static ast_var_declaration *parse_function_arguments_list(mempool *mp, token_iterator *ti) {
-    declare_list(ast_var_declaration);
+static ast_variable *parse_function_arguments_list(mempool *mp, token_iterator *ti) {
+    declare_list(ast_variable);
 
     while (!ti->next_is(ti, TOK_RPAREN)) {
         ast_data_type *dt = accept_data_type_description(mp, ti);
@@ -343,7 +343,7 @@ static ast_var_declaration *parse_function_arguments_list(mempool *mp, token_ite
             }
         }
 
-        ast_var_declaration *n = new_ast_var_declaration(mp, dt, name, identifier_token);
+        ast_variable *n = new_ast_variable(mp, dt, name, identifier_token);
         list_append(n);
 
         if (!ti->accept(ti, TOK_COMMA))
@@ -359,7 +359,7 @@ void parse_file_level_element(mempool *mp, token_iterator *ti, ast_module *mod) 
         ast_module_add_statement(mod, n);
     }
     else if (is_function_declaration(ti)) {
-        ast_func_declaration *n = accept_function_declaration(mp, ti);
+        ast_function *n = accept_function_declaration(mp, ti);
         ast_module_add_function(mod, n);
     }
     else {

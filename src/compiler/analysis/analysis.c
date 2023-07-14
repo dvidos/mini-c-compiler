@@ -2,11 +2,11 @@
 #include <stdarg.h>
 #include "analysis.h"
 #include "../../err_handler.h"
-#include "../ast_declaration.h"
-#include "../ast_statement.h"
+#include "../ast/all.h"
+#include "../ast/all.h"
 #include "../scope.h"
-#include "../ast_symbol.h"
-#include "../ast_module.h"
+#include "../ast/all.h"
+#include "../ast/all.h"
 
 /*
     analysis has the following components:
@@ -16,7 +16,7 @@
 */
 
 
-void perform_declaration_analysis(ast_var_declaration *decl, int arg_no) {
+void perform_declaration_analysis(ast_variable *decl, int arg_no) {
 
     if (scope_symbol_declared_at_curr_level(decl->var_name)) {
         error_at(
@@ -36,7 +36,7 @@ void perform_declaration_analysis(ast_var_declaration *decl, int arg_no) {
     scope_declare_symbol(sym);
 }
 
-void perform_function_analysis(ast_func_declaration *func) {
+void perform_function_analysis(ast_function *func) {
 
     // functions are declared at their parent scope
     if (scope_symbol_declared_at_curr_level(func->func_name)) {
@@ -52,7 +52,7 @@ void perform_function_analysis(ast_func_declaration *func) {
 
     scope_entered(func); // scope of function
 
-    ast_var_declaration *arg = func->args_list;
+    ast_variable *arg = func->args_list;
     int arg_no = 0;
     while (arg != NULL) {
         perform_declaration_analysis(arg, arg_no);
@@ -76,7 +76,7 @@ void perform_module_analysis(ast_module *ast) {
     for_list(ast->statements, ast_statement, stmt)
         perform_statement_analysis(stmt);
     
-    for_list(ast->functions, ast_func_declaration, func)
+    for_list(ast->functions, ast_function, func)
         perform_function_analysis(func);
 
     scope_exited();

@@ -1,5 +1,5 @@
 #include "../../utils/all.h"
-#include "../ast_module.h"
+#include "../ast/all.h"
 
 
 ast_module *parse_file_tokens_into_ast(mempool *mp, list *tokens);

@@ -1,7 +1,7 @@
 #pragma once
 #include "../lexer/token.h"
 #include "token_iterator.h"
-#include "../ast_module.h"
+#include "../ast/all.h"
 #include "../../utils/all.h"
 
 

@@ -1,10 +1,10 @@
 #include <stdio.h>
 #include <stdarg.h>
 #include "../../err_handler.h"
-#include "../ast_declaration.h"
-#include "../ast_statement.h"
+#include "../ast/all.h"
+#include "../ast/all.h"
 #include "../scope.h"
-#include "../ast_symbol.h"
+#include "../ast/all.h"
 #include "analysis.h"
 
 
@@ -34,7 +34,7 @@ void perform_statement_analysis(ast_statement *stmt) {
 
     } else if (stmt->stmt_type == ST_RETURN) {
         perform_expression_analysis(stmt->expr);
-        ast_func_declaration *curr_func = get_scope_owning_function();
+        ast_function *curr_func = get_scope_owning_function();
         if (curr_func == NULL) {
             error_at(stmt->token->filename, stmt->token->line_no, "return outside of a function is not supported");
         } else if (curr_func->return_type->family == TF_VOID && stmt->expr != NULL) {

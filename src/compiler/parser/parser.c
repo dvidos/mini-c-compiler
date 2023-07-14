@@ -2,7 +2,7 @@
 #include "parser.h"
 #include "recursive_descend.h"
 #include "token_iterator.h"
-#include "../ast_operator.h"
+#include "../ast/all.h"
 #include "../../err_handler.h"
 #include "../lexer/lexer.h"
 
@@ -30,8 +30,8 @@ void parser_unit_tests() {
     list *tokens;
     ast_module *ast;
     ast_statement *st;
-    ast_func_declaration *fd;
-    ast_var_declaration *vd;
+    ast_function *fd;
+    ast_variable *vd;
 
 
     code = new_str(mp, "char *ptr;");

@@ -1,7 +1,7 @@
 #pragma once
 #include "ast_operator.h"
 #include "ast_data_type.h"
-#include "lexer/token.h"
+#include "../lexer/token.h"
 
 typedef struct ast_expression ast_expression; // parsed expression for evaluation
 struct ast_expression_ops;

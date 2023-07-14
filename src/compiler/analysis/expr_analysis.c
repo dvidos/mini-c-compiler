@@ -1,14 +1,14 @@
 #include <stdio.h>
 #include <stdarg.h>
 #include "../../err_handler.h"
-#include "../ast_declaration.h"
-#include "../ast_statement.h"
+#include "../ast/all.h"
+#include "../ast/all.h"
 #include "../scope.h"
-#include "../ast_symbol.h"
+#include "../ast/all.h"
 #include "analysis.h"
 
 
-void validate_function_call_argument_type(ast_var_declaration *arg_decl, ast_expression *arg_expr, ast_func_declaration *func) {
+void validate_function_call_argument_type(ast_variable *arg_decl, ast_expression *arg_expr, ast_function *func) {
     ast_data_type *expr_type = arg_expr->ops->get_data_type(arg_expr);
     if (!arg_decl->data_type->ops->equals(arg_decl->data_type, expr_type)) {
         error_at(arg_expr->token->filename, arg_expr->token->line_no,
@@ -57,7 +57,7 @@ void perform_function_call_analysis(ast_expression *call_expr) {
 
     // verify the type of the arguments
     int i = 0;
-    ast_var_declaration *arg_decl = sym->func->args_list;
+    ast_variable *arg_decl = sym->func->args_list;
     while (arg_decl != NULL && i < provided_args) {
         validate_function_call_argument_type(arg_decl, arg_exprs[i], sym->func);
         i++;

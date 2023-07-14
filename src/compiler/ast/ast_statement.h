@@ -1,11 +1,12 @@
 #pragma once
-#include "lexer/token.h"
+#include "../lexer/token.h"
 #include "ast_operator.h"
 #include "ast_data_type.h"
 #include "ast_expression.h"
-#include "ast_declaration.h"
+#include "ast_variable.h"
+#include "ast_function.h"
 
-typedef struct ast_var_declaration ast_var_declaration;
+typedef struct ast_variable ast_variable;
 
 // blocks can be nested, so they are a form of statement inside the parent block. 
 // they don't appear only in association with an "if" or a "while".
@@ -29,7 +30,7 @@ typedef struct ast_statement {
     ast_statement_type stmt_type;
 
     // variables can be module scope, function scope, or block scope.
-    ast_var_declaration *decl;
+    ast_variable *decl;
 
     // for variables declaration, it's the initial value
     // for "return" it's the return value
@@ -49,7 +50,7 @@ typedef struct ast_statement {
 } ast_statement;
 
 ast_statement *new_ast_statement_block(mempool *mp, ast_statement *stmts_list, token *token);
-ast_statement *new_ast_statement_var_decl(mempool *mp, ast_var_declaration *decl, ast_expression *init, token *token);
+ast_statement *new_ast_statement_var_decl(mempool *mp, ast_variable *decl, ast_expression *init, token *token);
 ast_statement *new_ast_statement_if(mempool *mp, ast_expression *condition, ast_statement *if_body, ast_statement *else_nody, token *token);
 ast_statement *new_ast_statement_while(mempool *mp, ast_expression *condition, ast_statement *body, token *token);
 ast_statement *new_ast_statement_continue(mempool *mp, token *token);

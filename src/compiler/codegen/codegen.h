@@ -1,7 +1,7 @@
 #pragma once
 #include "ir_listing.h"
-#include "../ast_declaration.h"
-#include "../ast_module.h"
+#include "../ast/all.h"
+#include "../ast/all.h"
 
 
 struct code_gen_ops;
@@ -22,7 +22,7 @@ code_gen *new_code_generator(ir_listing *listing);
 
 struct code_gen_ops {
     void (*generate_for_module)(code_gen *cg, ast_module *mod);
-    void (*generate_for_function)(code_gen *cg, ast_func_declaration *func);
+    void (*generate_for_function)(code_gen *cg, ast_function *func);
     void (*generate_for_expression)(code_gen *cg, ir_value *lvalue, ast_expression *expr);
     void (*generate_for_statement)(code_gen *cg, ast_statement *stmt);
     
@@ -40,7 +40,7 @@ struct code_gen_ops {
 void code_gen_generate_for_module(code_gen *cg, ast_module *module);
 
 // codegen_func.c
-void code_gen_generate_for_function(code_gen *cg, ast_func_declaration *func);
+void code_gen_generate_for_function(code_gen *cg, ast_function *func);
 
 // codegen_stmt.c
 void code_gen_generate_for_statement(code_gen *cg, ast_statement *stmt);

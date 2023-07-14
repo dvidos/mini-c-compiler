@@ -13,12 +13,7 @@ SRC_FILES = \
 	compiler/lexer/token.c \
 	compiler/lexer/token_list.c \
 	compiler/lexer/lexer.c \
-	compiler/ast_module.c \
-	compiler/ast_declaration.c \
-	compiler/ast_statement.c \
-	compiler/ast_expression.c \
-	compiler/ast_data_type.c \
-	compiler/ast_operator.c \
+	$(wildcard compiler/ast/*.c) \
 	compiler/ast_symbol.c \
 	compiler/scope.c \
 	compiler/parser/parser.c \

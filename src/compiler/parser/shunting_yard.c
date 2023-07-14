@@ -3,9 +3,9 @@
 #include "../../err_handler.h"
 #include "../../utils/all.h"
 #include "../lexer/token.h"
-#include "../ast_operator.h"
-#include "../ast_declaration.h"
-#include "../ast_expression.h"
+#include "../ast/all.h"
+#include "../ast/all.h"
+#include "../ast/all.h"
 #include "token_iterator.h"
 
 /*

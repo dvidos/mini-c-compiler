@@ -4,7 +4,7 @@
 #include "asm_line.h"
 #include "../run_info.h"
 #include "../err_handler.h"
-#include "../utils/data_types.h"
+#include "../utils/all.h"
 
 
 static void append_operand_instruction(asm_operand *op, char *buffer, int buff_size);

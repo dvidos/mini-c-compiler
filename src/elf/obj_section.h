@@ -1,7 +1,6 @@
 #pragma once
 #include <stdio.h>
-#include "../utils/data_types.h"
-#include "../utils/data_structs.h"
+#include "../utils/all.h"
 #include "elf64_contents.h"
 
 

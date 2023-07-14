@@ -2,7 +2,7 @@
 #include <stdio.h>
 #include <string.h>
 #include "symbol_table.h"
-#include "../utils/data_types.h"
+#include "../utils/all.h"
 #include "../utils.h"
 #include "reloc_list.h"
 

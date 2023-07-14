@@ -1,7 +1,7 @@
 #pragma once
 #include <stdbool.h>
 #include <stdio.h>
-#include "../../utils/data_types.h"
+#include "../../utils/all.h"
 
 
 enum ir_value_type { IR_TREG, IR_SYM, IR_IMM };

@@ -5,7 +5,7 @@
 #include "stdarg.h"
 #include "../lexer/token_list.h"
 #include "../lexer/token.h"
-#include "../../utils/data_structs.h"
+#include "../../utils/all.h"
 
 
 typedef struct token_iterator token_iterator;

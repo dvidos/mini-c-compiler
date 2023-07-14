@@ -2,7 +2,7 @@
 #include <stdbool.h>
 #include "encoder.h"
 #include "../asm_line.h"
-#include "../../utils/data_structs.h"
+#include "../../utils/all.h"
 #include "../../linker/reloc_list.h"
 #include "../../linker/obj_code.h"
 #include "../asm_listing.h"

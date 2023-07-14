@@ -4,7 +4,7 @@
 #include <string.h>
 #include "../../err_handler.h"
 #include "../../run_info.h"
-#include "../../utils/data_structs.h"
+#include "../../utils/all.h"
 #include "lexer.h"
 #include "token.h"
 

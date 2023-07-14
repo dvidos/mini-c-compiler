@@ -177,7 +177,7 @@ static bool check_symbol_is_defined(link2_info *info, obj_module *owner, str *na
 static bool check_mark_unresolved_symbol(link2_info *info, obj_module *owner, str *name) {
     bool found = check_symbol_is_defined(info, owner, name);
     if (!found) {
-        if (llist_find_first(info->unresolved_symbols, (comparator_function*)str_cmp, name) == -1)
+        if (llist_find_first(info->unresolved_symbols, (comparator_func*)str_cmp, name) == -1)
             llist_add(info->unresolved_symbols, name);
     }
     return found;
@@ -188,7 +188,7 @@ static bool find_unresolvable_relocations_in_list(link2_info *info, obj_module *
     bool all_found = true;
     for_list(obj_relocations, obj_relocation, rel) {
         if (!check_symbol_is_defined(info, owner, rel->symbol_name)) {
-            if (llist_find_first(info->unresolved_symbols, (comparator_function*)str_cmp, rel->symbol_name) != -1)
+            if (llist_find_first(info->unresolved_symbols, (comparator_func*)str_cmp, rel->symbol_name) != -1)
                 continue;
             llist_add(info->unresolved_symbols, rel->symbol_name);
             all_found = false;
@@ -240,7 +240,7 @@ static link2_lib_module_id *find_lib_module_for_symbol(link2_info *info, str *na
     // check all considered libraries
     for_list(info->lib_infos, link2_lib_info, lib_info) {
         // see if this library contains this symbol
-        int index = llist_find_first(lib_info->symbols, (comparator_function*)compare_archive_symbol_name, name);
+        int index = llist_find_first(lib_info->symbols, (comparator_func*)compare_archive_symbol_name, name);
         if (index >= 0) {
             link2_lib_module_id *mid = mpalloc(info->mempool, link2_lib_module_id);
             mid->lib_info = lib_info;
@@ -264,7 +264,7 @@ static bool find_needed_lib_modules(link2_info *info) {
         }
         
         // maybe module already considered, 
-        if (llist_find_first(info->needed_module_ids, (comparator_function*)compare_module_ids, mid) != -1)
+        if (llist_find_first(info->needed_module_ids, (comparator_func*)compare_module_ids, mid) != -1)
             continue;
         
         // add it to the modules to append

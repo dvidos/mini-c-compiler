@@ -3,7 +3,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
-#include "../utils/data_structs.h"
+#include "../utils/all.h"
 #include "asm_line.h"
 #include "asm_listing.h"
 

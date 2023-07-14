@@ -1,5 +1,5 @@
 #pragma once
-#include "../utils/data_structs.h"
+#include "../utils/all.h"
 #include "ast_declaration.h"
 
 

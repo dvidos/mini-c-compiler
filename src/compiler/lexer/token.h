@@ -1,7 +1,7 @@
 #pragma once
 
 #include <stdbool.h>
-#include "../../utils/data_types.h"
+#include "../../utils/all.h"
 
 
 typedef enum token_type {

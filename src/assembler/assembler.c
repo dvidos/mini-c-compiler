@@ -11,9 +11,8 @@
 #include "encoder/asm_allocator.h"
 #include "asm_line.h"
 #include "asm_listing.h"
-#include "../utils/data_structs.h"
+#include "../utils/all.h"
 #include "../elf/obj_module.h"
-#include "../utils/data_types.h"
 
 void assemble_listing_into_i386_code(mempool *mp, asm_listing *asm_list, obj_code *obj) {
 

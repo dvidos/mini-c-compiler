@@ -1,7 +1,7 @@
 #include <stddef.h>
 #include <stdlib.h>
 #include "../../err_handler.h"
-#include "../../utils/data_structs.h"
+#include "../../utils/all.h"
 #include "../lexer/token.h"
 #include "../ast_operator.h"
 #include "../ast_declaration.h"

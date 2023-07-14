@@ -1,7 +1,7 @@
 #pragma once
 #include <stdint.h>
 #include <stdbool.h>
-#include "../utils/data_structs.h"
+#include "../utils/all.h"
 
 typedef struct asm_line asm_line;
 typedef struct asm_named_definition asm_named_definition;

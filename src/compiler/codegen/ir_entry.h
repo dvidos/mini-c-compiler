@@ -2,7 +2,7 @@
 #include <stdbool.h>
 #include <stdio.h>
 #include "ir_value.h"
-#include "../../utils/data_types.h"
+#include "../../utils/all.h"
 
 enum ir_entry_type {
     IR_FUNCTION_DEFINITION,

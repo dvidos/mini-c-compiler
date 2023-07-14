@@ -4,8 +4,7 @@
 #include <unistd.h>
 #include "err_handler.h"
 #include "utils/unit_tests.h"
-#include "utils/data_types.h"
-#include "utils/data_structs.h"
+#include "utils/all.h"
 #include "utils.h"
 #include "run_info.h"
 #include "compiler/lexer/token_list.h"
@@ -39,9 +38,7 @@ static bool perform_end_to_end_test();
 #ifdef INCLUDE_UNIT_TESTS
 static bool run_unit_tests() {
 
-    mempool_unit_tests();
-    all_data_types_unit_tests();
-    all_data_structs_unit_tests();
+    utils_unit_tests();
     elf_unit_tests();
     
     return unit_tests_outcome(); // prints results and returns success flag

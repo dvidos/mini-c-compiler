@@ -1,5 +1,5 @@
 #pragma once
-#include "../../utils/data_types.h"
+#include "../../utils/all.h"
 
 
 // represents encoded bytes, eases encoding & debugging

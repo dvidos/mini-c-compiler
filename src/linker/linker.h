@@ -1,6 +1,6 @@
 #pragma once
 #include "obj_code.h"
-#include "../utils/data_structs.h"
+#include "../utils/all.h"
 
 
 llist *x86_64_std_libraries(mempool *mp);

@@ -2,7 +2,7 @@
 #include <stdint.h>
 #include <string.h>
 #include "../../err_handler.h"
-#include "../../utils/data_types.h"
+#include "../../utils/all.h"
 #include "../../linker/obj_code.h"
 #include "../asm_listing.h"
 #include "encoder.h"

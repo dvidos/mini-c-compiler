@@ -1,8 +1,7 @@
 #pragma once
 #include <stdint.h>
 #include "elf_format.h"
-#include "../utils/data_types.h"
-#include "../utils/data_structs.h"
+#include "../utils/all.h"
 
 typedef struct elf64_contents elf64_contents;
 typedef struct elf64_section elf64_section;

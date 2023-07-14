@@ -1,8 +1,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
-#include "../utils/data_types.h"
-#include "../utils/data_structs.h"
+#include "../utils/all.h"
 #include "ar.h"
 
 #define AR_HEADER_BYTES                  8

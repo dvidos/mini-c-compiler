@@ -8,8 +8,8 @@ SRC_FILES = \
 	utils.c \
 	utils/unit_tests.c \
 	utils/mempool.c \
-	utils/data_types.c \
-	utils/data_structs.c \
+	$(wildcard utils/data_types/*.c) \
+	$(wildcard utils/data_structs/*.c) \
 	compiler/lexer/token.c \
 	compiler/lexer/token_list.c \
 	compiler/lexer/lexer.c \

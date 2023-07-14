@@ -2,7 +2,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include "symbol_table.h"
-#include "../utils/data_types.h"
+#include "../utils/all.h"
 
 typedef uint8_t u8;
 typedef uint16_t u16;

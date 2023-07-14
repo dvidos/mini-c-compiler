@@ -1,6 +1,6 @@
 #pragma once
 #include <stdbool.h>
-#include "utils/data_structs.h"
+#include "utils/all.h"
 #include "elf/obj_module.h"
 #include "compiler/ast_module.h"
 

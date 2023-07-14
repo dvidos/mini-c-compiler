@@ -379,7 +379,7 @@ static int compare_section_and_name(obj_section *s, str *name) {
 }
 
 static obj_section *obj_module_get_section_by_name(obj_module *m, str *name) {
-    int index = llist_find_first(m->sections, (comparator_function*)compare_section_and_name, name);
+    int index = llist_find_first(m->sections, (comparator_func*)compare_section_and_name, name);
     return index == -1 ? NULL : llist_get(m->sections, index);
 }
 

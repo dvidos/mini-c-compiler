@@ -1,5 +1,5 @@
 #include "ir_to_asm_converter.h"
-#include "../utils/data_types.h"
+#include "../utils/all.h"
 
 static asm_operand *resolve_ir_value_to_asm_operand(ir_value *v);
 

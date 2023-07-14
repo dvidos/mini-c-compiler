@@ -249,6 +249,7 @@ static bool perform_end_to_end_test() {
             "int main() { greeting(); return 0; }\n"),
         new_str(mp, 
             "extern char *message;\n"
+            "extern void print(char *str);\n"
             "void greeting() { print(message); }\n")
     );
 
@@ -266,13 +267,13 @@ static bool perform_end_to_end_test() {
     for_list(token_lists, list, tokens_list) {
         ast_module *module_ast = parse_file_tokens_into_ast(mp, tokens_list);
         if (module_ast == NULL || errors_count) return false;
-        list_add(module_asts, module_ast);
+        
         after_ast_parsed(module_ast);
-    }
-
-    for_list(module_asts, ast_module, module_ast) {
-        perform_semantic_analysis(module_ast);
         if (errors_count) return false;
+        perform_module_analysis(module_ast);
+        if (errors_count) return false;
+
+        list_add(module_asts, module_ast);
     }
 
     list *ir_listings = new_list(mp);

@@ -10,7 +10,6 @@
 #include "asm_listing.h"
 #include "assembler.h"
 #include "../linker/linker.h"
-#include "../elf/elf_contents.h"
 #include "../elf/elf64_contents.h"
 
 // static void test_create_hello_world_executable();
@@ -396,26 +395,26 @@ static bool _test_link_module(obj_code *mod, u64 code_base_address, char *filena
     }
 
     // let's save things
-    elf_contents elf;
-    elf.flags.is_static_executable = true;
-    elf.flags.is_64_bits = false;
-    elf.code_address = code_base_address; // usual starting address
-    elf.code_contents = bin_ptr_at(mod->text->contents, 0);
-    elf.code_size = bin_len(mod->text->contents);
-    elf.code_entry_point = code_base_address + start->address; // address of _start, actually...
-    elf.data_address = data_base_address;
-    elf.data_contents = bin_ptr_at(mod->data->contents, 0);
-    elf.data_size = bin_len(mod->data->contents);
-    elf.bss_address = bss_base_address;
-    elf.bss_size = bin_len(mod->bss->contents);
+    // elf_contents elf;
+    // elf.flags.is_static_executable = true;
+    // elf.flags.is_64_bits = false;
+    // elf.code_address = code_base_address; // usual starting address
+    // elf.code_contents = bin_ptr_at(mod->text->contents, 0);
+    // elf.code_size = bin_len(mod->text->contents);
+    // elf.code_entry_point = code_base_address + start->address; // address of _start, actually...
+    // elf.data_address = data_base_address;
+    // elf.data_contents = bin_ptr_at(mod->data->contents, 0);
+    // elf.data_size = bin_len(mod->data->contents);
+    // elf.bss_address = bss_base_address;
+    // elf.bss_size = bin_len(mod->bss->contents);
     
-    bool write_elf_file(elf_contents *prog, char *filename);
-    if (!write_elf_file(&elf, filename)) {
-        printf("Error writing output elf file!\n");
-        return false;
-    }
-
-    printf("Wrote output to '%s'\n", filename);
+    // bool write_elf_file(elf_contents *prog, char *filename);
+    // if (!write_elf_file(&elf, filename)) {
+    //     printf("Error writing output elf file!\n");
+    //     return false;
+    // }
+    // 
+    // printf("Wrote output to '%s'\n", filename);
 }
 
 static void test_create_hello_world_executable3() {

@@ -1,6 +1,5 @@
 #include <string.h>
 #include <stdbool.h>
-#include "elf_contents.h"
 #include "elf64_contents.h"
 #include "obj_module.h"
 #include "ar.h"

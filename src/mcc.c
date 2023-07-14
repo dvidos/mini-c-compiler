@@ -26,7 +26,6 @@
 #include "linker/linker.h"
 #include "linker/obj_code.h"
 #include "elf/obj_module.h"
-#include "elf/elf_contents.h"
 
 
 static bool perform_end_to_end_test();

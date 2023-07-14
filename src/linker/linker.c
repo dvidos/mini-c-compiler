@@ -6,7 +6,6 @@
 #include "../run_info.h"
 #include "../utils.h"
 #include "obj_code.h"
-#include "../elf/elf_contents.h"
 #include "../elf/elf64_contents.h"
 #include "../elf/obj_module.h"
 #include "../elf/ar.h"

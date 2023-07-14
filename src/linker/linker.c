@@ -257,7 +257,7 @@ static bool find_needed_lib_modules(link2_info *info) {
     for_list(info->unresolved_symbols, str, unresolved_name) {
         link2_lib_module_id *mid = find_lib_module_for_symbol(info, unresolved_name);
         if (mid == NULL) {
-            printf("Cannot find symbol '%s' in any library\n", str_charptr(unresolved_name));
+            printf("Unresolvable symbol '%s', I looked everywhere!\n", str_charptr(unresolved_name));
             all_found = false;
             continue;
         }

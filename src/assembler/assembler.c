@@ -67,7 +67,10 @@ static int compare_str(const void *a, const void *b) {
     return str_cmp((str *)a, (str *)b);
 }
 
-void assemble_listing_into_x86_64_code(mempool *mp, asm_listing *asm_list, obj_module *target) {
+obj_module *assemble_listing_into_x86_64_code(mempool *mp, asm_listing *asm_list, str *module_name) {
+
+    obj_module *target = new_obj_module(mp);
+    target->name = module_name;
 
     list *externs = new_list(mp); // item is str
     list *globals = new_list(mp); // item is str
@@ -113,7 +116,7 @@ void assemble_listing_into_x86_64_code(mempool *mp, asm_listing *asm_list, obj_m
                 obj_symbol *sym = curr_sect->ops->find_symbol(curr_sect, data_def->name, false);
                 if (sym != NULL) {
                     error("Symbol '%s' already defined!", str_charptr(data_def->name));
-                    return;
+                    return NULL;
                 }
                 bool is_global = list_find_first(globals, compare_str, data_def->name) != -1;
                 bool is_extern = list_find_first(externs, compare_str, data_def->name) != -1;
@@ -125,12 +128,12 @@ void assemble_listing_into_x86_64_code(mempool *mp, asm_listing *asm_list, obj_m
             case ALT_INSTRUCTION:  // MOV RAX, 0x1234
                 asm_instruction *instr = line->per_type.instruction;
                 encode_instruction_x86_64(instr, curr_sect);
-                if (errors_count) return;
+                if (errors_count) return NULL;
                 break;
 
             default:
                 error("Unsupported assembly line type %d", line->type);
-                return;
+                return NULL;
         }
     }
 
@@ -139,5 +142,7 @@ void assemble_listing_into_x86_64_code(mempool *mp, asm_listing *asm_list, obj_m
     // these can be local jumps to offset relative to the end of the instruction,
     // or to function label + offset
     // another way is to have local jumps as addendums from the start of the function
+
+    return target;
 }
 

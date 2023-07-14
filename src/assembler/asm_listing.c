@@ -107,6 +107,7 @@ void asm_listing_add_instruction(asm_listing *lst, asm_instruction *instr) {
     line->type = ALT_INSTRUCTION;
     line->per_type.instruction = instr;
 
+    list_add(lst->lines, line);
     lst->next_label = NULL;
     lst->next_comment = NULL;
 }

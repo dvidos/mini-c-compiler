@@ -82,10 +82,6 @@ static void after_ast_parsed(ast_module *m) {
     }
 }
 
-static void perform_semantic_analysis(ast_module *m) {
-    perform_module_analysis(m);
-}
-
 static void generate_intermediate_code(ast_module *ast, ir_listing *listing) {
     code_gen *gen = new_code_generator(listing);
     if (errors_count) return;
@@ -131,7 +127,7 @@ static void process_one_file(mempool *mp, file_run_info *fi) {
         return;
     
     after_ast_parsed(fi->ast);
-    perform_semantic_analysis(fi->ast);
+    perform_module_analysis(fi->ast);
     if (errors_count)
         return;
     
@@ -195,16 +191,13 @@ static void process_one_file(mempool *mp, file_run_info *fi) {
     // ---- new, x86_64 code ----
 
     // prepare a real module, like real men do.
-    obj_module *mod = new_obj_module(mp);
-    mod->name = fi->source_filename;
-    assemble_listing_into_x86_64_code(mp, asm_list, mod);
-    if (errors_count)
+    fi->module = assemble_listing_into_x86_64_code(mp, asm_list, fi->source_filename);
+    if (fi->module == NULL || errors_count)
         return;
-    fi->module = mod;
     
     // save if requested
     if (run_info->options->generate_obj) {
-        elf64_contents *elf64 = mod->ops->prepare_elf_contents(mod, ELF_TYPE_REL, mp);
+        elf64_contents *elf64 = fi->module->ops->prepare_elf_contents(fi->module, ELF_TYPE_REL, mp);
         elf64->ops->save(elf64, str_change_extension(fi->source_filename, "o64"));
     }
 }
@@ -267,48 +260,44 @@ static bool perform_end_to_end_test() {
     for_list(token_lists, list, tokens_list) {
         ast_module *module_ast = parse_file_tokens_into_ast(mp, tokens_list);
         if (module_ast == NULL || errors_count) return false;
-        
         after_ast_parsed(module_ast);
         if (errors_count) return false;
         perform_module_analysis(module_ast);
         if (errors_count) return false;
-
         list_add(module_asts, module_ast);
     }
 
     list *ir_listings = new_list(mp);
-    for_list(module_asts, ast_module, module_ast) {
-        ir_listing *ir_lst = NULL; // generate_ir_code(mp, module_ast);
-        if (errors_count) return false;
-        list_add(ir_listings, ir_lst);
-    }
+    // for_list(module_asts, ast_module, module_ast) {
+    //     ir_listing *ir_lst = generate_ir_code(mp, module_ast);
+    //     if (errors_count) return false;
+    //     list_add(ir_listings, ir_lst);
+    // }
 
     list *asm_listings = new_list(mp);
-    for_list(ir_listings, ir_listing, ir_lst) {
-        asm_listing *asm_lst = NULL; // convert_ir_listing_to_asm_listing(mp, ir_lst);
-        if (errors_count) return false;
-        list_add(asm_listings, asm_lst);
-    }
-
-    asm_listing *l = new_asm_listing(mp);
-    l->ops->add_instruction(l, new_asm_instruction(OC_NOP));
-    l->ops->add_instruction(l, new_asm_instruction_for_register(OC_PUSH, REG_AX));
-    l->ops->add_instruction(l, new_asm_instruction_with_operand(OC_INT, new_asm_operand_imm(0x80)));
-    list_add(asm_listings, l);
+    // for_list(ir_listings, ir_listing, ir_lst) {
+    //     asm_listing *asm_lst = convert_ir_listing_to_asm_listing(mp, ir_lst);
+    //     if (errors_count) return false;
+    //     list_add(asm_listings, asm_lst);
+    // }
     
     list *obj_modules = new_list(mp);
-    for_list(asm_listings, asm_listing, asm_lst) {
-        obj_module *obj = NULL; // assemble_listing_into_x86_64_code(mp, asm_lst);
-        if (errors_count) return false;
+    for (int i = 0; i < list_length(filenames); i++) {
+        str *filename = list_get(filenames, i);
+        asm_listing *asm_lst = list_get(asm_listings, i);
+        if (asm_lst == NULL) continue;
+
+        obj_module *obj = assemble_listing_into_x86_64_code(mp, asm_lst, filename);
+        if (obj == NULL || errors_count) return false;
         list_add(obj_modules, obj);
     }
-
 
     str *executable = new_str(mp, "./end-to-end-test.out");
     bool success = x86_64_link(obj_modules, new_list(mp), 
             x86_64_std_libraries(mp), x86_64_std_load_address(), executable);
     if (errors_count || !success) return false;
 
+    // try running the executable, should return zero.
     int err_exit_code = system(str_charptr(executable));
     if (err_exit_code) return false;
 

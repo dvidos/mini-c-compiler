@@ -6,5 +6,5 @@
 
 // given assembly, convert into machine code
 void assemble_listing_into_i386_code(mempool *mp, asm_listing *asm_list, obj_code *mod);
-void assemble_listing_into_x86_64_code(mempool *mp, asm_listing *asm_list, obj_module *mod);
+obj_module *assemble_listing_into_x86_64_code(mempool *mp, asm_listing *asm_list, str *module_name);
 

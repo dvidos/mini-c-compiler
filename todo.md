@@ -4,11 +4,13 @@
 * ~~asm encoding using the new instruction structure~~
 * ~~make the first executable, damn it! <------ Done!~~
 * make x86_64 asm-to-machine-code encoder
+  * start offering the smallest operations for just a hello world example.
 
-* rename the assembler into something else (backend IR converter?) and rename the Encoder into Assembler.
-* convert AST to object-like ~~and implement print to file, file line numbers~~
-* convert assembler and allocator to real objects, instead of singletons
-* convert all objects into objects, with priv_data, with "v" for operations vtable, because we have so many different patterns
+
+* ~~rename the assembler into something else (backend IR converter?) and rename the Encoder into Assembler.~~
+* ~~convert AST to object-like and implement print to file, file line numbers~~
+~~* convert assembler and allocator to real objects, instead of singletons~~
+~~* convert all objects into objects, with priv_data, with "v" for operations vtable, because we have so many different patterns~~
 
 * Besides the generated files, we can generate files that show side-to-side, how the conversions are made
   * from AST into IR

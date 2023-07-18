@@ -181,7 +181,7 @@ static void _get_temp_reg_storage(asm_allocator *a, int temp_reg_no, storage *ta
     data->listing->ops->set_next_comment(data->listing, "grab some space for temp register");
 
     // we need assembler here... to allocate stack for temp register...
-    data->listing->ops->add_instruction(data->listing, new_asm_instruction_for_reserving_stack_space(size));
+    data->listing->ops->add_line(data->listing, new_asm_line_instruction_for_reserving_stack_space(data->mempool, size));
     data->temp_storage_arr_len += 1;
     data->temp_storage_arr = realloc(data->temp_storage_arr, data->temp_storage_arr_len * sizeof(struct temp_storage_slot));
 

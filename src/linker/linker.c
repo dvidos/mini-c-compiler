@@ -480,7 +480,7 @@ static bool do_link2(link2_info *info) {
     }
 
     if (run_info->options->verbose) {
-        printf("ELF contents as savaed in file:\n");
+        printf("ELF contents as saved in file:\n");
         elf64_cnt->ops->print(elf64_cnt, stdout);
     }
 

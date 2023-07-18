@@ -23,21 +23,21 @@ void assemble_listing_into_i386_code(mempool *mp, asm_listing *asm_list, obj_cod
     encoded_instruction enc_inst;
 
     for_list(asm_list->lines, asm_line, line) {
-        inst = line->per_type.instruction;
-
+        if (line->type != ALT_INSTRUCTION)
+            continue;
+        
         if (line->label != NULL) {
             // we don't know if this is exported for now
             obj->text->symbols->add(obj->text->symbols, str_charptr(line->label), 
                 bin_len(obj->text->contents), 0, ST_FUNCTION, false);
         }
-
+        
+        inst = line->per_type.instruction;
         if (inst->operation == OC_NONE)
             continue;
         
         if (!enc->encode_v4(enc, inst)) {
-            str *s = new_str(mp, NULL);
-            asm_instruction_to_str(inst, s, false);
-            error("Failed encoding instruction: '%s'\n", str_charptr(s));
+            error("Failed encoding instruction: '%s'\n", str_charptr(asm_line_to_str(mp, line)));
             continue;
         }
     }
@@ -50,7 +50,32 @@ void assemble_listing_into_i386_code(mempool *mp, asm_listing *asm_list, obj_cod
 
 // ------------------------------------------------
 
-static void encode_instruction_x86_64(asm_instruction *instr, obj_section *section) {
+int compare_str_with_charptr(const void *a, const void *b) {
+    str *s_ptr = (str *)a;
+    char *char_ptr = (char *)b;
+    return strcmp(str_charptr(s_ptr), char_ptr) == 0;
+}
+static int compare_str(const void *a, const void *b) {
+    return str_cmp((str *)a, (str *)b);
+}
+
+
+static void encode_instruction_x86_64(mempool *mp, asm_line *line, asm_instruction *instr, obj_section *section, list *globals) {
+    // register the symbol, if public
+    if (line->label != NULL) {
+        bool is_global = list_find_first(globals, compare_str, line->label) != -1;
+        section->ops->add_symbol(section, line->label, bin_len(section->contents), 0, is_global);
+    }
+
+    switch (instr->operation) {
+        case OC_RET:
+            bin_add_byte(section->contents, 0xC3); // 0xCB is "lret" (long ret)
+            break;
+        default:
+            error("Unsupported assembly instruction '%s'", instr_code_name(instr->operation));
+            break;
+    }
+
     // encode into bytes and add relocation. what can go wrong?
 
     // bin_add_byte(section->contents, 0x12);
@@ -63,10 +88,6 @@ static void encode_instruction_x86_64(asm_instruction *instr, obj_section *secti
     // section->ops->add_symbol(section, sym_name, offset, ?, true);
 }
 
-static int compare_str(const void *a, const void *b) {
-    return str_cmp((str *)a, (str *)b);
-}
-
 obj_module *assemble_listing_into_x86_64_code(mempool *mp, asm_listing *asm_list, str *module_name) {
 
     obj_module *target = new_obj_module(mp);
@@ -74,14 +95,16 @@ obj_module *assemble_listing_into_x86_64_code(mempool *mp, asm_listing *asm_list
 
     list *externs = new_list(mp); // item is str
     list *globals = new_list(mp); // item is str
-    asm_named_definition *named_def;
+    asm_directive *named_def;
     hashtable *symbol_table; // item is ?
     
     // by default we are in code
     str *text_name = new_str(mp, ".text");
     obj_section *curr_sect = target->ops->get_section_by_name(target, text_name);
-    if (curr_sect == NULL)
-        curr_sect = target->ops->add_section(target, text_name);
+    if (curr_sect == NULL) {
+        curr_sect = target->ops->create_named_section(target, text_name);
+        target->ops->add_section(target, curr_sect);
+    }
     
     for_list(asm_list->lines, asm_line, line) {
         switch (line->type) {
@@ -92,8 +115,10 @@ obj_module *assemble_listing_into_x86_64_code(mempool *mp, asm_listing *asm_list
                 // find or create section
                 named_def = line->per_type.named_definition;
                 curr_sect = target->ops->get_section_by_name(target, named_def->name);
-                if (curr_sect == NULL)
-                    curr_sect = target->ops->add_section(target, named_def->name);
+                if (curr_sect == NULL) {
+                    curr_sect = target->ops->create_named_section(target, named_def->name);
+                    target->ops->add_section(target, curr_sect);
+                }
                 break;
 
             case ALT_EXTERN:   // e.g. ".extern <name>"
@@ -127,7 +152,7 @@ obj_module *assemble_listing_into_x86_64_code(mempool *mp, asm_listing *asm_list
                 
             case ALT_INSTRUCTION:  // MOV RAX, 0x1234
                 asm_instruction *instr = line->per_type.instruction;
-                encode_instruction_x86_64(instr, curr_sect);
+                encode_instruction_x86_64(mp, line, instr, curr_sect, globals);
                 if (errors_count) return NULL;
                 break;
 

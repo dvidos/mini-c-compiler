@@ -275,6 +275,17 @@ static bool perform_end_to_end_test() {
     // }
 
     list *asm_listings = new_list(mp);
+
+    // let's make the simplest assembly listing
+    asm_listing *al = new_asm_listing(mp);
+    // must declare "main" as global.
+    al->ops->declare_global(al, "main");
+    al->ops->set_next_label(al, "main");
+    al->ops->add_line(al, new_asm_line_instruction(mp, OC_RET));
+    list_add(asm_listings, al);
+    printf("------ asm listing ------\n");
+    al->ops->print(al, stdout);
+
     // for_list(ir_listings, ir_listing, ir_lst) {
     //     asm_listing *asm_lst = convert_ir_listing_to_asm_listing(mp, ir_lst);
     //     if (errors_count) return false;

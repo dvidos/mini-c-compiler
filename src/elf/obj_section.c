@@ -39,6 +39,7 @@ obj_section *new_obj_section(mempool *mp) {
     s->contents = new_bin(mp);
     s->relocations = new_list(mp);
     s->symbols = new_list(mp);
+    s->mempool = mp;
     s->ops = &section_ops;
     return s;
 }

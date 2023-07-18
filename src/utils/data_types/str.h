@@ -1,6 +1,7 @@
 #pragma once
 #include <stdint.h>
 #include <stdbool.h>
+#include <stdarg.h>
 #include "../mempool.h"
 #include "../unit_tests.h"
 
@@ -11,6 +12,7 @@ typedef struct list list;
 
 str *new_str(mempool *mp, const char *str);
 str *new_str_from_mem(mempool *mp, const char *ptr, int length);
+str *new_strv(mempool *mp, const char *fmt, va_list args);
 str *new_strf(mempool *mp, const char *fmt, ...);
 str *new_str_random(mempool *mp, int min_len, int max_len);
 int  str_len(str *s);

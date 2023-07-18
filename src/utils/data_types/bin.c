@@ -377,6 +377,15 @@ bool bin_save_to_file(bin *b, str *filename) {
     return true;
 }
 
+str *bin_to_readable_bytes_str(bin *b, mempool *mp) {
+    str *s = new_str(mp, NULL);
+    for (int i = 0; i < b->length; i++) {
+        if (i > 0) str_cats(s, ", ");
+        str_catf(s, "0x%02x", (unsigned char)b->buffer[i]);
+    }
+    return s;
+}
+
 
 #ifdef INCLUDE_UNIT_TESTS
 void bin_unit_tests() {

@@ -29,7 +29,7 @@
 #define IS_TRUE(str, pos)          (str[pos] == '1' || str[pos] == 'y' || str[pos] == 'Y')
 
 struct encoding_info_table_row {
-    enum opcode op;
+    instr_code op;
     char *table_str;
 } encoding_rows[] = {
             //  +------------------ instruction expansion byte (spaces = n/a, usually not needed)

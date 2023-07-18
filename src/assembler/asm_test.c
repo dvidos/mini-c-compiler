@@ -16,7 +16,7 @@
 static void test_create_hello_world_executable2();
 static void test_create_hello_world_executable3();
 static bool verify_instructions();
-static bool verify_single_instruction(enum opcode oc, asm_operand *op1, asm_operand *op2, char *expected_bytes, int expected_len);
+static bool verify_single_instruction(instr_code oc, asm_operand *op1, asm_operand *op2, char *expected_bytes, int expected_len);
 
 
 
@@ -34,25 +34,27 @@ void perform_asm_test() {
     if (!verify_single_instruction(oc, NULL, NULL, expect_bytes, expect_len)) return false;
 
 #define VERIFY_INSTR1_IMMEDIATE(code, val, expect_bytes, expect_len) \
-    if (!verify_single_instruction(code, new_asm_operand_imm(val), NULL, expect_bytes, expect_len)) return false;
+    if (!verify_single_instruction(code, new_asm_operand_imm(mp, val), NULL, expect_bytes, expect_len)) return false;
 
 #define VERIFY_INSTR1_REGISTER(code, reg_no, expect_bytes, expect_len) \
-    if (!verify_single_instruction(code, new_asm_operand_reg(reg_no), NULL, expect_bytes, expect_len)) return false;
+    if (!verify_single_instruction(code, new_asm_operand_reg(mp, reg_no), NULL, expect_bytes, expect_len)) return false;
 
 #define VERIFY_INSTR1_MEMBYREG(code, reg_no, offs, expect_bytes, expect_len) \
-    if (!verify_single_instruction(code, new_asm_operand_mem_by_reg(reg_no, offs), NULL, expect_bytes, expect_len)) return false;
+    if (!verify_single_instruction(code, new_asm_operand_mem_by_reg(mp, reg_no, offs), NULL, expect_bytes, expect_len)) return false;
 
 #define VERIFY_INSTR1_MEMBYSYM(code, sym, expect_bytes, expect_len) \
-    if (!verify_single_instruction(code, new_asm_operand_mem_by_sym(sym), NULL, expect_bytes, expect_len)) return false;
+    if (!verify_single_instruction(code, new_asm_operand_mem_by_sym(mp, sym), NULL, expect_bytes, expect_len)) return false;
 
 #define VERIFY_INSTR2_REG_REG(code, target_regno, source_regno, expect_bytes, expect_len) \
-    if (!verify_single_instruction(code, new_asm_operand_reg(target_regno), new_asm_operand_reg(source_regno), expect_bytes, expect_len)) return false;
+    if (!verify_single_instruction(code, new_asm_operand_reg(mp, target_regno), new_asm_operand_reg(mp, source_regno), expect_bytes, expect_len)) return false;
 
 #define VERIFY_INSTR2_REG_IMMEDIATE(code, regno, val, expect_bytes, expect_len) \
-    if (!verify_single_instruction(code, new_asm_operand_reg(regno), new_asm_operand_imm(val), expect_bytes, expect_len)) return false;
+    if (!verify_single_instruction(code, new_asm_operand_reg(mp, regno), new_asm_operand_imm(mp, val), expect_bytes, expect_len)) return false;
 
 
 static bool verify_instructions() {
+    mempool *mp = new_mempool();
+
     asm_instruction *instr;
     printf("Verifying instructions ");
 
@@ -143,29 +145,30 @@ static bool verify_instructions() {
     // VERIFY_INSTR2_MEMBYSYM_IMMEDIATE(opcode, symbol_name, value, expect_bytes, expect_len);
 
     // if we got here, no test failed
+    mempool_release(mp);
     printf(" OK\n");
     return true;
 }
 
-static bool verify_single_instruction(enum opcode oc, asm_operand *op1, asm_operand *op2, char *expected_bytes, int expected_len) {
+static bool verify_single_instruction(instr_code oc, asm_operand *op1, asm_operand *op2, char *expected_bytes, int expected_len) {
     mempool *mp = new_mempool();
 
-    asm_instruction *instr;
+    asm_line *line;
     if (op1 == NULL && op2 == NULL)
-        instr = new_asm_instruction(oc);
+        line = new_asm_line_instruction(mp, oc);
     else if (op1 != NULL && op2 == NULL)
-        instr = new_asm_instruction_with_operand(oc, op1);
+        line = new_asm_line_instruction_with_operand(mp, oc, op1);
     else if (op1 != NULL && op2 != NULL)
-        instr = new_asm_instruction_with_operands(oc, op1, op2);
+        line = new_asm_line_instruction_with_operands(mp, oc, op1, op2);
 
-    str *s = new_str(mp, NULL);
-    asm_instruction_to_str(instr, s, false);
+    str *s = asm_line_to_str(mp, line);
+    asm_instruction *instr = line->per_type.instruction;
 
     bin *b = new_bin(mp);
     reloc_list *relocs = new_reloc_list();
     x86_encoder *enc = new_x86_encoder(mp, b, relocs);
     if (!enc->encode_v4(enc, instr)) {
-        printf("  Could not encode instruction '%s'\n", str_charptr(s));
+        printf("  Could not encode line '%s'\n", str_charptr(s));
         enc->free(enc);
         return false;
     }
@@ -191,19 +194,19 @@ static bool verify_single_instruction(enum opcode oc, asm_operand *op1, asm_oper
 
 // #define MOV_REG_IMM(reg, val) \
 //     asm_listing[count].opcode = OC_MOV;         \
-//     asm_listing[count].op1 = new_asm_operand_reg(reg); \
-//     asm_listing[count].op2 = new_asm_operand_imm(val); \
+//     asm_listing[count].op1 = new_asm_operand_reg(mp, reg); \
+//     asm_listing[count].op2 = new_asm_operand_imm(mp, val); \
 //     count++;
 
 // #define MOV_REG_SYM(reg, sym) \
 //     asm_listing[count].opcode = OC_MOV;                   \
-//     asm_listing[count].op1 = new_asm_operand_reg(reg); \
-//     asm_listing[count].op2 = new_asm_operand_mem_by_sym(sym); \
+//     asm_listing[count].op1 = new_asm_operand_reg(mp, reg); \
+//     asm_listing[count].op2 = new_asm_operand_mem_by_sym(mp, sym); \
 //     count++;
 
 // #define INT(no) \
 //     asm_listing[count].opcode = OC_INT;               \
-//     asm_listing[count].op1 = new_asm_operand_imm(no); \
+//     asm_listing[count].op1 = new_asm_operand_imm(mp, no); \
 //     asm_listing[count].op2 = NULL;                    \
 //     count++;
 
@@ -311,16 +314,16 @@ void test_create_hello_world_executable2() {
     mod->vt->declare_data(mod, "hello_msg", 13 + 1, "Hello World!\n");
 
     lst->ops->set_next_label(lst, "_start");
-    lst->ops->add_instruction(lst, new_asm_instruction_with_operands(OC_MOV, new_asm_operand_reg(REG_AX), new_asm_operand_imm(4)));
-    lst->ops->add_instruction(lst, new_asm_instruction_with_operands(OC_MOV, new_asm_operand_reg(REG_BX), new_asm_operand_imm(1)));
-    lst->ops->add_instruction(lst, new_asm_instruction_with_operands(OC_MOV, new_asm_operand_reg(REG_CX), new_asm_operand_mem_by_sym("hello_msg")));
-    lst->ops->add_instruction(lst, new_asm_instruction_with_operands(OC_MOV, new_asm_operand_reg(REG_DX), new_asm_operand_imm(13)));
-    lst->ops->add_instruction(lst, new_asm_instruction_with_operand(OC_INT, new_asm_operand_imm(0x80)));
+    lst->ops->add_line(lst, new_asm_line_instruction_with_operands(mp, OC_MOV, new_asm_operand_reg(mp, REG_AX), new_asm_operand_imm(mp, 4)));
+    lst->ops->add_line(lst, new_asm_line_instruction_with_operands(mp, OC_MOV, new_asm_operand_reg(mp, REG_BX), new_asm_operand_imm(mp, 1)));
+    lst->ops->add_line(lst, new_asm_line_instruction_with_operands(mp, OC_MOV, new_asm_operand_reg(mp, REG_CX), new_asm_operand_mem_by_sym(mp, "hello_msg")));
+    lst->ops->add_line(lst, new_asm_line_instruction_with_operands(mp, OC_MOV, new_asm_operand_reg(mp, REG_DX), new_asm_operand_imm(mp, 13)));
+    lst->ops->add_line(lst, new_asm_line_instruction_with_operand(mp, OC_INT, new_asm_operand_imm(mp, 0x80)));
 
     lst->ops->set_next_label(lst, "_exit");
-    lst->ops->add_instruction(lst, new_asm_instruction_with_operands(OC_MOV, new_asm_operand_reg(REG_AX), new_asm_operand_imm(1)));
-    lst->ops->add_instruction(lst, new_asm_instruction_with_operands(OC_MOV, new_asm_operand_reg(REG_BX), new_asm_operand_imm(0)));
-    lst->ops->add_instruction(lst, new_asm_instruction_with_operand(OC_INT, new_asm_operand_imm(0x80)));
+    lst->ops->add_line(lst, new_asm_line_instruction_with_operands(mp, OC_MOV, new_asm_operand_reg(mp, REG_AX), new_asm_operand_imm(mp, 1)));
+    lst->ops->add_line(lst, new_asm_line_instruction_with_operands(mp, OC_MOV, new_asm_operand_reg(mp, REG_BX), new_asm_operand_imm(mp, 0)));
+    lst->ops->add_line(lst, new_asm_line_instruction_with_operand(mp, OC_INT, new_asm_operand_imm(mp, 0x80)));
 
     lst->ops->print(lst, stdout);
 
@@ -340,10 +343,12 @@ static bool _test_encode_listing_code(asm_listing *lst, obj_code *mod) {
     // encode this into intel machine code
     mempool *mp = new_mempool();
     struct x86_encoder *enc = new_x86_encoder(mp, mod->text->contents, mod->text->relocations);
-    struct asm_instruction *inst;
+    struct asm_instruction *instr;
 
     for_list(lst->lines, asm_line, line) {
-        inst = line->per_type.instruction;
+        if (line->type != ALT_INSTRUCTION)
+            continue;
+        instr = line->per_type.instruction;
 
         if (line->label != NULL) {
             // we don't know if this is exported for now
@@ -351,10 +356,8 @@ static bool _test_encode_listing_code(asm_listing *lst, obj_code *mod) {
                 bin_len(mod->text->contents), 0, ST_FUNCTION, false);
         }
 
-        if (!enc->encode_v4(enc, inst)) {
-            str *s = new_str(mp, NULL);
-            asm_instruction_to_str(inst, s, false);
-            printf("Failed encoding instruction: '%s'\n", str_charptr(s));
+        if (!enc->encode_v4(enc, instr)) {
+            printf("Failed encoding instruction: '%s'\n", str_charptr(asm_line_to_str(mp, line)));
             mempool_release(mp);
             return false;
         }
@@ -423,15 +426,15 @@ static void test_create_hello_world_executable3() {
 
     asm_listing *l = new_asm_listing(mp);
     l->ops->set_next_label(l, "_start");
-    l->ops->add_instruction(l, new_asm_instruction_with_operands(OC_MOV, new_asm_operand_reg(REG_AX), new_asm_operand_imm(4)));
-    l->ops->add_instruction(l, new_asm_instruction_with_operands(OC_MOV, new_asm_operand_reg(REG_BX), new_asm_operand_imm(1)));
-    l->ops->add_instruction(l, new_asm_instruction_with_operands(OC_MOV, new_asm_operand_reg(REG_CX), new_asm_operand_mem_by_sym("hello_msg")));
-    l->ops->add_instruction(l, new_asm_instruction_with_operands(OC_MOV, new_asm_operand_reg(REG_DX), new_asm_operand_imm(13)));
-    l->ops->add_instruction(l, new_asm_instruction_with_operand(OC_INT, new_asm_operand_imm(0x80)));
+    l->ops->add_line(l, new_asm_line_instruction_with_operands(mp, OC_MOV, new_asm_operand_reg(mp, REG_AX), new_asm_operand_imm(mp, 4)));
+    l->ops->add_line(l, new_asm_line_instruction_with_operands(mp, OC_MOV, new_asm_operand_reg(mp, REG_BX), new_asm_operand_imm(mp, 1)));
+    l->ops->add_line(l, new_asm_line_instruction_with_operands(mp, OC_MOV, new_asm_operand_reg(mp, REG_CX), new_asm_operand_mem_by_sym(mp, "hello_msg")));
+    l->ops->add_line(l, new_asm_line_instruction_with_operands(mp, OC_MOV, new_asm_operand_reg(mp, REG_DX), new_asm_operand_imm(mp, 13)));
+    l->ops->add_line(l, new_asm_line_instruction_with_operand(mp, OC_INT, new_asm_operand_imm(mp, 0x80)));
     l->ops->set_next_label(l, "_exit");
-    l->ops->add_instruction(l, new_asm_instruction_with_operands(OC_MOV, new_asm_operand_reg(REG_AX), new_asm_operand_imm(1)));
-    l->ops->add_instruction(l, new_asm_instruction_with_operands(OC_MOV, new_asm_operand_reg(REG_BX), new_asm_operand_imm(0)));
-    l->ops->add_instruction(l, new_asm_instruction_with_operand(OC_INT, new_asm_operand_imm(0x80)));
+    l->ops->add_line(l, new_asm_line_instruction_with_operands(mp, OC_MOV, new_asm_operand_reg(mp, REG_AX), new_asm_operand_imm(mp, 1)));
+    l->ops->add_line(l, new_asm_line_instruction_with_operands(mp, OC_MOV, new_asm_operand_reg(mp, REG_BX), new_asm_operand_imm(mp, 0)));
+    l->ops->add_line(l, new_asm_line_instruction_with_operand(mp, OC_INT, new_asm_operand_imm(mp, 0x80)));
 
     obj_code *c = new_obj_code();
     c->vt->declare_data(c, "hello_msg", 13 + 1, "Hello World!\n");

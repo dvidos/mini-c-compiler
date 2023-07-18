@@ -45,15 +45,13 @@ static bool _encode_v4(x86_encoder *encoder, asm_instruction *instr) {
     str *s;
 
     if (!load_encoding_info(instr, &enc_info)) {
-        error("Failed loading encoding info for operation '%s'\n", opcode_name(instr->operation));
+        error("Failed loading encoding info for operation '%s'\n", instr_code_name(instr->operation));
         return false;
     }
 
     encoded_instruction enc_instr;
     if (!encode_asm_instruction(instr, &enc_info, &enc_instr)) {
-        str *s = new_str(mp, NULL);
-        asm_instruction_to_str(instr, s, false);
-        error("Failed encoding instruction: '%s'\n", str_charptr(s));
+        error("Failed encoding instruction: '%s'\n", instr_code_name(instr->operation));
         mempool_release(mp);
         return false;
     }
@@ -63,15 +61,15 @@ static bool _encode_v4(x86_encoder *encoder, asm_instruction *instr) {
     pack_encoded_instruction(&enc_instr, encoder->output);
 
     // show the conversion
-    s = new_str(mp, NULL);
-    asm_instruction_to_str(instr, s, false);
-    printf("%-20s >> ", str_charptr(s));
-    str_clear(s);
-    encoded_instruction_to_str(&enc_instr, s);
-    printf("%s >> ", str_charptr(s));
-    str_clear(s);
-    bin_print_hex(encoder->output, 0, 0, -1, stdout);
-    printf("\n");
+    // s = new_str(mp, NULL);
+    // asm_instruction_to_str(instr, s, false);
+    // printf("%-20s >> ", str_charptr(s));
+    // str_clear(s);
+    // encoded_instruction_to_str(&enc_instr, s);
+    // printf("%s >> ", str_charptr(s));
+    // str_clear(s);
+    // bin_print_hex(encoder->output, 0, 0, -1, stdout);
+    // printf("\n");
 
     return true;
 }

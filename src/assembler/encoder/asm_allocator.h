@@ -17,7 +17,7 @@ asm_allocator *new_asm_allocator(mempool *mp, asm_listing *listing);
 typedef struct storage {
     bool is_gp_reg;
     bool is_stack_var;
-    enum gp_reg gp_reg;
+    gp_register gp_reg;
     int bp_offset; // negative for local vars, positive for args
     int size;
 } storage;

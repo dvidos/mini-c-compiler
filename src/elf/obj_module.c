@@ -5,13 +5,15 @@
 static void obj_module_print(obj_module *module, bool show_details, FILE *file);
 static void obj_module_append(obj_module *module, obj_module *source);
 static obj_section *obj_module_get_section_by_name(obj_module *m, str *name);
-static obj_section *obj_module_add_section(obj_module *m, str *name);
+static obj_section *obj_module_create_named_section(obj_module *m, str *name);
+static void obj_module_add_section(obj_module *m, obj_section *s);
 static obj_symbol *obj_module_find_symbol(obj_module *module, str *name, bool exported);
 static elf64_contents *obj_module_prepare_elf_contents(obj_module *module, int elf_type, mempool *mp);
 
 static struct obj_module_ops module_ops = {
     .print = obj_module_print,
     .get_section_by_name = obj_module_get_section_by_name,
+    .create_named_section = obj_module_create_named_section,
     .add_section = obj_module_add_section,
     .find_symbol = obj_module_find_symbol,
     .prepare_elf_contents = obj_module_prepare_elf_contents,
@@ -383,11 +385,29 @@ static obj_section *obj_module_get_section_by_name(obj_module *m, str *name) {
     return index == -1 ? NULL : list_get(m->sections, index);
 }
 
-static obj_section *obj_module_add_section(obj_module *m, str *name) {
-    obj_section *section = new_obj_section(m->mempool);
-    section->name = name;
-    list_add(m->sections, section);
-    return section;
+static obj_section *obj_module_create_named_section(obj_module *m, str *name) {
+    obj_section *s = new_obj_section(m->mempool);
+    s->name = name;
+
+    if (str_cmps(s->name, ".text") == 0) {
+        s->flags.allocate = true;
+        s->flags.executable = true;
+    } else if (str_cmps(s->name, ".data") == 0) {
+        s->flags.allocate = true;
+        s->flags.writable = true;
+    } else if (str_cmps(s->name, ".bss") == 0) {
+        s->flags.allocate = true;
+        s->flags.writable = true;
+        s->flags.init_to_zero = true;
+    } else if (str_cmps(s->name, ".rodata") == 0) {
+        s->flags.allocate = true;
+    }
+
+    return s;
+}
+
+static void obj_module_add_section(obj_module *m, obj_section *s) {
+    list_add(m->sections, s);
 }
 
 static obj_symbol *obj_module_find_symbol(obj_module *m, str *name, bool exported) {

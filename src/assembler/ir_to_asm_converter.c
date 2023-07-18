@@ -82,14 +82,14 @@ static void code_prologue(mempool *mp) {
     ad.listing->ops->set_next_label(ad.listing, ad.func_def->func_name);
     ad.listing->ops->set_next_comment(ad.listing, "establish stack frame");
 
-    ad.listing->ops->add_instruction(ad.listing, new_asm_instruction_for_register(OC_PUSH, REG_BP));
-    ad.listing->ops->add_instruction(ad.listing, new_asm_instruction_for_registers(OC_MOV, REG_BP, REG_SP));
+    ad.listing->ops->add_line(ad.listing, new_asm_line_instruction_for_register(mp, OC_PUSH, REG_BP));
+    ad.listing->ops->add_line(ad.listing, new_asm_line_instruction_for_registers(mp, OC_MOV, REG_BP, REG_SP));
 
     if (ad.stack_space_for_local_vars > 0) {
         ad.listing->ops->set_next_comment(ad.listing, "reserve %d bytes for local vars", ad.stack_space_for_local_vars);
-        ad.listing->ops->add_instruction(ad.listing, new_asm_instruction_with_operands(OC_SUB, 
-            new_asm_operand_reg(REG_SP),
-            new_asm_operand_imm(ad.stack_space_for_local_vars)));
+        ad.listing->ops->add_line(ad.listing, new_asm_line_instruction_with_operands(mp, OC_SUB, 
+            new_asm_operand_reg(mp, REG_SP),
+            new_asm_operand_imm(mp, ad.stack_space_for_local_vars)));
     }
 
     ad.allocator->ops->generate_stack_info_comments(ad.allocator);
@@ -101,9 +101,9 @@ static void code_prologue(mempool *mp) {
 static void code_epilogue(mempool *mp) {
     ad.listing->ops->set_next_label(ad.listing, "%s_exit", ad.func_def->func_name);
     ad.listing->ops->set_next_comment(ad.listing, "tear down stack frame");
-    ad.listing->ops->add_instruction(ad.listing, new_asm_instruction_for_registers(OC_MOV, REG_SP, REG_BP));
-    ad.listing->ops->add_instruction(ad.listing, new_asm_instruction_for_register(OC_POP, REG_BP));
-    ad.listing->ops->add_instruction(ad.listing, new_asm_instruction(OC_RET));
+    ad.listing->ops->add_line(ad.listing, new_asm_line_instruction_for_registers(mp, OC_MOV, REG_SP, REG_BP));
+    ad.listing->ops->add_line(ad.listing, new_asm_line_instruction_for_register(mp, OC_POP, REG_BP));
+    ad.listing->ops->add_line(ad.listing, new_asm_line_instruction(mp, OC_RET));
 }
 
 static void code_function_call(mempool *mp, struct ir_entry *e) {
@@ -124,26 +124,26 @@ static void code_function_call(mempool *mp, struct ir_entry *e) {
     int bytes_pushed = 0;
     for (int i = c->args_len - 1; i >= 0; i--) {
         asm_operand *op = resolve_ir_value_to_asm_operand(c->args_arr[i]);
-        ad.listing->ops->add_instruction(ad.listing, new_asm_instruction_with_operand(OC_PUSH, op));
+        ad.listing->ops->add_line(ad.listing, new_asm_line_instruction_with_operand(mp, OC_PUSH, op));
         bytes_pushed += run_info->options->pointer_size_bytes; // how can we be sure?
     }
 
     asm_operand *addr = resolve_ir_value_to_asm_operand(c->func_addr);
-    ad.listing->ops->add_instruction(ad.listing, new_asm_instruction_with_operand(OC_CALL, addr));
+    ad.listing->ops->add_line(ad.listing, new_asm_line_instruction_with_operand(mp, OC_CALL, addr));
 
     // grab returned value, if any is expected
     if (c->lvalue != NULL) {
-        asm_operand *ax = new_asm_operand_reg(REG_AX);
+        asm_operand *ax = new_asm_operand_reg(mp, REG_AX);
         ad.listing->ops->set_next_comment(ad.listing, "grab returned value");
-        ad.listing->ops->add_instruction(ad.listing, new_asm_instruction_with_operands(OC_MOV, lval, ax));
+        ad.listing->ops->add_line(ad.listing, new_asm_line_instruction_with_operands(mp, OC_MOV, lval, ax));
     }
 
     // clean up pushed arguments
     if (bytes_pushed > 0) {
         ad.listing->ops->set_next_comment(ad.listing, "clean up %d bytes that were pushed as arguments", bytes_pushed);
-        ad.listing->ops->add_instruction(ad.listing, new_asm_instruction_with_operands(OC_ADD, 
-            new_asm_operand_reg(REG_SP), 
-            new_asm_operand_imm(bytes_pushed)));
+        ad.listing->ops->add_line(ad.listing, new_asm_line_instruction_with_operands(mp, OC_ADD, 
+            new_asm_operand_reg(mp, REG_SP), 
+            new_asm_operand_imm(mp, bytes_pushed)));
     }
 
     // caller restore registers (except AX)
@@ -170,15 +170,15 @@ static void code_conditional_jump(mempool *mp, ir_entry *e) {
     if ((op1->type == OT_MEM_POINTED_BY_REG || op1->type == OT_MEM_OF_SYMBOL) &&
         (op2->type == OT_MEM_POINTED_BY_REG || op2->type == OT_MEM_OF_SYMBOL)) {
         // we cannot compare memory to memory (e.g. "(a > b)"), we must bring one into AX
-        asm_operand *ax = new_asm_operand_reg(REG_AX);
-        ad.listing->ops->add_instruction(ad.listing, new_asm_instruction_with_operands(OC_MOV, ax, op1));
-        ad.listing->ops->add_instruction(ad.listing, new_asm_instruction_with_operands(OC_CMP, ax, op2));
+        asm_operand *ax = new_asm_operand_reg(mp, REG_AX);
+        ad.listing->ops->add_line(ad.listing, new_asm_line_instruction_with_operands(mp, OC_MOV, ax, op1));
+        ad.listing->ops->add_line(ad.listing, new_asm_line_instruction_with_operands(mp, OC_CMP, ax, op2));
     } else {
-        ad.listing->ops->add_instruction(ad.listing, new_asm_instruction_with_operands(OC_CMP, op1, op2));
+        ad.listing->ops->add_line(ad.listing, new_asm_line_instruction_with_operands(mp, OC_CMP, op1, op2));
     }
 
     // find the opcode, depending on the comparison flag
-    enum opcode op;
+    instr_code op;
     switch (j->cmp) {
         case IR_EQ: op = OC_JEQ; break;
         case IR_NE: op = OC_JNE; break;
@@ -189,16 +189,16 @@ static void code_conditional_jump(mempool *mp, ir_entry *e) {
         case IR_LE: op = OC_JBE; break;
     }
 
-    asm_operand *addr = new_asm_operand_mem_by_sym(j->target_label);
-    ad.listing->ops->add_instruction(ad.listing, new_asm_instruction_with_operand(op, addr));
+    asm_operand *addr = new_asm_operand_mem_by_sym(mp, j->target_label);
+    ad.listing->ops->add_line(ad.listing, new_asm_line_instruction_with_operand(mp, op, addr));
 }
 
 static void code_unconditional_jump(mempool *mp, ir_entry *e, char *label) {
     str *s = e->ops->to_string(mp, e);
     ad.listing->ops->set_next_comment(ad.listing, "IR: %s", str_charptr(s));
 
-    asm_operand *addr = new_asm_operand_mem_by_sym(label);
-    ad.listing->ops->add_instruction(ad.listing, new_asm_instruction_with_operand(OC_JMP, addr));
+    asm_operand *addr = new_asm_operand_mem_by_sym(mp, label);
+    ad.listing->ops->add_line(ad.listing, new_asm_line_instruction_with_operand(mp, OC_JMP, addr));
 }
 
 static void code_return_statement(mempool *mp, ir_entry *e) {
@@ -207,16 +207,16 @@ static void code_return_statement(mempool *mp, ir_entry *e) {
     ad.listing->ops->set_next_comment(ad.listing, "IR: %s", str_charptr(s));
 
     if (info->ret_val != NULL) {
-        asm_operand *ax = new_asm_operand_reg(REG_AX);
+        asm_operand *ax = new_asm_operand_reg(mp, REG_AX);
         asm_operand *val = resolve_ir_value_to_asm_operand(info->ret_val);
-        ad.listing->ops->add_instruction(ad.listing, new_asm_instruction_with_operands(OC_MOV, ax,  val));
+        ad.listing->ops->add_line(ad.listing, new_asm_line_instruction_with_operands(mp, OC_MOV, ax,  val));
     }
 
     char target[128];
     target[sizeof(target) - 1] = 0;
     snprintf(target, sizeof(target) - 1, "%s_exit", ad.func_def->func_name);
-    asm_operand *addr = new_asm_operand_mem_by_sym(target);
-    ad.listing->ops->add_instruction(ad.listing, new_asm_instruction_with_operand(OC_JMP, addr));
+    asm_operand *addr = new_asm_operand_mem_by_sym(mp, target);
+    ad.listing->ops->add_line(ad.listing, new_asm_line_instruction_with_operand(mp, OC_JMP, addr));
 }
 
 static void code_simple_assignment(mempool *mp, ir_entry *e, ir_value *lvalue, ir_value *rvalue) {
@@ -229,11 +229,11 @@ static void code_simple_assignment(mempool *mp, ir_entry *e, ir_value *lvalue, i
     if ((lop->type == OT_MEM_POINTED_BY_REG || lop->type == OT_MEM_OF_SYMBOL) &&
         (rop->type == OT_MEM_POINTED_BY_REG || rop->type == OT_MEM_OF_SYMBOL)) {
         // we cannot move memory to memory (e.g. "(a = b)"), we must bring one into AX
-        asm_operand *ax = new_asm_operand_reg(REG_AX);
-        ad.listing->ops->add_instruction(ad.listing, new_asm_instruction_with_operands(OC_MOV, ax, rop));
-        ad.listing->ops->add_instruction(ad.listing, new_asm_instruction_with_operands(OC_MOV, lop, ax));
+        asm_operand *ax = new_asm_operand_reg(mp, REG_AX);
+        ad.listing->ops->add_line(ad.listing, new_asm_line_instruction_with_operands(mp, OC_MOV, ax, rop));
+        ad.listing->ops->add_line(ad.listing, new_asm_line_instruction_with_operands(mp, OC_MOV, lop, ax));
     } else {
-        ad.listing->ops->add_instruction(ad.listing, new_asm_instruction_with_operands(OC_MOV, lop, rop));
+        ad.listing->ops->add_line(ad.listing, new_asm_line_instruction_with_operands(mp, OC_MOV, lop, rop));
     }
 }
 
@@ -246,30 +246,30 @@ static void code_unary_operation(mempool *mp, ir_entry *e, ir_value *lvalue, ir_
     str *s = e->ops->to_string(mp, e);
     ad.listing->ops->set_next_comment(ad.listing, "IR: %s", str_charptr(s));
 
-    asm_operand *ax = new_asm_operand_reg(REG_AX);
+    asm_operand *ax = new_asm_operand_reg(mp, REG_AX);
     asm_operand *lop = resolve_ir_value_to_asm_operand(lvalue);
     asm_operand *rop = resolve_ir_value_to_asm_operand(rvalue);
 
     switch (op) {
         case IR_NOT:
-            ad.listing->ops->add_instruction(ad.listing, new_asm_instruction_with_operands(OC_MOV, ax, rop));
-            ad.listing->ops->add_instruction(ad.listing, new_asm_instruction_for_register(OC_NOT, REG_AX));
-            ad.listing->ops->add_instruction(ad.listing, new_asm_instruction_with_operands(OC_MOV, lop, ax));
+            ad.listing->ops->add_line(ad.listing, new_asm_line_instruction_with_operands(mp, OC_MOV, ax, rop));
+            ad.listing->ops->add_line(ad.listing, new_asm_line_instruction_for_register(mp, OC_NOT, REG_AX));
+            ad.listing->ops->add_line(ad.listing, new_asm_line_instruction_with_operands(mp, OC_MOV, lop, ax));
             break;
         case IR_NEG:
-            ad.listing->ops->add_instruction(ad.listing, new_asm_instruction_with_operands(OC_MOV, ax, rop));
-            ad.listing->ops->add_instruction(ad.listing, new_asm_instruction_for_register(OC_NEG, REG_AX));
-            ad.listing->ops->add_instruction(ad.listing, new_asm_instruction_with_operands(OC_MOV, lop, ax));
+            ad.listing->ops->add_line(ad.listing, new_asm_line_instruction_with_operands(mp, OC_MOV, ax, rop));
+            ad.listing->ops->add_line(ad.listing, new_asm_line_instruction_for_register(mp, OC_NEG, REG_AX));
+            ad.listing->ops->add_line(ad.listing, new_asm_line_instruction_with_operands(mp, OC_MOV, lop, ax));
             break;
         case IR_ADDR_OF:
-            ad.listing->ops->add_instruction(ad.listing, new_asm_instruction_with_operands(OC_LEA, ax, rop));
-            ad.listing->ops->add_instruction(ad.listing, new_asm_instruction_with_operands(OC_MOV, lop, ax));
+            ad.listing->ops->add_line(ad.listing, new_asm_line_instruction_with_operands(mp, OC_LEA, ax, rop));
+            ad.listing->ops->add_line(ad.listing, new_asm_line_instruction_with_operands(mp, OC_MOV, lop, ax));
             break;
         case IR_VALUE_AT:
             // memory pointed by AX, without displacement.
-            ad.listing->ops->add_instruction(ad.listing, new_asm_instruction_with_operands(OC_MOV, ax, rop));
-            asm_operand *ptr = new_asm_operand_mem_by_reg(REG_AX, 0);
-            ad.listing->ops->add_instruction(ad.listing, new_asm_instruction_with_operands(OC_MOV, lop, ptr));
+            ad.listing->ops->add_line(ad.listing, new_asm_line_instruction_with_operands(mp, OC_MOV, ax, rop));
+            asm_operand *ptr = new_asm_operand_mem_by_reg(mp, REG_AX, 0);
+            ad.listing->ops->add_line(ad.listing, new_asm_line_instruction_with_operands(mp, OC_MOV, lop, ptr));
             break;
         default:
             error("Unsupported IR unary operator %d", op);
@@ -286,57 +286,57 @@ static void code_binary_operation(mempool *mp, ir_entry *e, ir_value *lvalue, ir
     str *s = e->ops->to_string(mp, e);
     ad.listing->ops->set_next_comment(ad.listing, "IR: %s", str_charptr(s));
     
-    asm_operand *ax = new_asm_operand_reg(REG_AX);
-    asm_operand *cx = new_asm_operand_reg(REG_CX);
-    asm_operand *dx = new_asm_operand_reg(REG_DX);
+    asm_operand *ax = new_asm_operand_reg(mp, REG_AX);
+    asm_operand *cx = new_asm_operand_reg(mp, REG_CX);
+    asm_operand *dx = new_asm_operand_reg(mp, REG_DX);
     asm_operand *lop = resolve_ir_value_to_asm_operand(lvalue);
     asm_operand *rop1 = resolve_ir_value_to_asm_operand(rvalue1);
     asm_operand *rop2 = resolve_ir_value_to_asm_operand(rvalue2);
 
-    ad.listing->ops->add_instruction(ad.listing, new_asm_instruction_with_operands(OC_MOV, ax, rop1));
+    ad.listing->ops->add_line(ad.listing, new_asm_line_instruction_with_operands(mp, OC_MOV, ax, rop1));
     switch (op) {
         case IR_ADD:
-            ad.listing->ops->add_instruction(ad.listing, new_asm_instruction_with_operands(OC_ADD, ax, rop2));
+            ad.listing->ops->add_line(ad.listing, new_asm_line_instruction_with_operands(mp, OC_ADD, ax, rop2));
             break;
         case IR_SUB:
-            ad.listing->ops->add_instruction(ad.listing, new_asm_instruction_with_operands(OC_SUB, ax, rop2));
+            ad.listing->ops->add_line(ad.listing, new_asm_line_instruction_with_operands(mp, OC_SUB, ax, rop2));
             break;
         case IR_MUL:
-            ad.listing->ops->add_instruction(ad.listing, new_asm_instruction_with_operands(OC_MUL, ax, rop2));
+            ad.listing->ops->add_line(ad.listing, new_asm_line_instruction_with_operands(mp, OC_MUL, ax, rop2));
             break;
         case IR_DIV:
-            ad.listing->ops->add_instruction(ad.listing, new_asm_instruction_with_operands(OC_DIV, ax, rop2));
+            ad.listing->ops->add_line(ad.listing, new_asm_line_instruction_with_operands(mp, OC_DIV, ax, rop2));
             break;
         case IR_MOD:
             // division puts remainder in DX, so move it to AX
-            ad.listing->ops->add_instruction(ad.listing, new_asm_instruction_with_operands(OC_DIV, ax, rop2));
-            ad.listing->ops->add_instruction(ad.listing, new_asm_instruction_with_operands(OC_MOV, ax, dx));
+            ad.listing->ops->add_line(ad.listing, new_asm_line_instruction_with_operands(mp, OC_DIV, ax, rop2));
+            ad.listing->ops->add_line(ad.listing, new_asm_line_instruction_with_operands(mp, OC_MOV, ax, dx));
             break;
         case IR_AND:
-            ad.listing->ops->add_instruction(ad.listing, new_asm_instruction_with_operands(OC_AND, ax, rop2));
+            ad.listing->ops->add_line(ad.listing, new_asm_line_instruction_with_operands(mp, OC_AND, ax, rop2));
             break;
         case IR_OR:
-            ad.listing->ops->add_instruction(ad.listing, new_asm_instruction_with_operands(OC_OR, ax, rop2));
+            ad.listing->ops->add_line(ad.listing, new_asm_line_instruction_with_operands(mp, OC_OR, ax, rop2));
             break;
         case IR_XOR:
-            ad.listing->ops->add_instruction(ad.listing, new_asm_instruction_with_operands(OC_XOR, ax, rop2));
+            ad.listing->ops->add_line(ad.listing, new_asm_line_instruction_with_operands(mp, OC_XOR, ax, rop2));
             break;
         case IR_LSH:
             // we must move num of bits to shift into CL
-            ad.listing->ops->add_instruction(ad.listing, new_asm_instruction_with_operands(OC_MOV, cx, rop2));
-            ad.listing->ops->add_instruction(ad.listing, new_asm_instruction_with_operands(OC_SHL, ax, cx));
+            ad.listing->ops->add_line(ad.listing, new_asm_line_instruction_with_operands(mp, OC_MOV, cx, rop2));
+            ad.listing->ops->add_line(ad.listing, new_asm_line_instruction_with_operands(mp, OC_SHL, ax, cx));
             break;
         case IR_RSH:
             // we must move num of bits to shift into CL
-            ad.listing->ops->add_instruction(ad.listing, new_asm_instruction_with_operands(OC_MOV, cx, rop2));
-            ad.listing->ops->add_instruction(ad.listing, new_asm_instruction_with_operands(OC_SHR, ax, cx));
+            ad.listing->ops->add_line(ad.listing, new_asm_line_instruction_with_operands(mp, OC_MOV, cx, rop2));
+            ad.listing->ops->add_line(ad.listing, new_asm_line_instruction_with_operands(mp, OC_SHR, ax, cx));
             break;
         default:
             error("Unsupported 3-code-addr binary operator %d", op);
             break;
     }
 
-    ad.listing->ops->add_instruction(ad.listing, new_asm_instruction_with_operands(OC_MOV, lop, ax));
+    ad.listing->ops->add_line(ad.listing, new_asm_line_instruction_with_operands(mp, OC_MOV, lop, ax));
 }
 
 // when a temp register is no longer used, we release the storage it was allocated for it.

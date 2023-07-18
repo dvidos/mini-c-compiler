@@ -115,6 +115,9 @@ static void elf64_contents_print(elf64_contents *contents, FILE *stream) {
     fprintf(stream, "ELF64 Contents (magic = %c%c%c%c)\n", 
         contents->header->identity[0], contents->header->identity[1], contents->header->identity[2], contents->header->identity[3]);
     fprintf(stream, "  Type: %d (1=relocatable, 2=executable, 3=dynamic executable)\n", contents->header->file_type);
+
+    if (contents->header->entry_point)
+        printf("  Entry point: 0x%lx", contents->header->entry_point);
     
     if (list_length(contents->prog_headers) > 0) {
         fprintf(stream, "  Program headers\n");

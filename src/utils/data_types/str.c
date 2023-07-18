@@ -47,19 +47,16 @@ str *new_str_from_mem(mempool *mp, const char *ptr, int length) {
     return s;
 }
 
-str *new_strf(mempool *mp, const char *format, ...) {
+str *new_strv(mempool *mp, const char *format, va_list args) {
     mempool *scratch = new_mempool();
     int buff_size = 128; // for start
     char *buff;
-    va_list args;
 
     while (true) {
         buff = mpallocn(scratch, buff_size, "new_strf buff");
         memset(buff, 0, sizeof(buff));
 
-        va_start(args, format);
         vsnprintf(buff, buff_size - 1, format, args);
-        va_end(args);
 
         // if buffer was sufficiently big, we are done here!
         if (strlen(buff) < buff_size - 2)
@@ -73,6 +70,14 @@ str *new_strf(mempool *mp, const char *format, ...) {
     mempool_release(scratch);
 
     return final;
+}
+
+str *new_strf(mempool *mp, const char *format, ...) {
+    va_list args;
+    va_start(args, format);
+    str *s = new_strv(mp, format, args);
+    va_end(args);
+    return s;
 }
 
 str *new_str_random(mempool *mp, int min_len, int max_len) {

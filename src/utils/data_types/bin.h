@@ -65,6 +65,7 @@ int  bin_index_of(bin *b, const void *ptr, size_t size);
 bin *bin_slice(bin *b, size_t offset, size_t size, mempool *mp);
 str *bin_str(bin *b, size_t offset, mempool *mp);
 bool bin_save_to_file(bin *b, str *filename);
+str *bin_to_readable_bytes_str(bin *b, mempool *mp);
 
 
 #ifdef INCLUDE_UNIT_TESTS

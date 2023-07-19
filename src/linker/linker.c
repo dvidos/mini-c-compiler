@@ -1,3 +1,4 @@
+#include <sys/stat.h>
 #include <stdlib.h>
 #include <stddef.h>
 #include <stdio.h>
@@ -476,6 +477,10 @@ static bool do_link2(link2_info *info) {
 
     if (!elf64_cnt->ops->save(elf64_cnt, info->executable_path)) {
         printf("Failed saving executable file\n");
+        return false;
+    }
+    if (chmod(str_charptr(info->executable_path), 0755) != 0) {
+        printf("Failed chmod() executable file\n");
         return false;
     }
 

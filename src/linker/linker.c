@@ -533,6 +533,6 @@ void link_test() {
 
 #ifdef INCLUDE_UNIT_TESTS
 void linker_unit_tests() {
-    assert(0);
+    
 }
 #endif

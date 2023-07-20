@@ -97,8 +97,8 @@ struct encoding_info_table_row {
 
 
 bool load_encoding_info(asm_instruction *inst, struct encoding_info *info) {
-    bool needs_immediate = inst->operand2.is_immediate;
-    bool needs_displacement = inst->operand1.is_mem_addr_by_symbol;
+    bool needs_immediate = inst->regimm_operand.is_immediate;
+    bool needs_displacement = inst->regmem_operand.is_mem_addr_by_symbol;
     
     for (int i = 0; i < sizeof(encoding_rows) / sizeof(encoding_rows[0]); i++) {
         struct encoding_info_table_row *entry = &encoding_rows[i];
@@ -133,11 +133,11 @@ bool load_encoding_info(asm_instruction *inst, struct encoding_info *info) {
         
         if (inst->operation == OC_CALL) {
             // CALL is different when we call a displacement or through a register.
-            if (inst->operand1.is_mem_addr_by_symbol && !info->displacement_without_modrm)
+            if (inst->regmem_operand.is_mem_addr_by_symbol && !info->displacement_without_modrm)
                 continue;
             
             // through a pointer or address pointed by a register
-            if (!inst->operand1.is_mem_addr_by_symbol && info->displacement_without_modrm)
+            if (!inst->regmem_operand.is_mem_addr_by_symbol && info->displacement_without_modrm)
                 continue;
         }
 

@@ -63,7 +63,7 @@ asm_line *new_asm_line_data_definition(mempool *mp, str *symbol_name, data_size 
 asm_line *new_asm_line_instruction(mempool *mp, instr_code op) {
     asm_instruction *i = mpalloc(mp, asm_instruction);
     i->operation = op;
-    i->direction_op1_to_op2 = true;
+    i->direction_rm_to_ri_operands = true;
     i->operands_size_bits = 64;
 
     asm_line *l = new_asm_line_empty(mp);
@@ -78,22 +78,22 @@ asm_line *new_asm_line_instruction_with_operand(mempool *mp, instr_code op, asm_
     
     // operand1 should be either register or memory
     if (target->type == OT_REGISTER) {
-        i->operand1.is_register = true;
-        i->operand1.per_type.reg = target->reg;
+        i->regmem_operand.is_register = true;
+        i->regmem_operand.per_type.reg = target->reg;
 
     } else if (target->type == OT_MEM_POINTED_BY_REG) {
-        i->operand1.is_memory_by_reg = true;
-        i->operand1.per_type.mem.pointer_reg = target->reg;
-        i->operand1.per_type.mem.displacement = target->offset;
+        i->regmem_operand.is_memory_by_reg = true;
+        i->regmem_operand.per_type.mem.pointer_reg = target->reg;
+        i->regmem_operand.per_type.mem.displacement = target->offset;
 
     } else if (target->type == OT_MEM_OF_SYMBOL) {
-        i->operand1.is_mem_addr_by_symbol = true;
-        i->operand1.per_type.mem.displacement_symbol_name = strdup(target->symbol_name);
+        i->regmem_operand.is_mem_addr_by_symbol = true;
+        i->regmem_operand.per_type.mem.displacement_symbol_name = strdup(target->symbol_name);
 
     } else if (target->type == OT_IMMEDIATE) {
         // immediates go to operand2, and usually coded without the ModRM byte
-        i->operand2.is_immediate = true;
-        i->operand2.per_type.immediate = target->immediate;
+        i->regimm_operand.is_immediate = true;
+        i->regimm_operand.per_type.immediate = target->immediate;
     }
 
     return l;
@@ -138,15 +138,15 @@ asm_line *new_asm_line_instruction_with_operands(mempool *mp, instr_code op, asm
     
     // operand1 should be either register or memory
     if (operand1->type == OT_REGISTER) {
-        i->operand1.is_register = true;
-        i->operand1.per_type.reg = operand1->reg;
+        i->regmem_operand.is_register = true;
+        i->regmem_operand.per_type.reg = operand1->reg;
     } else if (operand1->type == OT_MEM_POINTED_BY_REG) {
-        i->operand1.is_memory_by_reg = true;
-        i->operand1.per_type.mem.pointer_reg = REG_BP;
-        i->operand1.per_type.mem.displacement = operand1->offset;
+        i->regmem_operand.is_memory_by_reg = true;
+        i->regmem_operand.per_type.mem.pointer_reg = REG_BP;
+        i->regmem_operand.per_type.mem.displacement = operand1->offset;
     } else if (operand1->type == OT_MEM_OF_SYMBOL) {
-        i->operand1.is_mem_addr_by_symbol = true;
-        i->operand1.per_type.mem.displacement_symbol_name = strdup(operand1->symbol_name);
+        i->regmem_operand.is_mem_addr_by_symbol = true;
+        i->regmem_operand.per_type.mem.displacement_symbol_name = strdup(operand1->symbol_name);
     } else {
         error("possible bug, expected register or memory for operand 1");
         return NULL;
@@ -154,18 +154,18 @@ asm_line *new_asm_line_instruction_with_operands(mempool *mp, instr_code op, asm
 
     // operand2 should be either register or immediate
     if (operand2->type == OT_REGISTER) {
-        i->operand2.is_register = true;
-        i->operand2.per_type.reg = operand2->reg;
+        i->regimm_operand.is_register = true;
+        i->regimm_operand.per_type.reg = operand2->reg;
     } else if (operand2->type == OT_IMMEDIATE) {
-        i->operand2.is_immediate = true;
-        i->operand2.per_type.immediate = operand2->immediate;
+        i->regimm_operand.is_immediate = true;
+        i->regimm_operand.per_type.immediate = operand2->immediate;
     } else {
         error("possible bug, expected register or immediate for operand 2");
         return NULL;
     }
 
     // direction was pre-calculated
-    i->direction_op1_to_op2 = dir_1_to_2;
+    i->direction_rm_to_ri_operands = dir_1_to_2;
 
     return l;
 }
@@ -174,12 +174,12 @@ asm_line *new_asm_line_instruction_for_reserving_stack_space(mempool *mp, int si
     asm_line *l = new_asm_line_instruction(mp, OC_SUB);
 
     asm_instruction *i = l->per_type.instruction;
-    i->direction_op1_to_op2 = false;
+    i->direction_rm_to_ri_operands = false;
     i->operands_size_bits = 32;
-    i->operand1.is_register = true;
-    i->operand1.per_type.reg = REG_SP;
-    i->operand2.is_immediate = true;
-    i->operand2.per_type.immediate = (((size + 3) / 4) * 4); // round size up to 4 bytes
+    i->regmem_operand.is_register = true;
+    i->regmem_operand.per_type.reg = REG_SP;
+    i->regimm_operand.is_immediate = true;
+    i->regimm_operand.per_type.immediate = (((size + 3) / 4) * 4); // round size up to 4 bytes
 
     return l;
 }
@@ -188,8 +188,8 @@ asm_line *new_asm_line_instruction_for_register(mempool *mp, instr_code op, gp_r
     asm_line *l = new_asm_line_instruction(mp, op);
 
     asm_instruction *i = l->per_type.instruction;
-    i->operand1.is_register = true;
-    i->operand1.per_type.reg = gp_reg;
+    i->regmem_operand.is_register = true;
+    i->regmem_operand.per_type.reg = gp_reg;
 
     return l;
 }
@@ -198,11 +198,11 @@ asm_line *new_asm_line_instruction_for_registers(mempool *mp, instr_code op, gp_
     asm_line *l = new_asm_line_instruction(mp, op);
 
     asm_instruction *i = l->per_type.instruction;
-    i->direction_op1_to_op2 = true;
-    i->operand1.is_register = true;
-    i->operand1.per_type.reg = source_reg;
-    i->operand2.is_register = true;
-    i->operand2.per_type.reg = target_reg;
+    i->direction_rm_to_ri_operands = true;
+    i->regmem_operand.is_register = true;
+    i->regmem_operand.per_type.reg = source_reg;
+    i->regimm_operand.is_register = true;
+    i->regimm_operand.per_type.reg = target_reg;
 
     return l;
 }
@@ -318,34 +318,34 @@ char *gp_reg_name(gp_register r) {
 
 
 static void _operand1_to_str(asm_instruction *instr, str *str) {
-    if (instr->operand1.is_register) {
-        str_cats(str, gp_reg_name(instr->operand1.per_type.reg));
+    if (instr->regmem_operand.is_register) {
+        str_cats(str, gp_reg_name(instr->regmem_operand.per_type.reg));
 
-    } else if (instr->operand1.is_mem_addr_by_symbol) {
-        if (instr->operand1.per_type.mem.displacement_symbol_name != NULL)
-            str_cats(str, instr->operand1.per_type.mem.displacement_symbol_name);
+    } else if (instr->regmem_operand.is_mem_addr_by_symbol) {
+        if (instr->regmem_operand.per_type.mem.displacement_symbol_name != NULL)
+            str_cats(str, instr->regmem_operand.per_type.mem.displacement_symbol_name);
         else {
-            str_catf(str, "0x%lx", instr->operand1.per_type.mem.displacement);
+            str_catf(str, "0x%lx", instr->regmem_operand.per_type.mem.displacement);
 
         }
 
-    } else if (instr->operand1.is_memory_by_reg) {
-        str_catf(str, "[%s", gp_reg_name(instr->operand1.per_type.mem.pointer_reg));
-        if (instr->operand1.per_type.mem.array_item_size > 0)
+    } else if (instr->regmem_operand.is_memory_by_reg) {
+        str_catf(str, "[%s", gp_reg_name(instr->regmem_operand.per_type.mem.pointer_reg));
+        if (instr->regmem_operand.per_type.mem.array_item_size > 0)
             str_catf(str, "+%s*%d", 
-                gp_reg_name(instr->operand1.per_type.mem.array_index_reg),
-                instr->operand1.per_type.mem.array_item_size);
-        if (instr->operand1.per_type.mem.displacement != 0)
-            str_catf(str, "%+ld", instr->operand1.per_type.mem.displacement);
+                gp_reg_name(instr->regmem_operand.per_type.mem.array_index_reg),
+                instr->regmem_operand.per_type.mem.array_item_size);
+        if (instr->regmem_operand.per_type.mem.displacement != 0)
+            str_catf(str, "%+ld", instr->regmem_operand.per_type.mem.displacement);
         str_cats(str, "]");
     }
 }
 
 static void _operand2_to_str(asm_instruction *instr, str *str) {
-    if (instr->operand2.is_register) {
-        str_cats(str, gp_reg_name(instr->operand2.per_type.reg));
-    } else if (instr->operand2.is_immediate) {
-        str_catf(str, "0x%lx", (unsigned)instr->operand2.per_type.immediate);
+    if (instr->regimm_operand.is_register) {
+        str_cats(str, gp_reg_name(instr->regimm_operand.per_type.reg));
+    } else if (instr->regimm_operand.is_immediate) {
+        str_catf(str, "0x%lx", (unsigned)instr->regimm_operand.per_type.immediate);
     }
 }
 
@@ -354,10 +354,10 @@ static void _instruction_to_str(asm_instruction *instr, str *str) {
     str_catf(str, "%-4s ", instr_code_name(instr->operation));
 
     // if there are two operands, print direction
-    if ((instr->operand1.is_register || instr->operand1.is_memory_by_reg || instr->operand1.is_mem_addr_by_symbol) &&
-        (instr->operand2.is_immediate || instr->operand2.is_register)) {
+    if ((instr->regmem_operand.is_register || instr->regmem_operand.is_memory_by_reg || instr->regmem_operand.is_mem_addr_by_symbol) &&
+        (instr->regimm_operand.is_immediate || instr->regimm_operand.is_register)) {
 
-        if (instr->direction_op1_to_op2) {
+        if (instr->direction_rm_to_ri_operands) {
             _operand2_to_str(instr, str);
             str_cats(str, ", ");
             _operand1_to_str(instr, str);

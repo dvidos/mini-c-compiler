@@ -91,8 +91,14 @@ static int compare_str(const void *a, const void *b) {
     return str_cmp((str *)a, (str *)b);
 }
 
-static void encode_two_operands_instruction(asm_instruction *instr) {
-    // most probably through Mod-Reg-RM.
+static void encode_memreg_reg_instruction(assembler_data *ad, u8 op_code, 
+    asm_reg_or_mem_operand *memreg_op, gp_register reg) {
+    // base opcde + ModRegRM
+}
+
+static void encode_memreg_imm_instruction(assembler_data *ad, u8 op_code, u8 op_extension,
+    asm_reg_or_mem_operand *regmem, long immediate) {
+    // base opcode, ModRm to set destination, immediate follows
 }
 
 // assembles the instruction line into the current section of the current module.
@@ -112,18 +118,25 @@ static void encode_instruction_line_x86_64(assembler_data *ad, asm_line *line) {
             break;
         case OC_MOV:
             // what is different between the rows?
-            /*
-                88/r mov rm8 <- r8
-                89/r mov rm16/32/64 <- r16/32/64
-                8A/r mov r8 <- rm8
-                8B/r mov r16/32/64 <- rm16/32/64
-
-                B0+r mov r8 <- imm8
-                B8+r mov r16/32/64 <- imm16/32/64
-                C6/0 mov rm8 <- imm8
-                C7/0 mov rm16/32/64 <- imm16/32/64
-            */
-            // encode_two_operands_instruction(...);
+            // let's skip optimizing for one byte, for now.
+            if (instr->regimm_operand.is_register) {
+                /*  88/r mov rm8 <- r8
+                    89/r mov rm16/32/64 <- r16/32/64
+                    8A/r mov rm8 -> r8
+                    8B/r mov rm16/32/64 -> r16/32/64 
+                */
+                encode_memreg_reg_instruction(ad,
+                    instr->direction_rm_to_ri_operands ? 0x8B : 0x89,
+                    &instr->regmem_operand, instr->regimm_operand.per_type.reg);
+            } else if (instr->regimm_operand.is_immediate) {
+                /*  B0+r mov r8 <- imm8
+                    B8+r mov r16/32/64 <- imm16/32/64
+                    C6/0 mov rm8 <- imm8
+                    C7/0 mov rm16/32/64 <- imm16/32/64
+                */
+                encode_memreg_imm_instruction(ad, 0xC7, 0,
+                    &instr->regmem_operand, instr->regimm_operand.per_type.immediate);
+            }
         default:
             error("Unsupported assembly instruction '%s'", instr_code_name(instr->operation));
             break;
@@ -230,10 +243,60 @@ static obj_module *assemble_listing_into_x86_64_code(assembler *as, asm_listing 
 
 
 #ifdef INCLUDE_UNIT_TESTS
+static void test_simple_assembly();
+
 void assembler_unit_tests() {
     // at the least test the encoding of some instructions.
     // maybe test globals and externs,
     // maybe test creation and allocation of data in a data section
-    assert(0);
+    test_simple_assembly();
+}
+
+static void test_simple_assembly() {
+    mempool *mp = new_mempool();
+
+    str *name = new_str(mp, "file1.c");
+    str *func1 = new_str(mp, "func1");
+    str *func2 = new_str(mp, "func2");
+    asm_listing *list = new_asm_listing(mp);
+    list->ops->add_line(list, new_asm_line_directive_global(mp, func1));
+    list->ops->set_next_label(list, "%s", str_charptr(func1));
+    list->ops->add_line(list, new_asm_line_instruction(mp, OC_RET));
+    list->ops->set_next_label(list, "%s", str_charptr(func2));
+    list->ops->add_line(list, new_asm_line_instruction(mp, OC_RET));
+
+    assembler *as = new_assembler(mp);
+
+    // ensure we can assemble to a module.
+    obj_module *mod = as->ops->assemble_listing_into_x86_64_code(as, list, name);
+    assert(mod != NULL);
+    assert(str_equals(mod->name, name));
+
+    // ensure sections are in there
+    assert(list_length(mod->sections) > 0);
+    obj_section *sect = list_get(mod->sections, 0);
+    assert(sect != NULL);
+    assert(str_cmps(sect->name, ".text") == 0);
+
+    // ensure section symbols are in there
+    assert(list_length(sect->symbols) > 0);
+
+    obj_symbol *sym = list_get(sect->symbols, 0);
+    assert(sym != NULL);
+    assert(sym->global == true); // we marked as global
+    assert(str_equals(sym->name, func1));
+    assert(sym->value == 0);
+
+    sym = list_get(sect->symbols, 1);
+    assert(sym != NULL);
+    assert(sym->global == false); // not global
+    assert(str_equals(sym->name, func2));
+    assert(sym->value == 1);
+
+    // ensure encoded code is in there
+    assert(bin_len(sect->contents) > 0);
+    assert(memcmp(bin_ptr_at(sect->contents, 0), "\xC3\xC3\x00", 3) == 0);
+
+    mempool_release(mp);
 }
 #endif

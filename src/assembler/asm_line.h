@@ -82,8 +82,8 @@ struct asm_operand {
     enum operand_type type;
     long immediate;
     gp_register reg;
-    const char *symbol_name;
-    long offset; // for indirect memory access, through BP
+    const char *symbol_name; // for address of a symbol
+    long offset;             // for indirect memory access, through BP
 };
 
 typedef enum instr_code {
@@ -126,41 +126,43 @@ typedef enum instr_code {
 } instr_code;
 
 
+// register or memory - goes to the Mod+R/M part of the ModRegRM byte
+typedef struct asm_reg_or_mem_operand {
+    bool is_register;
+    bool is_memory_by_reg;
+    bool is_mem_addr_by_symbol; // i.e. displacement only, no regs
+    union {
+        gp_register reg;
+        struct {
+            gp_register pointer_reg;
+            long displacement;   // 0 means no displacement
+            gp_register array_index_reg;
+            int array_item_size; // must be 1,2,4 or 8 for SID to be used
+            char *displacement_symbol_name; // symbol will resolve to a 32-bit address
+        } mem;
+    } per_type;
+} asm_reg_or_mem_operand;
+
+typedef struct asm_reg_or_imm_operand {
+    bool is_register;
+    bool is_immediate;
+    union {
+        long immediate;
+        gp_register reg;
+    } per_type;
+} asm_reg_or_imm_operand;
+
 struct asm_instruction {
     instr_code operation; // ADD, SUB, etc. no sign cognizance
     int operands_size_bits; // 8,16,32,64 (width bit for 8bits, 0x66 prefix for 16bits)
-    bool direction_op1_to_op2; // if false, the opposite
+    bool direction_rm_to_ri_operands; // if false, the opposite
     
-    // register or memory
-    // goes to the Mod+R/M part of the ModRegRM byte
-    struct operand1 { 
-        bool is_register;
-        bool is_memory_by_reg;
-        bool is_mem_addr_by_symbol; // i.e. displacement only, no regs
-        union {
-            gp_register reg;
-            struct {
-                gp_register pointer_reg;
-                long displacement;   // 0 means no displacement
-                gp_register array_index_reg;
-                int array_item_size; // must be 1,2,4 or 8 for SID to be used
-                char *displacement_symbol_name; // symbol will resolve to a 32-bit address
-            } mem;
-        } per_type;
-    } operand1; 
+    // register or memory - goes to the Mod+R/M part of the ModRegRM byte
+    asm_reg_or_mem_operand regmem_operand; 
 
-    // register or immediate.
-    // goes to the Reg part of the Mod+Reg+RM byte
-    struct operand2 {  
-        bool is_immediate;
-        bool is_register;
-        union {
-            long immediate;
-            gp_register reg;
-        } per_type;
-    } operand2; 
+    // register or immediate - reg goes to the Reg part of the Mod+Reg+RM byte
+    asm_reg_or_imm_operand regimm_operand; 
 };
-
 
 asm_line *new_asm_line_empty(mempool *mp);
 asm_line *new_asm_line_directive_section(mempool *mp, str *section_name);

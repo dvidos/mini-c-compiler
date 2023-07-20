@@ -16,7 +16,6 @@ typedef struct assembler {
     struct assembler_ops *ops;
 } assembler;
 
-
 assembler *new_assembler(mempool *mp);
 void assemble_listing_into_i386_code(mempool *mp, asm_listing *asm_list, obj_code *obj);
 

@@ -39,8 +39,12 @@ static bool run_unit_tests() {
     lexer_unit_tests();
     parser_unit_tests();
 
-    elf_unit_tests();
+    // code generation unit tests
 
+    assembler_unit_tests();
+    linker_unit_tests();
+
+    elf_unit_tests();
     
     return unit_tests_outcome(); // prints results and returns success flag
 }
@@ -191,7 +195,8 @@ static void process_one_file(mempool *mp, file_run_info *fi) {
     // ---- new, x86_64 code ----
 
     // prepare a real module, like real men do.
-    fi->module = assemble_listing_into_x86_64_code(mp, asm_list, fi->source_filename);
+    assembler *as = new_assembler(mp);
+    fi->module = as->ops->assemble_listing_into_x86_64_code(as, asm_list, fi->source_filename);
     if (fi->module == NULL || errors_count)
         return;
     
@@ -281,6 +286,7 @@ static bool perform_end_to_end_test() {
     // must declare "main" as global.
     al->ops->declare_global(al, "main");
     al->ops->set_next_label(al, "main");
+    al->ops->add_line(al, new_asm_line_instruction_with_operands(mp, OC_MOV, new_asm_operand_reg(mp, REG_AX), new_asm_operand_imm(mp, 123)));
     al->ops->add_line(al, new_asm_line_instruction(mp, OC_RET));
     list_add(asm_listings, al);
     printf("------ asm listing ------\n");
@@ -293,12 +299,13 @@ static bool perform_end_to_end_test() {
     // }
     
     list *obj_modules = new_list(mp);
+    assembler *as = new_assembler(mp);
     for (int i = 0; i < list_length(filenames); i++) {
         str *filename = list_get(filenames, i);
         asm_listing *asm_lst = list_get(asm_listings, i);
         if (asm_lst == NULL) continue;
 
-        obj_module *obj = assemble_listing_into_x86_64_code(mp, asm_lst, filename);
+        obj_module *obj = as->ops->assemble_listing_into_x86_64_code(as, asm_lst, filename);
         if (obj == NULL || errors_count) return false;
         list_add(obj_modules, obj);
     }

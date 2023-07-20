@@ -530,3 +530,9 @@ void link_test() {
 
     mempool_release(mp);
 }
+
+#ifdef INCLUDE_UNIT_TESTS
+void linker_unit_tests() {
+    assert(0);
+}
+#endif

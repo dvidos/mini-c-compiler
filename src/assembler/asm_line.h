@@ -58,24 +58,27 @@ enum operand_type {
     OT_MEM_OF_SYMBOL,         // e.g. address of symbol (resolved at linking)
 };
 
-// these have to be 0 through 7, in this sequence.
+// these have to be 0 through 7, in this sequence. see ModRegRm for usage
 typedef enum gp_register {
-    REG_AX = 0, 
-    REG_CX = 1,
-    REG_DX = 2,
-    REG_BX = 3,
-    REG_SP = 4,
-    REG_BP = 5,
-    REG_SI = 6,
-    REG_DI = 7,
-    REG_R8 = 8,
-    REG_R9 = 9,
-    REG_R10 = 10,
-    REG_R11 = 11,
-    REG_R12 = 12,
-    REG_R13 = 13,
-    REG_R14 = 14,
-    REG_R15 = 15,
+    // 8 bits          16 bits            32 bits            64 bits
+    REG_AL   =    0,   REG_AX   =  8+0,   REG_EAX  = 16+0,   REG_RAX = 24+0,
+    REG_CL   =    1,   REG_CX   =  8+1,   REG_ECX  = 16+1,   REG_RCX = 24+1,
+    REG_DL   =    2,   REG_DX   =  8+2,   REG_EDX  = 16+2,   REG_RDX = 24+2,
+    REG_BL   =    3,   REG_BX   =  8+3,   REG_EBX  = 16+3,   REG_RBX = 24+3,
+    REG_AH   =    4,   REG_SP   =  8+4,   REG_ESP  = 16+4,   REG_RSP = 24+4,
+    REG_CH   =    5,   REG_BP   =  8+5,   REG_EBP  = 16+5,   REG_RBP = 24+5,
+    REG_DH   =    6,   REG_SI   =  8+6,   REG_ESI  = 16+6,   REG_RSI = 24+6,
+    REG_BH   =    7,   REG_DI   =  8+7,   REG_EDI  = 16+7,   REG_RDI = 24+7,
+    
+    // 8 bits          16 bits            32 bits            64 bits
+    REG_R8B  = 32+0,   REG_R8W  = 40+0,   REG_R8D  = 48+0,   REG_R8  = 56+0,
+    REG_R9B  = 32+1,   REG_R9W  = 40+1,   REG_R9D  = 48+1,   REG_R9  = 56+1,
+    REG_R10B = 32+2,   REG_R10W = 40+2,   REG_R10D = 48+2,   REG_R10 = 56+2,
+    REG_R11B = 32+3,   REG_R11W = 40+3,   REG_R11D = 48+3,   REG_R11 = 56+3,
+    REG_R12B = 32+4,   REG_R12W = 40+4,   REG_R12D = 48+4,   REG_R12 = 56+4,
+    REG_R13B = 32+5,   REG_R13W = 40+5,   REG_R13D = 48+5,   REG_R13 = 56+5,
+    REG_R14B = 32+6,   REG_R14W = 40+6,   REG_R14D = 48+6,   REG_R14 = 56+6,
+    REG_R15B = 32+7,   REG_R15W = 40+7,   REG_R15D = 48+7,   REG_R15 = 56+7,
 } gp_register;
 
 struct asm_operand {
@@ -147,7 +150,7 @@ typedef struct asm_reg_or_imm_operand {
     bool is_register;
     bool is_immediate;
     union {
-        long immediate;
+        s32 immediate;
         gp_register reg;
     } per_type;
 } asm_reg_or_imm_operand;

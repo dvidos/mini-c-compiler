@@ -16,7 +16,6 @@
 #include "../elf/obj_module.h"
 
 
-
 typedef struct assembler_data assembler_data;
 
 struct assembler_data {
@@ -90,15 +89,106 @@ int compare_str_with_charptr(const void *a, const void *b) {
 static int compare_str(const void *a, const void *b) {
     return str_cmp((str *)a, (str *)b);
 }
+static inline u8 mod_reg_rm(u8 mod, u8 reg, u8 rm) {
+    return ((mod & 0x3) << 6) | ((reg & 0x7) << 3) | (rm & 0x7);
+}
+enum modregrm_addressing_mode {
+    MOD_00_INDIRECT_MEM_NO_DISPLACEMENT = 0,
+    MOD_01_INDIRECT_MEM_ONE_BYTE_DISPL = 1,
+    MOD_10_INDIRECT_MEM_FOUR_BYTES_DISPL = 2,
+    MOD_11_DIRECT_REGISTER = 3
+};
+enum modregrm_register {
+    // REX.R=1 makes these in the range of r8..r15
+    AX = 0, CX = 1, DX = 2, BX = 3, SP = 4, BP = 5, SI = 6, DI = 7
+};
+enum modregrm_rm {
+    // REX.B=1 makes these in the range of r8..r15
+    RM_000_AX = 0, 
+    RM_001_CX = 1, 
+    RM_010_DX = 2, 
+    RM_011_BX = 3,
+    RM_100_SIB_IF_MOD_NOT_11 = 4, 
+    RM_100_SP_IF_MOD_11 = 4,
+    RM_101_DISPL32_IF_MOD_00 = 5,
+    RM_101_BP_IF_MOD_NOT_00 = 5,
+    RM_110_SI = 6, 
+    RM_111_DI = 7
+};
 
-static void encode_memreg_reg_instruction(assembler_data *ad, u8 op_code, 
-    asm_reg_or_mem_operand *memreg_op, gp_register reg) {
-    // base opcde + ModRegRM
+static void encode_modregrm_byte(asm_reg_or_mem_operand *oper, u8 reg, u8 *modregrm, u32 *displacement32, bool *need_displacement32, bool *need_symbol_relocation) {
+    *need_displacement32 = false;
+    *need_symbol_relocation = false;
+    u8 mod;
+    u8 rm;
+
+    if (oper->is_register) {
+        // direct register addressing
+        mod = MOD_11_DIRECT_REGISTER;
+        rm = (oper->per_type.reg & 0x7);
+
+    } else if (oper->is_memory_by_reg) { 
+        // memory, pointed by register
+        if (oper->per_type.mem.displacement != 0) {
+            mod = MOD_10_INDIRECT_MEM_FOUR_BYTES_DISPL;
+            rm = (oper->per_type.mem.pointer_reg & 0x7);
+            *displacement32 = oper->per_type.mem.displacement != 0;
+            *need_displacement32 = true;
+        } else {
+            mod = MOD_00_INDIRECT_MEM_NO_DISPLACEMENT;
+            rm = (oper->per_type.mem.pointer_reg & 0x7);
+        }
+    } else if (oper->is_mem_addr_by_symbol) { 
+        // memory, address of a symbol
+        mod = 0x0; // 00 to enable special DISPL32 r/m mode
+        rm = RM_101_DISPL32_IF_MOD_00;
+        *displacement32 = 0;
+        *need_displacement32 = true;
+        *need_symbol_relocation = true;
+    }
+
+    *modregrm = mod_reg_rm(mod, reg, rm);
 }
 
-static void encode_memreg_imm_instruction(assembler_data *ad, u8 op_code, u8 op_extension,
-    asm_reg_or_mem_operand *regmem, long immediate) {
-    // base opcode, ModRm to set destination, immediate follows
+// e.g. "MOV EAX, 1" or "ADD [EBX+14], ESI"
+static void encode_memreg_reg_instruction(assembler_data *ad, u8 op_code, asm_reg_or_mem_operand *regmem, gp_register reg) {
+    u8 modregrm;
+    u32 displacement32;
+    bool need_displacement32;
+    bool need_symbol_relocation;
+    encode_modregrm_byte(regmem, reg, &modregrm, &displacement32, &need_displacement32, &need_symbol_relocation);
+
+    bin_add_byte(ad->curr_sect->contents, op_code);
+    bin_add_byte(ad->curr_sect->contents, modregrm);
+    if (need_symbol_relocation) {
+        str *name = new_str(ad->mempool, regmem->per_type.mem.displacement_symbol_name);
+        size_t offs = bin_len(ad->curr_sect->contents);
+        ad->curr_sect->ops->add_relocation(ad->curr_sect, offs, name, 0, 0);
+    }
+    if (need_displacement32) {
+        bin_add_dword(ad->curr_sect->contents, displacement32);
+    }
+}
+
+// useful in "ADD EAX, 2" or "SUB [EDX+3], 10"
+static void encode_memreg_imm_instruction(assembler_data *ad, u8 op_code, u8 op_extension, asm_reg_or_mem_operand *regmem, s32 immediate) {
+    u8 modregrm;
+    u32 displacement32;
+    bool need_displacement32;
+    bool need_symbol_relocation;
+    encode_modregrm_byte(regmem, op_extension, &modregrm, &displacement32, &need_displacement32, &need_symbol_relocation);
+
+    bin_add_byte(ad->curr_sect->contents, op_code);
+    bin_add_byte(ad->curr_sect->contents, modregrm);
+    if (need_symbol_relocation) {
+        str *name = new_str(ad->mempool, regmem->per_type.mem.displacement_symbol_name);
+        size_t offs = bin_len(ad->curr_sect->contents);
+        ad->curr_sect->ops->add_relocation(ad->curr_sect, offs, name, 0, 0);
+    }
+    if (need_displacement32) {
+        bin_add_dword(ad->curr_sect->contents, displacement32);
+    }
+    bin_add_dword(ad->curr_sect->contents, immediate);
 }
 
 // assembles the instruction line into the current section of the current module.
@@ -117,14 +207,12 @@ static void encode_instruction_line_x86_64(assembler_data *ad, asm_line *line) {
             bin_add_byte(ad->curr_sect->contents, 0xC3); // 0xCB is "lret" (long ret)
             break;
         case OC_MOV:
-            // what is different between the rows?
             // let's skip optimizing for one byte, for now.
             if (instr->regimm_operand.is_register) {
                 /*  88/r mov rm8 <- r8
                     89/r mov rm16/32/64 <- r16/32/64
                     8A/r mov rm8 -> r8
-                    8B/r mov rm16/32/64 -> r16/32/64 
-                */
+                    8B/r mov rm16/32/64 -> r16/32/64  */
                 encode_memreg_reg_instruction(ad,
                     instr->direction_rm_to_ri_operands ? 0x8B : 0x89,
                     &instr->regmem_operand, instr->regimm_operand.per_type.reg);
@@ -132,8 +220,7 @@ static void encode_instruction_line_x86_64(assembler_data *ad, asm_line *line) {
                 /*  B0+r mov r8 <- imm8
                     B8+r mov r16/32/64 <- imm16/32/64
                     C6/0 mov rm8 <- imm8
-                    C7/0 mov rm16/32/64 <- imm16/32/64
-                */
+                    C7/0 mov rm16/32/64 <- imm16/32/64 */
                 encode_memreg_imm_instruction(ad, 0xC7, 0,
                     &instr->regmem_operand, instr->regimm_operand.per_type.immediate);
             }

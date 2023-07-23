@@ -284,10 +284,11 @@ static bool perform_end_to_end_test() {
 
     // let's make the simplest assembly listing
     asm_listing *al = new_asm_listing(mp);
+    int desired_exit_code = 123;
     // must declare "main" as global.
     al->ops->declare_global(al, "main");
     al->ops->set_next_label(al, "main");
-    al->ops->add_line(al, new_asm_line_instruction_with_operands(mp, OC_MOV, new_asm_operand_reg(mp, REG_AX), new_asm_operand_imm(mp, 123)));
+    al->ops->add_line(al, new_asm_line_instruction_with_operands(mp, OC_MOV, new_asm_operand_reg(mp, REG_AX), new_asm_operand_imm(mp, desired_exit_code)));
     al->ops->add_line(al, new_asm_line_instruction(mp, OC_RET));
     list_add(asm_listings, al);
     printf("------ asm listing ------\n");
@@ -318,16 +319,10 @@ static bool perform_end_to_end_test() {
 
     // try running the executable, should return zero.
     int system_status = system(str_charptr(executable));
-    str *result = NULL;
-    if (WIFEXITED(system_status))
-        result = new_strf(mp, "exited, status=%d", WEXITSTATUS(system_status));
-    else if (WIFSIGNALED(system_status))
-        result = new_strf(mp, "killed by signal %d", WTERMSIG(system_status));
-    else if (WIFSTOPPED(system_status))
-        result = new_strf(mp, "stopped by signal %d", WSTOPSIG(system_status));
-    else if (WIFCONTINUED(system_status))
-        result = new_strf(mp, "continued");
-
+    bool exited = WIFEXITED(system_status);
+    int exit_status = WEXITSTATUS(system_status);
+    if (!exited || exit_status != desired_exit_code)
+        return false;
 
     unlink(str_charptr(executable));
     mempool_release(mp);
@@ -361,7 +356,7 @@ int main(int argc, char *argv[]) {
     } else if (run_info->options->e2e_test) {
         printf("Running end-to-end test... \n");
         bool passed = perform_end_to_end_test();
-        printf("%s\n", passed ? "PASSED" : "FAILED");
+        printf("End-to-end test: %s\n", passed ? "PASSED" : "FAILED");
         return passed ? 0 : 1;
     }
 

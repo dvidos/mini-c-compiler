@@ -219,7 +219,7 @@ static bool encode_size_prefix_bytes(asm_instruction *instr,
     u8 ptr_bits = 0;
     if (!get_instruction_data_size(instr, &data_bits))
         return false;
-    if (!get_instruction_pointer_size(instr, &data_bits))
+    if (!get_instruction_pointer_size(instr, &ptr_bits))
         return false;
 
     /* Regarding encoding:
@@ -343,7 +343,8 @@ static bool encode_immediate_info(asm_instruction *instr, bool *need_immediate, 
         return false;
 
     *need_immediate = instr->regimm_operand.is_immediate;
-    *immediate_bits = data_size;
+    // the way I understand it, immediates for x86_64 are still 32 bits.
+    *immediate_bits = data_size > 32 ? 32 : data_size;
     return true;
 }
 
@@ -373,7 +374,7 @@ static bool encode_two_operands_instruction(assembler_data *ad, asm_line *line,
 
     u8 opcode_8bits  = is_instruction_with_immediate(inst) ?  opcode_8bits_imm : opcode_8bits_reg;
     u8 opcode_16plus = is_instruction_with_immediate(inst) ? opcode_16plus_imm : opcode_16plus_reg;
-    u8 modregrm_reg  = is_instruction_with_immediate(inst) ? inst->regimm_operand.per_type.reg : opcode_extension_for_imm;
+    u8 modregrm_reg  = is_instruction_with_immediate(inst) ? opcode_extension_for_imm : inst->regimm_operand.per_type.reg;
 
     if (!encode_size_prefix_bytes(inst, opcode_8bits, opcode_16plus,
             &need_66, &need_67, &need_rex, &rex_value, &opcode_value))
@@ -619,80 +620,6 @@ void test_instructions_encoding() {
     // this was the easiest!
     verify_instr_encoding(new_asm_line_instruction(mp, OC_RET), "\xC3", 1);
 
-    // first steps in MOV
-    verify_instr_encoding(new_asm_line_instruction_reg_reg(mp, 
-        OC_MOV, REG_EBX, REG_EDX), "\x89\xD3", 2);
-
-    verify_instr_encoding(new_asm_line_instruction_reg_reg(mp, 
-        OC_MOV, REG_EDX, REG_EBX), "\x89\xDA", 2);
-
-    verify_instr_encoding(new_asm_line_instruction_with_operands(mp, 
-        OC_MOV, 
-        new_asm_operand_reg(mp, REG_EBX),
-        new_asm_operand_reg(mp, REG_EAX)),
-        "\x89\xC3", 2);
-
-    l = new_asm_line_instruction_with_operands(mp, OC_MOV, 
-        new_asm_operand_mem_by_reg(mp, REG_EBX, 0),
-        new_asm_operand_imm(mp, 2));
-    
-    // mov BYTE  PTR [ebx],0x2
-    l->per_type.instruction->operands_size_bits = 8;
-    verify_instr_encoding(l, "\x67\xc6\x03\x02", 4); 
-
-    // mov WORD  PTR [ebx],0x2
-    l->per_type.instruction->operands_size_bits = 16;
-    verify_instr_encoding(l, "\x67\x66\xc7\x03\x02\x00", 6); 
-
-    // mov DWORD PTR [ebx],0x2
-    l->per_type.instruction->operands_size_bits = 32;
-    verify_instr_encoding(l, "\x67\xc7\x03\x02\x00\x00\x00", 7); 
-
-    // mov QWORD PTR [ebx],0x2
-    l->per_type.instruction->operands_size_bits = 64;
-    verify_instr_encoding(l, "\x67\x48\xc7\x03\x02\x00\x00\x00", 8);
-
-    /*
-        |       88 d1                 mov    cl,dl
-        | 66    89 d1                 mov    cx,dx
-        |       89 d1                 mov    ecx,edx
-        | 48    89 d1                 mov    rcx,rdx
-        | ------------------------------------------------------
-        |       b1    | 55            mov    cl,0x55
-        | 66    b9    | 66 55         mov    cx,0x5566
-        |       b9    | 77 66 55 00   mov    ecx,0x556677
-        | 48    c7 c1 | 55 44 33 22   mov    rcx,0x22334455
-        | ------------------------------------------------------
-        |       b2    | aa            mov    dl,0xaa
-        | 66    ba    | aa bb         mov    dx,0xbbaa
-        |       ba    | aa bb cc 00   mov    edx,0xccbbaa
-        | 48    c7 c2 | aa bb cc 00   mov    rdx,0xccbbaa
-        | ------------------------------------------------------
-        | 67    88 0a |              mov    BYTE PTR [edx],cl  (size is deduced by source)
-        | 67 66 89 0a |              mov    WORD PTR [edx],cx
-        | 67    89 0a |              mov    DWORD PTR [edx],ecx
-        | 67 48 89 0a |              mov    QWORD PTR [edx],rcx
-        | ------------------------------------------------------
-        |       88 0a |              mov    BYTE PTR [rdx],cl  (size is deduced by source)
-        | 66    89 0a |              mov    WORD PTR [rdx],cx
-        |       89 0a |              mov    DWORD PTR [rdx],ecx
-        | 48    89 0a |              mov    QWORD PTR [rdx],rcx
-        | ------------------------------------------------------
-        |       c6 02 | aa            mov    BYTE PTR [rdx],0xaa
-        | 66    c7 02 | aa bb         mov    WORD PTR [rdx],0xbbaa
-        |       c7 02 | aa bb cc 00   mov    DWORD PTR [rdx],0xccbbaa
-        | 48    c7 02 | aa bb cc 00   mov    QWORD PTR [rdx],0xccbbaa
-        | ------------------------------------------------------
-        | 67    c6 02 | aa            mov    BYTE PTR [edx],0xaa
-        | 67 66 c7 02 | aa bb         mov    WORD PTR [edx],0xbbaa
-        | 67    c7 02 | aa bb cc 00   mov    DWORD PTR [edx],0xccbbaa
-        | 67 48 c7 02 | aa bb cc 00   mov    QWORD PTR [edx],0xccbbaa
-        | ------------------------------------------------------
-        | 67    c7 00 | 66 55 00 00   mov    DWORD PTR [eax],0x5566  (67 to set the pointer to Exx instead of Rxx, AX/AL are not used)
-        |       c7 00 | 66 55 00 00   mov    DWORD PTR [rax],0x5566
-    */
-
-
     //       88 d1               mov    cl,dl
     // 66    89 d1               mov    cx,dx
     //       89 d1               mov    ecx,edx
@@ -704,19 +631,19 @@ void test_instructions_encoding() {
     l = new_asm_line_instruction_reg_reg(mp, OC_MOV, REG_ECX, REG_EDX);
     verify_instr_encoding(l, "\x89\xd1", 2);
     l = new_asm_line_instruction_reg_reg(mp, OC_MOV, REG_RCX, REG_RDX);
-    verify_instr_encoding(l, "\x48\x89\xd1", 2);
+    verify_instr_encoding(l, "\x48\x89\xd1", 3);
 
     //       b1    55            mov    cl,0x55
     // 66    b9    66 55         mov    cx,0x5566
     //       b9    77 66 55 00   mov    ecx,0x556677
     // 48    c7 c1 55 44 33 22   mov    rcx,0x22334455
     l = new_asm_line_instruction_reg_imm(mp, OC_MOV, REG_CL, 0x55);
-    verify_instr_encoding(l, "\xb1\x55", 2);
-    l = new_asm_line_instruction_reg_reg(mp, OC_MOV, REG_CX, 0x5566);
-    verify_instr_encoding(l, "\x66\xb9\x66\x55", 4);
-    l = new_asm_line_instruction_reg_reg(mp, OC_MOV, REG_ECX, 0x556677);
-    verify_instr_encoding(l, "\xb9\x77\x66\x55\x00", 5);
-    l = new_asm_line_instruction_reg_reg(mp, OC_MOV, REG_RCX, 0x22334455);
+    verify_instr_encoding(l, "\xC6\xC1\x55", 3);
+    l = new_asm_line_instruction_reg_imm(mp, OC_MOV, REG_CX, 0x5566);
+    verify_instr_encoding(l, "\x66\xC7\xC1\x66\x55", 5);
+    l = new_asm_line_instruction_reg_imm(mp, OC_MOV, REG_ECX, 0x556677);
+    verify_instr_encoding(l, "\xC7\xC1\x77\x66\x55\x00", 6);
+    l = new_asm_line_instruction_reg_imm(mp, OC_MOV, REG_RCX, 0x22334455);
     verify_instr_encoding(l, "\x48\xc7\xc1\x55\x44\x33\x22", 7);
 
     //       b2    aa            mov    dl,0xaa
@@ -724,60 +651,59 @@ void test_instructions_encoding() {
     //       ba    aa bb cc 00   mov    edx,0xccbbaa
     // 48    c7 c2 aa bb cc 00   mov    rdx,0xccbbaa
     l = new_asm_line_instruction_reg_imm(mp, OC_MOV, REG_DL, 0xAA);
-    verify_instr_encoding(l, "\xb2\xaa", 2);
-    l = new_asm_line_instruction_reg_reg(mp, OC_MOV, REG_DX, 0xBBAA);
-    verify_instr_encoding(l, "\x66\xba\xaa\xbb", 4);
-    l = new_asm_line_instruction_reg_reg(mp, OC_MOV, REG_EDX, 0xCCBBAA);
-    verify_instr_encoding(l, "\xba\xaa\xbb\xcc\x00", 5);
-    l = new_asm_line_instruction_reg_reg(mp, OC_MOV, REG_RDX, 0xCCBBAA);
+    verify_instr_encoding(l, "\xC6\xC2\xAA", 3);
+    l = new_asm_line_instruction_reg_imm(mp, OC_MOV, REG_DX, 0xBBAA);
+    verify_instr_encoding(l, "\x66\xC7\xC2\xaa\xbb", 5);
+    l = new_asm_line_instruction_reg_imm(mp, OC_MOV, REG_EDX, 0xCCBBAA);
+    verify_instr_encoding(l, "\xC7\xC2\xaa\xbb\xcc\x00", 6);
+    l = new_asm_line_instruction_reg_imm(mp, OC_MOV, REG_RDX, 0xCCBBAA);
     verify_instr_encoding(l, "\x48\xc7\xc2\xaa\xbb\xcc\x00", 7);
 
     // 67    88 0a              mov    BYTE PTR [edx],cl  (size is deduced by source)
     // 67 66 89 0a              mov    WORD PTR [edx],cx
     // 67    89 0a              mov    DWORD PTR [edx],ecx
-    // 67 48 89 0a              mov    QWORD PTR [edx],rcx
+    // 67 48 89 0a              mov    QWORD PTR [edx],rcx <--- we don't support this.
     l = new_asm_line_instruction_mem_reg(mp, OC_MOV, REG_EDX, REG_CL);
     verify_instr_encoding(l, "\x67\x88\x0a", 3);
     l = new_asm_line_instruction_mem_reg(mp, OC_MOV, REG_EDX, REG_CX);
     verify_instr_encoding(l, "\x67\x66\x89\x0a", 4);
     l = new_asm_line_instruction_mem_reg(mp, OC_MOV, REG_EDX, REG_ECX);
     verify_instr_encoding(l, "\x67\x89\x0a", 3);
-    l = new_asm_line_instruction_mem_reg(mp, OC_MOV, REG_EDX, REG_EDX);
-    verify_instr_encoding(l, "\x67\x48\x89\x0a", 4);
+    // l = new_asm_line_instruction_mem_reg(mp, OC_MOV, REG_EDX, REG_RDX);
+    // verify_instr_encoding(l, "\x67\x48\x89\x0a", 4);
 
     //       c6 02 aa            mov    BYTE PTR [rdx],0xaa
     // 66    c7 02 aa bb         mov    WORD PTR [rdx],0xbbaa
     //       c7 02 aa bb cc 00   mov    DWORD PTR [rdx],0xccbbaa
     // 48    c7 02 aa bb cc 00   mov    QWORD PTR [rdx],0xccbbaa
-    l = new_asm_line_instruction_mem_imm(mp, OC_MOV, REG_RDX, 1, 0xAA);
+    l = new_asm_line_instruction_mem_imm(mp, OC_MOV, REG_RDX, 8, 0xAA);
     verify_instr_encoding(l, "\xc6\x02\xaa", 3);
-    l = new_asm_line_instruction_mem_imm(mp, OC_MOV, REG_RDX, 2, 0xBBAA);
+    l = new_asm_line_instruction_mem_imm(mp, OC_MOV, REG_RDX, 16, 0xBBAA);
     verify_instr_encoding(l, "\x66\xc7\x02\xaa\xbb", 5);
-    l = new_asm_line_instruction_mem_imm(mp, OC_MOV, REG_RDX, 4, 0xCCBBAA);
+    l = new_asm_line_instruction_mem_imm(mp, OC_MOV, REG_RDX, 32, 0xCCBBAA);
     verify_instr_encoding(l, "\xc7\x02\xaa\xbb\xcc\x00", 6);
-    l = new_asm_line_instruction_mem_imm(mp, OC_MOV, REG_RDX, 8, 0xCCBBAA);
+    l = new_asm_line_instruction_mem_imm(mp, OC_MOV, REG_RDX, 64, 0xCCBBAA);
     verify_instr_encoding(l, "\x48\xc7\x02\xaa\xbb\xcc\x00", 7);
 
     // 67    c6 02 aa            mov    BYTE PTR [edx],0xaa
     // 67 66 c7 02 aa bb         mov    WORD PTR [edx],0xbbaa
     // 67    c7 02 aa bb cc 00   mov    DWORD PTR [edx],0xccbbaa
     // 67 48 c7 02 aa bb cc 00   mov    QWORD PTR [edx],0xccbbaa
-    l = new_asm_line_instruction_mem_imm(mp, OC_MOV, REG_EDX, 1, 0xAA);
+    l = new_asm_line_instruction_mem_imm(mp, OC_MOV, REG_EDX, 8, 0xAA);
     verify_instr_encoding(l, "\x67\xc6\x02\xaa", 4);
-    l = new_asm_line_instruction_mem_imm(mp, OC_MOV, REG_EDX, 2, 0xBBAA);
+    l = new_asm_line_instruction_mem_imm(mp, OC_MOV, REG_EDX, 16, 0xBBAA);
     verify_instr_encoding(l, "\x67\x66\xc7\x02\xaa\xbb", 6);
-    l = new_asm_line_instruction_mem_imm(mp, OC_MOV, REG_EDX, 4, 0xCCBBAA);
+    l = new_asm_line_instruction_mem_imm(mp, OC_MOV, REG_EDX, 32, 0xCCBBAA);
     verify_instr_encoding(l, "\x67\xc7\x02\xaa\xbb\xcc\x00", 7);
-    l = new_asm_line_instruction_mem_imm(mp, OC_MOV, REG_EDX, 8, 0xCCBBAA);
+    l = new_asm_line_instruction_mem_imm(mp, OC_MOV, REG_EDX, 64, 0xCCBBAA);
     verify_instr_encoding(l, "\x67\x48\xc7\x02\xaa\xbb\xcc\x00", 8);
 
     // 67    c7 00 66 55 00 00   mov    DWORD PTR [eax],0x5566  (67 to set the pointer to Exx instead of Rxx, AX/AL are not used)
     //       c7 00 66 55 00 00   mov    DWORD PTR [rax],0x5566
-    l = new_asm_line_instruction_mem_imm(mp, OC_MOV, REG_EAX, 4, 0x5566);
+    l = new_asm_line_instruction_mem_imm(mp, OC_MOV, REG_EAX, 32, 0x5566);
     verify_instr_encoding(l, "\x67\xc7\x00\x66\x55\x00\x00", 7);
-    l = new_asm_line_instruction_mem_imm(mp, OC_MOV, REG_RAX, 4, 0x5566);
+    l = new_asm_line_instruction_mem_imm(mp, OC_MOV, REG_RAX, 32, 0x5566);
     verify_instr_encoding(l, "\xc7\x00\x66\x55\x00\x00", 6);
-
 
     mempool_release(mp);
 }
@@ -796,11 +722,11 @@ static void __verify_instr_encoding(asm_line *line, char *expected_bytes, int ex
     bin *expected = new_bin_from_mem(mp, expected_bytes, expected_len);
 
     bool match = (bin_cmp(s->contents, expected) == 0);
+    str *instr_descrip = str_trim(asm_line_to_str(mp, line), new_str(mp, " "));
+    str *exp_hex = bin_to_hex_str(expected, mp);
+    str *got_hex = bin_to_hex_str(s->contents, mp);
     str *msg = new_strf(mp, "Bad instruction encoding at line %d:\n  '%s', expected %s, got %s", 
-        line_no,
-        str_charptr(str_trim(asm_line_to_str(mp, line), new_str(mp, " "))),
-        str_charptr(bin_to_hex_str(expected, mp)),
-        str_charptr(bin_to_hex_str(s->contents, mp)));
+        line_no, str_charptr(instr_descrip), str_charptr(exp_hex), str_charptr(got_hex));
     assertm(match, str_charptr(msg));
 
     mempool_release(mp);

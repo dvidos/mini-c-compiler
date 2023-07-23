@@ -49,12 +49,12 @@ str *new_str_from_mem(mempool *mp, const char *ptr, int length) {
 
 str *new_strv(mempool *mp, const char *format, va_list args) {
     mempool *scratch = new_mempool();
-    int buff_size = 128; // for start
+    int buff_size = 256; // for start
     char *buff;
 
     while (true) {
         buff = mpallocn(scratch, buff_size, "new_strf buff");
-        memset(buff, 0, sizeof(buff));
+        memset(buff, 0, buff_size);
 
         vsnprintf(buff, buff_size - 1, format, args);
 

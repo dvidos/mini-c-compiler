@@ -348,6 +348,15 @@ char *gp_reg_name(gp_register r) {
         case REG_DH: return "DH";
         case REG_BH: return "BH";
 
+        case REG_AX: return "AX";
+        case REG_CX: return "CX";
+        case REG_DX: return "DX";
+        case REG_BX: return "BX";
+        case REG_SP: return "SP";
+        case REG_BP: return "BP";
+        case REG_SI: return "SI";
+        case REG_DI: return "DI";
+
         case REG_EAX: return "EAX";
         case REG_ECX: return "ECX";
         case REG_EDX: return "EDX";

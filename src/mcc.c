@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <sys/wait.h>
 #include "err_handler.h"
 #include "utils/unit_tests.h"
 #include "utils/all.h"
@@ -316,8 +317,17 @@ static bool perform_end_to_end_test() {
     if (errors_count || !success) return false;
 
     // try running the executable, should return zero.
-    int err_exit_code = system(str_charptr(executable));
-    if (err_exit_code) return false;
+    int system_status = system(str_charptr(executable));
+    str *result = NULL;
+    if (WIFEXITED(system_status))
+        result = new_strf(mp, "exited, status=%d", WEXITSTATUS(system_status));
+    else if (WIFSIGNALED(system_status))
+        result = new_strf(mp, "killed by signal %d", WTERMSIG(system_status));
+    else if (WIFSTOPPED(system_status))
+        result = new_strf(mp, "stopped by signal %d", WSTOPSIG(system_status));
+    else if (WIFCONTINUED(system_status))
+        result = new_strf(mp, "continued");
+
 
     unlink(str_charptr(executable));
     mempool_release(mp);

@@ -63,7 +63,7 @@ asm_line *new_asm_line_data_definition(mempool *mp, str *symbol_name, data_size 
 asm_line *new_asm_line_instruction(mempool *mp, instr_code op) {
     asm_instruction *i = mpalloc(mp, asm_instruction);
     i->operation = op;
-    i->direction_rm_to_ri_operands = true;
+    i->direction_regmem_to_regimm = true;
     i->operands_size_bits = 64;
 
     asm_line *l = new_asm_line_empty(mp);
@@ -142,7 +142,7 @@ asm_line *new_asm_line_instruction_with_operands(mempool *mp, instr_code op, asm
         i->regmem_operand.per_type.reg = operand1->reg;
     } else if (operand1->type == OT_MEM_POINTED_BY_REG) {
         i->regmem_operand.is_memory_by_reg = true;
-        i->regmem_operand.per_type.mem.pointer_reg = REG_BP;
+        i->regmem_operand.per_type.mem.pointer_reg = operand1->reg;
         i->regmem_operand.per_type.mem.displacement = operand1->offset;
     } else if (operand1->type == OT_MEM_OF_SYMBOL) {
         i->regmem_operand.is_mem_addr_by_symbol = true;
@@ -165,7 +165,7 @@ asm_line *new_asm_line_instruction_with_operands(mempool *mp, instr_code op, asm
     }
 
     // direction was pre-calculated
-    i->direction_rm_to_ri_operands = dir_1_to_2;
+    i->direction_regmem_to_regimm = dir_1_to_2;
 
     return l;
 }
@@ -174,7 +174,7 @@ asm_line *new_asm_line_instruction_for_reserving_stack_space(mempool *mp, int si
     asm_line *l = new_asm_line_instruction(mp, OC_SUB);
 
     asm_instruction *i = l->per_type.instruction;
-    i->direction_rm_to_ri_operands = false;
+    i->direction_regmem_to_regimm = false;
     i->operands_size_bits = 32;
     i->regmem_operand.is_register = true;
     i->regmem_operand.per_type.reg = REG_SP;
@@ -194,15 +194,55 @@ asm_line *new_asm_line_instruction_for_register(mempool *mp, instr_code op, gp_r
     return l;
 }
 
-asm_line *new_asm_line_instruction_for_registers(mempool *mp, instr_code op, gp_register target_reg, gp_register source_reg) {
+asm_line *new_asm_line_instruction_reg_reg(mempool *mp, instr_code op, gp_register target_reg, gp_register source_reg) {
     asm_line *l = new_asm_line_instruction(mp, op);
 
     asm_instruction *i = l->per_type.instruction;
-    i->direction_rm_to_ri_operands = true;
+    i->direction_regmem_to_regimm = false;
     i->regmem_operand.is_register = true;
-    i->regmem_operand.per_type.reg = source_reg;
+    i->regmem_operand.per_type.reg = target_reg;
     i->regimm_operand.is_register = true;
-    i->regimm_operand.per_type.reg = target_reg;
+    i->regimm_operand.per_type.reg = source_reg;
+
+    return l;
+}
+
+asm_line *new_asm_line_instruction_reg_imm(mempool *mp, instr_code op, gp_register target_reg, long immediate) {
+    asm_line *l = new_asm_line_instruction(mp, op);
+
+    asm_instruction *i = l->per_type.instruction;
+    i->direction_regmem_to_regimm = false;
+    i->regmem_operand.is_register = true;
+    i->regmem_operand.per_type.reg = target_reg;
+    i->regimm_operand.is_immediate = true;
+    i->regimm_operand.per_type.immediate = immediate;
+
+    return l;
+}
+
+asm_line *new_asm_line_instruction_mem_reg(mempool *mp, instr_code op, gp_register ptr_reg, gp_register src_reg) {
+    asm_line *l = new_asm_line_instruction(mp, op);
+
+    asm_instruction *i = l->per_type.instruction;
+    i->direction_regmem_to_regimm = false;
+    i->regmem_operand.is_memory_by_reg = true;
+    i->regmem_operand.per_type.reg = ptr_reg;
+    i->regimm_operand.is_register = true;
+    i->regimm_operand.per_type.reg = src_reg;
+
+    return l;
+}
+
+asm_line *new_asm_line_instruction_mem_imm(mempool *mp, instr_code op, gp_register ptr_reg, u8 data_bits, long immediate) {
+    asm_line *l = new_asm_line_instruction(mp, op);
+
+    asm_instruction *i = l->per_type.instruction;
+    i->operands_size_bits = data_bits; // e.g. "DWORD PTR"
+    i->direction_regmem_to_regimm = false;
+    i->regmem_operand.is_memory_by_reg = true;
+    i->regmem_operand.per_type.mem.pointer_reg = ptr_reg;
+    i->regimm_operand.is_immediate = true;
+    i->regimm_operand.per_type.immediate = immediate;
 
     return l;
 }
@@ -299,16 +339,70 @@ char *instr_code_name(instr_code code) {
 
 char *gp_reg_name(gp_register r) {
     switch (r) {
-        case REG_AX: return "AX";
-        case REG_CX: return "CX";
-        case REG_DX: return "DX";
-        case REG_BX: return "BX";
-        case REG_SP: return "SP";
-        case REG_BP: return "BP";
-        case REG_SI: return "SI";
-        case REG_DI: return "DI";
+        case REG_AL: return "AL";
+        case REG_CL: return "CL";
+        case REG_DL: return "DL";
+        case REG_BL: return "BL";
+        case REG_AH: return "AH";
+        case REG_CH: return "CH";
+        case REG_DH: return "DH";
+        case REG_BH: return "BH";
+
+        case REG_EAX: return "EAX";
+        case REG_ECX: return "ECX";
+        case REG_EDX: return "EDX";
+        case REG_EBX: return "EBX";
+        case REG_ESP: return "ESP";
+        case REG_EBP: return "EBP";
+        case REG_ESI: return "ESI";
+        case REG_EDI: return "EDI";
+
+        case REG_RAX: return "RAX";
+        case REG_RCX: return "RCX";
+        case REG_RDX: return "RDX";
+        case REG_RBX: return "RBX";
+        case REG_RSP: return "RSP";
+        case REG_RBP: return "RBP";
+        case REG_RSI: return "RSI";
+        case REG_RDI: return "RDI";
+
+        case REG_R8B : return "R8B";
+        case REG_R9B : return "R9B";
+        case REG_R10B: return "R10B";
+        case REG_R11B: return "R11B";
+        case REG_R12B: return "R12B";
+        case REG_R13B: return "R13B";
+        case REG_R14B: return "R14B";
+        case REG_R15B: return "R15B";
+
+        case REG_R8W : return "R8W";
+        case REG_R9W : return "R9W";
+        case REG_R10W: return "R10W";
+        case REG_R11W: return "R11W";
+        case REG_R12W: return "R12W";
+        case REG_R13W: return "R13W";
+        case REG_R14W: return "R14W";
+        case REG_R15W: return "R15W";
+
+        case REG_R8D : return "R8D";
+        case REG_R9D : return "R9D";
+        case REG_R10D: return "R10D";
+        case REG_R11D: return "R11D";
+        case REG_R12D: return "R12D";
+        case REG_R13D: return "R13D";
+        case REG_R14D: return "R14D";
+        case REG_R15D: return "R15D";
+
+        case REG_R8 : return "R8";
+        case REG_R9 : return "R9";
+        case REG_R10: return "R10";
+        case REG_R11: return "R11";
+        case REG_R12: return "R12";
+        case REG_R13: return "R13";
+        case REG_R14: return "R14";
+        case REG_R15: return "R15";
     }
-    return "(unknown)";
+    return "(\?\?\?)";
 }
 
 
@@ -317,31 +411,37 @@ char *gp_reg_name(gp_register r) {
 
 
 
-static void _operand1_to_str(asm_instruction *instr, str *str) {
+static void _regmem_operand_to_str(asm_instruction *instr, str *str) {
     if (instr->regmem_operand.is_register) {
         str_cats(str, gp_reg_name(instr->regmem_operand.per_type.reg));
 
-    } else if (instr->regmem_operand.is_mem_addr_by_symbol) {
-        if (instr->regmem_operand.per_type.mem.displacement_symbol_name != NULL)
-            str_cats(str, instr->regmem_operand.per_type.mem.displacement_symbol_name);
-        else {
-            str_catf(str, "0x%lx", instr->regmem_operand.per_type.mem.displacement);
+    } else {
+        // it's memory, print address size if existing
+        if      (instr->operands_size_bits ==  8) str_cats(str, "BYTE PTR ");
+        else if (instr->operands_size_bits == 16) str_cats(str, "WORD PTR ");
+        else if (instr->operands_size_bits == 32) str_cats(str, "DWORD PTR ");
+        else if (instr->operands_size_bits == 64) str_cats(str, "QWORD PTR ");
 
+        if (instr->regmem_operand.is_mem_addr_by_symbol) {
+            if (instr->regmem_operand.per_type.mem.displacement_symbol_name != NULL)
+                str_cats(str, instr->regmem_operand.per_type.mem.displacement_symbol_name);
+            else
+                str_catf(str, "0x%lx", instr->regmem_operand.per_type.mem.displacement);
+
+        } else if (instr->regmem_operand.is_memory_by_reg) {
+            str_catf(str, "[%s", gp_reg_name(instr->regmem_operand.per_type.mem.pointer_reg));
+            if (instr->regmem_operand.per_type.mem.array_item_size > 0)
+                str_catf(str, "+%s*%d", 
+                    gp_reg_name(instr->regmem_operand.per_type.mem.array_index_reg),
+                    instr->regmem_operand.per_type.mem.array_item_size);
+            if (instr->regmem_operand.per_type.mem.displacement != 0)
+                str_catf(str, "%+ld", instr->regmem_operand.per_type.mem.displacement);
+            str_cats(str, "]");
         }
-
-    } else if (instr->regmem_operand.is_memory_by_reg) {
-        str_catf(str, "[%s", gp_reg_name(instr->regmem_operand.per_type.mem.pointer_reg));
-        if (instr->regmem_operand.per_type.mem.array_item_size > 0)
-            str_catf(str, "+%s*%d", 
-                gp_reg_name(instr->regmem_operand.per_type.mem.array_index_reg),
-                instr->regmem_operand.per_type.mem.array_item_size);
-        if (instr->regmem_operand.per_type.mem.displacement != 0)
-            str_catf(str, "%+ld", instr->regmem_operand.per_type.mem.displacement);
-        str_cats(str, "]");
     }
 }
 
-static void _operand2_to_str(asm_instruction *instr, str *str) {
+static void _regimm_operand_to_str(asm_instruction *instr, str *str) {
     if (instr->regimm_operand.is_register) {
         str_cats(str, gp_reg_name(instr->regimm_operand.per_type.reg));
     } else if (instr->regimm_operand.is_immediate) {
@@ -357,20 +457,20 @@ static void _instruction_to_str(asm_instruction *instr, str *str) {
     if ((instr->regmem_operand.is_register || instr->regmem_operand.is_memory_by_reg || instr->regmem_operand.is_mem_addr_by_symbol) &&
         (instr->regimm_operand.is_immediate || instr->regimm_operand.is_register)) {
 
-        if (instr->direction_rm_to_ri_operands) {
-            _operand2_to_str(instr, str);
+        if (instr->direction_regmem_to_regimm) {
+            _regimm_operand_to_str(instr, str);
             str_cats(str, ", ");
-            _operand1_to_str(instr, str);
+            _regmem_operand_to_str(instr, str);
         } else {
-            _operand1_to_str(instr, str);
+            _regmem_operand_to_str(instr, str);
             str_cats(str, ", ");
-            _operand2_to_str(instr, str);
+            _regimm_operand_to_str(instr, str);
         }
 
     } else {
         // any one of them
-        _operand1_to_str(instr, str);
-        _operand2_to_str(instr, str);
+        _regmem_operand_to_str(instr, str);
+        _regimm_operand_to_str(instr, str);
     }
 }
 

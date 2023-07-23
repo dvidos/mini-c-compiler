@@ -158,7 +158,7 @@ typedef struct asm_reg_or_imm_operand {
 struct asm_instruction {
     instr_code operation; // ADD, SUB, etc. no sign cognizance
     int operands_size_bits; // 8,16,32,64 (width bit for 8bits, 0x66 prefix for 16bits)
-    bool direction_rm_to_ri_operands; // if false, the opposite
+    bool direction_regmem_to_regimm; // if false, the opposite
     
     // register or memory - goes to the Mod+R/M part of the ModRegRM byte
     asm_reg_or_mem_operand regmem_operand; 
@@ -177,7 +177,13 @@ asm_line *new_asm_line_instruction_with_operand(mempool *mp, instr_code op, asm_
 asm_line *new_asm_line_instruction_with_operands(mempool *mp, instr_code op, asm_operand *target, asm_operand *source);
 asm_line *new_asm_line_instruction_for_reserving_stack_space(mempool *mp, int size);
 asm_line *new_asm_line_instruction_for_register(mempool *mp, instr_code op, gp_register gp_reg);
-asm_line *new_asm_line_instruction_for_registers(mempool *mp, instr_code op, gp_register target_reg, gp_register source_reg);
+asm_line *new_asm_line_instruction_reg_reg(mempool *mp, instr_code op, gp_register target_reg, gp_register source_reg);
+asm_line *new_asm_line_instruction_reg_imm(mempool *mp, instr_code op, gp_register target_reg, long immediate);
+asm_line *new_asm_line_instruction_mem_reg(mempool *mp, instr_code op, gp_register ptr_reg, gp_register src_reg);
+asm_line *new_asm_line_instruction_mem_imm(mempool *mp, instr_code op, gp_register ptr_reg, u8 data_bits, long immediate);
+
+
+
 
 asm_operand *new_asm_operand_imm(mempool *mp, int value);
 asm_operand *new_asm_operand_reg(mempool *mp, gp_register reg_no);

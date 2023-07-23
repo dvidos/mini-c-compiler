@@ -16,13 +16,23 @@ bool unit_tests_outcome() {
     }
 }
 
-void unit_tests_assert(bool cond, char *expr, char *filename, int line) {
+void unit_tests_assert(bool cond, const char *expr, const char *filename, int line) {
     assertions_made++;
     fprintf(stderr, ".");
 
     if (!cond) {
         assertions_failed++;
         fprintf(stderr, "\n%s:%d assertion failed: \"%s\"", filename, line, expr);
+    }
+}
+
+void unit_tests_assert_msg(bool cond, const char *msg, const char *filename, int line) {
+    assertions_made++;
+    fprintf(stderr, ".");
+
+    if (!cond) {
+        assertions_failed++;
+        fprintf(stderr, "\n%s:%d: %s", filename, line, msg);
     }
 }
 

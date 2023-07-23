@@ -83,7 +83,7 @@ static void code_prologue(mempool *mp) {
     ad.listing->ops->set_next_comment(ad.listing, "establish stack frame");
 
     ad.listing->ops->add_line(ad.listing, new_asm_line_instruction_for_register(mp, OC_PUSH, REG_BP));
-    ad.listing->ops->add_line(ad.listing, new_asm_line_instruction_for_registers(mp, OC_MOV, REG_BP, REG_SP));
+    ad.listing->ops->add_line(ad.listing, new_asm_line_instruction_reg_reg(mp, OC_MOV, REG_BP, REG_SP));
 
     if (ad.stack_space_for_local_vars > 0) {
         ad.listing->ops->set_next_comment(ad.listing, "reserve %d bytes for local vars", ad.stack_space_for_local_vars);
@@ -101,7 +101,7 @@ static void code_prologue(mempool *mp) {
 static void code_epilogue(mempool *mp) {
     ad.listing->ops->set_next_label(ad.listing, "%s_exit", ad.func_def->func_name);
     ad.listing->ops->set_next_comment(ad.listing, "tear down stack frame");
-    ad.listing->ops->add_line(ad.listing, new_asm_line_instruction_for_registers(mp, OC_MOV, REG_SP, REG_BP));
+    ad.listing->ops->add_line(ad.listing, new_asm_line_instruction_reg_reg(mp, OC_MOV, REG_SP, REG_BP));
     ad.listing->ops->add_line(ad.listing, new_asm_line_instruction_for_register(mp, OC_POP, REG_BP));
     ad.listing->ops->add_line(ad.listing, new_asm_line_instruction(mp, OC_RET));
 }

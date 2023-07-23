@@ -26,7 +26,7 @@ static bool encode_asm_instr_opcode(asm_instruction *oper, struct encoding_info 
     result->opcode_byte = info->base_opcode_byte;
 
     if (info->has_direction_bit) {
-        if (oper->direction_rm_to_ri_operands)  // one means from R/M --> Reg in the ModRegR/M byte                
+        if (oper->direction_regmem_to_regimm)  // one means from R/M --> Reg in the ModRegR/M byte                
             result->opcode_byte |= 0x2;
         else // zero means from Reg --> R/M in the ModRegR/M byte
             result->opcode_byte &= ~0x2;

@@ -1,3 +1,4 @@
+#pragma once
 #include "unit_tests.h"
 #include "mempool.h"
 #include <string.h>
@@ -30,16 +31,18 @@
 
 #define STRUCT_INFO_MAGIC_NUMBER   0xB6F5536C  // from random.org
 
-typedef struct instance_info {
+typedef struct instance_info instance_info;
+
+struct instance_info {
     int magic_number;    // to verify existence of this structure
     const char *name;   // e.g. "token", same with what is given to mpalloc()
 
     bool (*equals)(const void *a, const void *b);
     bool (*matches)(const void *item, const char *match_type, const void *match_criteria);
-    int (*compare)(const void *a, void *b);
+    int (*compare)(const void *a, const void *b);
     unsigned long (*hash)(const void *item);
     char *(*to_string)(mempool *mp, const void *item);
-} instance_info;
+};
 
 
 bool has_instance_info(const void *ptr);
@@ -51,3 +54,6 @@ bool instance_matches(const void *item, const char *match_type, const void *matc
 unsigned long instance_hash(const void *item);
 const char *instance_to_string(mempool *mp, const void *item);
 
+#ifdef INCLUDE_UNIT_TESTS
+void instance_unit_tests();
+#endif

@@ -288,49 +288,24 @@ static bool encode_addressing_bytes(asm_reg_or_mem_operand *oper, u8 modregrm_re
         *need_symbol_relocation = false;
         *modregrm_value = mod_reg_rm(mod, modregrm_reg, rm);
 
-    } else {
-        // this is memory access, using a pointer or address (via a symbol)
-        // should verify the operand size, so see if we need any size prefixes.
-        // in x86_64, the default size is 64 bits, use prefix 0x67 to switch to 32 bits.
-        // seems that, if both operands are 64 bits (e.g. "mov rax, [rbx]")
-        // we don't need the bit. but if it is immediate, we do need it...
-        /*
-        pointed memory:
-        if  8 bits, we need to run off the size bit (bit 0)
-        if 16 bits, bit 0 is on and prefix 66 is added
-        if 32 bits, no prefix is needed
-        if 64 bits, we need REX prefix (0x48)
-
-        if we are moving between memory and an immediate,
-        the size of the pointed memory MUST be defined.
-
-        the important thing is the size of the pointed memory
-        (e.g. char* vs long*)
-        if Exx is used for pointer instead of Rxx, we just prefix with 0x67
-
-        if there is a register involved, we can use the size 
-        of the register to deduce operation size.
-        */
-
-        if (oper->is_memory_by_reg) { 
-            // memory, pointed by register
-            if (oper->per_type.mem.displacement != 0) {
-                mod = MOD_10_INDIRECT_MEM_FOUR_BYTES_DISPL;
-                rm = (oper->per_type.mem.pointer_reg & 0x7);
-                *displacement32_value = oper->per_type.mem.displacement;
-                *need_displacement32 = true;
-            } else {
-                mod = MOD_00_INDIRECT_MEM_NO_DISPLACEMENT;
-                rm = (oper->per_type.mem.pointer_reg & 0x7);
-            }
-        } else if (oper->is_mem_addr_by_symbol) { 
-            // memory, address of a symbol
-            mod = 0x0; // 00 to enable special DISPL32 r/m mode
-            rm = RM_101_DISPL32_IF_MOD_00;
-            *displacement32_value = 0;
+    } else if (oper->is_memory_by_reg) { 
+        // memory, pointed by register
+        if (oper->per_type.mem.displacement != 0) {
+            mod = MOD_10_INDIRECT_MEM_FOUR_BYTES_DISPL;
+            rm = (oper->per_type.mem.pointer_reg & 0x7);
+            *displacement32_value = oper->per_type.mem.displacement;
             *need_displacement32 = true;
-            *need_symbol_relocation = true;
+        } else {
+            mod = MOD_00_INDIRECT_MEM_NO_DISPLACEMENT;
+            rm = (oper->per_type.mem.pointer_reg & 0x7);
         }
+    } else if (oper->is_mem_addr_by_symbol) { 
+        // memory, address of a symbol
+        mod = 0x0; // 00 to enable special DISPL32 r/m mode
+        rm = RM_101_DISPL32_IF_MOD_00;
+        *displacement32_value = 0;
+        *need_displacement32 = true;
+        *need_symbol_relocation = true;
     }
 
     *modregrm_value = mod_reg_rm(mod, modregrm_reg, rm);
@@ -434,8 +409,6 @@ static void encode_instruction_line_x86_64(assembler_data *ad, asm_line *line) {
             bin_add_byte(ad->curr_sect->contents, 0xC3); // 0xCB is "lret" (long ret)
             break;
         case OC_MOV:
-            u8 opcode_8bits   = instr->regimm_operand.is_immediate ? 0xC6 : 0x88;
-            u8 opcode_16plius = instr->regimm_operand.is_immediate ? 0xC7 : 0x89;
             /*  88/r mov rm8 <- r8
                 89/r mov rm16/32/64 <- r16/32/64
                 8A/r mov rm8 -> r8

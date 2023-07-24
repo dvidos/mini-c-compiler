@@ -1,6 +1,7 @@
 #include "unit_tests.h"
 
 #include "mempool.h"
+#include "instance.h"
 #include "func_types.h"
 
 #include "data_types/str.h"
@@ -21,6 +22,7 @@
 #define utils_unit_tests()  \
     do { \
         mempool_unit_tests(); \
+        instance_unit_tests(); \
         \
         str_unit_tests(); \
         bin_unit_tests(); \

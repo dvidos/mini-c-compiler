@@ -180,6 +180,7 @@ asm_line *new_asm_line_instruction_for_register(mempool *mp, instr_code op, gp_r
 asm_line *new_asm_line_instruction_reg_reg(mempool *mp, instr_code op, gp_register target_reg, gp_register source_reg);
 asm_line *new_asm_line_instruction_reg_imm(mempool *mp, instr_code op, gp_register target_reg, long immediate);
 asm_line *new_asm_line_instruction_mem_reg(mempool *mp, instr_code op, gp_register ptr_reg, gp_register src_reg);
+asm_line *new_asm_line_instruction_reg_mem(mempool *mp, instr_code op, gp_register target_reg, gp_register ptr_reg);
 asm_line *new_asm_line_instruction_mem_imm(mempool *mp, instr_code op, gp_register ptr_reg, u8 data_bits, long immediate);
 
 

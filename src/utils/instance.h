@@ -44,7 +44,6 @@ struct instance_info {
     char *(*to_string)(mempool *mp, const void *item);
 };
 
-
 bool has_instance_info(const void *ptr);
 const char *get_instance_name(const void *ptr);
 bool is_instance_named(const void *ptr, const char *name);

@@ -10,6 +10,16 @@
 ~~* convert assembler and allocator to real objects, instead of singletons~~
 ~~* convert all objects into objects, with priv_data, with "v" for operations vtable, because we have so many different patterns~~
 
+* ~~verify operations on R8 - R15 registers~~
+* implement the x86_64 assembly of "hello world" listing, for end-to-end test
+
+* simplify list operations even more
+  * e.g. around ASM listing
+  * list_contains() to use internal struct_info, no extra funcs to write
+  * list_iterator_xxxx() to accept a pointer for local state storage.
+  * implement `list_to_string(mp, separator)` for debugging
+
+
 * Besides the generated files, we can generate files that show side-to-side, how the conversions are made
   * from AST into IR
   * from IR into ASM

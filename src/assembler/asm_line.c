@@ -233,6 +233,19 @@ asm_line *new_asm_line_instruction_mem_reg(mempool *mp, instr_code op, gp_regist
     return l;
 }
 
+asm_line *new_asm_line_instruction_reg_mem(mempool *mp, instr_code op, gp_register target_reg, gp_register ptr_reg) {
+    asm_line *l = new_asm_line_instruction(mp, op);
+
+    asm_instruction *i = l->per_type.instruction;
+    i->direction_regmem_to_regimm = true;
+    i->regmem_operand.is_memory_by_reg = true;
+    i->regmem_operand.per_type.reg = ptr_reg;
+    i->regimm_operand.is_register = true;
+    i->regimm_operand.per_type.reg = target_reg;
+
+    return l;
+}
+
 asm_line *new_asm_line_instruction_mem_imm(mempool *mp, instr_code op, gp_register ptr_reg, u8 data_bits, long immediate) {
     asm_line *l = new_asm_line_instruction(mp, op);
 

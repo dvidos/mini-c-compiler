@@ -6,9 +6,7 @@ SRC_FILES = \
 	err_handler.c \
 	run_info.c \
 	utils.c \
-	utils/unit_tests.c \
-	utils/mempool.c \
-	utils/instance.c \
+	$(wildcard utils/*.c) \
 	$(wildcard utils/data_types/*.c) \
 	$(wildcard utils/data_structs/*.c) \
 	compiler/lexer/token.c \

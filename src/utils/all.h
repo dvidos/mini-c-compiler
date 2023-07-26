@@ -3,6 +3,7 @@
 #include "mempool.h"
 #include "instance.h"
 #include "func_types.h"
+#include "regex.h"
 
 #include "data_types/str.h"
 #include "data_types/bin.h"
@@ -26,6 +27,8 @@
         \
         str_unit_tests(); \
         bin_unit_tests(); \
+        \
+        regex_unit_tests(); \
         \
         list_unit_tests(); \
         bstree_unit_tests(); \

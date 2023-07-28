@@ -352,13 +352,22 @@ void str_cat(str *s1, str *s2) {
     s1->length += s2->length;
 }
 
-void str_cats(str *s1, char *s2) {
+void str_cats(str *s1, const char *s2) {
     if (s2 == NULL)
         return;
     
     str_ensure_capacity(s1, s1->length + strlen(s2) + 1);
     strcat(s1->buff, s2);
     s1->length += strlen(s2);
+}
+
+void str_catsn(str *s1, const char *s2, int s2_length) {
+    if (s2 == NULL || s2_length <= 0)
+        return;
+    
+    str_ensure_capacity(s1, s1->length + s2_length + 1);
+    strncat(s1->buff, s2, s2_length);
+    s1->length = strlen(s1->buff); // for s2 may have less length than s2_length
 }
 
 void str_catf(str *s, char *format, ...) {

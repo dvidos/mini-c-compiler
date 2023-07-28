@@ -1,7 +1,11 @@
 #include "regex.h"
+#include "data_types/str.h"
+#include "data_structs/list.h"
 #include <string.h>
 
 
+#define MAX_GROUPS_SUPPORTED   9  // plus zero, the whole match
+#define GROUP_NUM_STACK_SIZE   4  // nested groups depth
 
 enum regex_token_type {
     RT_TEXT_START,
@@ -13,26 +17,42 @@ enum regex_token_type {
     RT_END_GROUP,
 };
 
-typedef struct regex_token {
+typedef struct regex_token regex_token;
+typedef struct regex_group regex_group;
+
+struct regex_token {
     enum regex_token_type type;
     char allowed_character;   // if only one
     const char *allowed_characters; // if many characters
     bool negated; // match anything BUT the specified character(s)
     int min_len;
     int max_len;
+    int group_no;
     struct regex_token *next;
-} regex_token;
+};
 
-typedef struct regex {
+struct regex_group {
+    bool is_open;
+    str *matched_text;
+};
+
+struct regex {
+    // parse / compile time data
     regex_token *token_list;
-    // also matching groups list would be here
-
+    int max_group_no;
     mempool *mempool;
-} regex;
+
+    // matching time data
+    regex_group groups[1 + MAX_GROUPS_SUPPORTED];
+};
 
 static char *whitespace_chars = " \t\r\n";
 static char *digit_chars = "0123456789";
 static char *word_chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_0123456789";
+
+
+// ------------------ parsing / compiling a pattern ------------------
+
 
 static inline bool accept(const char *string, int *pos, char acceptable) {
     if (string[*pos] != acceptable)
@@ -41,9 +61,9 @@ static inline bool accept(const char *string, int *pos, char acceptable) {
     return true;
 }
 
-static inline char accept_either(const char *string, int *pos, char accept1, char accept2) {
+static inline char accept_either(const char *string, int *pos, char acceptable1, char acceptable2) {
     char c = string[*pos];
-    if (c == accept1 || c == accept2) {
+    if (c == acceptable1 || c == acceptable2) {
         (*pos)++;
         return c;
     }
@@ -143,8 +163,10 @@ static bool parse_possible_size_at_pos(regex_token *token, const char *pattern, 
     return true;
 }
 
-static regex_token *parse_token_at_pattern_position(mempool *mp, const char *pattern, int len, int *pos) {
-    regex_token *token = mpalloc(mp, regex_token);
+static regex_token *parse_token_at_pattern_position(regex *re, 
+        const char *pattern, int len, int *pos, 
+        int grpnum_stack[], int *grpnum_stack_len) {
+    regex_token *token = mpalloc(re->mempool, regex_token);
     memset(token, 0, sizeof(regex_token)); // explicit reset
 
     // if no explicit size is defined, 1..1 is assumed
@@ -164,7 +186,7 @@ static regex_token *parse_token_at_pattern_position(mempool *mp, const char *pat
         token->type = RT_MATCH_SPECIFIC;
         if (accept(pattern, pos, '^'))
             token->negated = true;
-        if (!parse_character_ranges_at_pos(mp, token, pattern, len, pos))
+        if (!parse_character_ranges_at_pos(re->mempool, token, pattern, len, pos))
             return NULL;
         if (!accept(pattern, pos, ']')) {
             printf("Error in pattern, at %d, was expecting ']'", *pos);
@@ -174,6 +196,16 @@ static regex_token *parse_token_at_pattern_position(mempool *mp, const char *pat
     } else if (accept(pattern, pos, '\\')) {
         if (!parse_escaped_char_at_pos(token, pattern, len, pos))
             return NULL;
+
+    } else if (accept(pattern, pos, '(')) {
+        token->type = RT_START_GROUP;
+        token->group_no = ++re->max_group_no;
+        if ((*grpnum_stack_len) < GROUP_NUM_STACK_SIZE)
+            grpnum_stack[(*grpnum_stack_len)++] = token->group_no;
+
+    } else if (accept(pattern, pos, ')')) {
+        token->type = RT_END_GROUP;
+        token->group_no = ((*grpnum_stack_len) <= 0) ? 0 : grpnum_stack[--(*grpnum_stack_len)];
 
     } else {
         token->type = RT_MATCH_SPECIFIC;
@@ -187,14 +219,17 @@ static regex_token *parse_token_at_pattern_position(mempool *mp, const char *pat
     return token;
 }
 
-static regex_token *parse_pattern_into_token_list(mempool *mp, const char *pattern) {
+static regex_token *parse_pattern_into_token_list(regex *re, const char *pattern) {
     regex_token *list_head = NULL;
     regex_token *list_tail = NULL;
     int len = strlen(pattern);
+    int grpnum_stack[GROUP_NUM_STACK_SIZE];
+    int grpnum_stack_len = 0;
     int pos = 0;
 
     while (pos < len) {
-        regex_token *token = parse_token_at_pattern_position(mp, pattern, len, &pos);
+        regex_token *token = parse_token_at_pattern_position(re, pattern, len, &pos, 
+            grpnum_stack, &grpnum_stack_len);
         if (token == NULL)
             break;
         
@@ -210,33 +245,36 @@ static regex_token *parse_pattern_into_token_list(mempool *mp, const char *patte
     return list_head;
 }
 
+// ------------------ matching a precompiled pattern ------------------
 
-static bool regex_token_matches_at_pos(regex_token *token, const char *text, int len, int *pos) {
-    int matchable_len;
-
+static bool regex_token_matches_at_pos(regex *re, regex_token *token, const char *text, int text_len, int text_pos, int *matched_len) {
+    int len;
+    
     switch (token->type) {
         case RT_TEXT_START:
-            return (*pos == 0);
+            *matched_len = 0;
+            return text_pos == 0;
 
         case RT_TEXT_END:
-            return (*pos == len);
+            *matched_len = 0;
+            return text_pos == text_len;
 
         case RT_MATCH_ANYTHING:
             // greedily discover matchable length
-            matchable_len = len - (*pos);
-            if (matchable_len < token->min_len)
+            len = text_len - text_pos;
+            if (len < token->min_len)
                 return false; // not enough chars present
 
-            if (matchable_len > token->max_len)
-                matchable_len = token->max_len;
-            (*pos) += matchable_len;
+            if (len > token->max_len)
+                len = token->max_len;
+            *matched_len = len;
             return true;
 
         case RT_MATCH_SPECIFIC:
             // greedily discover matchable length
-            matchable_len = 0;
-            while ((*pos) + matchable_len < len) {
-                char c = text[(*pos) + matchable_len];
+            len = 0;
+            while (text_pos + len < text_len) {
+                char c = text[text_pos + len];
                 bool c_matches;
                 if (token->allowed_character != 0)
                     c_matches = (c == token->allowed_character);
@@ -247,31 +285,37 @@ static bool regex_token_matches_at_pos(regex_token *token, const char *text, int
                 if (!c_matches)
                     break;
                 
-                matchable_len++;
+                len++;
             }
-            if (matchable_len < token->min_len)
+            if (len < token->min_len)
                 return false; // not enough chars present
             
-            if (matchable_len > token->max_len)
-                matchable_len = token->max_len;
-            (*pos) += matchable_len;
+            if (len > token->max_len)
+                len = token->max_len;
+            *matched_len = len;
             return true;
 
         case RT_WORD_BOUNDARY:
             // see if previous work and now non-word or vice-versa
             // or at start or end of pattern
-            if ((*pos) == 0 || (*pos) == len - 1)
+            if (text_pos == 0 || text_pos == text_len)
                 return true;
-            bool prev_is_word = strchr(word_chars, text[(*pos) - 1]);
-            bool curr_is_word = strchr(word_chars, text[(*pos)]);
-            return ((prev_is_word && !curr_is_word) || (!prev_is_word && curr_is_word));
+            bool prev_is_word = strchr(word_chars, text[text_pos - 1]);
+            bool curr_is_word = strchr(word_chars, text[text_pos]);
+            bool is_word_boundary = ((prev_is_word && !curr_is_word) || (!prev_is_word && curr_is_word));
+            *matched_len = 0;
+            return is_word_boundary;
 
         case RT_START_GROUP:
             // these always match
+            re->groups[token->group_no].is_open = true;
+            *matched_len = 0;
             return true;
 
         case RT_END_GROUP:
             // these always match
+            re->groups[token->group_no].is_open = false;
+            *matched_len = 0;
             return true;
     }
 
@@ -281,23 +325,52 @@ static bool regex_token_matches_at_pos(regex_token *token, const char *text, int
 
 regex *new_regex(mempool *mp, const char *pattern) {
     regex *re = mpalloc(mp, regex);
-    re->token_list = parse_pattern_into_token_list(mp, pattern);
     re->mempool = mp;
+    re->token_list = parse_pattern_into_token_list(re, pattern);
+    for (int i = 0; i <= MAX_GROUPS_SUPPORTED; i++)
+        re->groups[i].matched_text = new_str(mp, NULL);
     return re;
 }
 
-bool regex_matches(regex *re, const char *text) {
+bool regex_matches(regex *re, const char *text, list *group_matches) {
+
     regex_token *token = re->token_list;
-    int len = strlen(text);
-    int pos = 0; // we start at the start of text
-    while (token != NULL) {
-        if (!regex_token_matches_at_pos(token, text, len, &pos))
-            return false;
-        token = token->next;
+    int text_len = strlen(text);
+    int text_pos = 0; // we s at the start of text
+    int matched_len = 0;
+
+    // reset runtime info
+    for (int i = 0; i <= re->max_group_no && i <= MAX_GROUPS_SUPPORTED; i++) {
+        re->groups[i].is_open = false;
+        str_clear(re->groups[i].matched_text);
     }
 
+    re->groups[0].is_open = true;
+    while (token != NULL) {
+        if (!regex_token_matches_at_pos(re, token, text, text_len, text_pos, &matched_len))
+            return false;
+        
+        for (int i = 0; i <= re->max_group_no; i++)
+            if (re->groups[i].is_open)
+                str_catsn(re->groups[i].matched_text, text + text_pos, matched_len);
+                
+        text_pos += matched_len;
+        token = token->next;
+    }
+    re->groups[0].is_open = false;
+
     // we finished all tokens, ensure we used all text
-    return (pos == len);
+    if (text_pos < text_len)
+        return false;
+
+    // if placeholder provided, store the group matches
+    if (group_matches != NULL) {
+        list_clear(group_matches);
+        for (int i = 0; i <= re->max_group_no; i++)
+            list_add(group_matches, str_clone(re->groups[i].matched_text));
+    }
+
+    return true;
 }
 
 bool regex_search(regex *re, const char *text, list *groups) {
@@ -315,68 +388,79 @@ void regex_unit_tests() {
 
     // test matching content
 
-    assert(regex_matches(new_regex(mp, "."), "a"));
-    assert(regex_matches(new_regex(mp, ".."), "ab"));
+    assert(regex_matches(new_regex(mp, "."), "a", NULL));
+    assert(regex_matches(new_regex(mp, ".."), "ab", NULL));
 
-    assert( regex_matches(new_regex(mp, "[a]"), "a"));
-    assert(!regex_matches(new_regex(mp, "[^a]"), "a"));
-    assert( regex_matches(new_regex(mp, "[abc]"), "c"));
-    assert( regex_matches(new_regex(mp, "[a-f]"), "d"));
-    assert(!regex_matches(new_regex(mp, "[a-f]"), "z"));
-    assert( regex_matches(new_regex(mp, "[^a-f]"), "z"));
+    assert( regex_matches(new_regex(mp, "[a]"), "a", NULL));
+    assert(!regex_matches(new_regex(mp, "[^a]"), "a", NULL));
+    assert( regex_matches(new_regex(mp, "[abc]"), "c", NULL));
+    assert( regex_matches(new_regex(mp, "[a-f]"), "d", NULL));
+    assert(!regex_matches(new_regex(mp, "[a-f]"), "z", NULL));
+    assert( regex_matches(new_regex(mp, "[^a-f]"), "z", NULL));
 
-    assert(regex_matches(new_regex(mp, "\\d"), "5"));
-    assert(!regex_matches(new_regex(mp, "\\D"), "5"));
-    assert(regex_matches(new_regex(mp, "\\D"), "a"));
+    assert(regex_matches(new_regex(mp, "\\d"), "5", NULL));
+    assert(!regex_matches(new_regex(mp, "\\D"), "5", NULL));
+    assert(regex_matches(new_regex(mp, "\\D"), "a", NULL));
 
-    assert( regex_matches(new_regex(mp, "\\w"), "a"));
-    assert(!regex_matches(new_regex(mp, "\\W"), "a"));
-    assert( regex_matches(new_regex(mp, "\\W"), " "));
+    assert( regex_matches(new_regex(mp, "\\w"), "a", NULL));
+    assert(!regex_matches(new_regex(mp, "\\W"), "a", NULL));
+    assert( regex_matches(new_regex(mp, "\\W"), " ", NULL));
 
-    assert(regex_matches(new_regex(mp, "\\s"), " "));
-    assert(!regex_matches(new_regex(mp, "\\S"), " "));
-    assert(regex_matches(new_regex(mp, "\\S"), "a"));
+    assert(regex_matches(new_regex(mp, "\\s"), " ", NULL));
+    assert(!regex_matches(new_regex(mp, "\\S"), " ", NULL));
+    assert(regex_matches(new_regex(mp, "\\S"), "a", NULL));
 
-    assert(regex_matches(new_regex(mp, "a"), "a"));
-    assert(!regex_matches(new_regex(mp, "a"), "b"));
-    assert(regex_matches(new_regex(mp, "bb"), "bb"));
+    assert(regex_matches(new_regex(mp, "a"), "a", NULL));
+    assert(!regex_matches(new_regex(mp, "a"), "b", NULL));
+    assert(regex_matches(new_regex(mp, "bb"), "bb", NULL));
 
-    assert(regex_matches(new_regex(mp, "\\a"), "a"));
+    assert(regex_matches(new_regex(mp, "\\a"), "a", NULL));
 
     // test matching sizes
 
-    assert( regex_matches(new_regex(mp, "a"), "a"));
-    assert(!regex_matches(new_regex(mp, "a"), "aa"));
-    assert(!regex_matches(new_regex(mp, "aa"), "a"));
+    assert( regex_matches(new_regex(mp, "a"), "a", NULL));
+    assert(!regex_matches(new_regex(mp, "a"), "aa", NULL));
+    assert(!regex_matches(new_regex(mp, "aa"), "a", NULL));
 
-    assert( regex_matches(new_regex(mp, "a?"), ""));
-    assert( regex_matches(new_regex(mp, "a?"), "a"));
-    assert(!regex_matches(new_regex(mp, "a?"), "aa"));
+    assert( regex_matches(new_regex(mp, "a?"), "", NULL));
+    assert( regex_matches(new_regex(mp, "a?"), "a", NULL));
+    assert(!regex_matches(new_regex(mp, "a?"), "aa", NULL));
 
-    assert(!regex_matches(new_regex(mp, "a+"), ""));
-    assert( regex_matches(new_regex(mp, "a+"), "a"));
-    assert( regex_matches(new_regex(mp, "a+"), "aa"));
+    assert(!regex_matches(new_regex(mp, "a+"), "", NULL));
+    assert( regex_matches(new_regex(mp, "a+"), "a", NULL));
+    assert( regex_matches(new_regex(mp, "a+"), "aa", NULL));
 
-    assert(regex_matches(new_regex(mp, "a*"), ""));
-    assert(regex_matches(new_regex(mp, "a*"), "a"));
-    assert(regex_matches(new_regex(mp, "a*"), "aa"));
+    assert(regex_matches(new_regex(mp, "a*"), "", NULL));
+    assert(regex_matches(new_regex(mp, "a*"), "a", NULL));
+    assert(regex_matches(new_regex(mp, "a*"), "aa", NULL));
 
-    assert(!regex_matches(new_regex(mp, "a{2}"), ""));
-    assert(!regex_matches(new_regex(mp, "a{2}"), "a"));
-    assert( regex_matches(new_regex(mp, "a{2}"), "aa"));
-    assert(!regex_matches(new_regex(mp, "a{2}"), "aaa"));
+    assert(!regex_matches(new_regex(mp, "a{2}"), "", NULL));
+    assert(!regex_matches(new_regex(mp, "a{2}"), "a", NULL));
+    assert( regex_matches(new_regex(mp, "a{2}"), "aa", NULL));
+    assert(!regex_matches(new_regex(mp, "a{2}"), "aaa", NULL));
 
-    assert(!regex_matches(new_regex(mp, "a{2,4}"), "a"));
-    assert( regex_matches(new_regex(mp, "a{2,4}"), "aa"));
-    assert( regex_matches(new_regex(mp, "a{2,4}"), "aaa"));
-    assert( regex_matches(new_regex(mp, "a{2,4}"), "aaaa"));
-    assert(!regex_matches(new_regex(mp, "a{2,4}"), "aaaaa"));
+    assert(!regex_matches(new_regex(mp, "a{2,4}"), "a", NULL));
+    assert( regex_matches(new_regex(mp, "a{2,4}"), "aa", NULL));
+    assert( regex_matches(new_regex(mp, "a{2,4}"), "aaa", NULL));
+    assert( regex_matches(new_regex(mp, "a{2,4}"), "aaaa", NULL));
+    assert(!regex_matches(new_regex(mp, "a{2,4}"), "aaaaa", NULL));
 
-    // test SOT, EOT, word boundaries
-
-    // test partial search
+    assert(!regex_matches(new_regex(mp, ".\\bcc\\b."), "acca", NULL));
+    assert(!regex_matches(new_regex(mp, ".\\bcc\\b."), "acc ", NULL));
+    assert(!regex_matches(new_regex(mp, ".\\bcc\\b."), " cca", NULL));
+    assert( regex_matches(new_regex(mp, ".\\bcc\\b."), " cc ", NULL));
 
     // test groups
+    list *matches = new_list(mp);
+    assert(regex_matches(new_regex(mp, "((\\d+)/(\\d+))/(\\d+)"), "10/16/1975", matches));
+    assert(list_length(matches) == 5);
+    assert(str_cmps(list_get(matches, 0), "10/16/1975") == 0);
+    assert(str_cmps(list_get(matches, 1), "10/16") == 0);
+    assert(str_cmps(list_get(matches, 2), "10") == 0);
+    assert(str_cmps(list_get(matches, 3), "16") == 0);
+    assert(str_cmps(list_get(matches, 4), "1975") == 0);
+
+    // test partial search
 
     // test substitution
 

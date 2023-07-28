@@ -25,7 +25,7 @@ typedef struct regex regex;
 regex *new_regex(mempool *mp, const char *pattern);
 
 // match the whole string
-bool regex_matches(regex *re, const char *text);
+bool regex_matches(regex *re, const char *text, list *group_matches);
 
 // find pattern in any place in text, fill in the groups list
 bool regex_search(regex *re, const char *text, list *groups);

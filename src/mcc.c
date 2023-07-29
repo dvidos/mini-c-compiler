@@ -286,8 +286,22 @@ static bool perform_end_to_end_test() {
     asm_listing *al = new_asm_listing(mp);
     int desired_exit_code = 123;
     // must declare "main" as global.
+    al->ops->select_section(al, ".rodata");
+    bin *msg = new_bin(mp);
+    bin_add_str(msg, new_str(mp, "Hello world!\n"));
+    al->ops->declare_global(al, "message");
+    al->ops->add_line(al, new_asm_line_data_definition(mp, new_str(mp, "message"), DATA_BYTE, bin_len(msg), msg));
+
+    // x86_64 function call ABI: arguments: RDI, RSI, RDX, RCX, R8, R9, return values: RAX, RDX
+
+    al->ops->select_section(al, ".text");
     al->ops->declare_global(al, "main");
     al->ops->set_next_label(al, "main");
+    // print(message)
+    al->ops->add_line(al, new_asm_line_instruction_with_operands(mp, OC_LEA, new_asm_operand_reg(mp, REG_RAX), new_asm_operand_mem_by_sym(mp, "message")));
+    al->ops->add_line(al, new_asm_line_instruction_with_operands(mp, OC_MOV, new_asm_operand_reg(mp, REG_RDI), new_asm_operand_reg(mp, REG_RAX)));
+    al->ops->add_line(al, new_asm_line_instruction_with_operand(mp, OC_CALL, new_asm_operand_mem_by_sym(mp, "print")));
+    // exit(1)
     al->ops->add_line(al, new_asm_line_instruction_with_operands(mp, OC_MOV, new_asm_operand_reg(mp, REG_AX), new_asm_operand_imm(mp, desired_exit_code)));
     al->ops->add_line(al, new_asm_line_instruction(mp, OC_RET));
     list_add(asm_listings, al);
@@ -323,7 +337,6 @@ static bool perform_end_to_end_test() {
     int exit_status = WEXITSTATUS(system_status);
     if (!exited || exit_status != desired_exit_code)
         return false;
-
     unlink(str_charptr(executable));
     mempool_release(mp);
     return true;

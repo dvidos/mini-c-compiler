@@ -337,6 +337,10 @@ static bool perform_end_to_end_test() {
     int exit_status = WEXITSTATUS(system_status);
     if (!exited || exit_status != desired_exit_code)
         return false;
+
+    // let's disassemble the executable
+    system(str_charptr(new_strf(mp, "objdump -M intel -d %s", str_charptr(executable))));
+
     unlink(str_charptr(executable));
     mempool_release(mp);
     return true;

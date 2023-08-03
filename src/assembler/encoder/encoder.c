@@ -92,7 +92,7 @@ static void _free(struct x86_encoder *enc) {
 static bool encode_asm_instr_opcode(asm_instruction *instr, struct encoding_info *info, struct encoded_instruction *result) {
 
     // setup 16-bit operand size if needed
-    if (instr->operands_size_bits == 16) {
+    if (instr->operands_data_size == 16) {
         // not sure of difference between operands size and address size...
         result->flags.have_operand_size_prefix = 1;
         result->values.operand_size_prefix = 0x66;
@@ -116,7 +116,7 @@ static bool encode_asm_instr_opcode(asm_instruction *instr, struct encoding_info
 
     // width bit works both for immediate and for reg-mem types of instructions
     if (info->has_width_bit) {
-        if (instr->operands_size_bits == 8) // zero indicates single byte operands
+        if (instr->operands_data_size == 8) // zero indicates single byte operands
             result->values.opcode_byte &= ~0x1;
         else // one indicates full size operands
             result->values.opcode_byte |= 0x1;

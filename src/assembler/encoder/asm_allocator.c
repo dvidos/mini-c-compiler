@@ -229,7 +229,7 @@ static void _release_temp_reg_storage(asm_allocator *a, int temp_reg_no) {
 
 static void _storage_to_str(asm_allocator *a, storage *stor, str *s) {
     if (stor->is_gp_reg) {
-        str_cats(s, gp_reg_name(stor->gp_reg));
+        str_cats(s, register_name(stor->gp_reg));
     } else if (stor->is_stack_var) {
         str_catf(s, "[BP%+d] (%d bytes)", stor->bp_offset, stor->size);
     }

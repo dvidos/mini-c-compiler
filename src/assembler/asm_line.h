@@ -36,10 +36,11 @@ struct asm_directive {
 };
 
 typedef enum data_size {
-    DATA_BYTE,
-    DATA_WORD,
-    DATA_DWORD,
-    DATA_QWORD
+    DATA_UNKNOWN = 0,
+    DATA_BYTE = 8,
+    DATA_WORD = 16,
+    DATA_DWORD = 32,
+    DATA_QWORD = 64
 } data_size;
 
 struct asm_data_definition {
@@ -110,7 +111,7 @@ typedef enum instr_code {
     OC_NEG,
     OC_SHL,
     OC_SHR,
-    // control
+    // (un)conditional branching
     OC_JMP,
     OC_CMP,
     OC_JEQ,
@@ -123,6 +124,7 @@ typedef enum instr_code {
     OC_JGE,
     OC_JLT,
     OC_JLE,
+    // basic calls
     OC_CALL,
     OC_RET,
     OC_INT,
@@ -157,7 +159,7 @@ typedef struct asm_reg_or_imm_operand {
 
 struct asm_instruction {
     instr_code operation; // ADD, SUB, etc. no sign cognizance
-    int operands_size_bits; // 8,16,32,64 (width bit for 8bits, 0x66 prefix for 16bits)
+    data_size operands_data_size;
     bool direction_regmem_to_regimm; // if false, the opposite
     
     // register or memory - goes to the Mod+R/M part of the ModRegRM byte
@@ -181,18 +183,24 @@ asm_line *new_asm_line_instruction_reg_reg(mempool *mp, instr_code op, gp_regist
 asm_line *new_asm_line_instruction_reg_imm(mempool *mp, instr_code op, gp_register target_reg, long immediate);
 asm_line *new_asm_line_instruction_mem_reg(mempool *mp, instr_code op, gp_register ptr_reg, gp_register src_reg);
 asm_line *new_asm_line_instruction_reg_mem(mempool *mp, instr_code op, gp_register target_reg, gp_register ptr_reg);
-asm_line *new_asm_line_instruction_mem_imm(mempool *mp, instr_code op, gp_register ptr_reg, u8 data_bits, long immediate);
+asm_line *new_asm_line_instruction_mem_imm(mempool *mp, instr_code op, gp_register ptr_reg, data_size data_bits, long immediate);
 
 
+data_size register_data_size(gp_register r);
+int register_bits(gp_register r);
+bool register_is_extended(gp_register r);
+const char *register_name(gp_register r); // don't free the returned string
 
+data_size asm_instruction_data_size(asm_instruction *instr);
+data_size asm_instruction_pointer_size(asm_instruction *instr);
+bool asm_instruction_has_immediate(asm_instruction *instr);
 
 asm_operand *new_asm_operand_imm(mempool *mp, int value);
 asm_operand *new_asm_operand_reg(mempool *mp, gp_register reg_no);
 asm_operand *new_asm_operand_mem_by_sym(mempool *mp, char *symbol_name);
 asm_operand *new_asm_operand_mem_by_reg(mempool *mp, gp_register reg_no, int offset);
 
-char *gp_reg_name(gp_register r); // don't free the returned string
-char *instr_code_name(instr_code code); // don't free the returned string
+const char *instr_code_name(instr_code code); // don't free the returned string
 void asm_instruction_to_str(asm_instruction *instr, str *str, bool with_comment);
 str *asm_line_to_str(mempool *mp, asm_line *line);
 

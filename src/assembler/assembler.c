@@ -139,104 +139,17 @@ enum modregrm_rm {
     RM_111_DI = 7
 };
 
-static int get_register_bits(gp_register r) {
-    if ((r >= REG_RAX && r <= REG_RDI) || (r >= REG_R8  && r <= REG_R15))  return 64;
-    if ((r >= REG_EAX && r <= REG_EDI) || (r >= REG_R8D && r <= REG_R15D)) return 32;
-    if ((r >= REG_AX  && r <= REG_DI)  || (r >= REG_R8W && r <= REG_R15W)) return 16;
-    if ((r >= REG_AL  && r <= REG_BH)  || (r >= REG_R8B && r <= REG_R15B)) return 8;
-    return 0;
-}
-
-static int is_extended_register(gp_register r) {
-    return (r >= REG_R9  && r <= REG_R15) 
-        || (r >= REG_R9B && r <= REG_R15B)
-        || (r >= REG_R9W && r <= REG_R15W)
-        || (r >= REG_R9D && r <= REG_R15D);
-}
-
-static bool get_instruction_data_size(asm_instruction *instr, u8 *bits) {
-
-    // reg <- reg, grab from reg, ensure same sizes
-    // mem <- reg, grab size from src reg
-    // reg <- mem, grab size from dest reg
-    // reg <- imm, grab size from dest reg
-    // mem <- imm, size must be explicit
-    //
-    // notice that a register used for pointing is ignored here,
-    // because the size of this pointer is irrelevant to the data size.
-
-    if (instr->regmem_operand.is_register && instr->regimm_operand.is_register) {
-        // reg <--> reg
-        u8 s1 = get_register_bits(instr->regmem_operand.per_type.reg);
-        u8 s2 = get_register_bits(instr->regimm_operand.per_type.reg);
-        if (s1 != s2) {
-            error("reg <-> reg operations must have the same size");
-            return false;
-        }
-        *bits = s1;
-    } else if ((instr->regmem_operand.is_memory_by_reg || instr->regmem_operand.is_mem_addr_by_symbol) &&
-                instr->regimm_operand.is_register) {
-        // memory <--> register
-        *bits = get_register_bits(instr->regimm_operand.per_type.reg);
-    } else if (instr->regmem_operand.is_register && instr->regimm_operand.is_immediate) {
-        // register <-- immediate
-        *bits = get_register_bits(instr->regmem_operand.per_type.reg);
-    } else if ((instr->regmem_operand.is_memory_by_reg || instr->regmem_operand.is_mem_addr_by_symbol) && 
-                instr->regimm_operand.is_immediate) {
-        // immediate to memory, we must have explicit memory size
-        if (instr->operands_size_bits < 8 || instr->operands_size_bits > 64) {
-            error("mem <-- imm operations must have explicit size definition");
-            return false;
-        }
-        *bits = instr->operands_size_bits;
-    } else {
-        fatal("Unexpected operands configuration!");
-        return false;
-    }
-
-    return true;
-}
-
-static bool is_8bits_instruction(asm_instruction *instr) {
-    u8 bits;
-    if (!get_instruction_data_size(instr, &bits))
-        return false;
-    
-    return (bits == 8);
-}
-
-static bool is_instruction_with_immediate(asm_instruction *instr) {
-    return instr->regimm_operand.is_immediate;
-}
-
-static bool is_valid_data_size_instruction(asm_instruction *instr) {
-    u8 bits;
-    if (!get_instruction_data_size(instr, &bits))
-        return false;
-    
-    return (bits == 8 || bits == 16 || bits == 32 || bits == 64);
-}
-
-static bool get_instruction_pointer_size(asm_instruction *instr, u8 *bits) {
-    if (instr->regmem_operand.is_memory_by_reg) {
-        *bits = get_register_bits(instr->regmem_operand.per_type.reg);
-    } else {
-        *bits = 0; // no pointer
-    }
-    return true;
-}
-
 static bool encode_size_prefix_bytes(asm_instruction *instr, 
     int opcode_8bits, int opcode_16plus, 
     bool *need_66, bool *need_67, bool *need_rex,
     u8 *rex_value, int *opcode_value
 ) {
-    u8 data_bits = 0;
-    u8 ptr_bits = 0;
-    if (!get_instruction_data_size(instr, &data_bits))
+    data_size data_width = asm_instruction_data_size(instr);
+    if (data_width == DATA_UNKNOWN) {
+        error("Cannot determine data size");
         return false;
-    if (!get_instruction_pointer_size(instr, &ptr_bits))
-        return false;
+    }
+    data_size pointer_width = asm_instruction_pointer_size(instr);
 
     /* Regarding encoding:
         - data size, for how many bytes to write
@@ -259,25 +172,25 @@ static bool encode_size_prefix_bytes(asm_instruction *instr,
     *need_67 = false;
     *need_rex = false;
 
-    if (data_bits == 8) {
+    if (data_width == DATA_BYTE) {
         if (opcode_8bits < 0 || opcode_8bits > 0xFF) {
             error("instruction does not support 8 bits operation");
             return false;
         }
         *opcode_value = opcode_8bits;
-    } else if (data_bits == 16) {
+    } else if (data_width == DATA_WORD) {
         *need_66 = true;
         *opcode_value = opcode_16plus;
-    } else if (data_bits == 32) {
+    } else if (data_width == DATA_DWORD) {
         *opcode_value = opcode_16plus;
-    } else if (data_bits == 64) {
+    } else if (data_width == DATA_QWORD) {
         *need_rex = true;
         *rex_value = REX_BASE_VALUE + REX_WIDE_BIT;
         *opcode_value = opcode_16plus;
     }
 
     // irrespective of data size, 67 is only about address size
-    if (ptr_bits == 32) {
+    if (instr->regmem_operand.is_memory_by_reg && pointer_width == DATA_DWORD) {
         *need_67 = true;
     }
 
@@ -301,12 +214,12 @@ static bool encode_addressing_bytes(asm_reg_or_mem_operand *oper, u8 modregrm_re
         // direct register selection
         mod = MOD_11_DIRECT_REGISTER;
         rm = (oper->per_type.reg & 0x7);
-        if (is_extended_register(oper->per_type.reg))
+        if (register_is_extended(oper->per_type.reg))
             (*rex_value) |= REX_MODREGRM_RM_EXTESION;
         *need_displacement32 = false;
         *need_symbol_relocation = false;
         *modregrm_value = mod_reg_rm(mod, modregrm_reg, rm);
-        if (is_extended_register(modregrm_reg))
+        if (register_is_extended(modregrm_reg))
             (*rex_value) |= REX_MODREGRM_REG_EXTENSION;
 
     } else if (oper->is_memory_by_reg) { 
@@ -320,9 +233,9 @@ static bool encode_addressing_bytes(asm_reg_or_mem_operand *oper, u8 modregrm_re
             mod = MOD_00_INDIRECT_MEM_NO_DISPLACEMENT;
             rm = (oper->per_type.mem.pointer_reg & 0x7);
         }
-        if (is_extended_register(oper->per_type.mem.pointer_reg))
+        if (register_is_extended(oper->per_type.mem.pointer_reg))
             (*rex_value) |= REX_MODREGRM_RM_EXTESION;
-        if (is_extended_register(modregrm_reg))
+        if (register_is_extended(modregrm_reg))
             (*rex_value) |= REX_MODREGRM_REG_EXTENSION;
         *modregrm_value = mod_reg_rm(mod, modregrm_reg, rm);
     } else if (oper->is_mem_addr_by_symbol) { 
@@ -330,7 +243,7 @@ static bool encode_addressing_bytes(asm_reg_or_mem_operand *oper, u8 modregrm_re
         mod = 0x00; // 0x00 to enable special DISPL32 r/m mode
         rm = RM_101_DISPL32_IF_MOD_00;
         *modregrm_value = mod_reg_rm(mod, modregrm_reg, rm);
-        if (is_extended_register(modregrm_reg))
+        if (register_is_extended(modregrm_reg))
             (*rex_value) |= REX_MODREGRM_REG_EXTENSION;
         *displacement32_value = 0;
         *need_displacement32 = true;
@@ -340,18 +253,58 @@ static bool encode_addressing_bytes(asm_reg_or_mem_operand *oper, u8 modregrm_re
     return true;
 }
 
-static bool encode_immediate_info(asm_instruction *instr, bool *need_immediate, u8 *immediate_bits) {
-    u8 data_size;
-    if (!get_instruction_data_size(instr, &data_size))
+static bool encode_immediate_info(asm_instruction *instr, bool *need_immediate, data_size *immediate_size) {
+    data_size data_width = asm_instruction_data_size(instr);
+    if (data_width == DATA_UNKNOWN) {
+        error("Cannot detect insrtuction data size");
         return false;
+    }
 
     *need_immediate = instr->regimm_operand.is_immediate;
     // the way I understand it, immediates for x86_64 are still 32 bits.
-    *immediate_bits = data_size > 32 ? 32 : data_size;
+    *immediate_size = (data_width == DATA_QWORD) ? DATA_DWORD : data_width;
     return true;
 }
 
-static bool encode_two_operands_instruction(assembler_data *ad, asm_line *line,
+static bool encode_instruction_with_regmem_operand(assembler_data *ad, asm_line *line, 
+        u8 opcode_8bits, u8 opcode_16plus, int opcode_ext,
+        asm_reg_or_mem_operand *operand) {
+
+    bool need_66;
+    bool need_67;
+    bool need_rex;
+    bool need_displacement32;
+    bool need_symbol_relocation;
+    u8 rex_value;
+    int opcode_value;
+    u8 modregrm_value;
+    u32 displacement32_value;
+
+    if (!encode_size_prefix_bytes(line->per_type.instruction, opcode_8bits, opcode_16plus, 
+            &need_66, &need_67, &need_rex, &rex_value, &opcode_value))
+        return false;
+        
+    if (!encode_addressing_bytes(
+            operand, opcode_ext, &modregrm_value, &displacement32_value, &rex_value, 
+            &need_displacement32, &need_symbol_relocation))
+        return false;
+
+    if (need_67)  bin_add_byte(ad->curr_sect->contents, 0x67);
+    if (need_66)  bin_add_byte(ad->curr_sect->contents, 0x66);
+    if (need_rex) bin_add_byte(ad->curr_sect->contents, rex_value);
+    bin_add_byte(ad->curr_sect->contents, (u8)opcode_value);
+    bin_add_byte(ad->curr_sect->contents, modregrm_value);
+    if (need_symbol_relocation) {
+        str *name = new_str(ad->mempool, operand->per_type.mem.displacement_symbol_name);
+        size_t offs = bin_len(ad->curr_sect->contents);
+        ad->curr_sect->ops->add_relocation(ad->curr_sect, offs, name, 2, -4);
+    }
+    if (need_displacement32) {
+        bin_add_dword(ad->curr_sect->contents, displacement32_value);
+    }
+}
+
+static bool encode_instruction_with_two_operands(assembler_data *ad, asm_line *line,
     int opcode_8bits_reg_to_rm, int opcode_16plus_reg_to_rm,
     int opcode_8bits_rm_to_reg, int opcode_16plus_rm_to_reg,
     int opcode_8bits_imm, int opcode_16plus_imm,
@@ -367,19 +320,14 @@ static bool encode_two_operands_instruction(assembler_data *ad, asm_line *line,
     int opcode_value;
     u8 modregrm_value;
     u32 displacement32_value;
-    u8 immediate_bits;
-    u8 data_size_bits;
+    data_size immediate_size;
 
     asm_instruction *inst = line->per_type.instruction;
-    if (!get_instruction_data_size(inst, &data_size_bits)) {
-        error("Cannot discover instruction bits");
-        return false;
-    }
 
     int opcode_8bits;
     int opcode_16plus;
     int modregrm_reg;
-    if (is_instruction_with_immediate(inst)) {
+    if (asm_instruction_has_immediate(inst)) {
         opcode_8bits  = opcode_8bits_imm;
         opcode_16plus = opcode_16plus_imm;
         modregrm_reg  = opcode_extension_for_imm;
@@ -407,16 +355,13 @@ static bool encode_two_operands_instruction(assembler_data *ad, asm_line *line,
             &need_displacement32, &need_symbol_relocation))
         return false;
     
-    if (!encode_immediate_info(inst, &need_immediate, &immediate_bits))
+    if (!encode_immediate_info(inst, &need_immediate, &immediate_size))
         return false;
 
     // start adding bytes and relocation if needed
-    if (need_67)
-        bin_add_byte(ad->curr_sect->contents, 0x67);
-    if (need_66)
-        bin_add_byte(ad->curr_sect->contents, 0x66);
-    if (need_rex)
-        bin_add_byte(ad->curr_sect->contents, rex_value);
+    if (need_67)  bin_add_byte(ad->curr_sect->contents, 0x67);
+    if (need_66)  bin_add_byte(ad->curr_sect->contents, 0x66);
+    if (need_rex) bin_add_byte(ad->curr_sect->contents, rex_value);
     
     bin_add_byte(ad->curr_sect->contents, (u8)opcode_value);
     bin_add_byte(ad->curr_sect->contents, modregrm_value);
@@ -429,13 +374,13 @@ static bool encode_two_operands_instruction(assembler_data *ad, asm_line *line,
         bin_add_dword(ad->curr_sect->contents, displacement32_value);
     }
     if (need_immediate) {
-        if (immediate_bits == 8)
+        if (immediate_size == DATA_BYTE)
             bin_add_byte(ad->curr_sect->contents, (u8)inst->regimm_operand.per_type.immediate);
-        else if (immediate_bits == 16)
+        else if (immediate_size == DATA_WORD)
             bin_add_word(ad->curr_sect->contents, (u16)inst->regimm_operand.per_type.immediate);
-        else if (immediate_bits == 32)
+        else if (immediate_size == DATA_DWORD)
             bin_add_dword(ad->curr_sect->contents, (u32)inst->regimm_operand.per_type.immediate);
-        else if (immediate_bits == 64)
+        else if (immediate_size == DATA_QWORD)
             bin_add_qword(ad->curr_sect->contents, (u64)inst->regimm_operand.per_type.immediate);
     }
 }
@@ -478,9 +423,15 @@ static void encode_instruction_line_x86_64(assembler_data *ad, asm_line *line) {
     }
 
     asm_instruction *instr = line->per_type.instruction;
+    data_size data_width = asm_instruction_data_size(instr);
+    bool has_immediate = asm_instruction_has_immediate(instr);
+
     switch (instr->operation) {
         case OC_RET:
-            bin_add_byte(ad->curr_sect->contents, 0xC3); // 0xCB is "lret" (long ret)
+            bin_add_byte(ad->curr_sect->contents, 0xC3);
+            break;
+        case OC_NOP:
+            bin_add_byte(ad->curr_sect->contents, 0x90);
             break;
         case OC_MOV:
             /*  88/r mov rm8 <- r8
@@ -491,14 +442,53 @@ static void encode_instruction_line_x86_64(assembler_data *ad, asm_line *line) {
                 B8+r mov r16/32/64 <- imm16/32/64
                 C6/0 mov rm8 <- imm8
                 C7/0 mov rm16/32/64 <- imm16/32/64 */
-            encode_two_operands_instruction(ad, line, 0x88, 0x89, 0x8A, 0x8B, 0xC6, 0xC7, 0);
+            if (has_immediate) {
+                encode_instruction_with_two_operands(ad, line, 0x88, 0x89, 0x8A, 0x8B, 0xC6, 0xC7, 0);
+            } else {
+                encode_instruction_with_two_operands(ad, line, 0x88, 0x89, 0x8A, 0x8B, 0xC6, 0xC7, 0);
+            }
             break;
         case OC_LEA:
             /* 8D/r LEA r16/32/64,m */
             // 8 bits are not supported
-            // i think i have to break the "encode_two_operands_instruction()" function into two,
+            // i think i have to break the "encode_instruction_with_two_operands()" function into two,
             // to ensure i can hardcode the "/r" part
-            encode_two_operands_instruction(ad, line, -1, -1, -1, 0x8D, -1, -1, -1);
+            encode_instruction_with_two_operands(ad, line, -1, -1, -1, 0x8D, -1, -1, -1);
+            break;
+        case OC_PUSH:
+            // one cannot push 8 or 32 bits reg/mem on stack in x86_64 mode, only 16 and 64
+            // immediates can be pushed for 16, 64 bits
+            // PUSH imm8:           6A imm8
+            // PUSH imm16: <prefix> 68 imm16
+            // PUSH imm64:          68 imm64
+            // PUSH r/m16: <prefix> FF/6 rm/16 (modregrm byte)
+            // PUSH r/m64:          FF/6 rm/64 (modregrm byte)
+            if (has_immediate) {
+                if (data_width == DATA_DWORD) {
+                    error("Cannot push 32 bits values in x86_64 mode");
+                    return;
+                }
+                // 8bit opcode, 16/32/64 opcode, immediate value, immediate size?
+                error("Immediate push not implemented yet!");
+                // encode_instruction_with_immediate_operand(...);
+            } else {
+                if (data_width != DATA_WORD && data_width != DATA_QWORD) {
+                    error("Only 16 and 64 bits can be pushed in x86_64 mode");
+                    return;
+                }
+                // usually the "reg" part on ModRegRm is opcode extension (e.g. "/6")
+                encode_instruction_with_regmem_operand(ad, line, -1, 0xFF, 6, &instr->regmem_operand);
+            }
+            break;
+        case OC_POP:
+            // only 16 and 64 bits operations are supported in 64 bits mode
+            // POP r/m16: <prefix> 8F/0
+            // POP r/m64:          8F/0
+            if (data_width != DATA_WORD && data_width != DATA_QWORD) {
+                error("Only 16 and 64 bits can be popped in x86_64 mode");
+                return;
+            }
+            encode_instruction_with_regmem_operand(ad, line, -1, 0x8F, 0, &instr->regmem_operand);
             break;
         case OC_CALL:
             /*  E8 cd CALL rel32   (Call near, relative, displacement relative to next instruction)
@@ -508,7 +498,7 @@ static void encode_instruction_line_x86_64(assembler_data *ad, asm_line *line) {
                 encode_simple_instruction_with_symbol32(ad, line, -1, 0xE8, instr->regmem_operand.per_type.mem.displacement_symbol_name);
             } else if (instr->regmem_operand.is_memory_by_reg) {
                 error("CALL only supports memory by symbol for now");
-                // encode_instruction_with_modrm(ad, kine, 0xFF, 0x2, ...)
+                // encode_instruction_with_regmem_operand(ad, line, 0xFF, 0x2, instr->regmem_operand)
             } else {
                 error("CALL only supports memory by symbol or register");
             }
@@ -741,33 +731,33 @@ void test_instructions_encoding() {
     // 66    c7 02 aa bb         mov    WORD PTR [rdx],0xbbaa
     //       c7 02 aa bb cc 00   mov    DWORD PTR [rdx],0xccbbaa
     // 48    c7 02 aa bb cc 00   mov    QWORD PTR [rdx],0xccbbaa
-    l = new_asm_line_instruction_mem_imm(mp, OC_MOV, REG_RDX, 8, 0xAA);
+    l = new_asm_line_instruction_mem_imm(mp, OC_MOV, REG_RDX, DATA_BYTE, 0xAA);
     verify_instr_encoding(l, "\xc6\x02\xaa", 3);
-    l = new_asm_line_instruction_mem_imm(mp, OC_MOV, REG_RDX, 16, 0xBBAA);
+    l = new_asm_line_instruction_mem_imm(mp, OC_MOV, REG_RDX, DATA_WORD, 0xBBAA);
     verify_instr_encoding(l, "\x66\xc7\x02\xaa\xbb", 5);
-    l = new_asm_line_instruction_mem_imm(mp, OC_MOV, REG_RDX, 32, 0xCCBBAA);
+    l = new_asm_line_instruction_mem_imm(mp, OC_MOV, REG_RDX, DATA_DWORD, 0xCCBBAA);
     verify_instr_encoding(l, "\xc7\x02\xaa\xbb\xcc\x00", 6);
-    l = new_asm_line_instruction_mem_imm(mp, OC_MOV, REG_RDX, 64, 0xCCBBAA);
+    l = new_asm_line_instruction_mem_imm(mp, OC_MOV, REG_RDX, DATA_QWORD, 0xCCBBAA);
     verify_instr_encoding(l, "\x48\xc7\x02\xaa\xbb\xcc\x00", 7);
 
     // 67    c6 02 aa            mov    BYTE PTR [edx],0xaa
     // 67 66 c7 02 aa bb         mov    WORD PTR [edx],0xbbaa
     // 67    c7 02 aa bb cc 00   mov    DWORD PTR [edx],0xccbbaa
     // 67 48 c7 02 aa bb cc 00   mov    QWORD PTR [edx],0xccbbaa
-    l = new_asm_line_instruction_mem_imm(mp, OC_MOV, REG_EDX, 8, 0xAA);
+    l = new_asm_line_instruction_mem_imm(mp, OC_MOV, REG_EDX, DATA_BYTE, 0xAA);
     verify_instr_encoding(l, "\x67\xc6\x02\xaa", 4);
-    l = new_asm_line_instruction_mem_imm(mp, OC_MOV, REG_EDX, 16, 0xBBAA);
+    l = new_asm_line_instruction_mem_imm(mp, OC_MOV, REG_EDX, DATA_WORD, 0xBBAA);
     verify_instr_encoding(l, "\x67\x66\xc7\x02\xaa\xbb", 6);
-    l = new_asm_line_instruction_mem_imm(mp, OC_MOV, REG_EDX, 32, 0xCCBBAA);
+    l = new_asm_line_instruction_mem_imm(mp, OC_MOV, REG_EDX, DATA_DWORD, 0xCCBBAA);
     verify_instr_encoding(l, "\x67\xc7\x02\xaa\xbb\xcc\x00", 7);
-    l = new_asm_line_instruction_mem_imm(mp, OC_MOV, REG_EDX, 64, 0xCCBBAA);
+    l = new_asm_line_instruction_mem_imm(mp, OC_MOV, REG_EDX, DATA_QWORD, 0xCCBBAA);
     verify_instr_encoding(l, "\x67\x48\xc7\x02\xaa\xbb\xcc\x00", 8);
 
     // 67    c7 00 66 55 00 00   mov    DWORD PTR [eax],0x5566  (67 to set the pointer to Exx instead of Rxx, AX/AL are not used)
     //       c7 00 66 55 00 00   mov    DWORD PTR [rax],0x5566
-    l = new_asm_line_instruction_mem_imm(mp, OC_MOV, REG_EAX, 32, 0x5566);
+    l = new_asm_line_instruction_mem_imm(mp, OC_MOV, REG_EAX, DATA_DWORD, 0x5566);
     verify_instr_encoding(l, "\x67\xc7\x00\x66\x55\x00\x00", 7);
-    l = new_asm_line_instruction_mem_imm(mp, OC_MOV, REG_RAX, 32, 0x5566);
+    l = new_asm_line_instruction_mem_imm(mp, OC_MOV, REG_RAX, DATA_DWORD, 0x5566);
     verify_instr_encoding(l, "\xc7\x00\x66\x55\x00\x00", 6);
 
     // 4d 89 d1                mov    r9,r10
@@ -790,7 +780,7 @@ void test_instructions_encoding() {
     verify_instr_encoding(l, "\x49\xc7\xc1\x7b\x00\x00\x00", 7);
     l = new_asm_line_instruction_mem_reg(mp, OC_MOV, REG_R9, REG_RCX);
     verify_instr_encoding(l, "\x49\x89\x09", 3);
-    l = new_asm_line_instruction_mem_imm(mp, OC_MOV, REG_R9, 64, 123);
+    l = new_asm_line_instruction_mem_imm(mp, OC_MOV, REG_R9, DATA_QWORD, 123);
     verify_instr_encoding(l, "\x49\xc7\x01\x7b\x00\x00\x00", 7);
 
     // complex examples, with both modregrm and sib, displacement and immediate
@@ -800,6 +790,46 @@ void test_instructions_encoding() {
     //     ->    c7 84 93 00 fe ff ff 7b 00 00 00
     // mov    QWORD PTR [rbx+rdx*4-0x200],0x7b
     //     -> 48 c7 84 93 00 fe ff ff 7b 00 00 00
+
+    l = new_asm_line_instruction_for_register(mp, OC_PUSH, REG_DI);
+    verify_instr_encoding(l, "\x66\xff\xf7", 3);
+    l = new_asm_line_instruction_for_register(mp, OC_PUSH, REG_RDI);
+    verify_instr_encoding(l, "\x48\xff\xf7", 3);
+    l = new_asm_line_instruction_for_register(mp, OC_PUSH, REG_R14);
+    verify_instr_encoding(l, "\x49\xff\xf6", 3);
+    
+    l = new_asm_line_instruction_for_register(mp, OC_POP, REG_DI);
+    verify_instr_encoding(l, "\x66\x8f\xc7", 3);
+    l = new_asm_line_instruction_for_register(mp, OC_POP, REG_RDI);
+    verify_instr_encoding(l, "\x48\x8f\xc7", 3);
+    l = new_asm_line_instruction_for_register(mp, OC_POP, REG_R14);
+    verify_instr_encoding(l, "\x49\x8f\xc6", 3);
+
+    l = new_asm_line_instruction_with_operand(mp, OC_PUSH, new_asm_operand_mem_by_reg(mp, REG_EDX, 0));
+    l->per_type.instruction->operands_data_size = DATA_QWORD;
+    verify_instr_encoding(l, "\x67\x48\xff\x32", 4);  // 48 could be ommitted here
+    l = new_asm_line_instruction_with_operand(mp, OC_PUSH, new_asm_operand_mem_by_reg(mp, REG_EDX, 0));
+    l->per_type.instruction->operands_data_size = DATA_WORD;
+    verify_instr_encoding(l, "\x67\x66\xff\x32", 4);
+    l = new_asm_line_instruction_with_operand(mp, OC_PUSH, new_asm_operand_mem_by_reg(mp, REG_RDX, 0));
+    l->per_type.instruction->operands_data_size = DATA_QWORD;
+    verify_instr_encoding(l, "\x48\xFF\x32", 3); // 48 could be omitted
+    l = new_asm_line_instruction_with_operand(mp, OC_PUSH, new_asm_operand_mem_by_reg(mp, REG_RDX, 0));
+    l->per_type.instruction->operands_data_size = DATA_WORD;
+    verify_instr_encoding(l, "\x66\xff\x32", 3);
+    l = new_asm_line_instruction_with_operand(mp, OC_POP, new_asm_operand_mem_by_reg(mp, REG_EDX, 0));
+    l->per_type.instruction->operands_data_size = DATA_QWORD;
+    verify_instr_encoding(l, "\x67\x48\x8f\x02", 4); // 48 could be omitted
+    l = new_asm_line_instruction_with_operand(mp, OC_POP, new_asm_operand_mem_by_reg(mp, REG_EDX, 0));
+    l->per_type.instruction->operands_data_size = DATA_WORD;
+    verify_instr_encoding(l, "\x67\x66\x8f\x02", 4);
+    l = new_asm_line_instruction_with_operand(mp, OC_POP, new_asm_operand_mem_by_reg(mp, REG_RDX, 0));
+    l->per_type.instruction->operands_data_size = DATA_QWORD;
+    verify_instr_encoding(l, "\x48\x8f\x02", 3); // 48 could be omitted
+    l = new_asm_line_instruction_with_operand(mp, OC_POP, new_asm_operand_mem_by_reg(mp, REG_RDX, 0));
+    l->per_type.instruction->operands_data_size = DATA_WORD;
+    verify_instr_encoding(l, "\x66\x8f\x02", 3);
+
 
     mempool_release(mp);
 }

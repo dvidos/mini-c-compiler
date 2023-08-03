@@ -64,7 +64,7 @@ asm_line *new_asm_line_instruction(mempool *mp, instr_code op) {
     asm_instruction *i = mpalloc(mp, asm_instruction);
     i->operation = op;
     i->direction_regmem_to_regimm = true;
-    i->operands_size_bits = 64;
+    i->operands_data_size = DATA_QWORD;
 
     asm_line *l = new_asm_line_empty(mp);
     l->type = ALT_INSTRUCTION;
@@ -175,11 +175,11 @@ asm_line *new_asm_line_instruction_for_reserving_stack_space(mempool *mp, int si
 
     asm_instruction *i = l->per_type.instruction;
     i->direction_regmem_to_regimm = false;
-    i->operands_size_bits = 32;
+    i->operands_data_size = DATA_QWORD;
     i->regmem_operand.is_register = true;
-    i->regmem_operand.per_type.reg = REG_SP;
+    i->regmem_operand.per_type.reg = REG_RSP;
     i->regimm_operand.is_immediate = true;
-    i->regimm_operand.per_type.immediate = (((size + 3) / 4) * 4); // round size up to 4 bytes
+    i->regimm_operand.per_type.immediate = (((size + 7) / 8) * 8); // round size up to 8 bytes
 
     return l;
 }
@@ -246,11 +246,11 @@ asm_line *new_asm_line_instruction_reg_mem(mempool *mp, instr_code op, gp_regist
     return l;
 }
 
-asm_line *new_asm_line_instruction_mem_imm(mempool *mp, instr_code op, gp_register ptr_reg, u8 data_bits, long immediate) {
+asm_line *new_asm_line_instruction_mem_imm(mempool *mp, instr_code op, gp_register ptr_reg, data_size data_bits, long immediate) {
     asm_line *l = new_asm_line_instruction(mp, op);
 
     asm_instruction *i = l->per_type.instruction;
-    i->operands_size_bits = data_bits; // e.g. "DWORD PTR"
+    i->operands_data_size = data_bits; // e.g. "DWORD PTR"
     i->direction_regmem_to_regimm = false;
     i->regmem_operand.is_memory_by_reg = true;
     i->regmem_operand.per_type.mem.pointer_reg = ptr_reg;
@@ -295,62 +295,32 @@ asm_operand *new_asm_operand_mem_by_reg(mempool *mp, gp_register gp_reg_no, int 
 
 // ------------------------------------------------------------
 
-
-static void append_operand_instruction(asm_operand *op, char *buffer, int buff_size) {
-    char *pos = buffer + strlen(buffer);
-    int len = buff_size - strlen(buffer);
-
-    if (op->type == OT_IMMEDIATE) {
-        snprintf(pos, len, "0x%lx", op->immediate);
-    } else if (op->type == OT_REGISTER) {
-        snprintf(pos, len, "%c%s", run_info->options->register_prefix, gp_reg_name(op->reg));
-    } else if (op->type == OT_MEM_POINTED_BY_REG) {
-        snprintf(pos, len, "[%c%s%+ld]", run_info->options->register_prefix, gp_reg_name(op->reg), op->offset);
-    } else if (op->type == OT_MEM_OF_SYMBOL) {
-        snprintf(pos, len, "%s", op->symbol_name);
-    }
+data_size register_data_size(gp_register r) {
+    if ((r >= REG_RAX && r <= REG_RDI) || (r >= REG_R8  && r <= REG_R15))  return DATA_QWORD;
+    if ((r >= REG_EAX && r <= REG_EDI) || (r >= REG_R8D && r <= REG_R15D)) return DATA_DWORD;
+    if ((r >= REG_AX  && r <= REG_DI)  || (r >= REG_R8W && r <= REG_R15W)) return DATA_WORD;
+    if ((r >= REG_AL  && r <= REG_BH)  || (r >= REG_R8B && r <= REG_R15B)) return DATA_BYTE;
+    return DATA_UNKNOWN;
 }
 
-char *instr_code_name(instr_code code) {
-    switch (code) {
-        case OC_NOP: return "NOP"; 
-        case OC_MOV: return "MOV"; 
-        case OC_PUSH: return "PUSH"; 
-        case OC_POP: return "POP"; 
-        case OC_LEA: return "LEA";
-        case OC_ADD: return "ADD"; 
-        case OC_SUB: return "SUB";
-        case OC_INC: return "INC";
-        case OC_DEC: return "DEC";
-        case OC_MUL: return "MUL";
-        case OC_DIV: return "DIV";
-        case OC_AND: return "AND";
-        case OC_OR: return "OR";
-        case OC_XOR: return "XOR";
-        case OC_NOT: return "NOT";
-        case OC_NEG: return "NEG";
-        case OC_SHL: return "SHL";
-        case OC_SHR: return "SHR";
-        case OC_JMP: return "JMP";
-        case OC_CMP: return "CMP";
-        case OC_JEQ: return "JEQ";
-        case OC_JNE: return "JNE";
-        case OC_JAB: return "JAB";
-        case OC_JAE: return "JAE";
-        case OC_JBL: return "JBL";
-        case OC_JBE: return "JBE";
-        case OC_JGT: return "JGT";
-        case OC_JGE: return "JGE";
-        case OC_JLT: return "JLT";
-        case OC_JLE: return "JLE";
-        case OC_CALL: return "CALL";
-        case OC_RET: return "RET";
-        case OC_INT: return "INT";
+int register_bits(gp_register r) {
+    switch (register_data_size(r)) {
+        case DATA_QWORD: return 64;
+        case DATA_DWORD: return 32;
+        case DATA_WORD: return 16;
+        case DATA_BYTE: return 8;
     }
-    return "(unknown)";
+    return 0;
 }
 
-char *gp_reg_name(gp_register r) {
+bool register_is_extended(gp_register r) {
+    return (r >= REG_R9  && r <= REG_R15) 
+        || (r >= REG_R9B && r <= REG_R15B)
+        || (r >= REG_R9W && r <= REG_R15W)
+        || (r >= REG_R9D && r <= REG_R15D);
+}
+
+const char *register_name(gp_register r) {
     switch (r) {
         case REG_AL: return "AL";
         case REG_CL: return "CL";
@@ -424,25 +394,150 @@ char *gp_reg_name(gp_register r) {
         case REG_R14: return "R14";
         case REG_R15: return "R15";
     }
-    return "(\?\?\?)";
+    return "(unknown register)";
 }
 
+// -----------------------------------------------------------
+
+data_size asm_instruction_data_size(asm_instruction *instr) {
+
+    // reg <- reg, grab from reg, ensure same sizes
+    // mem <- reg, grab size from src reg
+    // reg <- mem, grab size from dest reg
+    // reg <- imm, grab size from dest reg
+    // mem <- imm, size must be explicit
+
+    // notice that a register used for pointing is ignored here,
+    // because the size of this pointer is irrelevant to the pointed data size.
+
+    if (instr->regmem_operand.is_register && instr->regimm_operand.is_register) {
+        // reg <--> reg
+        data_size s1 = register_data_size(instr->regmem_operand.per_type.reg);
+        data_size s2 = register_data_size(instr->regimm_operand.per_type.reg);
+        if (s1 != s2) {
+            error("reg <-> reg operations must have the same size");
+            return DATA_UNKNOWN;
+        }
+        return s1;
+
+    } else if ((instr->regmem_operand.is_memory_by_reg || instr->regmem_operand.is_mem_addr_by_symbol) &&
+                instr->regimm_operand.is_register) {
+        // memory <--> register
+        return register_data_size(instr->regimm_operand.per_type.reg);
+
+    } else if (instr->regmem_operand.is_register && instr->regimm_operand.is_immediate) {
+        // register <-- immediate
+        return register_data_size(instr->regmem_operand.per_type.reg);
+
+    } else if ((instr->regmem_operand.is_memory_by_reg || instr->regmem_operand.is_mem_addr_by_symbol) && 
+                instr->regimm_operand.is_immediate) {
+        // immediate to memory, we must have explicit memory size
+        return instr->operands_data_size;
+
+    } else if (instr->regmem_operand.is_register &&
+            !instr->regimm_operand.is_register && 
+            !instr->regimm_operand.is_immediate) {
+        // example: "PUSH RAX"
+        return register_data_size(instr->regmem_operand.per_type.reg);
+    } else if (!instr->regmem_operand.is_register &&
+                !instr->regmem_operand.is_memory_by_reg &&
+                !instr->regmem_operand.is_mem_addr_by_symbol &&
+                !instr->regimm_operand.is_immediate &&
+                !instr->regimm_operand.is_register) {
+        // example: "RET"
+        return DATA_UNKNOWN;
+
+    } else if ((instr->regmem_operand.is_memory_by_reg || instr->regmem_operand.is_mem_addr_by_symbol) && 
+                !instr->regimm_operand.is_immediate && !instr->regimm_operand.is_register) {
+        // e.g. "PUSH [RDX]"
+        return instr->operands_data_size;
+    }
+
+    fatal("Unexpected operands configuration!");
+    return DATA_UNKNOWN;
+}
+
+data_size asm_instruction_pointer_size(asm_instruction *instr) {
+    if (instr->regmem_operand.is_memory_by_reg) {
+        // only case pointer is relevant
+        return register_data_size(instr->regmem_operand.per_type.reg);
+    }
+
+    return DATA_UNKNOWN;
+}
+
+bool asm_instruction_has_immediate(asm_instruction *instr) {
+    return instr->regimm_operand.is_immediate;
+}
+
+// ------------------------------------------------------------
+
+static void append_operand_instruction(asm_operand *op, char *buffer, int buff_size) {
+    char *pos = buffer + strlen(buffer);
+    int len = buff_size - strlen(buffer);
+
+    if (op->type == OT_IMMEDIATE) {
+        snprintf(pos, len, "0x%lx", op->immediate);
+    } else if (op->type == OT_REGISTER) {
+        snprintf(pos, len, "%c%s", run_info->options->register_prefix, register_name(op->reg));
+    } else if (op->type == OT_MEM_POINTED_BY_REG) {
+        snprintf(pos, len, "[%c%s%+ld]", run_info->options->register_prefix, register_name(op->reg), op->offset);
+    } else if (op->type == OT_MEM_OF_SYMBOL) {
+        snprintf(pos, len, "%s", op->symbol_name);
+    }
+}
+
+const char *instr_code_name(instr_code code) {
+    switch (code) {
+        case OC_NOP: return "NOP"; 
+        case OC_MOV: return "MOV"; 
+        case OC_PUSH: return "PUSH"; 
+        case OC_POP: return "POP"; 
+        case OC_LEA: return "LEA";
+        case OC_ADD: return "ADD"; 
+        case OC_SUB: return "SUB";
+        case OC_INC: return "INC";
+        case OC_DEC: return "DEC";
+        case OC_MUL: return "MUL";
+        case OC_DIV: return "DIV";
+        case OC_AND: return "AND";
+        case OC_OR: return "OR";
+        case OC_XOR: return "XOR";
+        case OC_NOT: return "NOT";
+        case OC_NEG: return "NEG";
+        case OC_SHL: return "SHL";
+        case OC_SHR: return "SHR";
+        case OC_JMP: return "JMP";
+        case OC_CMP: return "CMP";
+        case OC_JEQ: return "JEQ";
+        case OC_JNE: return "JNE";
+        case OC_JAB: return "JAB";
+        case OC_JAE: return "JAE";
+        case OC_JBL: return "JBL";
+        case OC_JBE: return "JBE";
+        case OC_JGT: return "JGT";
+        case OC_JGE: return "JGE";
+        case OC_JLT: return "JLT";
+        case OC_JLE: return "JLE";
+        case OC_CALL: return "CALL";
+        case OC_RET: return "RET";
+        case OC_INT: return "INT";
+    }
+    return "(unknown)";
+}
 
 // ---------------------------------------------------------------
 
-
-
-
 static void _regmem_operand_to_str(asm_instruction *instr, str *str) {
     if (instr->regmem_operand.is_register) {
-        str_cats(str, gp_reg_name(instr->regmem_operand.per_type.reg));
+        str_cats(str, register_name(instr->regmem_operand.per_type.reg));
 
     } else {
         // it's memory, print address size if existing
-        if      (instr->operands_size_bits ==  8) str_cats(str, "BYTE PTR ");
-        else if (instr->operands_size_bits == 16) str_cats(str, "WORD PTR ");
-        else if (instr->operands_size_bits == 32) str_cats(str, "DWORD PTR ");
-        else if (instr->operands_size_bits == 64) str_cats(str, "QWORD PTR ");
+        if      (instr->operands_data_size == DATA_BYTE ) str_cats(str, "BYTE PTR ");
+        else if (instr->operands_data_size == DATA_WORD ) str_cats(str, "WORD PTR ");
+        else if (instr->operands_data_size == DATA_DWORD) str_cats(str, "DWORD PTR ");
+        else if (instr->operands_data_size == DATA_QWORD) str_cats(str, "QWORD PTR ");
 
         if (instr->regmem_operand.is_mem_addr_by_symbol) {
             if (instr->regmem_operand.per_type.mem.displacement_symbol_name != NULL)
@@ -451,10 +546,10 @@ static void _regmem_operand_to_str(asm_instruction *instr, str *str) {
                 str_catf(str, "0x%lx", instr->regmem_operand.per_type.mem.displacement);
 
         } else if (instr->regmem_operand.is_memory_by_reg) {
-            str_catf(str, "[%s", gp_reg_name(instr->regmem_operand.per_type.mem.pointer_reg));
+            str_catf(str, "[%s", register_name(instr->regmem_operand.per_type.mem.pointer_reg));
             if (instr->regmem_operand.per_type.mem.array_item_size > 0)
                 str_catf(str, "+%s*%d", 
-                    gp_reg_name(instr->regmem_operand.per_type.mem.array_index_reg),
+                    register_name(instr->regmem_operand.per_type.mem.array_index_reg),
                     instr->regmem_operand.per_type.mem.array_item_size);
             if (instr->regmem_operand.per_type.mem.displacement != 0)
                 str_catf(str, "%+ld", instr->regmem_operand.per_type.mem.displacement);
@@ -465,7 +560,7 @@ static void _regmem_operand_to_str(asm_instruction *instr, str *str) {
 
 static void _regimm_operand_to_str(asm_instruction *instr, str *str) {
     if (instr->regimm_operand.is_register) {
-        str_cats(str, gp_reg_name(instr->regimm_operand.per_type.reg));
+        str_cats(str, register_name(instr->regimm_operand.per_type.reg));
     } else if (instr->regimm_operand.is_immediate) {
         str_catf(str, "0x%lx", (unsigned)instr->regimm_operand.per_type.immediate);
     }

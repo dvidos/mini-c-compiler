@@ -229,7 +229,7 @@ static int compare_module_ids(const link2_lib_module_id *m1, const link2_lib_mod
     
     // see if same lib info by values
     c = str_cmp(m1->lib_info->pathname, m2->lib_info->pathname);
-    if (c != c) return c;
+    if (c != 0) return c;
 
     // so same libraries, see if same module
     if (m1->entry == m2->entry) return 0;

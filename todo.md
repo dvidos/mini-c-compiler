@@ -1,20 +1,11 @@
-* ~~fix pre/post inc/dec~~
-* ~~fix three address code assembly generation...~~
-* ~~implement the IR RETURN command to return a temp reg, to abstract away calling conventions~~
-* ~~asm encoding using the new instruction structure~~
-* ~~make the first executable, damn it! <------ Done!~~
-* ~~make x86_64 asm-to-machine-code encoder~~ Did it!
-  * ~~start offering the smallest operations for just a hello world example.~~
-* ~~rename the assembler into something else (backend IR converter?) and rename the Encoder into Assembler.~~
-* ~~convert AST to object-like and implement print to file, file line numbers~~
-~~* convert assembler and allocator to real objects, instead of singletons~~
-~~* convert all objects into objects, with priv_data, with "v" for operations vtable, because we have so many different patterns~~
+# todo
 
-* ~~verify operations on R8 - R15 registers~~
 * implement the x86_64 assembly of "hello world" listing, for end-to-end test
+  * fix the intermediate generation (AST -> IR -> ASM) the minimum needed for the end-to-end example (i.e. no IFs)
 
 * simplify list operations even more
   * e.g. around ASM listing
+  * make item_info a container's structure, that allows containers to sort, search, match, filter, stringify, hash etc the items.
   * list_contains() to use internal struct_info, no extra funcs to write
   * list_iterator_xxxx() to accept a pointer for local state storage.
   * implement `list_to_string(mp, separator)` for debugging
@@ -37,10 +28,12 @@ CALL math_demo       >> --  --  --  --  --  ff  00.010.101 --.---.--- 00.00.00.0
     * What are the input and output formats
   * Identify the data between each stage
     * Allow them to be saved and loaded from/to files
+  * Identify best way to implement multi-faceted, polymorphic data, e.g. AST-nodes or asm-lines
 
 * Better error handling, logging etc
 * Better testing... we do need this
- 
+* Better parsing, based on syntax diagram?
+
 
 
 
@@ -95,3 +88,19 @@ Another approach:
 Resources
 
 * https://tomassetti.me/resources-create-programming-languages/
+
+
+# done
+
+* ~~fix pre/post inc/dec~~
+* ~~fix three address code assembly generation...~~
+* ~~implement the IR RETURN command to return a temp reg, to abstract away calling conventions~~
+* ~~asm encoding using the new instruction structure~~
+* ~~make the first executable, damn it! <------ Done!~~
+* ~~make x86_64 asm-to-machine-code encoder~~ Did it!
+  * ~~start offering the smallest operations for just a hello world example.~~
+* ~~rename the assembler into something else (backend IR converter?) and rename the Encoder into Assembler.~~
+* ~~convert AST to object-like and implement print to file, file line numbers~~
+~~* convert assembler and allocator to real objects, instead of singletons~~
+~~* convert all objects into objects, with priv_data, with "v" for operations vtable, because we have so many different patterns~~
+* ~~verify operations on R8 - R15 registers~~
